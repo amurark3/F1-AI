@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import F1_TIMEZONES from '../constants/timeZone';
 import { fetcher } from '../utils/fetcher';
+import { API_BASE } from '../constants/api';
 
 /** Raw session object returned by the backend: { "Race": "ISO string", ... } */
 interface Session {
@@ -44,7 +45,7 @@ const RaceCalendar = () => {
   const [now, setNow] = useState<Date | null>(null);
 
   const { data: schedule, isLoading } = useSWR<RaceEvent[]>(
-    `http://localhost:8000/api/schedule/${year}`,
+    `${API_BASE}/api/schedule/${year}`,
     fetcher,
     {
       revalidateOnFocus: false, // Don't refetch on window focus

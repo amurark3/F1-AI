@@ -1,3 +1,14 @@
+/**
+ * F1 Circuit Timezone Map
+ * =======================
+ * A curated list of IANA timezone strings for every current F1 venue.
+ * Used by the RaceCalendar component to let users view session times in
+ * circuit-local time rather than their own browser timezone.
+ *
+ * To add a new venue, append an entry with the venue label and the
+ * correct IANA timezone string.
+ * Reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+ */
 const F1_TIMEZONES = [
   { label: "UK (Silverstone)", value: "Europe/London" },
   { label: "Central Europe (Monza/Spa/Zandvoort)", value: "Europe/Paris" },

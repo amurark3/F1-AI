@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface TelemetryData {
   driver1: string;
   driver2: string;
@@ -15,7 +13,7 @@ interface Props {
   data: TelemetryData;
 }
 
-const TelemetryCard: React.FC<Props> = ({ data }) => {
+const TelemetryCard = ({ data }: Props) => {
   const renderDelta = (delta: number) => {
     const isFaster = delta < 0;
     const color = isFaster ? "text-green-400" : "text-red-400";

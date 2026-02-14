@@ -1,3 +1,18 @@
+/**
+ * Chat Page — AI Pit Wall
+ * =======================
+ * Full-screen streaming chat interface for the F1 AI Race Engineer.
+ *
+ * How it works:
+ *  1. User submits a question via the input form.
+ *  2. The full message history is POSTed to the backend `/api/chat` endpoint.
+ *  3. The response is a plain-text stream (text/plain); chunks are read
+ *     incrementally via the Streams API and appended to the last message.
+ *  4. The chat list auto-scrolls to the newest message after every update.
+ *
+ * The backend handles the agentic LLM loop; this component only streams
+ * and renders the final text output.
+ */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -12,8 +27,10 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Ref attached to a sentinel div at the bottom of the chat list for auto-scroll.
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to the bottom whenever the message list changes.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -23,6 +40,7 @@ export default function ChatInterface() {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
+    // Optimistically add the user message and clear the input immediately.
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -31,28 +49,46 @@ export default function ChatInterface() {
       const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Send the full history so the backend has context for follow-up questions.
         body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
 
-      if (!response.body) return;
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response stream received from server.');
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
 
+      // Add an empty placeholder message that gets filled as chunks arrive.
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        assistantMessage += decoder.decode(value);
+        assistantMessage += decoder.decode(value, { stream: true });
+        // Update the last message in-place on every chunk for live streaming effect.
         setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { role: 'assistant', content: assistantMessage };
-          return newMessages;
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: assistantMessage };
+          return updated;
         });
       }
     } catch (error) {
-      console.error(error);
+      console.error('Chat error:', error);
+      // Surface the error in the chat so the user knows something went wrong.
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `**Connection Error:** Could not reach the backend. Make sure the server is running on port 8000.\n\n_${error}_`,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -60,31 +96,32 @@ export default function ChatInterface() {
 
   return (
     <main className="flex flex-col h-screen bg-neutral-950 text-gray-100 font-sans">
-      {/* HEADER */}
+      {/* Header */}
       <header className="flex items-center justify-between p-4 border-b border-red-900/30 bg-black/40 backdrop-blur">
         <Link href="/" className="text-xl font-bold text-red-500 uppercase cursor-pointer">
           &larr; Exit Pitlane
         </Link>
       </header>
 
-      {/* CHAT AREA */}
+      {/* Message list */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {messages.map((msg, index) => (
           <div key={index} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-2xl p-4 shadow-lg ${
                 msg.role === 'user' ? 'bg-red-900 text-white' : 'bg-gray-900 border border-gray-800'
               }`}>
-              {/* This simple tag handles Markdown tables perfectly */}
+              {/* whitespace-pre-wrap preserves Markdown table alignment */}
               <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
                 {msg.content}
               </div>
             </div>
           </div>
         ))}
+        {/* Sentinel element — scrolled into view after every message update */}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* INPUT AREA */}
+      {/* Input area */}
       <div className="p-4 bg-black/80 border-t border-gray-800">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto relative flex gap-3">
           <input
@@ -95,7 +132,11 @@ export default function ChatInterface() {
             className="w-full bg-gray-900 border border-gray-700 text-white rounded-full px-6 py-4 focus:outline-none focus:ring-2 focus:ring-red-600"
             disabled={isLoading}
           />
-          <button type="submit" disabled={isLoading} className="absolute right-2 top-2 bottom-2 bg-red-600 text-white px-6 rounded-full font-bold">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="absolute right-2 top-2 bottom-2 bg-red-600 text-white px-6 rounded-full font-bold"
+          >
             {isLoading ? '...' : 'Send'}
           </button>
         </form>

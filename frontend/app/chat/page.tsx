@@ -105,18 +105,48 @@ export default function ChatInterface() {
 
       {/* Message list */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl p-4 shadow-lg ${
-                msg.role === 'user' ? 'bg-red-900 text-white' : 'bg-gray-900 border border-gray-800'
-              }`}>
-              {/* whitespace-pre-wrap preserves Markdown table alignment */}
-              <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-                {msg.content}
+        {messages.map((msg, index) => {
+          // Hide the empty assistant placeholder — the loader below replaces it visually.
+          if (msg.role === 'assistant' && msg.content === '' && index === messages.length - 1 && isLoading) return null;
+          return (
+            <div key={index} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl p-4 shadow-lg ${
+                  msg.role === 'user' ? 'bg-red-900 text-white' : 'bg-gray-900 border border-gray-800'
+                }`}>
+                {/* whitespace-pre-wrap preserves Markdown table alignment */}
+                <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
+                  {msg.content}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Loading indicator — visible while waiting for stream to begin */}
+        {isLoading && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content === '' && (
+          <div className="flex w-full justify-start">
+            <div className="max-w-[85%] rounded-2xl p-4 shadow-lg bg-gray-900 border border-gray-800">
+              <div className="flex items-center gap-3">
+                {/* Spinning wheel — F1 tyre inspired */}
+                <div className="relative h-8 w-8">
+                  <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-red-500 animate-spin" />
+                  <div className="absolute inset-[6px] rounded-full bg-gray-800 border border-gray-700" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-red-400 tracking-wide">
+                    Analyzing telemetry
+                    <span className="inline-flex w-6">
+                      <span className="animate-pulse">...</span>
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-500">Race Engineer is processing your query</span>
+                </div>
               </div>
             </div>
           </div>
-        ))}
+        )}
+
         {/* Sentinel element — scrolled into view after every message update */}
         <div ref={messagesEndRef} />
       </div>
@@ -135,9 +165,17 @@ export default function ChatInterface() {
           <button
             type="submit"
             disabled={isLoading}
-            className="absolute right-2 top-2 bottom-2 bg-red-600 text-white px-6 rounded-full font-bold"
+            className="absolute right-2 top-2 bottom-2 bg-red-600 text-white px-6 rounded-full font-bold disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
           >
-            {isLoading ? '...' : 'Send'}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Live
+              </span>
+            ) : 'Send'}
           </button>
         </form>
       </div>

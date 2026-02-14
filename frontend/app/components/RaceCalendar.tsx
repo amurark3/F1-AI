@@ -182,10 +182,34 @@ const RaceCalendar = () => {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
-            {[1,2,3,4].map(i => (
-                <div key={i} className="h-48 bg-neutral-800 rounded-xl border border-neutral-700"></div>
+        <div className="space-y-6">
+          <div className="flex items-center justify-center gap-3 py-4">
+            <div className="relative h-8 w-8">
+              <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-red-500 animate-spin" />
+              <div className="absolute inset-[6px] rounded-full bg-neutral-900 border border-neutral-800" />
+            </div>
+            <span className="text-sm text-gray-400 font-medium tracking-wide">Loading {year} schedule<span className="animate-pulse">...</span></span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+            {[1,2,3,4,5,6,7,8].map(i => (
+                <div key={i} className="h-48 bg-neutral-800/50 rounded-xl border border-neutral-700/50">
+                  <div className="p-5 space-y-3">
+                    <div className="flex justify-between">
+                      <div className="h-3 w-16 bg-neutral-700 rounded" />
+                      <div className="h-5 w-20 bg-neutral-700 rounded" />
+                    </div>
+                    <div className="h-5 w-3/4 bg-neutral-700 rounded" />
+                    <div className="h-3 w-1/2 bg-neutral-700/50 rounded" />
+                    <div className="border-t border-neutral-700/30 pt-3 space-y-2">
+                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
+                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
+                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
+                    </div>
+                  </div>
+                </div>
             ))}
+          </div>
         </div>
       )}
 

@@ -1,11 +1,39 @@
+# Web framework
 fastapi
 uvicorn[standard]
-fastmcp
+
+# LLM / AI orchestration
 langchain
 langchain-community
+langchain-core
 langchain-google-genai
+langchain-huggingface
+langchain-chroma
+
+# Google Generative AI client
+google-generativeai
+
+# Vector database
 chromadb
+
+# Embeddings model (downloaded on first use)
+sentence-transformers
+
+# PDF loading (used by PyPDFLoader in ingest.py)
+pypdf
+
+# F1 data
+fastf1
+
+# Web search
+tavily-python
+
+# MCP server (optional — for Claude Desktop integration)
+fastmcp
+
+# Utilities
 pydantic
 requests
-python-dotenv
 httpx
+python-dotenv
+pandas

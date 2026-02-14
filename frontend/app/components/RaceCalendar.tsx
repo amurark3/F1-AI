@@ -1,8 +1,25 @@
+/**
+ * RaceCalendar Component
+ * ======================
+ * Renders a grid of race-weekend cards for the selected F1 season.
+ *
+ * Features:
+ *  - Year selector (2021–2026).
+ *  - Timezone selector: browser local time or any F1 circuit timezone.
+ *  - Session times converted to the selected timezone via Intl.DateTimeFormat.
+ *  - Highlights the next upcoming race and dims completed weekends.
+ *  - Live clock updates every 60 s so "next race" status stays accurate.
+ *
+ * All session timestamps are stored as UTC strings in the backend and
+ * converted to display-time purely on the frontend.
+ */
 "use client";
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import F1_TIMEZONES from '../constants/timeZone';
 import { fetcher } from '../utils/fetcher';
+
+/** Raw session object returned by the backend: { "Race": "ISO string", ... } */
 interface Session {
   [key: string]: string;
 }
@@ -17,28 +34,35 @@ interface RaceEvent {
 
 const RaceCalendar = () => {
   const currentDate = new Date();
+  // In December, pre-select next year's calendar since the current season is over.
   const defaultYear = currentDate.getMonth() >= 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear();
 
   const [year, setYear] = useState(defaultYear);
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  // `now` is initialised in an effect (not during render) to avoid hydration
+  // mismatches between server and client.
   const [now, setNow] = useState<Date | null>(null);
 
   const { data: schedule, error, isLoading } = useSWR<RaceEvent[]>(
     `http://localhost:8000/api/schedule/${year}`,
     fetcher,
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
+      revalidateOnFocus: false, // Don't refetch on window focus
+      dedupingInterval: 60000,  // Cache for 1 minute
     }
   );
 
+  // Initialise and tick `now` every 60 s so "NEXT RACE" badge stays accurate.
   useEffect(() => {
     setNow(new Date());
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  
+  /**
+   * Parses an ISO date string to a Date, appending "Z" if no timezone offset
+   * is present so the browser treats it as UTC rather than local time.
+   */
   const parseDate = (isoString: string | null | undefined): Date | null => {
     if (!isoString) return null;
     if (!isoString.endsWith("Z") && !isoString.includes("+")) {
@@ -100,8 +124,9 @@ const RaceCalendar = () => {
     return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
   };
 
+  /** Returns the round number of the next upcoming race, or null if none. */
   const getNextRaceId = () => {
-    if (!now || !schedule) return null; // Added safety check for schedule
+    if (!now || !schedule) return null;
     const upcoming = schedule.find(race => {
         const raceDate = parseDate(race.sessions['Race']) || parseDate(race.date);
         return raceDate && raceDate > now;
@@ -155,8 +180,7 @@ const RaceCalendar = () => {
         </div>
       </div>
 
-      {/* LOADING */}
-      {/* ✅ Correctly use isLoading from SWR */}
+      {/* Loading skeleton */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
             {[1,2,3,4].map(i => (
@@ -165,8 +189,7 @@ const RaceCalendar = () => {
         </div>
       )}
 
-      {/* EMPTY */}
-      {/* ✅ Safety check: ensure !isLoading AND schedule is valid */}
+      {/* Empty state — schedule not yet published for this year */}
       {!isLoading && (!schedule || schedule.length === 0) && (
          <div className="p-12 border border-dashed border-neutral-800 rounded-xl bg-neutral-900/50 text-center">
             <h3 className="text-xl text-gray-400 font-bold mb-2">No Data for {year}</h3>
@@ -174,8 +197,7 @@ const RaceCalendar = () => {
          </div>
       )}
 
-      {/* GRID */}
-      {/* ✅ Safety check: ensure schedule exists before mapping */}
+      {/* Race weekend card grid */}
       {!isLoading && schedule && schedule.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {schedule.map((race) => {

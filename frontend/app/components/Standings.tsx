@@ -1,33 +1,41 @@
+/**
+ * Standings Component
+ * ===================
+ * Displays the World Drivers' Championship or World Constructors' Championship
+ * standings table for a user-selected season.
+ *
+ * Data is fetched from the backend via SWR with a 1-minute deduplication
+ * window to avoid unnecessary API calls when switching tabs.
+ */
 "use client";
 
 import React, { useState } from 'react';
-import useSWR from 'swr'; // <--- NEW IMPORT
+import useSWR from 'swr';
 import { fetcher } from '../utils/fetcher';
 
-// ... interfaces ...
 interface DriverStanding { position: number; driver: string; team: string; points: number; wins: number; }
 interface ConstructorStanding { position: number; team: string; points: number; wins: number; }
 
 const Standings = () => {
   const currentDate = new Date();
+  // Default to the previous year before March (season hasn't started yet).
   const defaultYear = currentDate.getMonth() >= 2 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
 
   const [year, setYear] = useState(defaultYear);
   const [type, setType] = useState<'drivers' | 'constructors'>('drivers');
 
-  // --- SWR IMPLEMENTATION ---
   const { data, isLoading } = useSWR<any[]>(
     `http://localhost:8000/api/standings/${type}/${year}`,
     fetcher,
     {
-      revalidateOnFocus: false, // Prevents aggressive refetching
-      dedupingInterval: 60000, // 1 Minute Cache
+      revalidateOnFocus: false, // Don't refetch when the window regains focus
+      dedupingInterval: 60000,  // Cache responses for 1 minute
     }
   );
 
   return (
     <div>
-      {/* ... (Keep Header Controls exactly the same) ... */}
+      {/* Controls: toggle between Drivers / Constructors and select season year */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex bg-neutral-800 rounded-lg p-1 border border-neutral-700">
             <button onClick={() => setType('drivers')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all ${type === 'drivers' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Drivers</button>

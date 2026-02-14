@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '../utils/fetcher';
+import { API_BASE } from '../constants/api';
 
 const Standings = () => {
   const currentDate = new Date();
@@ -22,7 +23,7 @@ const Standings = () => {
   const [type, setType] = useState<'drivers' | 'constructors'>('drivers');
 
   const { data, isLoading } = useSWR<any[]>(
-    `http://localhost:8000/api/standings/${type}/${year}`,
+    `${API_BASE}/api/standings/${type}/${year}`,
     fetcher,
     {
       revalidateOnFocus: false, // Don't refetch when the window regains focus

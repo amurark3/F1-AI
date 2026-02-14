@@ -17,6 +17,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { API_BASE } from '../constants/api';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -46,7 +47,7 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send the full history so the backend has context for follow-up questions.

@@ -9,17 +9,14 @@
  */
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '../utils/fetcher';
-
-interface DriverStanding { position: number; driver: string; team: string; points: number; wins: number; }
-interface ConstructorStanding { position: number; team: string; points: number; wins: number; }
 
 const Standings = () => {
   const currentDate = new Date();
   // Default to the previous year before March (season hasn't started yet).
-  const defaultYear = currentDate.getMonth() >= 2 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
+  const defaultYear = currentDate.getMonth() >= 1 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
 
   const [year, setYear] = useState(defaultYear);
   const [type, setType] = useState<'drivers' | 'constructors'>('drivers');

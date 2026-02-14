@@ -14,7 +14,7 @@
  * converted to display-time purely on the frontend.
  */
 "use client";
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import F1_TIMEZONES from '../constants/timeZone';
 import { fetcher } from '../utils/fetcher';
@@ -43,7 +43,7 @@ const RaceCalendar = () => {
   // mismatches between server and client.
   const [now, setNow] = useState<Date | null>(null);
 
-  const { data: schedule, error, isLoading } = useSWR<RaceEvent[]>(
+  const { data: schedule, isLoading } = useSWR<RaceEvent[]>(
     `http://localhost:8000/api/schedule/${year}`,
     fetcher,
     {

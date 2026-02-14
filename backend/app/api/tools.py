@@ -29,7 +29,6 @@ from datetime import datetime
 from langchain_core.tools import tool
 from fastf1.ergast import Ergast
 from tavily import TavilyClient
-from app.api.prompts import RACE_ENGINEER_PERSONA
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 

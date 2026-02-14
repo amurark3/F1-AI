@@ -53,8 +53,26 @@ const Standings = () => {
 
       {/* TABLE */}
       {isLoading ? (
-        <div className="space-y-3 animate-pulse">
-            {[1,2,3,4,5].map(i => <div key={i} className="h-12 bg-neutral-800 rounded border border-neutral-700"></div>)}
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-3 py-4">
+            <div className="relative h-8 w-8">
+              <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-red-500 animate-spin" />
+              <div className="absolute inset-[6px] rounded-full bg-neutral-900 border border-neutral-800" />
+            </div>
+            <span className="text-sm text-gray-400 font-medium tracking-wide">Loading {type} standings<span className="animate-pulse">...</span></span>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-neutral-800 animate-pulse">
+            <div className="h-10 bg-neutral-800" />
+            {[1,2,3,4,5,6,7,8].map(i => (
+              <div key={i} className="flex items-center gap-4 px-6 py-4 border-t border-neutral-800/50">
+                <div className="h-4 w-8 bg-neutral-700/50 rounded" />
+                <div className="h-4 w-32 bg-neutral-700/50 rounded" />
+                <div className="h-4 w-24 bg-neutral-700/30 rounded ml-auto" />
+                <div className="h-4 w-12 bg-neutral-700/50 rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : !data || data.length === 0 ? (
         <div className="p-12 border border-dashed border-neutral-800 rounded-xl bg-neutral-900/50 text-center">

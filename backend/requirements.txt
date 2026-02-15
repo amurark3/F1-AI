@@ -31,6 +31,10 @@ tavily-python
 # MCP server (optional — for Claude Desktop integration)
 fastmcp
 
+# ML / Predictions
+scikit-learn
+joblib
+
 # Utilities
 pydantic
 requests

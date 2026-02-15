@@ -1,5 +1,6 @@
 # OS files
 .DS_Store
+Thumbs.db
 
 # Python Backend
 backend/venv/
@@ -8,10 +9,17 @@ backend/**/__pycache__/
 backend/*.pyc
 backend/.env
 backend/data/chroma/
-backend/f1_cache
+backend/f1_cache/
+backend/models/*.joblib
 
 # Node Frontend
 frontend/node_modules/
 frontend/.next/
 frontend/.env
 frontend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

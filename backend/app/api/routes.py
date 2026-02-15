@@ -98,6 +98,8 @@ async def chat_endpoint(request: ChatRequest):
     - Use 'get_race_results' for final race classifications.
     - Use 'compare_drivers' for specific lap-time comparisons.
     - Use 'perform_web_search' for recent news or information beyond your knowledge.
+    - Use 'predict_race_results' when the user asks about predicted outcomes, who will win, or expected results.
+    - Use 'calculate_championship_scenario' when the user asks about title battles, "could X have won", or points scenarios.
     - If a tool returns a Markdown table, present it exactly as-is.
     """
 
@@ -244,29 +246,50 @@ async def get_driver_standings(year: int):
     try:
         ergast = Ergast()
         data = ergast.get_driver_standings(season=year)
-        if not data.content:
+        if data.content:
+            df = data.content[0]
+            results = []
+            for _, row in df.iterrows():
+                # FastF1/Ergast returns either 'constructorName' (string) for
+                # single-team drivers, or 'constructorNames' (list) for drivers
+                # who raced for multiple teams in one season.
+                team_name = "Unknown"
+                if "constructorName" in row:
+                    team_name = row["constructorName"]
+                elif "constructorNames" in row:
+                    names = row["constructorNames"]
+                    team_name = names[-1] if isinstance(names, list) and names else str(names)
+
+                results.append({
+                    "position": int(row["position"]),
+                    "driver": f"{row['givenName']} {row['familyName']}",
+                    "team": team_name,
+                    "points": float(row["points"]),
+                    "wins": int(row["wins"]),
+                })
+            return results
+
+        # No standings yet (season hasn't started) — build a placeholder
+        # entry list by querying each constructor's drivers for the season.
+        constructors_df = ergast.get_constructor_info(season=year)
+        if constructors_df.empty:
             return []
 
-        df = data.content[0]
         results = []
-        for _, row in df.iterrows():
-            # FastF1/Ergast returns either 'constructorName' (string) for
-            # single-team drivers, or 'constructorNames' (list) for drivers
-            # who raced for multiple teams in one season.
-            team_name = "Unknown"
-            if "constructorName" in row:
-                team_name = row["constructorName"]
-            elif "constructorNames" in row:
-                names = row["constructorNames"]
-                team_name = names[-1] if isinstance(names, list) and names else str(names)
-
-            results.append({
-                "position": int(row["position"]),
-                "driver": f"{row['givenName']} {row['familyName']}",
-                "team": team_name,
-                "points": float(row["points"]),
-                "wins": int(row["wins"]),
-            })
+        pos = 1
+        for _, crow in constructors_df.iterrows():
+            cid = crow["constructorId"]
+            team_name = crow["constructorName"]
+            drivers_df = ergast.get_driver_info(season=year, constructor=cid)
+            for _, drow in drivers_df.iterrows():
+                results.append({
+                    "position": pos,
+                    "driver": f"{drow['givenName']} {drow['familyName']}",
+                    "team": team_name,
+                    "points": 0.0,
+                    "wins": 0,
+                })
+                pos += 1
         return results
 
     except Exception as e:
@@ -284,23 +307,62 @@ async def get_constructor_standings(year: int):
     try:
         ergast = Ergast()
         data = ergast.get_constructor_standings(season=year)
-        if not data.content:
+        if data.content:
+            df = data.content[0]
+            results = []
+            for _, row in df.iterrows():
+                results.append({
+                    "position": int(row["position"]),
+                    "team": row["constructorName"],
+                    "points": float(row["points"]),
+                    "wins": int(row["wins"]),
+                })
+            return results
+
+        # No standings yet (season hasn't started) — return the entry list
+        # from the Ergast constructor info endpoint with 0 points.
+        constructors_df = ergast.get_constructor_info(season=year)
+        if constructors_df.empty:
             return []
 
-        df = data.content[0]
         results = []
-        for _, row in df.iterrows():
+        for idx, (_, row) in enumerate(constructors_df.iterrows(), start=1):
             results.append({
-                "position": int(row["position"]),
+                "position": idx,
                 "team": row["constructorName"],
-                "points": float(row["points"]),
-                "wins": int(row["wins"]),
+                "points": 0.0,
+                "wins": 0,
             })
         return results
 
     except Exception as e:
         print(f"Constructor Standings Error: {e}")
         return []
+
+
+@router.get("/predictions/{year}/{grand_prix}")
+async def get_predictions(year: int, grand_prix: str):
+    """Returns ML-predicted finishing order for a Grand Prix."""
+    import asyncio
+    try:
+        from app.ml.predict import predict_race
+        # Run in thread pool — predict_race does blocking API calls with sleep().
+        result = await asyncio.to_thread(predict_race, year, grand_prix)
+        return {"prediction": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/scenario/{year}/{driver}")
+async def get_scenario(year: int, driver: str):
+    """Returns championship scenario analysis for a driver in a given season."""
+    import asyncio
+    try:
+        from app.ml.scenario import calculate_title_scenario
+        result = await asyncio.to_thread(calculate_title_scenario, year, driver)
+        return {"scenario": result}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @router.get("/health")

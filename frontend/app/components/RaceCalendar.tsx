@@ -33,15 +33,16 @@ interface RaceEvent {
   sessions: Session;
 }
 
+/** Stable reference to the browser's local IANA timezone (computed once). */
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 const RaceCalendar = () => {
   const currentDate = new Date();
   // In December, pre-select next year's calendar since the current season is over.
   const defaultYear = currentDate.getMonth() >= 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear();
 
   const [year, setYear] = useState(defaultYear);
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  // `now` is initialised in an effect (not during render) to avoid hydration
-  // mismatches between server and client.
+  const [timezone, setTimezone] = useState(LOCAL_TZ);
   const [now, setNow] = useState<Date | null>(null);
 
   const { data: schedule, isLoading } = useSWR<RaceEvent[]>(
@@ -53,10 +54,12 @@ const RaceCalendar = () => {
     }
   );
 
-  // Initialise and tick `now` every 60 s so "NEXT RACE" badge stays accurate.
+  // Hydration-safe: set `now` after mount, then tick every 60 s.
   useEffect(() => {
-    setNow(new Date());
-    const timer = setInterval(() => setNow(new Date()), 60000);
+    const update = () => setNow(new Date());
+    const timer = setInterval(update, 60000);
+    // Use requestAnimationFrame to avoid synchronous setState in effect body.
+    requestAnimationFrame(update);
     return () => clearInterval(timer);
   }, []);
 
@@ -66,7 +69,10 @@ const RaceCalendar = () => {
    */
   const parseDate = (isoString: string | null | undefined): Date | null => {
     if (!isoString) return null;
-    if (!isoString.endsWith("Z") && !isoString.includes("+")) {
+    // Check if the string already has a timezone designator (Z, +HH:MM, or -HH:MM after the time part).
+    // The regex matches a trailing Z or a +/- offset at the end of the string.
+    const hasOffset = /Z$|[+-]\d{2}:\d{2}$/.test(isoString);
+    if (!hasOffset) {
       return new Date(isoString + "Z");
     }
     return new Date(isoString);
@@ -140,15 +146,15 @@ const RaceCalendar = () => {
   return (
     <div>
       {/* HEADER CONTROLS */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold uppercase tracking-wider text-white">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-white">
                 F1 Schedule
             </h2>
             <select
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
-                className="bg-transparent text-red-500 text-2xl font-black italic uppercase border-none focus:ring-0 cursor-pointer hover:text-red-400 transition-colors"
+                className="bg-transparent text-red-500 text-xl sm:text-2xl font-black italic uppercase border-none focus:ring-0 cursor-pointer hover:text-red-400 transition-colors"
             >
                 <option value={2021}>2021</option>
                 <option value={2022}>2022</option>
@@ -165,8 +171,8 @@ const RaceCalendar = () => {
               onChange={(e) => setTimezone(e.target.value)}
               className="appearance-none bg-neutral-800 border border-neutral-700 text-gray-300 text-xs font-medium tracking-wide rounded p-2 pr-8 focus:ring-2 focus:ring-red-600 outline-none w-full sm:w-auto"
             >
-              <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>
-                📍 Local Time
+              <option value={LOCAL_TZ}>
+                Local Time ({LOCAL_TZ.replace(/_/g, ' ')})
               </option>
               <hr />
               {F1_TIMEZONES.map((tz) => (
@@ -183,34 +189,24 @@ const RaceCalendar = () => {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-center gap-3 py-4">
-            <div className="relative h-8 w-8">
-              <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-red-500 animate-spin" />
-              <div className="absolute inset-[6px] rounded-full bg-neutral-900 border border-neutral-800" />
-            </div>
-            <span className="text-sm text-gray-400 font-medium tracking-wide">Loading {year} schedule<span className="animate-pulse">...</span></span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
-            {[1,2,3,4,5,6,7,8].map(i => (
-                <div key={i} className="h-48 bg-neutral-800/50 rounded-xl border border-neutral-700/50">
-                  <div className="p-5 space-y-3">
-                    <div className="flex justify-between">
-                      <div className="h-3 w-16 bg-neutral-700 rounded" />
-                      <div className="h-5 w-20 bg-neutral-700 rounded" />
-                    </div>
-                    <div className="h-5 w-3/4 bg-neutral-700 rounded" />
-                    <div className="h-3 w-1/2 bg-neutral-700/50 rounded" />
-                    <div className="border-t border-neutral-700/30 pt-3 space-y-2">
-                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
-                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
-                      <div className="h-3 w-full bg-neutral-700/30 rounded" />
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-48 bg-neutral-900/50 rounded-xl border border-neutral-800/50 animate-pulse">
+              <div className="p-5 space-y-3">
+                <div className="flex justify-between">
+                  <div className="h-3 w-16 bg-neutral-800 rounded" />
+                  <div className="h-5 w-20 bg-neutral-800 rounded" />
                 </div>
-            ))}
-          </div>
+                <div className="h-5 w-3/4 bg-neutral-800 rounded" />
+                <div className="h-3 w-1/2 bg-neutral-800/60 rounded" />
+                <div className="border-t border-neutral-800/30 pt-3 space-y-2">
+                  <div className="h-3 w-full bg-neutral-800/40 rounded" />
+                  <div className="h-3 w-full bg-neutral-800/40 rounded" />
+                  <div className="h-3 w-full bg-neutral-800/40 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -224,7 +220,7 @@ const RaceCalendar = () => {
 
       {/* Race weekend card grid */}
       {!isLoading && schedule && schedule.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {schedule.map((race) => {
             const isNext = race.round === nextRaceId;
             const raceDate = parseDate(race.sessions['Race']);
@@ -234,7 +230,7 @@ const RaceCalendar = () => {
                 <div 
                 key={race.round}
                 className={`
-                    relative p-5 rounded-xl border transition-all duration-300 flex flex-col justify-between
+                    relative p-4 sm:p-5 rounded-xl border transition-all duration-300 flex flex-col justify-between
                     ${isWeekendDone 
                         ? "bg-neutral-950/50 border-neutral-800 opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100" 
                         : "bg-neutral-900 border-neutral-800"
@@ -262,7 +258,7 @@ const RaceCalendar = () => {
                          <span className={`text-[10px] font-bold tracking-widest uppercase ${isWeekendDone ? 'text-neutral-500' : 'text-red-500'}`}>
                             Round {race.round}
                         </span>
-                        <span className={`text-xl font-black leading-none tracking-tighter ${isWeekendDone ? 'text-neutral-500' : 'text-white'}`}>
+                        <span className={`text-base sm:text-xl font-black leading-none tracking-tighter ${isWeekendDone ? 'text-neutral-500' : 'text-white'}`}>
                             {getWeekendRange(race)}
                         </span>
                     </div>

@@ -1,12 +1,3 @@
-/**
- * Standings Component
- * ===================
- * Displays the World Drivers' Championship or World Constructors' Championship
- * standings table for a user-selected season.
- *
- * Data is fetched from the backend via SWR with a 1-minute deduplication
- * window to avoid unnecessary API calls when switching tabs.
- */
 "use client";
 
 import { useState } from 'react';
@@ -14,9 +5,25 @@ import useSWR from 'swr';
 import { fetcher } from '../utils/fetcher';
 import { API_BASE } from '../constants/api';
 
+/** Accent colour per constructor (approximation of official team colours). */
+const TEAM_COLORS: Record<string, string> = {
+  "Red Bull":         "#3671C6",
+  "Mercedes":         "#27F4D2",
+  "Ferrari":          "#E8002D",
+  "McLaren":          "#FF8000",
+  "Aston Martin":     "#229971",
+  "Alpine F1 Team":   "#FF87BC",
+  "Williams":         "#64C4FF",
+  "RB F1 Team":       "#6692FF",
+  "Haas F1 Team":     "#B6BABD",
+  "Audi":             "#FF0000",
+  "Cadillac F1 Team": "#E0D4B8",
+};
+
+const getTeamColor = (team: string) => TEAM_COLORS[team] ?? "#6B7280";
+
 const Standings = () => {
   const currentDate = new Date();
-  // Default to the previous year before March (season hasn't started yet).
   const defaultYear = currentDate.getMonth() >= 1 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
 
   const [year, setYear] = useState(defaultYear);
@@ -25,88 +32,174 @@ const Standings = () => {
   const { data, isLoading } = useSWR<any[]>(
     `${API_BASE}/api/standings/${type}/${year}`,
     fetcher,
-    {
-      revalidateOnFocus: false, // Don't refetch when the window regains focus
-      dedupingInterval: 60000,  // Cache responses for 1 minute
-    }
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
   return (
     <div>
-      {/* Controls: toggle between Drivers / Constructors and select season year */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div className="flex bg-neutral-800 rounded-lg p-1 border border-neutral-700">
-            <button onClick={() => setType('drivers')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all ${type === 'drivers' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Drivers</button>
-            <button onClick={() => setType('constructors')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all ${type === 'constructors' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Constructors</button>
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-3 sm:gap-4">
+        <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+          <button
+            onClick={() => setType('drivers')}
+            className={`px-4 sm:px-5 py-2 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all ${
+              type === 'drivers' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'
+            }`}
+          >
+            Drivers
+          </button>
+          <button
+            onClick={() => setType('constructors')}
+            className={`px-4 sm:px-5 py-2 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all ${
+              type === 'constructors' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'
+            }`}
+          >
+            Constructors
+          </button>
         </div>
+
         <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Season</span>
-            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="bg-neutral-800 text-white text-sm font-bold border border-neutral-700 rounded p-2 focus:ring-2 focus:ring-red-600 outline-none">
-                <option value={2021}>2021</option>
-                <option value={2022}>2022</option>
-                <option value={2023}>2023</option>
-                <option value={2024}>2024</option>
-                <option value={2025}>2025</option>
-                <option value={2026}>2026</option>
-            </select>
+          <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">Season</span>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="bg-neutral-900 text-white text-sm font-bold border border-neutral-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-600 outline-none"
+          >
+            {[2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* TABLE */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-center gap-3 py-4">
-            <div className="relative h-8 w-8">
-              <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-red-500 animate-spin" />
-              <div className="absolute inset-[6px] rounded-full bg-neutral-900 border border-neutral-800" />
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="space-y-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-neutral-900/60 rounded-xl border border-neutral-800/50 animate-pulse">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 bg-neutral-800 rounded-lg shrink-0" />
+              <div className="h-4 flex-1 max-w-[10rem] bg-neutral-800 rounded" />
+              <div className="h-4 w-12 sm:w-16 bg-neutral-800 rounded ml-auto" />
             </div>
-            <span className="text-sm text-gray-400 font-medium tracking-wide">Loading {type} standings<span className="animate-pulse">...</span></span>
-          </div>
-          <div className="overflow-hidden rounded-xl border border-neutral-800 animate-pulse">
-            <div className="h-10 bg-neutral-800" />
-            {[1,2,3,4,5,6,7,8].map(i => (
-              <div key={i} className="flex items-center gap-4 px-6 py-4 border-t border-neutral-800/50">
-                <div className="h-4 w-8 bg-neutral-700/50 rounded" />
-                <div className="h-4 w-32 bg-neutral-700/50 rounded" />
-                <div className="h-4 w-24 bg-neutral-700/30 rounded ml-auto" />
-                <div className="h-4 w-12 bg-neutral-700/50 rounded" />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && (!data || data.length === 0) && (
+        <div className="p-16 border border-dashed border-neutral-800 rounded-2xl bg-neutral-900/30 text-center">
+          <h3 className="text-xl text-gray-400 font-bold mb-2">No Standings Data</h3>
+          <p className="text-gray-600 text-sm">Data for {year} is not available yet.</p>
+        </div>
+      )}
+
+      {/* Driver standings */}
+      {!isLoading && data && data.length > 0 && type === 'drivers' && (
+        <div className="space-y-2">
+          {data.map((row) => {
+            const color = getTeamColor(row.team);
+            const isTopThree = row.position <= 3;
+            return (
+              <div
+                key={row.position}
+                className={`
+                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all duration-200
+                  ${isTopThree
+                    ? 'bg-neutral-900 border-neutral-700/80 hover:border-neutral-600'
+                    : 'bg-neutral-900/40 border-neutral-800/50 hover:border-neutral-700/60 hover:bg-neutral-900/70'
+                  }
+                `}
+              >
+                {/* Team colour accent */}
+                <div className="absolute left-0 top-3 bottom-3 w-1 rounded-full" style={{ backgroundColor: color }} />
+
+                {/* Position */}
+                <div className={`w-8 sm:w-10 text-center font-black text-base sm:text-lg ${isTopThree ? 'text-white' : 'text-neutral-500'}`}>
+                  {row.position}
+                </div>
+
+                {/* Driver + Team */}
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold truncate ${isTopThree ? 'text-white text-sm sm:text-base' : 'text-gray-300 text-sm'}`}>
+                    {row.driver}
+                  </p>
+                  <p className="text-[10px] sm:text-xs font-medium truncate" style={{ color }}>
+                    {row.team}
+                  </p>
+                </div>
+
+                {/* Wins */}
+                <div className="text-center w-12 sm:w-16 hidden sm:block">
+                  <p className={`font-mono text-sm ${row.wins > 0 ? 'text-white' : 'text-neutral-600'}`}>{row.wins}</p>
+                  <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Wins</p>
+                </div>
+
+                {/* Points */}
+                <div className="text-right w-14 sm:w-20">
+                  <p className={`font-mono font-black text-base sm:text-lg ${isTopThree ? 'text-white' : 'text-gray-300'}`}>
+                    {row.points}
+                  </p>
+                  <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Pts</p>
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      ) : !data || data.length === 0 ? (
-        <div className="p-12 border border-dashed border-neutral-800 rounded-xl bg-neutral-900/50 text-center">
-            <h3 className="text-xl text-gray-400 font-bold mb-2">No Standings Data</h3>
-            <p className="text-gray-500 text-sm">Data for {year} is not available yet.</p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-neutral-800">
-            <table className="w-full text-left text-sm text-gray-400">
-                <thead className="bg-neutral-800 text-gray-200 uppercase font-black text-xs tracking-wider">
-                    <tr>
-                        <th className="px-6 py-4">Pos</th>
-                        <th className="px-6 py-4">{type === 'drivers' ? 'Driver' : 'Team'}</th>
-                        {type === 'drivers' && <th className="px-6 py-4">Team</th>}
-                        <th className="px-6 py-4 text-right">Wins</th>
-                        <th className="px-6 py-4 text-right">Points</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800 bg-neutral-900/50">
-                    {data.map((row) => (
-                        <tr key={row.position} className="hover:bg-neutral-800/50 transition-colors">
-                            <td className="px-6 py-4 font-mono text-white">{row.position === 1 ? '🥇' : row.position === 2 ? '🥈' : row.position === 3 ? '🥉' : row.position}</td>
-                            <td className="px-6 py-4 font-bold text-white">{type === 'drivers' ? row.driver : row.team}</td>
-                            {type === 'drivers' && <td className="px-6 py-4 text-gray-500">{row.team}</td>}
-                            <td className="px-6 py-4 text-right font-mono">{row.wins}</td>
-                            <td className="px-6 py-4 text-right font-mono text-white font-bold">{row.points}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+      )}
+
+      {/* Constructor standings */}
+      {!isLoading && data && data.length > 0 && type === 'constructors' && (
+        <div className="space-y-2">
+          {data.map((row) => {
+            const color = getTeamColor(row.team);
+            const isTopThree = row.position <= 3;
+            return (
+              <div
+                key={row.position}
+                className={`
+                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all duration-200
+                  ${isTopThree
+                    ? 'bg-neutral-900 border-neutral-700/80 hover:border-neutral-600'
+                    : 'bg-neutral-900/40 border-neutral-800/50 hover:border-neutral-700/60 hover:bg-neutral-900/70'
+                  }
+                `}
+              >
+                {/* Team colour bar */}
+                <div className="absolute left-0 top-3 bottom-3 w-1 rounded-full" style={{ backgroundColor: color }} />
+
+                {/* Position */}
+                <div className={`w-8 sm:w-10 text-center font-black text-base sm:text-lg ${isTopThree ? 'text-white' : 'text-neutral-500'}`}>
+                  {row.position}
+                </div>
+
+                {/* Team name + colour dot */}
+                <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <p className={`font-bold truncate ${isTopThree ? 'text-white text-sm sm:text-base' : 'text-gray-300 text-sm'}`}>
+                    {row.team}
+                  </p>
+                </div>
+
+                {/* Wins */}
+                <div className="text-center w-12 sm:w-16 hidden sm:block">
+                  <p className={`font-mono text-sm ${row.wins > 0 ? 'text-white' : 'text-neutral-600'}`}>{row.wins}</p>
+                  <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Wins</p>
+                </div>
+
+                {/* Points */}
+                <div className="text-right w-14 sm:w-20">
+                  <p className={`font-mono font-black text-base sm:text-lg ${isTopThree ? 'text-white' : 'text-gray-300'}`}>
+                    {row.points}
+                  </p>
+                  <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Pts</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 };
+
 export default Standings;

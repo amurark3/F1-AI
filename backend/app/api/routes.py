@@ -23,7 +23,7 @@ import asyncio
 import threading
 import pandas as pd
 import fastf1
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime, timezone
@@ -652,6 +652,249 @@ async def get_race_detail(year: int, round_num: int):
     except Exception as e:
         print(f"Race detail error: {e}")
         return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Live timing WebSocket
+# ---------------------------------------------------------------------------
+# Polls OpenF1 API and fans out position/timing updates to connected clients.
+
+import httpx
+
+_live_connections: dict[str, list[WebSocket]] = {}
+
+
+async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
+    """Fetch latest positions from OpenF1 API."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://api.openf1.org/v1/position",
+                params={"session_key": session_key, "position__lte": 20},
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if not data:
+                return None
+
+            # Group by driver, take latest entry per driver
+            latest: dict[int, dict] = {}
+            for entry in data:
+                dn = entry.get("driver_number")
+                if dn is not None:
+                    latest[dn] = entry
+
+            positions = []
+            for dn, entry in sorted(latest.items(), key=lambda x: x[1].get("position", 99)):
+                positions.append({
+                    "position": entry.get("position", 0),
+                    "driver": str(dn),
+                    "gap": entry.get("gap_to_leader", "LEADER") or "LEADER",
+                    "last_lap": None,
+                    "sector1": None,
+                    "sector2": None,
+                    "sector3": None,
+                    "tyre": None,
+                    "pit_stops": None,
+                })
+            return positions
+    except Exception as e:
+        print(f"OpenF1 poll error: {e}")
+        return None
+
+
+async def _find_openf1_session(year: int, round_num: int) -> str | None:
+    """Find the current live session key from OpenF1."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://api.openf1.org/v1/sessions",
+                params={"year": year, "session_type": "Race"},
+            )
+            if resp.status_code != 200:
+                return None
+            sessions = resp.json()
+            # Match by meeting_key or round number approximation
+            for s in sessions:
+                if s.get("session_key"):
+                    return str(s["session_key"])
+            return None
+    except Exception:
+        return None
+
+
+@router.get("/compare/{year}/{driver1}/{driver2}")
+async def compare_drivers_endpoint(year: int, driver1: str, driver2: str):
+    """
+    Head-to-head comparison of two drivers across the season.
+
+    Returns qualifying battle, race battle, average positions, points,
+    and per-round breakdown for charts.
+    """
+    try:
+        result = await asyncio.to_thread(_build_comparison_sync, year, driver1, driver2)
+        return result
+    except asyncio.TimeoutError:
+        return {"error": "Comparison timed out. Try again."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) -> dict:
+    """Build season-long head-to-head stats for two drivers."""
+    ergast = Ergast()
+
+    # Resolve driver codes from standings
+    standings_data = ergast.get_driver_standings(season=year)
+    if not standings_data.content:
+        return {"error": f"No standings data for {year}"}
+
+    df = standings_data.content[0]
+
+    def find_driver(query: str) -> dict | None:
+        q = query.lower().strip()
+        for _, row in df.iterrows():
+            code = str(row.get("driverCode", "")).lower()
+            family = str(row.get("familyName", "")).lower()
+            given = str(row.get("givenName", "")).lower()
+            if q == code or q in family or q in given:
+                teams = row.get("constructorNames", row.get("constructorName", "Unknown"))
+                team = teams[-1] if isinstance(teams, list) and teams else str(teams)
+                return {
+                    "code": str(row.get("driverCode", "")),
+                    "name": f"{row.get('givenName', '')} {row.get('familyName', '')}",
+                    "team": team,
+                    "points": float(row.get("points", 0)),
+                    "wins": int(row.get("wins", 0)),
+                    "position": int(row.get("position", 0)),
+                }
+        return None
+
+    d1 = find_driver(driver1_query)
+    d2 = find_driver(driver2_query)
+
+    if not d1 or not d2:
+        return {"error": f"Could not find driver '{driver1_query}' or '{driver2_query}' in {year} standings."}
+
+    # Get race results for each round to build head-to-head
+    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+    now_utc = datetime.now()
+
+    quali_h2h = {"d1": 0, "d2": 0}
+    race_h2h = {"d1": 0, "d2": 0}
+    rounds = []
+
+    d1_positions = []
+    d2_positions = []
+
+    for _, event in schedule.iterrows():
+        race_date = event["EventDate"]
+        if race_date > now_utc:
+            break  # Skip future races
+
+        round_num = int(event["RoundNumber"])
+        gp_name = event["EventName"]
+
+        round_data = {"round": round_num, "name": gp_name}
+
+        # Try loading race results from Ergast (lighter than FastF1)
+        try:
+            race_data = ergast.get_race_results(season=year, round=round_num)
+            if race_data.content:
+                rdf = race_data.content[0]
+                d1_row = rdf[rdf["driverCode"] == d1["code"]]
+                d2_row = rdf[rdf["driverCode"] == d2["code"]]
+
+                if not d1_row.empty and not d2_row.empty:
+                    d1_pos = int(d1_row.iloc[0]["position"])
+                    d2_pos = int(d2_row.iloc[0]["position"])
+                    round_data["d1_race"] = d1_pos
+                    round_data["d2_race"] = d2_pos
+                    d1_positions.append(d1_pos)
+                    d2_positions.append(d2_pos)
+
+                    if d1_pos < d2_pos:
+                        race_h2h["d1"] += 1
+                    elif d2_pos < d1_pos:
+                        race_h2h["d2"] += 1
+        except Exception:
+            pass
+
+        # Try qualifying
+        try:
+            quali_data = ergast.get_qualifying_results(season=year, round=round_num)
+            if quali_data.content:
+                qdf = quali_data.content[0]
+                d1_q = qdf[qdf["driverCode"] == d1["code"]]
+                d2_q = qdf[qdf["driverCode"] == d2["code"]]
+
+                if not d1_q.empty and not d2_q.empty:
+                    d1_qpos = int(d1_q.iloc[0]["position"])
+                    d2_qpos = int(d2_q.iloc[0]["position"])
+                    round_data["d1_quali"] = d1_qpos
+                    round_data["d2_quali"] = d2_qpos
+
+                    if d1_qpos < d2_qpos:
+                        quali_h2h["d1"] += 1
+                    elif d2_qpos < d1_qpos:
+                        quali_h2h["d2"] += 1
+        except Exception:
+            pass
+
+        rounds.append(round_data)
+
+    return {
+        "driver1": d1,
+        "driver2": d2,
+        "qualifying_h2h": quali_h2h,
+        "race_h2h": race_h2h,
+        "avg_race_position": {
+            "d1": round(sum(d1_positions) / len(d1_positions), 1) if d1_positions else None,
+            "d2": round(sum(d2_positions) / len(d2_positions), 1) if d2_positions else None,
+        },
+        "rounds": rounds,
+    }
+
+
+@router.websocket("/live/{year}/{round_num}")
+async def live_timing(websocket: WebSocket, year: int, round_num: int):
+    """WebSocket endpoint for live race timing data."""
+    await websocket.accept()
+
+    room = f"{year}-{round_num}"
+    if room not in _live_connections:
+        _live_connections[room] = []
+    _live_connections[room].append(websocket)
+
+    try:
+        session_key = await _find_openf1_session(year, round_num)
+
+        while True:
+            if session_key:
+                positions = await _poll_openf1_positions(session_key)
+                if positions:
+                    await websocket.send_json({
+                        "type": "positions",
+                        "data": positions,
+                    })
+
+            # Wait before next poll
+            await asyncio.sleep(8)
+
+            # Check if client is still alive
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+            except asyncio.TimeoutError:
+                pass  # Client didn't send anything — that's fine
+
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        if room in _live_connections:
+            _live_connections[room] = [
+                ws for ws in _live_connections[room] if ws != websocket
+            ]
 
 
 @router.get("/health")

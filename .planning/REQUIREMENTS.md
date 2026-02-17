@@ -11,16 +11,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **INFRA-01**: ChromaDB vector store initializes once at startup as a singleton, not per tool call
 - [ ] **INFRA-02**: WebSocket connections have heartbeat pings and stale connections are cleaned up automatically
-- [ ] **INFRA-03**: Dead MCP prediction stubs and broken imports are removed from codebase
+- [ ] **INFRA-03**: Dead MCP prediction stubs and broken imports are removed from codebase, and README.md references to removed prediction modules are cleaned up
 - [ ] **INFRA-04**: Backend uses structured JSON logging instead of print() with emoji prefixes
 - [ ] **INFRA-05**: LLM safety settings are reviewed and set to appropriate levels for production
 - [ ] **INFRA-06**: Hardcoded timeouts (30s tool, 60s race data) are extracted to configuration constants
-
-### Test Infrastructure
-
-- [ ] **TEST-01**: Backend has pytest + pytest-asyncio test suite covering chat endpoint, tool functions, and streaming responses
-- [ ] **TEST-02**: Frontend has Vitest + MSW test suite covering useChat hook, stream parsing, and tool status markers
-- [ ] **TEST-03**: iOS has XCTest stubs covering critical ViewModels (ChatViewModel, LiveTimingViewModel, PredictionsViewModel)
 
 ### Backend Data Features
 
@@ -73,6 +67,12 @@ Deferred to future milestone. Tracked but not in current roadmap.
 - **IOS-V2-01**: Multi-widget suite — driver championship table, points to lead, last race podium widgets
 - **IOS-V2-02**: Shareable AI analysis cards — extend ShareableResultCard to AI chat messages with team colours
 
+### Test Infrastructure
+
+- **TEST-V2-01**: Backend has pytest + pytest-asyncio test suite covering chat endpoint, tool functions, and streaming responses
+- **TEST-V2-02**: Frontend has Vitest + MSW test suite covering useChat hook, stream parsing, and tool status markers
+- **TEST-V2-03**: iOS has XCTest stubs covering critical ViewModels (ChatViewModel, LiveTimingViewModel, PredictionsViewModel)
+
 ## Out of Scope
 
 Explicitly excluded. Documented to prevent scope creep.
@@ -94,40 +94,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| DATA-04 | — | Pending |
-| DATA-05 | — | Pending |
-| CLIENT-01 | — | Pending |
-| CLIENT-02 | — | Pending |
-| CLIENT-03 | — | Pending |
-| CLIENT-04 | — | Pending |
-| CLIENT-05 | — | Pending |
-| LIVE-01 | — | Pending |
-| LIVE-02 | — | Pending |
-| LIVE-03 | — | Pending |
-| LIVE-04 | — | Pending |
-| LIVE-05 | — | Pending |
-| PUSH-01 | — | Pending |
-| PUSH-02 | — | Pending |
-| PUSH-03 | — | Pending |
-| PUSH-04 | — | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Pending |
+| DATA-01 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Pending |
+| DATA-05 | Phase 2 | Pending |
+| CLIENT-01 | Phase 3 | Pending |
+| CLIENT-02 | Phase 3 | Pending |
+| CLIENT-03 | Phase 3 | Pending |
+| CLIENT-04 | Phase 3 | Pending |
+| CLIENT-05 | Phase 3 | Pending |
+| LIVE-01 | Phase 4 | Pending |
+| LIVE-02 | Phase 4 | Pending |
+| LIVE-03 | Phase 4 | Pending |
+| LIVE-04 | Phase 4 | Pending |
+| LIVE-05 | Phase 4 | Pending |
+| PUSH-01 | Phase 5 | Pending |
+| PUSH-02 | Phase 5 | Pending |
+| PUSH-03 | Phase 5 | Pending |
+| PUSH-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 (pending roadmap creation)
+- v1 requirements: 25 total
+- Mapped to phases: 25
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-16 after initial definition*
+*Last updated: 2026-02-16 after roadmap revision*

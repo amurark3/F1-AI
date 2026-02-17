@@ -30,11 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Backend logs are structured JSON lines parseable by any log aggregator -- no more print() with emoji
   4. Codebase has zero references to removed MCP prediction modules or broken imports, and README.md has no references to removed prediction modules
   5. All timeout values and LLM safety settings are configurable constants, not hardcoded magic numbers
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Config constants, dead code removal, and LLM safety settings
+- [ ] 01-02-PLAN.md — Structured logging, ChromaDB singleton, and WebSocket heartbeat
 
 ### Phase 2: Backend Data Features
 **Goal**: The backend can compute race predictions, analyze pit strategy, and return live weather data -- all exposed as LangChain tools and REST endpoints
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Hardening | 0/0 | Not started | - |
+| 1. Infrastructure Hardening | 0/2 | Planning complete | - |
 | 2. Backend Data Features | 0/0 | Not started | - |
 | 3. Client Feature Surface | 0/0 | Not started | - |
 | 4. Live Race Experience | 0/0 | Not started | - |

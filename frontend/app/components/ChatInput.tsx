@@ -1,6 +1,8 @@
 "use client";
 
 import { type RefObject } from 'react';
+import { SendHorizontal, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface ChatInputProps {
   input: string;
@@ -12,30 +14,31 @@ interface ChatInputProps {
 
 export default function ChatInput({ input, isLoading, inputRef, onInputChange, onSubmit }: ChatInputProps) {
   return (
-    <div className="shrink-0 border-t border-neutral-800/60 bg-neutral-950/90 backdrop-blur-md p-3 sm:p-4">
-      <form onSubmit={onSubmit} className="max-w-4xl mx-auto flex gap-2 sm:gap-3">
+    <div className="shrink-0 border-t border-white/5 glass-strong p-3 sm:p-4">
+      <form onSubmit={onSubmit} className="max-w-4xl mx-auto flex gap-3 sm:gap-4">
         <input
           ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           placeholder="Ask about any driver, race, or regulation..."
-          className="flex-1 min-w-0 bg-neutral-900 border border-neutral-800 text-white rounded-full px-4 sm:px-6 py-3 sm:py-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-600/60 focus:border-red-600/40 placeholder:text-neutral-600 transition-all"
+          className="flex-1 min-w-0 glass border-white/10 text-white rounded-full px-4 sm:px-6 py-3 sm:py-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500/30 focus:shadow-[0_0_20px_rgba(220,38,38,0.15)] placeholder:text-neutral-500 transition-all duration-300"
           disabled={isLoading}
           autoFocus
         />
-        <button
+        <motion.button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="shrink-0 bg-red-600 hover:bg-red-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-full text-sm font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="shrink-0 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg shadow-red-600/25 hover:shadow-red-500/30 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed transition-all duration-300"
         >
           {isLoading ? (
-            <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : 'Send'}
-        </button>
+            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+          ) : (
+            <SendHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
+          )}
+        </motion.button>
       </form>
     </div>
   );

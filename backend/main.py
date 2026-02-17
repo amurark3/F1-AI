@@ -14,14 +14,102 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import asyncio
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+
+import fastf1
+import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api import routes
+
+
+async def _prefetch_race_details():
+    """Background loop: pre-fetch completed race details every 30 minutes.
+
+    Populates the in-memory ``race_detail_cache`` in routes.py so that
+    user requests for completed races return instantly.
+
+    Loads ONE race at a time with a 5-second pause between each to avoid
+    overwhelming FastF1 / the F1 data API.
+    """
+    # Give the server a generous startup window before heavy I/O.
+    await asyncio.sleep(30)
+
+    while True:
+        try:
+            year = datetime.now(timezone.utc).year
+            schedule = await asyncio.to_thread(
+                fastf1.get_event_schedule, year, include_testing=False
+            )
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+
+            for _, row in schedule.iterrows():
+                round_num = int(row["RoundNumber"])
+                cache_key = (year, round_num)
+
+                # Skip if already cached.
+                if cache_key in routes.race_detail_cache:
+                    continue
+
+                # Check if the race is completed (race session + 3h buffer).
+                race_date = None
+                for i in range(1, 6):
+                    if f"Session{i}" in row and row[f"Session{i}"] == "Race":
+                        d = row[f"Session{i}DateUtc"]
+                        if pd.notna(d):
+                            race_date = d.to_pydatetime()
+                        break
+
+                if not race_date or now_utc <= race_date + pd.Timedelta(hours=3):
+                    continue
+
+                # Pre-fetch ONE race at a time with a 60s timeout.
+                print(f"📦 Prefetching race detail: {year} R{round_num}")
+                try:
+                    detail = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            routes._build_race_detail_sync, year, round_num
+                        ),
+                        timeout=60,
+                    )
+                    if detail.get("circuit") is not None:
+                        routes.race_detail_cache[cache_key] = detail
+                        print(f"✅ Cached: {year} R{round_num}")
+                except asyncio.TimeoutError:
+                    print(f"⏱️ Prefetch timeout for {year} R{round_num} — skipping")
+                except Exception as inner_err:
+                    print(f"⚠️  Prefetch failed for {year} R{round_num}: {inner_err}")
+
+                # Pause between races to avoid hammering the API.
+                await asyncio.sleep(5)
+
+        except Exception as e:
+            print(f"❌ Prefetch loop error: {e}")
+
+        # Sleep 30 minutes before the next sweep.
+        await asyncio.sleep(1800)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: starts background prefetch on boot, cancels on shutdown."""
+    task = asyncio.create_task(_prefetch_race_details())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
 
 app = FastAPI(
     title="F1 AI Race Engineer",
     description="AI-powered Formula 1 race analysis and strategy assistant.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS — restrict origins to the frontend dev server.

@@ -1,7 +1,13 @@
+/**
+ * Standings Component
+ * ===================
+ * Displays F1 driver / constructor championship standings with glass rows.
+ */
 "use client";
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { motion } from 'framer-motion';
 import { fetcher } from '../utils/fetcher';
 import { API_BASE } from '../constants/api';
 
@@ -39,19 +45,23 @@ const Standings = () => {
     <div>
       {/* Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-3 sm:gap-4">
-        <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+        <div className="flex glass rounded-2xl p-1">
           <button
             onClick={() => setType('drivers')}
-            className={`px-4 sm:px-5 py-2 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all ${
-              type === 'drivers' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
+              type === 'drivers'
+                ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-600/25'
+                : 'text-gray-500 hover:text-white hover:bg-white/5'
             }`}
           >
             Drivers
           </button>
           <button
             onClick={() => setType('constructors')}
-            className={`px-4 sm:px-5 py-2 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all ${
-              type === 'constructors' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
+              type === 'constructors'
+                ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-600/25'
+                : 'text-gray-500 hover:text-white hover:bg-white/5'
             }`}
           >
             Constructors
@@ -63,7 +73,7 @@ const Standings = () => {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="bg-neutral-900 text-white text-sm font-bold border border-neutral-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-600 outline-none"
+            className="appearance-none glass border-white/10 text-white text-sm font-bold rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500/40 outline-none"
           >
             {[2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -76,10 +86,10 @@ const Standings = () => {
       {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-neutral-900/60 rounded-xl border border-neutral-800/50 animate-pulse">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 bg-neutral-800 rounded-lg shrink-0" />
-              <div className="h-4 flex-1 max-w-[10rem] bg-neutral-800 rounded" />
-              <div className="h-4 w-12 sm:w-16 bg-neutral-800 rounded ml-auto" />
+            <div key={i} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 glass rounded-2xl animate-pulse">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 bg-white/5 rounded-lg shrink-0" />
+              <div className="h-4 flex-1 max-w-[10rem] bg-white/5 rounded" />
+              <div className="h-4 w-12 sm:w-16 bg-white/5 rounded ml-auto" />
             </div>
           ))}
         </div>
@@ -87,7 +97,7 @@ const Standings = () => {
 
       {/* Empty state */}
       {!isLoading && (!data || data.length === 0) && (
-        <div className="p-16 border border-dashed border-neutral-800 rounded-2xl bg-neutral-900/30 text-center">
+        <div className="p-16 border border-dashed border-white/10 glass rounded-2xl text-center">
           <h3 className="text-xl text-gray-400 font-bold mb-2">No Standings Data</h3>
           <p className="text-gray-600 text-sm">Data for {year} is not available yet.</p>
         </div>
@@ -95,18 +105,22 @@ const Standings = () => {
 
       {/* Driver standings */}
       {!isLoading && data && data.length > 0 && type === 'drivers' && (
-        <div className="space-y-2">
-          {data.map((row) => {
+        <div className="space-y-3">
+          {data.map((row, index) => {
             const color = getTeamColor(row.team);
             const isTopThree = row.position <= 3;
             return (
-              <div
+              <motion.div
                 key={row.position}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 200, delay: index * 0.03 }}
+                whileHover={{ scale: 1.01, x: 4 }}
                 className={`
-                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all duration-200
+                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-2xl transition-all duration-200
                   ${isTopThree
-                    ? 'bg-neutral-900 border-neutral-700/80 hover:border-neutral-600'
-                    : 'bg-neutral-900/40 border-neutral-800/50 hover:border-neutral-700/60 hover:bg-neutral-900/70'
+                    ? 'glass border-white/8 hover:border-white/15'
+                    : 'bg-white/3 border border-white/5 hover:bg-white/6'
                   }
                 `}
               >
@@ -141,7 +155,7 @@ const Standings = () => {
                   </p>
                   <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Pts</p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -149,18 +163,22 @@ const Standings = () => {
 
       {/* Constructor standings */}
       {!isLoading && data && data.length > 0 && type === 'constructors' && (
-        <div className="space-y-2">
-          {data.map((row) => {
+        <div className="space-y-3">
+          {data.map((row, index) => {
             const color = getTeamColor(row.team);
             const isTopThree = row.position <= 3;
             return (
-              <div
+              <motion.div
                 key={row.position}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 200, delay: index * 0.03 }}
+                whileHover={{ scale: 1.01, x: 4 }}
                 className={`
-                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all duration-200
+                  group relative flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-2xl transition-all duration-200
                   ${isTopThree
-                    ? 'bg-neutral-900 border-neutral-700/80 hover:border-neutral-600'
-                    : 'bg-neutral-900/40 border-neutral-800/50 hover:border-neutral-700/60 hover:bg-neutral-900/70'
+                    ? 'glass border-white/8 hover:border-white/15'
+                    : 'bg-white/3 border border-white/5 hover:bg-white/6'
                   }
                 `}
               >
@@ -193,7 +211,7 @@ const Standings = () => {
                   </p>
                   <p className="text-[10px] text-neutral-600 uppercase tracking-wider">Pts</p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

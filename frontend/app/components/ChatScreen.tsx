@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelLeftOpen } from 'lucide-react';
 import ChatSidebar from './ChatSidebar';
 import ChatWelcome from './ChatWelcome';
 import ChatMessages from './ChatMessages';
@@ -14,6 +15,7 @@ export default function ChatScreen() {
     messages,
     input,
     isLoading,
+    toolStatus,
     sidebarOpen,
     sidebarCollapsed,
     messagesEndRef,
@@ -26,6 +28,7 @@ export default function ChatScreen() {
     handleNewChat,
     handleSelectChat,
     handleDeleteChat,
+    regenerate,
   } = useChat();
 
   const hasMessages = messages.length > 0;
@@ -46,16 +49,14 @@ export default function ChatScreen() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile sidebar toggle */}
-        <div className="lg:hidden flex items-center px-4 py-2 border-b border-neutral-800/40">
+        <div className="lg:hidden flex items-center px-4 py-2 border-b border-white/5 bg-neutral-950/50 backdrop-blur-sm">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 transition-colors"
+            className="p-2 rounded-xl hover:bg-white/5 text-neutral-500 hover:text-white transition-all duration-200"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
+            <PanelLeftOpen className="w-5 h-5" />
           </button>
-          <span className="ml-3 text-sm text-neutral-500 truncate">
+          <span className="ml-3 text-sm text-neutral-400 font-medium truncate">
             {activeChat?.title ?? 'New Chat'}
           </span>
         </div>
@@ -66,7 +67,9 @@ export default function ChatScreen() {
             <ChatMessages
               messages={messages}
               isLoading={isLoading}
+              toolStatus={toolStatus}
               messagesEndRef={messagesEndRef}
+              onRegenerate={regenerate}
             />
           ) : (
             <ChatWelcome

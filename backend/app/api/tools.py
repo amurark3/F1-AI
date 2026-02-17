@@ -608,48 +608,6 @@ def get_season_schedule(year: int):
         return f"Failed to fetch schedule: {e}"
 
 
-# ---------------------------------------------------------------------------
-# ML Predictions & Scenario Analysis
-# ---------------------------------------------------------------------------
-
-@tool
-def predict_race_results(year: int, grand_prix: str):
-    """
-    Predicts the finishing order for a Grand Prix using a machine learning
-    model trained on historical F1 data (2018-2025).
-
-    The model considers qualifying position, constructor strength, driver
-    recent form, historical track performance, and DNF probability.
-
-    Use this when the user asks about predictions, expected results, or
-    "who will win" questions for races.
-
-    Parameters:
-        year: The season year (e.g. 2025).
-        grand_prix: The name of the Grand Prix (e.g. "Monaco", "British").
-    """
-    from app.ml.predict import predict_race
-    return predict_race(year, grand_prix)
-
-
-@tool
-def calculate_championship_scenario(year: int, driver: str):
-    """
-    Calculates how many points per remaining race a driver needed to win
-    the World Drivers' Championship, computed after each round of the season.
-
-    Shows the progression of mathematical possibility throughout the year.
-
-    Use this when the user asks about championship battles, title scenarios,
-    "could X have won the title", or points needed to win.
-
-    Parameters:
-        year: The season year (e.g. 2024).
-        driver: The driver's last name (e.g. "Norris", "Verstappen").
-    """
-    from app.ml.scenario import calculate_title_scenario
-    return calculate_title_scenario(year, driver)
-
 
 # ---------------------------------------------------------------------------
 # Tool registry — imported by routes.py
@@ -666,8 +624,6 @@ TOOL_LIST = [
     get_driver_standings,
     get_constructor_standings,
     get_season_schedule,
-    predict_race_results,
-    calculate_championship_scenario,
 ]
 
 # Map tool name → tool object for O(1) dispatch in the agentic loop.

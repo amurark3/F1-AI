@@ -11,6 +11,7 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -94,12 +95,26 @@ export function useChat() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        assistantContent += decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
-          return updated;
+        const chunk = decoder.decode(value, { stream: true });
+
+        // Parse tool status indicators from the stream.
+        // Format: [TOOL_START]Tool Name[/TOOL_START] and [TOOL_END]Tool Name[/TOOL_END]
+        const remaining = chunk.replace(/\[TOOL_START\](.*?)\[\/TOOL_START\]/g, (_, name) => {
+          setToolStatus(name);
+          return '';
+        }).replace(/\[TOOL_END\](.*?)\[\/TOOL_END\]/g, () => {
+          setToolStatus(null);
+          return '';
         });
+
+        if (remaining) {
+          assistantContent += remaining;
+          setMessages((prev) => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
+            return updated;
+          });
+        }
       }
 
       updateLastMessage(chatId, assistantContent);
@@ -110,6 +125,7 @@ export function useChat() {
       addMessage(chatId, { role: 'assistant', content: errMsg });
     } finally {
       setIsLoading(false);
+      setToolStatus(null);
     }
   }, [activeChatId, messages, createChat, addMessage, updateLastMessage]);
 
@@ -119,6 +135,42 @@ export function useChat() {
     await sendMessage(input.trim());
   }, [input, sendMessage]);
 
+  const regenerate = useCallback(async () => {
+    if (isLoading || messages.length < 2) return;
+
+    // Find the last user message
+    let lastUserMsg: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMsg = messages[i].content;
+        break;
+      }
+    }
+    if (!lastUserMsg) return;
+
+    // Remove the last assistant message from state and local storage
+    setMessages((prev) => {
+      const trimmed = [...prev];
+      // Remove trailing assistant message(s) until we hit the last user message
+      while (trimmed.length > 0 && trimmed[trimmed.length - 1].role === 'assistant') {
+        trimmed.pop();
+      }
+      return trimmed;
+    });
+
+    // Re-send the last user message (sendMessage adds a new user msg + assistant response)
+    // But we need to remove the last user message too since sendMessage will re-add it
+    setMessages((prev) => {
+      const trimmed = [...prev];
+      if (trimmed.length > 0 && trimmed[trimmed.length - 1].role === 'user') {
+        trimmed.pop();
+      }
+      return trimmed;
+    });
+
+    await sendMessage(lastUserMsg);
+  }, [isLoading, messages, sendMessage]);
+
   return {
     // State
     chats,
@@ -127,6 +179,7 @@ export function useChat() {
     messages,
     input,
     isLoading,
+    toolStatus,
     sidebarOpen,
     sidebarCollapsed,
 
@@ -143,5 +196,6 @@ export function useChat() {
     handleNewChat,
     handleSelectChat,
     handleDeleteChat,
+    regenerate,
   };
 }

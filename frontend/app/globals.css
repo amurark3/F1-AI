@@ -10,6 +10,9 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-speed-in: speed-in 0.5s ease-out both;
+  --animate-rev-up: rev-up 0.3s ease-in-out infinite;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +23,60 @@
 }
 
 body {
-  background: var(--background);
+  background: #0a0a0a;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220, 38, 38, 0.12), transparent),
+    radial-gradient(ellipse 50% 30% at 85% 20%, rgba(251, 146, 60, 0.06), transparent),
+    repeating-radial-gradient(circle at 1px 1px, transparent 0, transparent 1px, rgba(255,255,255,0.01) 1px, rgba(255,255,255,0.01) 2px);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Racing-inspired keyframes */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes speed-in {
+  from {
+    opacity: 0;
+    transform: translateX(30px) skewX(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) skewX(0);
+  }
+}
+
+@keyframes rev-up {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+
+/* Glass utilities */
+@utility glass {
+  background: rgba(23, 23, 23, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+@utility glass-strong {
+  background: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Scroll-snap utilities for full-page race calendar */
+@utility snap-container {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+@utility snap-page {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }

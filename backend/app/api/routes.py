@@ -35,6 +35,16 @@ from fastf1.ergast import Ergast
 from app.api.tools import TOOL_LIST, TOOL_MAP
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.circuits import get_circuit_info
+from app.config import (
+    TOOL_TIMEOUT_SECONDS,
+    FASTF1_TIMEOUT_SECONDS,
+    OPENF1_HTTP_TIMEOUT_SECONDS,
+    WS_RECEIVE_TIMEOUT,
+    WS_POLL_INTERVAL,
+    MAX_AGENT_TURNS,
+    LLM_MODEL_NAME,
+    LLM_TEMPERATURE,
+)
 
 router = APIRouter()
 
@@ -44,8 +54,8 @@ router = APIRouter()
 # safety_settings are relaxed because the assistant discusses race incidents,
 # crashes, and driver retirements — content that generic filters can misflag.
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",
-    temperature=0,
+    model=LLM_MODEL_NAME,
+    temperature=LLM_TEMPERATURE,
     google_api_key=os.getenv("GOOGLE_API_KEY"),
     safety_settings={
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -125,7 +135,7 @@ async def chat_endpoint(request: ChatRequest):
           - CASE B: Model returns text    → stream it to the client, break.
         """
         try:
-            max_turns = 5
+            max_turns = MAX_AGENT_TURNS
             turn_count = 0
 
             print("🤖 ASKING MODEL...")
@@ -157,11 +167,11 @@ async def chat_endpoint(request: ChatRequest):
                             try:
                                 tool_result = await asyncio.wait_for(
                                     asyncio.to_thread(TOOL_MAP[tool_name].invoke, tool_args),
-                                    timeout=30,
+                                    timeout=TOOL_TIMEOUT_SECONDS,
                                 )
                                 print(f"✅ RESULT (preview): {str(tool_result)[:80]}...")
                             except asyncio.TimeoutError:
-                                tool_result = f"Tool '{tool_name}' timed out after 30 seconds. The data source may be slow — try again."
+                                tool_result = f"Tool '{tool_name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
                                 print(f"⏱️ TOOL TIMEOUT: {tool_name}")
                             except Exception as tool_err:
                                 # Surface the error as a tool message so the model
@@ -619,7 +629,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
 
 # Per-request timeout for building race detail (seconds).
 # Generous because the lock means requests queue up sequentially.
-FASTF1_TIMEOUT = 60
+FASTF1_TIMEOUT = FASTF1_TIMEOUT_SECONDS
 
 
 @router.get("/race/{year}/{round_num}")
@@ -667,7 +677,7 @@ _live_connections: dict[str, list[WebSocket]] = {}
 async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
     """Fetch latest positions from OpenF1 API."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
             resp = await client.get(
                 "https://api.openf1.org/v1/position",
                 params={"session_key": session_key, "position__lte": 20},
@@ -707,7 +717,7 @@ async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
 async def _find_openf1_session(year: int, round_num: int) -> str | None:
     """Find the current live session key from OpenF1."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
             resp = await client.get(
                 "https://api.openf1.org/v1/sessions",
                 params={"year": year, "session_type": "Race"},
@@ -880,11 +890,11 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
                     })
 
             # Wait before next poll
-            await asyncio.sleep(8)
+            await asyncio.sleep(WS_POLL_INTERVAL)
 
             # Check if client is still alive
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+                await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
             except asyncio.TimeoutError:
                 pass  # Client didn't send anything — that's fine
 

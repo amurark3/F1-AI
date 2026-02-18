@@ -24,6 +24,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import routes
+from app.config import (
+    PREFETCH_STARTUP_DELAY,
+    PREFETCH_RACE_TIMEOUT_SECONDS,
+    PREFETCH_INTER_RACE_DELAY,
+    PREFETCH_INTERVAL,
+)
 
 
 async def _prefetch_race_details():
@@ -36,7 +42,7 @@ async def _prefetch_race_details():
     overwhelming FastF1 / the F1 data API.
     """
     # Give the server a generous startup window before heavy I/O.
-    await asyncio.sleep(30)
+    await asyncio.sleep(PREFETCH_STARTUP_DELAY)
 
     while True:
         try:
@@ -73,7 +79,7 @@ async def _prefetch_race_details():
                         asyncio.to_thread(
                             routes._build_race_detail_sync, year, round_num
                         ),
-                        timeout=60,
+                        timeout=PREFETCH_RACE_TIMEOUT_SECONDS,
                     )
                     if detail.get("circuit") is not None:
                         routes.race_detail_cache[cache_key] = detail
@@ -84,13 +90,13 @@ async def _prefetch_race_details():
                     print(f"⚠️  Prefetch failed for {year} R{round_num}: {inner_err}")
 
                 # Pause between races to avoid hammering the API.
-                await asyncio.sleep(5)
+                await asyncio.sleep(PREFETCH_INTER_RACE_DELAY)
 
         except Exception as e:
             print(f"❌ Prefetch loop error: {e}")
 
-        # Sleep 30 minutes before the next sweep.
-        await asyncio.sleep(1800)
+        # Sleep before the next sweep (default 30 minutes).
+        await asyncio.sleep(PREFETCH_INTERVAL)
 
 
 @asynccontextmanager

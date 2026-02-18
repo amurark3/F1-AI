@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** An intelligent F1 race engineer that can answer any Formula 1 question using real data -- race results, driver comparisons, regulations, and live timing -- across web and mobile.
-**Current focus:** Phase 1: Infrastructure Hardening
+**Current focus:** Phase 2: AI Quality
+**Completed:** Phase 1: Infrastructure Hardening
 
 ## Current Position
 
-Phase: 1 of 5 (Infrastructure Hardening)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-18 -- Completed 01-01-PLAN.md (config foundation, dead code removal, safety settings)
+Phase: 2 of 5 (AI Quality)
+Plan: 1 of ? in current phase
+Status: Phase 1 Complete -- Ready for Phase 2
+Last activity: 2026-02-18 -- Completed 01-02-PLAN.md (structured logging, ChromaDB singleton, WebSocket heartbeat)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 6min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 7min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-infrastructure-hardening | 1/2 | 6min | 6min |
+| 01-infrastructure-hardening | 2/2 | 14min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min)
-- Trend: Starting
+- Last 5 plans: 01-01 (6min), 01-02 (8min)
+- Trend: Consistent
 
 *Updated after each plan completion*
 
@@ -49,6 +50,9 @@ Recent decisions affecting current work:
 - 01-01: LLM safety uses BLOCK_ONLY_HIGH for dangerous/harassment (F1 crash content), BLOCK_MEDIUM_AND_ABOVE for hate/sexual (not F1-relevant)
 - 01-01: All config constants in backend/app/config.py with os.getenv() pattern for env overrides
 - 01-01: Removed dead MCP prediction tools (predict_race_results, calculate_championship_scenario) importing from non-existent app.ml
+- 01-02: structlog with ConsoleRenderer (dev) / JSONRenderer (prod) based on ENVIRONMENT env var
+- 01-02: ChromaDB singleton uses threading.Lock with double-check pattern for thread safety
+- 01-02: WebSocket heartbeat uses application-level JSON pings for client compatibility
 
 ### Pending Todos
 
@@ -63,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 01-01-PLAN.md
+Stopped at: Completed 01-02-PLAN.md (Phase 01 complete)
 Resume file: None

@@ -762,19 +762,257 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 
 
 # ===================================================================
-# Accuracy tracking (stubs — implemented fully in Task 2)
+# Accuracy tracking — JSON persistence
 # ===================================================================
 
+def _load_prediction_history() -> dict:
+    """Load the prediction history JSON file.
+
+    Returns an empty dict if the file is missing or corrupted.
+    Never raises — graceful degradation is paramount.
+    """
+    try:
+        path = Path(PREDICTION_HISTORY_PATH)
+        if not path.exists():
+            return {}
+        content = path.read_text(encoding="utf-8").strip()
+        if not content:
+            return {}
+        data = json.loads(content)
+        if not isinstance(data, dict):
+            logger.warning("predictions.history_invalid_format", path=str(path))
+            return {}
+        return data
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("predictions.history_load_error", error=str(exc))
+        return {}
+
+
+def _save_prediction_history(data: dict) -> None:
+    """Atomically write prediction history to JSON file.
+
+    Creates parent directories if needed.  Uses a write-to-temp-then-rename
+    pattern to avoid corruption from partial writes.
+    """
+    path = Path(PREDICTION_HISTORY_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = path.with_suffix(".json.tmp")
+    try:
+        tmp_path.write_text(
+            json.dumps(data, indent=2, default=str),
+            encoding="utf-8",
+        )
+        tmp_path.replace(path)  # Atomic on POSIX
+    except OSError as exc:
+        logger.warning("predictions.history_save_error", error=str(exc))
+        # Clean up temp file if rename failed
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def save_prediction(year: int, round_num: int, predictions: dict) -> None:
-    """Save a prediction to the history file. Full implementation in Task 2."""
-    pass
+    """Save a prediction to the history file for later accuracy comparison.
 
+    Stores predicted positions keyed by ``"(year,round)"`` along with
+    metadata.  Thread-safe via ``_history_file_lock``.
+    """
+    key = f"({year},{round_num})"
 
-def get_accuracy_stats(last_n_races: int = 5) -> dict:
-    """Compute rolling accuracy stats. Full implementation in Task 2."""
-    return {"races_evaluated": 0}
+    # Extract predicted positions: driver_code -> predicted position
+    predicted_positions = {}
+    for entry in predictions.get("predictions", []):
+        code = entry.get("driver_code", "")
+        pos = entry.get("position")
+        if code and pos is not None:
+            predicted_positions[code] = pos
+
+    if not predicted_positions:
+        return
+
+    with _history_file_lock:
+        history = _load_prediction_history()
+        history[key] = {
+            "predicted_positions": predicted_positions,
+            "generated_at": predictions.get("generated_at", datetime.now(timezone.utc).isoformat()),
+            "actual_positions": history.get(key, {}).get("actual_positions"),  # Preserve if already recorded
+        }
+        _save_prediction_history(history)
+
+    logger.info("predictions.saved", key=key, drivers=len(predicted_positions))
 
 
 def record_actual_result(year: int, round_num: int) -> None:
-    """Record actual race result. Full implementation in Task 2."""
-    pass
+    """Load actual race finishing positions from FastF1 and store in history.
+
+    Called lazily when accuracy stats are requested and actual data is
+    missing for a past race.
+    """
+    key = f"({year},{round_num})"
+
+    with _history_file_lock:
+        history = _load_prediction_history()
+
+        # Only update if we have a prediction but no actual result yet
+        entry = history.get(key)
+        if not entry or entry.get("actual_positions"):
+            return
+
+    # Load actual results (outside the file lock to avoid holding it during I/O)
+    actual_positions = {}
+    try:
+        with _fastf1_lock:
+            session = fastf1.get_session(year, round_num, "R")
+            session.load(telemetry=False, laps=False, weather=False)
+
+        results = session.results
+        if results is not None and not results.empty:
+            for _, row in results.iterrows():
+                code = str(row.get("Abbreviation", ""))
+                pos = row.get("Position")
+                if code and pos is not None:
+                    try:
+                        actual_positions[code] = int(pos)
+                    except (ValueError, TypeError):
+                        pass
+    except Exception as exc:
+        logger.warning(
+            "predictions.actual_result_load_error",
+            year=year, round=round_num, error=str(exc),
+        )
+        return
+
+    if not actual_positions:
+        return
+
+    # Write back with file lock
+    with _history_file_lock:
+        history = _load_prediction_history()
+        if key in history:
+            history[key]["actual_positions"] = actual_positions
+            _save_prediction_history(history)
+            logger.info("predictions.actual_recorded", key=key, drivers=len(actual_positions))
+
+
+def get_accuracy_stats(last_n_races: int = 5) -> dict:
+    """Compute rolling accuracy over the last N races with both prediction and actual data.
+
+    Returns:
+        Dict with keys: recent_top3_pct, recent_top10_pct,
+        avg_position_error, races_evaluated.
+
+    Gracefully returns ``{"races_evaluated": 0}`` if no data is available.
+    """
+    try:
+        history = _load_prediction_history()
+    except Exception:
+        return {"races_evaluated": 0}
+
+    if not history:
+        return {"races_evaluated": 0}
+
+    # Collect entries that have both predicted and actual positions
+    evaluated: list[dict] = []
+    for key, entry in history.items():
+        predicted = entry.get("predicted_positions")
+        actual = entry.get("actual_positions")
+        if predicted and actual:
+            evaluated.append({
+                "predicted": predicted,
+                "actual": actual,
+                "generated_at": entry.get("generated_at", ""),
+            })
+
+    if not evaluated:
+        # Try to lazily fill in actual results for entries that are missing them
+        for key, entry in history.items():
+            if entry.get("predicted_positions") and not entry.get("actual_positions"):
+                # Parse key "(year,round)"
+                try:
+                    parts = key.strip("()").split(",")
+                    y, r = int(parts[0]), int(parts[1])
+                    record_actual_result(y, r)
+                except (ValueError, IndexError):
+                    pass
+
+        # Re-load after attempting to fill actuals
+        try:
+            history = _load_prediction_history()
+        except Exception:
+            return {"races_evaluated": 0}
+
+        for key, entry in history.items():
+            predicted = entry.get("predicted_positions")
+            actual = entry.get("actual_positions")
+            if predicted and actual:
+                evaluated.append({
+                    "predicted": predicted,
+                    "actual": actual,
+                    "generated_at": entry.get("generated_at", ""),
+                })
+
+    if not evaluated:
+        return {"races_evaluated": 0}
+
+    # Sort by generated_at descending and take last N
+    evaluated.sort(key=lambda x: x.get("generated_at", ""), reverse=True)
+    evaluated = evaluated[:last_n_races]
+
+    # Compute metrics
+    total_top3_correct = 0
+    total_top3_possible = 0
+    total_top10_correct = 0
+    total_top10_possible = 0
+    total_position_errors: list[float] = []
+
+    for race in evaluated:
+        predicted = race["predicted"]
+        actual = race["actual"]
+
+        # Find common drivers
+        common_drivers = set(predicted.keys()) & set(actual.keys())
+        if not common_drivers:
+            continue
+
+        # Top-3 accuracy: predicted top 3 who actually finished top 3
+        predicted_top3 = {d for d, p in predicted.items() if p <= 3 and d in common_drivers}
+        actual_top3 = {d for d, p in actual.items() if p <= 3 and d in common_drivers}
+        top3_correct = len(predicted_top3 & actual_top3)
+        total_top3_correct += top3_correct
+        total_top3_possible += min(3, len(predicted_top3))
+
+        # Top-10 accuracy: predicted top 10 who actually finished top 10
+        predicted_top10 = {d for d, p in predicted.items() if p <= 10 and d in common_drivers}
+        actual_top10 = {d for d, p in actual.items() if p <= 10 and d in common_drivers}
+        top10_correct = len(predicted_top10 & actual_top10)
+        total_top10_correct += top10_correct
+        total_top10_possible += min(10, len(predicted_top10))
+
+        # Average position error across all common drivers
+        for driver in common_drivers:
+            error = abs(predicted[driver] - actual[driver])
+            total_position_errors.append(error)
+
+    races_evaluated = len(evaluated)
+
+    top3_pct = (
+        round(total_top3_correct / total_top3_possible * 100)
+        if total_top3_possible > 0 else 0
+    )
+    top10_pct = (
+        round(total_top10_correct / total_top10_possible * 100)
+        if total_top10_possible > 0 else 0
+    )
+    avg_error = (
+        round(statistics.mean(total_position_errors), 1)
+        if total_position_errors else 0.0
+    )
+
+    return {
+        "recent_top3_pct": top3_pct,
+        "recent_top10_pct": top10_pct,
+        "avg_position_error": avg_error,
+        "races_evaluated": races_evaluated,
+    }

@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 1 of 5 (Infrastructure Hardening)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-02-16 -- Roadmap revised (removed Test Infrastructure phase, renumbered to 5 phases)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-02-18 -- Completed 01-01-PLAN.md (config foundation, dead code removal, safety settings)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 6min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-infrastructure-hardening | 1/2 | 6min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (6min)
+- Trend: Starting
 
 *Updated after each plan completion*
 
@@ -46,6 +46,9 @@ Recent decisions affecting current work:
 - Roadmap: TEST-01, TEST-02, TEST-03 deferred to v2
 - Roadmap: Predictions use statistical/heuristic approach, not ML training (per PROJECT.md)
 - Roadmap: APNs push is Phase 5 (last) due to external infrastructure dependency and complexity
+- 01-01: LLM safety uses BLOCK_ONLY_HIGH for dangerous/harassment (F1 crash content), BLOCK_MEDIUM_AND_ABOVE for hate/sexual (not F1-relevant)
+- 01-01: All config constants in backend/app/config.py with os.getenv() pattern for env overrides
+- 01-01: Removed dead MCP prediction tools (predict_race_results, calculate_championship_scenario) importing from non-existent app.ml
 
 ### Pending Todos
 
@@ -59,6 +62,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Roadmap revised, ready for Phase 1 planning
+Last session: 2026-02-18
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None

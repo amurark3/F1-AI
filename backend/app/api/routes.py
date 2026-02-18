@@ -51,17 +51,33 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # LLM setup
 # ---------------------------------------------------------------------------
-# safety_settings are relaxed because the assistant discusses race incidents,
-# crashes, and driver retirements — content that generic filters can misflag.
+# Safety settings tuned for F1 domain content:
+#
+# DANGEROUS_CONTENT: BLOCK_ONLY_HIGH — F1 legitimately discusses crashes, fires,
+#   driver injuries, and safety incidents (e.g. "the crash at Copse", "driver
+#   hospitalization after impact"). Blocking at medium would break core functionality.
+#
+# HARASSMENT: BLOCK_ONLY_HIGH — F1 coverage includes team rivalries, driver
+#   criticism, steward decisions, and heated radio messages. These are normal
+#   sporting discourse, not harassment.
+#
+# HATE_SPEECH: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can apply
+#   stricter filtering without impacting legitimate queries.
+#
+# SEXUALLY_EXPLICIT: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can
+#   apply stricter filtering without impacting legitimate queries.
+#
+# Defense-in-depth: The system prompt in prompts.py has strong identity guardrails
+# that refuse all non-F1 topics, so these safety settings are a secondary layer.
 llm = ChatGoogleGenerativeAI(
     model=LLM_MODEL_NAME,
     temperature=LLM_TEMPERATURE,
     google_api_key=os.getenv("GOOGLE_API_KEY"),
     safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
     },
 )
 

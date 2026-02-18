@@ -6,7 +6,9 @@ Gemini model can invoke during the agentic loop in routes.py.
 
 Available tools
 ---------------
-  get_track_conditions        — Stub; returns placeholder weather text (not yet implemented).
+  get_race_predictions        — Probabilistic race outcome predictions with confidence ranges.
+  get_pit_strategy            — Pit strategy analysis with stint data and undercut/overcut.
+  get_weather_conditions      — Real weather data for F1 circuits (replaces old stub).
   perform_web_search          — Real-time web search via Tavily API.
   get_sprint_results          — Sprint race (Saturday short race) classification.
   get_sprint_qualifying_results — Sprint Qualifying / Shootout results split by SQ1/SQ2/SQ3.
@@ -22,6 +24,7 @@ TOOL_LIST and TOOL_MAP (at the bottom of this file) are imported by routes.py
 to bind tools to the LLM and dispatch them by name.
 """
 
+import asyncio
 import os
 import threading
 import structlog
@@ -35,6 +38,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
+from app.data.predictions import compute_race_predictions
+from app.data.strategy import analyze_pit_strategy
+from app.data.weather import get_weather_for_circuit
 
 logger = structlog.get_logger()
 
@@ -107,19 +113,280 @@ def _fmt_timedelta(time_val) -> str:
 # ---------------------------------------------------------------------------
 
 @tool
-def get_track_conditions(location: str):
+def get_race_predictions(year: int, round_num: int):
     """
-    Fetches weather conditions for a given F1 circuit location.
+    Predicts race finishing order for all 20 drivers with confidence ranges
+    and reasoning factors.
 
-    NOTE: This is currently a placeholder stub. Live weather integration
-    has not been implemented yet.  The model should mention to the user
-    that real-time weather is unavailable.
+    Use when user asks about race predictions, who will win, expected race
+    results, or finishing order.
+
+    Returns a rich race-engineer briefing with narrative reasoning,
+    driver-by-driver analysis for the top 5, summary table for positions
+    6-20, confidence ranges, and accuracy statistics.
     """
-    logger.info("tool.track_conditions", location=location, status="stub")
-    return (
-        "Live weather data is not yet available. "
-        "Please check a weather service or the official F1 app for current conditions."
-    )
+    logger.info("tool.race_predictions", year=year, round_num=round_num)
+    try:
+        result = compute_race_predictions(year, round_num)
+
+        if not result.get("predictions"):
+            warnings = result.get("warnings", [])
+            return f"Could not generate predictions for {year} Round {round_num}. {'; '.join(warnings) if warnings else 'No driver data available.'}"
+
+        predictions = result["predictions"]
+        gp_name = result.get("grand_prix", f"Round {round_num}")
+        data_sources = result.get("data_sources", [])
+        accuracy = result.get("accuracy", {})
+        warnings = result.get("warnings", [])
+
+        # Build race-engineer briefing
+        lines = []
+        lines.append(f"### Race Prediction: {gp_name} {year}")
+        lines.append("")
+
+        # Narrative intro
+        if predictions:
+            top1 = predictions[0]
+            top3 = predictions[:3]
+            top3_names = ", ".join(p["driver_name"] for p in top3)
+            lines.append(
+                f"Based on my analysis of qualifying pace and recent form, "
+                f"**{top1['driver_name']}** ({top1['team']}) is my top pick "
+                f"for the win with {top1['confidence_low']}-{top1['confidence_high']}% confidence."
+            )
+            lines.append(f"Predicted podium: {top3_names}")
+            lines.append("")
+
+        # Top 5 detailed analysis
+        lines.append("#### Top 5 - Detailed Analysis")
+        lines.append("")
+        for p in predictions[:5]:
+            factors_str = "; ".join(p.get("factors", []))
+            lines.append(
+                f"**P{p['position']}. {p['driver_name']}** ({p['team']}) "
+                f"[{p['confidence_low']}-{p['confidence_high']}% confidence]"
+            )
+            lines.append(f"  Key factors: {factors_str}")
+            lines.append("")
+
+        # Positions 6-20 summary table
+        if len(predictions) > 5:
+            lines.append("#### Positions 6-20")
+            lines.append("| Pos | Driver | Team | Confidence |")
+            lines.append("| :-- | :----- | :--- | :--------- |")
+            for p in predictions[5:]:
+                lines.append(
+                    f"| P{p['position']} | {p['driver_name']} | {p['team']} "
+                    f"| {p['confidence_low']}-{p['confidence_high']}% |"
+                )
+            lines.append("")
+
+        # Data sources and accuracy
+        lines.append(f"**Data sources:** {', '.join(data_sources)}")
+        if accuracy.get("races_evaluated", 0) > 0:
+            lines.append(
+                f"**Model accuracy** (last {accuracy['races_evaluated']} races): "
+                f"Top-3 {accuracy.get('recent_top3_pct', 0)}%, "
+                f"Top-10 {accuracy.get('recent_top10_pct', 0)}%, "
+                f"Avg position error {accuracy.get('avg_position_error', 'N/A')}"
+            )
+
+        if warnings:
+            lines.append(f"**Note:** {'; '.join(warnings)}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error("tool.race_predictions.error", error=str(e))
+        return f"Prediction analysis failed: {e}"
+
+
+@tool
+def get_pit_strategy(year: int, round_num: int, driver_code: str = None):
+    """
+    Analyzes pit strategy including tyre stints, undercut/overcut opportunities,
+    and historical strategy data.
+
+    Use when user asks about pit strategy, tyre choices, undercut, overcut,
+    or stint analysis.
+
+    Args:
+        year: Season year (e.g. 2024).
+        round_num: Round number in the season.
+        driver_code: Optional 3-letter driver code (e.g. 'VER'). If omitted,
+                     returns circuit-level strategy overview.
+    """
+    logger.info("tool.pit_strategy", year=year, round_num=round_num, driver=driver_code)
+    try:
+        result = analyze_pit_strategy(year, round_num, driver_code)
+
+        if result.get("error"):
+            return result["error"]
+
+        gp_name = result.get("grand_prix", f"Round {round_num}")
+        lines = []
+
+        if driver_code:
+            # Driver-specific strategy
+            lines.append(f"### Pit Strategy: {driver_code} - {gp_name} {year}")
+            lines.append("")
+
+            stints = result.get("stints", [])
+            if stints:
+                lines.append("#### Stint Breakdown")
+                lines.append("| Stint | Compound | Laps | Length | Avg Lap | Degradation | Fresh |")
+                lines.append("| :---- | :------- | :--- | :----- | :------ | :---------- | :---- |")
+                compound_labels = {
+                    "SOFT": "SOFT (Red)",
+                    "MEDIUM": "MEDIUM (Yellow)",
+                    "HARD": "HARD (White)",
+                    "INTERMEDIATE": "INTER (Green)",
+                    "WET": "WET (Blue)",
+                }
+                for s in stints:
+                    compound_display = compound_labels.get(s["compound"], s["compound"])
+                    deg_str = f"+{s['degradation_sec']:.2f}s" if s["degradation_sec"] > 0 else f"{s['degradation_sec']:.2f}s"
+                    fresh_str = "Yes" if s.get("fresh_tyres") else "No"
+                    lines.append(
+                        f"| {s['stint']} | {compound_display} | {s['laps']} "
+                        f"| {s['stint_length']} laps | {s['avg_lap_time']} "
+                        f"| {deg_str} | {fresh_str} |"
+                    )
+                lines.append("")
+
+            # Pit stops
+            pit_stops = result.get("pit_stops", [])
+            if pit_stops:
+                lines.append(f"**Pit stops:** {len(pit_stops)} stop{'s' if len(pit_stops) != 1 else ''}")
+                for ps in pit_stops:
+                    pos_info = f" (P{ps['position_before']})" if ps.get("position_before") else ""
+                    lines.append(f"  - Lap {ps['lap']}{pos_info}")
+                lines.append("")
+
+            # Undercut/overcut
+            uc_oc = result.get("undercut_overcut", [])
+            if uc_oc:
+                lines.append("#### Undercut/Overcut Analysis")
+                for item in uc_oc:
+                    lines.append(
+                        f"  - **{item['type'].capitalize()}** vs {item['target_driver']} "
+                        f"(lap {item['lap']}): {item['result']}"
+                    )
+                lines.append("")
+
+        else:
+            # Circuit overview
+            lines.append(f"### Strategy Overview: {gp_name} {year}")
+            lines.append("")
+
+            dist = result.get("strategy_distribution", {})
+            if dist:
+                lines.append("#### Strategy Distribution")
+                for strategy, count in dist.items():
+                    lines.append(f"  - {strategy}: {count} driver{'s' if count != 1 else ''}")
+                lines.append("")
+
+        # Historical strategies
+        hist = result.get("historical_strategies", {})
+        if hist and hist.get("editions"):
+            lines.append("#### Historical Context")
+            lines.append(f"**Dominant strategy:** {hist.get('dominant_strategy', 'N/A')}")
+            for ed in hist["editions"]:
+                lines.append(f"  - {ed['year']}: Winner used {ed['winner_strategy']} (avg {ed['avg_stops']} stops)")
+            lines.append("")
+
+        # Safety car
+        sc_prob = result.get("safety_car_probability")
+        sc_context = result.get("safety_car_context", "")
+        if sc_prob is not None:
+            lines.append(f"**Safety car probability:** {sc_prob}% - {sc_context}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error("tool.pit_strategy.error", error=str(e))
+        return f"Strategy analysis failed: {e}"
+
+
+@tool
+def get_weather_conditions(location: str):
+    """
+    Fetches current weather and hourly forecast for an F1 circuit.
+
+    Use when user asks about weather conditions, rain probability, track
+    temperature, or how weather affects strategy.
+
+    Args:
+        location: Circuit location name (e.g. 'Monaco', 'Silverstone', 'Sakhir').
+    """
+    logger.info("tool.weather_conditions", location=location)
+    try:
+        # get_weather_for_circuit is async; run it in a new event loop
+        # since LangChain tools are called from sync context via asyncio.to_thread
+        try:
+            loop = asyncio.get_running_loop()
+            # We're inside an event loop (shouldn't happen for tool calls via to_thread)
+            # Use a new thread with its own loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                result = pool.submit(
+                    lambda: asyncio.run(get_weather_for_circuit(location))
+                ).result(timeout=15)
+        except RuntimeError:
+            # No running event loop -- safe to use asyncio.run()
+            result = asyncio.run(get_weather_for_circuit(location))
+
+        if result.get("error"):
+            return result["error"]
+
+        current = result.get("current", {})
+        hourly = result.get("hourly_forecast", [])
+        track_context = result.get("track_context", "")
+        strategy_impact = result.get("strategy_impact", "")
+        circuit_name = result.get("circuit_name", location)
+
+        lines = []
+        lines.append(f"### Weather: {circuit_name} ({location})")
+        lines.append("")
+
+        # Current conditions
+        lines.append("#### Current Conditions")
+        lines.append(f"  - **Conditions:** {current.get('conditions', 'Unknown')}")
+        lines.append(f"  - **Air temperature:** {current.get('air_temp_c', 'N/A')}C")
+        lines.append(f"  - **Track temperature:** {current.get('track_temp_c', 'N/A')}C (estimated)")
+        lines.append(f"  - **Humidity:** {current.get('humidity_pct', 'N/A')}%")
+        lines.append(f"  - **Wind:** {current.get('wind_speed_kph', 'N/A')} km/h {current.get('wind_direction', '')}")
+        lines.append(f"  - **Rain probability:** {current.get('rain_probability_pct', 'N/A')}%")
+        lines.append("")
+
+        # Hourly forecast
+        if hourly:
+            lines.append("#### Hourly Forecast")
+            lines.append("| Time | Temp | Rain | Wind | Conditions |")
+            lines.append("| :--- | :--- | :--- | :--- | :--------- |")
+            for h in hourly:
+                lines.append(
+                    f"| {h.get('time', '')} | {h.get('temp_c', '')}C "
+                    f"| {h.get('rain_probability_pct', '')}% "
+                    f"| {h.get('wind_speed_kph', '')} km/h "
+                    f"| {h.get('conditions', '')} |"
+                )
+            lines.append("")
+
+        # Track context
+        if track_context:
+            lines.append(f"**Track context:** {track_context}")
+            lines.append("")
+
+        # Strategy impact
+        if strategy_impact:
+            lines.append(f"**Strategy impact:** {strategy_impact}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error("tool.weather_conditions.error", error=str(e))
+        return f"Weather data fetch failed: {e}"
 
 
 @tool
@@ -648,7 +915,9 @@ def get_season_schedule(year: int):
 # Tool registry — imported by routes.py
 # ---------------------------------------------------------------------------
 TOOL_LIST = [
-    get_track_conditions,
+    get_race_predictions,
+    get_pit_strategy,
+    get_weather_conditions,
     perform_web_search,
     get_sprint_results,
     get_sprint_qualifying_results,

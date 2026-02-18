@@ -21,6 +21,7 @@ The chat endpoint implements an agentic loop:
 import os
 import asyncio
 import threading
+import structlog
 import pandas as pd
 import fastf1
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -45,6 +46,8 @@ from app.config import (
     LLM_MODEL_NAME,
     LLM_TEMPERATURE,
 )
+
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -154,7 +157,7 @@ async def chat_endpoint(request: ChatRequest):
             max_turns = MAX_AGENT_TURNS
             turn_count = 0
 
-            print("🤖 ASKING MODEL...")
+            logger.info("agent.invoking_model")
             current_response = await llm_with_tools.ainvoke(langchain_messages)
 
             while turn_count < max_turns:
@@ -162,7 +165,7 @@ async def chat_endpoint(request: ChatRequest):
 
                 if current_response.tool_calls:
                     # CASE A — model wants to call tools
-                    print(f"🔄 TURN {turn_count}: Model requested {len(current_response.tool_calls)} tool(s).")
+                    logger.info("agent.turn", turn=turn_count, tool_count=len(current_response.tool_calls))
 
                     # Append the AI's "intent" message before tool results;
                     # LangChain requires this ordering in the message list.
@@ -179,21 +182,21 @@ async def chat_endpoint(request: ChatRequest):
                             friendly = tool_name.replace("_", " ").title()
                             yield f"[TOOL_START]{friendly}[/TOOL_START]"
 
-                            print(f"🛠️  EXECUTING: {tool_name} with args {tool_args}")
+                            logger.info("tool.executing", tool=tool_name, args=tool_args)
                             try:
                                 tool_result = await asyncio.wait_for(
                                     asyncio.to_thread(TOOL_MAP[tool_name].invoke, tool_args),
                                     timeout=TOOL_TIMEOUT_SECONDS,
                                 )
-                                print(f"✅ RESULT (preview): {str(tool_result)[:80]}...")
+                                logger.debug("tool.result", tool=tool_name, preview=str(tool_result)[:80])
                             except asyncio.TimeoutError:
                                 tool_result = f"Tool '{tool_name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
-                                print(f"⏱️ TOOL TIMEOUT: {tool_name}")
+                                logger.warning("tool.timeout", tool=tool_name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
                             except Exception as tool_err:
                                 # Surface the error as a tool message so the model
                                 # can decide how to handle it gracefully.
                                 tool_result = f"Error executing tool '{tool_name}': {tool_err}"
-                                print(f"❌ TOOL ERROR: {tool_result}")
+                                logger.error("tool.error", tool=tool_name, error=str(tool_err))
 
                             langchain_messages.append(
                                 ToolMessage(
@@ -210,7 +213,7 @@ async def chat_endpoint(request: ChatRequest):
 
                 else:
                     # CASE B — model has a final text answer; stream it.
-                    print("🤖 GENERATING FINAL TEXT...")
+                    logger.info("agent.generating_response")
                     yield current_response.content
                     return  # Exit the generator cleanly
 
@@ -218,7 +221,7 @@ async def chat_endpoint(request: ChatRequest):
             yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
 
         except Exception as e:
-            print(f"❌ CRITICAL ERROR IN GENERATE: {e}")
+            logger.error("agent.critical_error", error=str(e))
             yield f"**System Error:** My telemetry failed. Reason: {e}"
 
     return StreamingResponse(generate(), media_type="text/plain")
@@ -356,7 +359,7 @@ async def get_driver_standings(year: int):
         return results
 
     except Exception as e:
-        print(f"Driver Standings Error: {e}")
+        logger.error("api.driver_standings.error", error=str(e))
         return []
 
 
@@ -399,7 +402,7 @@ async def get_constructor_standings(year: int):
         return results
 
     except Exception as e:
-        print(f"Constructor Standings Error: {e}")
+        logger.error("api.constructor_standings.error", error=str(e))
         return []
 
 
@@ -543,7 +546,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
         result["podium"] = podium
 
     except Exception as e:
-        print(f"Race results load error for {year} R{round_num}: {e}")
+        logger.error("api.race_results.load_error", year=year, round=round_num, error=str(e))
 
     # --- Load qualifying results ---
     try:
@@ -571,7 +574,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
         result["qualifying"] = qualifying if qualifying else None
 
     except Exception as e:
-        print(f"Qualifying load error for {year} R{round_num}: {e}")
+        logger.error("api.qualifying.load_error", year=year, round=round_num, error=str(e))
 
     # --- Load sprint results (sprint weekends only) ---
     if is_sprint_weekend:
@@ -610,7 +613,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
             result["sprint_results"] = sprint_list if sprint_list else None
 
         except Exception as e:
-            print(f"Sprint results load error for {year} R{round_num}: {e}")
+            logger.error("api.sprint_results.load_error", year=year, round=round_num, error=str(e))
 
         # Sprint qualifying results
         try:
@@ -638,7 +641,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
             result["sprint_qualifying"] = sprint_quali if sprint_quali else None
 
         except Exception as e:
-            print(f"Sprint qualifying load error for {year} R{round_num}: {e}")
+            logger.error("api.sprint_qualifying.load_error", year=year, round=round_num, error=str(e))
 
     return result
 
@@ -673,10 +676,10 @@ async def get_race_detail(year: int, round_num: int):
             race_detail_cache[cache_key] = detail
         return detail
     except asyncio.TimeoutError:
-        print(f"⏱️ Race detail TIMEOUT for {year} R{round_num} after {FASTF1_TIMEOUT}s")
+        logger.warning("api.race_detail.timeout", year=year, round=round_num, timeout_seconds=FASTF1_TIMEOUT)
         return {"error": "Request timed out loading race data. Try again later.", "timeout": True}
     except Exception as e:
-        print(f"Race detail error: {e}")
+        logger.error("api.race_detail.error", error=str(e))
         return {"error": str(e)}
 
 
@@ -726,7 +729,7 @@ async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
                 })
             return positions
     except Exception as e:
-        print(f"OpenF1 poll error: {e}")
+        logger.error("openf1.poll_error", error=str(e))
         return None
 
 

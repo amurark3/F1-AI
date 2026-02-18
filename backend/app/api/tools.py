@@ -23,6 +23,7 @@ to bind tools to the LLM and dispatch them by name.
 """
 
 import os
+import structlog
 import fastf1
 import pandas as pd
 from datetime import datetime
@@ -31,6 +32,8 @@ from fastf1.ergast import Ergast
 from tavily import TavilyClient
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+
+logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Client setup
@@ -78,7 +81,7 @@ def get_track_conditions(location: str):
     has not been implemented yet.  The model should mention to the user
     that real-time weather is unavailable.
     """
-    print(f"🌍 TRACK CONDITIONS REQUESTED FOR: {location} (stub — not yet implemented)")
+    logger.info("tool.track_conditions", location=location, status="stub")
     return (
         "Live weather data is not yet available. "
         "Please check a weather service or the official F1 app for current conditions."
@@ -94,7 +97,7 @@ def perform_web_search(query: str):
     snippet, and source URL.  Use this for anything that may have changed
     after the model's knowledge cut-off (e.g. transfer rumours, latest news).
     """
-    print(f"🔎 SEARCHING TAVILY FOR: {query}")
+    logger.info("tool.web_search", query=query)
     try:
         response = tavily_client.search(query=query, search_depth="basic", max_results=3)
         results = response.get("results", [])
@@ -119,7 +122,7 @@ def get_sprint_results(year: int, grand_prix: str):
     Returns a Markdown table of finishing positions, driver abbreviations,
     and times / DNF reasons.
     """
-    print(f"🏎️  FETCHING SPRINT RESULTS: {grand_prix} {year}")
+    logger.info("tool.sprint_results", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "S")
         # telemetry and weather data are not needed for a results table.
@@ -159,7 +162,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str):
     Note: FastF1 uses column names Q1/Q2/Q3 even for sprint shootout data;
     laps=True is required because Ergast often lacks SQ split times.
     """
-    print(f"⏱️  FETCHING SPRINT SHOOTOUT: {grand_prix} {year}")
+    logger.info("tool.sprint_qualifying", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "SQ")
         # laps=True is required: Ergast often doesn't carry SQ1/SQ2/SQ3 columns,
@@ -232,7 +235,7 @@ def get_qualifying_results(year: int, grand_prix: str):
     IMPORTANT: Do NOT use this for Sprint Qualifying / Shootout sessions.
     Use get_sprint_qualifying_results for those.
     """
-    print(f"🏎️  FETCHING QUALIFYING DATA: {grand_prix} {year}")
+    logger.info("tool.qualifying", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "Q")
         session.load(telemetry=False, laps=False, weather=False)
@@ -285,7 +288,7 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str):
     Returns a Markdown table showing total gap and per-sector deltas,
     with green/red indicators for faster/slower relative to driver2.
     """
-    print(f"⚔️  COMPARING: {driver1} vs {driver2} at {grand_prix} {year}")
+    logger.info("tool.compare_drivers", driver1=driver1, driver2=driver2, grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "Q")
         # laps=True is required to access per-driver fastest lap data.
@@ -312,7 +315,7 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str):
                 f"in the entry list for {grand_prix} {year}."
             )
 
-        print(f"✅ Resolved: {driver1} → {d1_code}, {driver2} → {d2_code}")
+        logger.debug("tool.compare_drivers.resolved", d1_code=d1_code, d2_code=d2_code)
 
         d1_lap = session.laps.pick_driver(d1_code).pick_fastest()
         d2_lap = session.laps.pick_driver(d2_code).pick_fastest()
@@ -359,7 +362,7 @@ def get_race_results(year: int, grand_prix: str):
 
     Handles DNFs, DSQs, and lapped cars via the 'Status' column.
     """
-    print(f"🏁 FETCHING RACE RESULTS: {grand_prix} {year}")
+    logger.info("tool.race_results", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "R")
         session.load(telemetry=False, laps=False, weather=False)
@@ -448,12 +451,12 @@ def consult_rulebook(query: str, year: int = None):
 
         if season_ended and os.path.exists(f"data/raw/{current_year + 1}"):
             year = current_year + 1
-            print(f"📅 Season over. Defaulting to next year's regulations: {year}")
+            logger.info("rulebook.year_resolved", year=year, reason="season_over")
         else:
             year = current_year
-            print(f"📅 Using current season regulations: {year}")
+            logger.info("rulebook.year_resolved", year=year, reason="current_season")
 
-    print(f"⚖️  CONSULTING RULEBOOK ({year}): {query}")
+    logger.info("tool.consult_rulebook", year=year, query=query)
 
     try:
         db_path = "data/chroma"
@@ -500,7 +503,7 @@ def get_driver_standings(year: int):
     Returns a Markdown table of position, driver code, team(s), points, wins.
     Drivers who competed for multiple teams are shown with all teams listed.
     """
-    print(f"🏆 FETCHING DRIVER STANDINGS: {year}")
+    logger.info("tool.driver_standings", year=year)
     try:
         ergast = Ergast()
         data = ergast.get_driver_standings(season=year)
@@ -527,7 +530,7 @@ def get_driver_standings(year: int):
         return "\n".join(output)
 
     except Exception as e:
-        print(f"DEBUG ERROR: {e}")
+        logger.error("tool.driver_standings.error", error=str(e))
         return f"Failed to fetch driver standings: {e}"
 
 
@@ -538,7 +541,7 @@ def get_constructor_standings(year: int):
 
     Returns a Markdown table of position, team name, points, and wins.
     """
-    print(f"🏆 FETCHING CONSTRUCTOR STANDINGS: {year}")
+    logger.info("tool.constructor_standings", year=year)
     try:
         ergast = Ergast()
         data = ergast.get_constructor_standings(season=year)
@@ -574,7 +577,7 @@ def get_season_schedule(year: int):
     and appends a summary of the last completed race to help the LLM resolve
     queries like 'What happened in the last race?'.
     """
-    print(f"📅 CHECKING SCHEDULE: {year}")
+    logger.info("tool.season_schedule", year=year)
     try:
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
         today = datetime.now()

@@ -18,11 +18,13 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+import structlog
 import fastf1
 import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.logging_config import setup_logging
 from app.api import routes
 from app.config import (
     PREFETCH_STARTUP_DELAY,
@@ -30,6 +32,8 @@ from app.config import (
     PREFETCH_INTER_RACE_DELAY,
     PREFETCH_INTERVAL,
 )
+
+logger = structlog.get_logger()
 
 
 async def _prefetch_race_details():
@@ -73,7 +77,7 @@ async def _prefetch_race_details():
                     continue
 
                 # Pre-fetch ONE race at a time with a 60s timeout.
-                print(f"📦 Prefetching race detail: {year} R{round_num}")
+                logger.info("prefetch.starting", year=year, round=round_num)
                 try:
                     detail = await asyncio.wait_for(
                         asyncio.to_thread(
@@ -83,17 +87,17 @@ async def _prefetch_race_details():
                     )
                     if detail.get("circuit") is not None:
                         routes.race_detail_cache[cache_key] = detail
-                        print(f"✅ Cached: {year} R{round_num}")
+                        logger.info("prefetch.cached", year=year, round=round_num)
                 except asyncio.TimeoutError:
-                    print(f"⏱️ Prefetch timeout for {year} R{round_num} — skipping")
+                    logger.warning("prefetch.timeout", year=year, round=round_num)
                 except Exception as inner_err:
-                    print(f"⚠️  Prefetch failed for {year} R{round_num}: {inner_err}")
+                    logger.error("prefetch.failed", year=year, round=round_num, error=str(inner_err))
 
                 # Pause between races to avoid hammering the API.
                 await asyncio.sleep(PREFETCH_INTER_RACE_DELAY)
 
         except Exception as e:
-            print(f"❌ Prefetch loop error: {e}")
+            logger.error("prefetch.loop_error", error=str(e))
 
         # Sleep before the next sweep (default 30 minutes).
         await asyncio.sleep(PREFETCH_INTERVAL)
@@ -102,6 +106,8 @@ async def _prefetch_race_details():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: starts background prefetch on boot, cancels on shutdown."""
+    setup_logging()
+    logger.info("server.starting")
     task = asyncio.create_task(_prefetch_race_details())
     yield
     task.cancel()

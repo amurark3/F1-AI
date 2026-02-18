@@ -32,6 +32,9 @@ tavily-python
 fastmcp
 
 
+# Structured logging
+structlog
+
 # Utilities
 pydantic
 requests

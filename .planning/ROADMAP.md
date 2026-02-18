@@ -45,11 +45,12 @@ Plans:
   2. Asking the chat about pit strategy returns undercut/overcut analysis with stint data and tyre degradation context
   3. GET /api/predictions/{year}/{round_num} returns structured JSON with race outcome probabilities consumable by iOS and web
   4. Weather tool returns real temperature, rainfall, and wind data for current F1 venues instead of stub responses
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Race prediction engine with heuristic scoring and accuracy tracker
+- [ ] 02-02-PLAN.md — Pit strategy analysis, live weather module, and circuit GPS coordinates
+- [ ] 02-03-PLAN.md — LangChain tool wiring, predictions REST endpoint, and system prompt update
 
 ### Phase 3: Client Feature Surface
 **Goal**: Users see predictions, championship scenarios, and polished error states across iOS and web -- the app feels complete and handles failures gracefully
@@ -106,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Hardening | 0/2 | Planning complete | - |
-| 2. Backend Data Features | 0/0 | Not started | - |
+| 2. Backend Data Features | 0/3 | Planning complete | - |
 | 3. Client Feature Surface | 0/0 | Not started | - |
 | 4. Live Race Experience | 0/0 | Not started | - |
 | 5. Push Infrastructure | 0/0 | Not started | - |

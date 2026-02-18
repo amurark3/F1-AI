@@ -23,6 +23,7 @@ to bind tools to the LLM and dispatch them by name.
 """
 
 import os
+import threading
 import structlog
 import fastf1
 import pandas as pd
@@ -33,7 +34,40 @@ from tavily import TavilyClient
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
+from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
+
 logger = structlog.get_logger()
+
+# ---------------------------------------------------------------------------
+# ChromaDB lazy singleton — initialized once on first consult_rulebook() call
+# ---------------------------------------------------------------------------
+_embeddings = None
+_vector_db = None
+_chromadb_lock = threading.Lock()
+
+
+def _get_vector_db():
+    """Return the ChromaDB vector store, initializing on first call.
+
+    Uses a threading lock to prevent race conditions if two concurrent
+    requests both trigger initialization.  After init the lock check is
+    effectively free (fast path returns immediately).
+    """
+    global _embeddings, _vector_db
+
+    if _vector_db is not None:
+        return _vector_db
+
+    with _chromadb_lock:
+        # Double-check after acquiring lock
+        if _vector_db is not None:
+            return _vector_db
+
+        logger.info("chromadb.initializing", db_path=CHROMA_DB_PATH, model=EMBEDDING_MODEL_NAME)
+        _embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+        _vector_db = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=_embeddings)
+        logger.info("chromadb.ready")
+        return _vector_db
 
 # ---------------------------------------------------------------------------
 # Client setup
@@ -459,20 +493,18 @@ def consult_rulebook(query: str, year: int = None):
     logger.info("tool.consult_rulebook", year=year, query=query)
 
     try:
-        db_path = "data/chroma"
-
-        if not os.path.exists(db_path):
+        if not os.path.exists(CHROMA_DB_PATH):
             return (
                 "Rulebook database not found. "
                 "Please run `python app/rag/ingest.py` from the backend directory first."
             )
 
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_db = Chroma(persist_directory=db_path, embedding_function=embeddings)
+        vector_db = _get_vector_db()
+        logger.debug("chromadb.query", query=query, year=year)
 
         # Filter by year metadata so rules from different seasons don't mix.
         search_kwargs = {
-            "k": 6,  # Return the 6 most relevant chunks
+            "k": RULEBOOK_TOP_K,
             "filter": {"source_year": str(year)},
         }
 

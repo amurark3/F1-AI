@@ -41,6 +41,8 @@ from app.config import (
     FASTF1_TIMEOUT_SECONDS,
     OPENF1_HTTP_TIMEOUT_SECONDS,
     WS_RECEIVE_TIMEOUT,
+    WS_HEARTBEAT_INTERVAL,
+    WS_STALE_TIMEOUT,
     WS_POLL_INTERVAL,
     MAX_AGENT_TURNS,
     LLM_MODEL_NAME,
@@ -688,9 +690,68 @@ async def get_race_detail(year: int, round_num: int):
 # ---------------------------------------------------------------------------
 # Polls OpenF1 API and fans out position/timing updates to connected clients.
 
+import time
 import httpx
 
-_live_connections: dict[str, list[WebSocket]] = {}
+
+# ---------------------------------------------------------------------------
+# WebSocket Connection Manager — heartbeat + stale connection cleanup
+# ---------------------------------------------------------------------------
+class ConnectionManager:
+    """Manages WebSocket connections with heartbeat pings and stale cleanup.
+
+    Tracks active connections per room and last activity time per connection.
+    Heartbeat pings are application-level JSON (not WebSocket protocol pings)
+    since the client may not handle protocol pings.
+    """
+
+    def __init__(self):
+        self.rooms: dict[str, list[WebSocket]] = {}
+        self.last_activity: dict[int, float] = {}  # id(ws) -> timestamp
+
+    async def connect(self, room: str, ws: WebSocket) -> None:
+        """Accept a WebSocket and register it in the room."""
+        await ws.accept()
+        if room not in self.rooms:
+            self.rooms[room] = []
+        self.rooms[room].append(ws)
+        self.last_activity[id(ws)] = time.time()
+        logger.info("ws.connected", room=room, connection_id=id(ws))
+
+    def disconnect(self, room: str, ws: WebSocket) -> None:
+        """Remove a WebSocket from tracking."""
+        if room in self.rooms:
+            self.rooms[room] = [c for c in self.rooms[room] if c != ws]
+            if not self.rooms[room]:
+                del self.rooms[room]
+        self.last_activity.pop(id(ws), None)
+        logger.info("ws.disconnected", room=room, connection_id=id(ws))
+
+    def touch(self, ws: WebSocket) -> None:
+        """Update last activity timestamp for a connection."""
+        self.last_activity[id(ws)] = time.time()
+
+    def is_stale(self, ws: WebSocket) -> bool:
+        """Check if a connection has been inactive beyond the stale timeout."""
+        last = self.last_activity.get(id(ws), 0)
+        return (time.time() - last) > WS_STALE_TIMEOUT
+
+    async def heartbeat(self, ws: WebSocket) -> None:
+        """Send periodic JSON pings to keep the connection alive.
+
+        Runs until the WebSocket is closed or a send failure occurs.
+        """
+        try:
+            while True:
+                await asyncio.sleep(WS_HEARTBEAT_INTERVAL)
+                await ws.send_json({"type": "ping"})
+                logger.debug("ws.heartbeat_sent", connection_id=id(ws))
+        except Exception:
+            # Connection closed or send failed -- caller handles cleanup
+            pass
+
+
+manager = ConnectionManager()
 
 
 async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
@@ -888,18 +949,25 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
 
 @router.websocket("/live/{year}/{round_num}")
 async def live_timing(websocket: WebSocket, year: int, round_num: int):
-    """WebSocket endpoint for live race timing data."""
-    await websocket.accept()
+    """WebSocket endpoint for live race timing data.
 
+    Uses ConnectionManager for heartbeat pings and stale connection cleanup.
+    """
     room = f"{year}-{round_num}"
-    if room not in _live_connections:
-        _live_connections[room] = []
-    _live_connections[room].append(websocket)
+    await manager.connect(room, websocket)
+
+    # Start heartbeat as a background task
+    heartbeat_task = asyncio.create_task(manager.heartbeat(websocket))
 
     try:
         session_key = await _find_openf1_session(year, round_num)
 
         while True:
+            # Check if connection is stale
+            if manager.is_stale(websocket):
+                logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
+                break
+
             if session_key:
                 positions = await _poll_openf1_positions(session_key)
                 if positions:
@@ -907,6 +975,7 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
                         "type": "positions",
                         "data": positions,
                     })
+                    manager.touch(websocket)
 
             # Wait before next poll
             await asyncio.sleep(WS_POLL_INTERVAL)
@@ -914,16 +983,15 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
             # Check if client is still alive
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
+                manager.touch(websocket)
             except asyncio.TimeoutError:
-                pass  # Client didn't send anything — that's fine
+                pass  # Client didn't send anything -- that's fine
 
     except (WebSocketDisconnect, Exception):
         pass
     finally:
-        if room in _live_connections:
-            _live_connections[room] = [
-                ws for ws in _live_connections[room] if ws != websocket
-            ]
+        heartbeat_task.cancel()
+        manager.disconnect(room, websocket)
 
 
 @router.get("/health")

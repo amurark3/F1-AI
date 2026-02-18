@@ -11,28 +11,28 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 2 of 5 (AI Quality)
-Plan: 2 of 3 in current phase
-Status: Executing Phase 2 -- Plan 01 Complete
-Last activity: 2026-02-18 -- Completed 02-01-PLAN.md (race prediction engine with accuracy tracking)
+Plan: 3 of 3 in current phase
+Status: Executing Phase 2 -- Plan 02 Complete
+Last activity: 2026-02-18 -- Completed 02-02-PLAN.md (pit strategy engine + weather module)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 11min
-- Total execution time: 0.6 hours
+- Total plans completed: 4
+- Average duration: 15min
+- Total execution time: 1.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
-| 02-backend-data-features | 1/3 | 20min | 20min |
+| 02-backend-data-features | 2/3 | 48min | 24min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min)
+- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min)
 - Trend: Phase 2 plans are heavier (data computation modules)
 
 *Updated after each plan completion*
@@ -58,6 +58,11 @@ Recent decisions affecting current work:
 - 02-01: Confidence ranges from stdev of input signals; pre-qualifying fallback widens by 15pp
 - 02-01: Accuracy history stored as JSON with atomic write-to-temp-then-rename
 - 02-01: Data module pattern established: pure computation in app/data/, thin wrappers in tools.py
+- 02-02: Strategy module uses same _fastf1_lock and caching pattern as predictions.py for consistency
+- 02-02: Weather uses httpx.AsyncClient with One Call 3.0 -> 2.5 current weather fallback chain
+- 02-02: Track surface temp estimated from air temp + cloud cover heuristic (no API provides track temp)
+- 02-02: Strategy impact uses 40% rain threshold for dual scenario, 20% for intermediate backup
+- 02-02: GPS coordinates embedded in CIRCUIT_DATA dict rather than separate mapping
 
 ### Pending Todos
 
@@ -72,5 +77,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 02-01-PLAN.md (race prediction engine)
+Stopped at: Completed 02-02-PLAN.md (pit strategy engine + weather module)
 Resume file: None

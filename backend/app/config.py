@@ -76,3 +76,35 @@ RULEBOOK_TOP_K = int(os.getenv("RULEBOOK_TOP_K", "6"))
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-2.0-flash")
 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
+
+# ---------------------------------------------------------------------------
+# Prediction scoring weights (sum to 1.0)
+# ---------------------------------------------------------------------------
+# Qualifying position — strongest single predictor of race finish
+QUALIFYING_WEIGHT = float(os.getenv("QUALIFYING_WEIGHT", "0.35"))
+
+# Average finishing position over last 5 races — recent form signal
+RECENT_FORM_WEIGHT = float(os.getenv("RECENT_FORM_WEIGHT", "0.25"))
+
+# Driver's historical results at this specific circuit (last 3 editions)
+CIRCUIT_HISTORY_WEIGHT = float(os.getenv("CIRCUIT_HISTORY_WEIGHT", "0.20"))
+
+# Constructor championship position — team car performance proxy
+TEAM_STRENGTH_WEIGHT = float(os.getenv("TEAM_STRENGTH_WEIGHT", "0.15"))
+
+# Historical grid-to-finish delta at this circuit (overtaking difficulty)
+GRID_TO_FINISH_WEIGHT = float(os.getenv("GRID_TO_FINISH_WEIGHT", "0.05"))
+
+# ---------------------------------------------------------------------------
+# Weather settings (used by Plan 02 weather module)
+# ---------------------------------------------------------------------------
+OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY", "")
+
+# How long to cache weather data before re-fetching (seconds) — 10 min default
+WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "600"))
+
+# ---------------------------------------------------------------------------
+# Prediction accuracy tracking
+# ---------------------------------------------------------------------------
+# Path to JSON file storing prediction history for accuracy comparison
+PREDICTION_HISTORY_PATH = os.getenv("PREDICTION_HISTORY_PATH", "data/prediction_history.json")

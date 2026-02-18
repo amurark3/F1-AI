@@ -36,6 +36,7 @@ from fastf1.ergast import Ergast
 from app.api.tools import TOOL_LIST, TOOL_MAP
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.circuits import get_circuit_info
+from app.data.predictions import compute_race_predictions
 from app.config import (
     TOOL_TIMEOUT_SECONDS,
     FASTF1_TIMEOUT_SECONDS,
@@ -414,6 +415,9 @@ async def get_constructor_standings(year: int):
 # on-demand requests.  Keyed by (year, round_num).
 # ---------------------------------------------------------------------------
 race_detail_cache: dict[tuple[int, int], dict] = {}
+
+# Predictions cache — keyed by (year, round_num), same pattern as race_detail_cache.
+predictions_cache: dict[tuple[int, int], dict] = {}
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
@@ -992,6 +996,59 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
     finally:
         heartbeat_task.cancel()
         manager.disconnect(room, websocket)
+
+
+def _should_recompute_predictions(year: int, round_num: int, cached: dict) -> bool:
+    """Return True if cached prediction should be recomputed.
+
+    Recompute when qualifying data becomes available but cached prediction
+    was generated from practice/historical data only.
+    """
+    cached_sources = cached.get("data_sources", [])
+    if "qualifying" in cached_sources:
+        return False  # Already has qualifying data, no need to recompute
+
+    # Check if qualifying data is now available by trying to load it
+    # This is a lightweight check -- just see if the session exists
+    try:
+        session = fastf1.get_session(year, round_num, "Q")
+        # If we can get the session object without error, qualifying happened
+        return True
+    except Exception:
+        return False
+
+
+@router.get("/predictions/{year}/{round_num}")
+async def get_predictions_endpoint(year: int, round_num: int):
+    """Structured race predictions for iOS and web consumption.
+
+    Returns all 20 drivers with predicted positions, confidence ranges,
+    reasoning factors, and model accuracy statistics.
+
+    Per CONTEXT.md: REST version returns structured numbers + factors.
+    Chat version (via tool) adds narrative reasoning and personality.
+    """
+    cache_key = (year, round_num)
+
+    if cache_key in predictions_cache:
+        cached = predictions_cache[cache_key]
+        # Return cached unless qualifying data is now available
+        if not _should_recompute_predictions(year, round_num, cached):
+            return cached
+
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(compute_race_predictions, year, round_num),
+            timeout=FASTF1_TIMEOUT_SECONDS,
+        )
+        predictions_cache[cache_key] = result
+        return result
+    except asyncio.TimeoutError:
+        logger.error("predictions.timeout", year=year, round_num=round_num)
+        return {"error": "Prediction computation timed out", "year": year, "round": round_num}
+    except Exception as e:
+        logger.error("predictions.error", year=year, round_num=round_num, error=str(e))
+        return {"error": f"Failed to compute predictions: {str(e)}", "year": year, "round": round_num}
 
 
 @router.get("/health")

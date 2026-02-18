@@ -11,28 +11,29 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 2 of 5 (AI Quality)
-Plan: 1 of ? in current phase
-Status: Phase 1 Complete -- Ready for Phase 2
-Last activity: 2026-02-18 -- Completed 01-02-PLAN.md (structured logging, ChromaDB singleton, WebSocket heartbeat)
+Plan: 2 of 3 in current phase
+Status: Executing Phase 2 -- Plan 01 Complete
+Last activity: 2026-02-18 -- Completed 02-01-PLAN.md (race prediction engine with accuracy tracking)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 7min
-- Total execution time: 0.2 hours
+- Total plans completed: 3
+- Average duration: 11min
+- Total execution time: 0.6 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
+| 02-backend-data-features | 1/3 | 20min | 20min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (8min)
-- Trend: Consistent
+- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min)
+- Trend: Phase 2 plans are heavier (data computation modules)
 
 *Updated after each plan completion*
 
@@ -53,6 +54,10 @@ Recent decisions affecting current work:
 - 01-02: structlog with ConsoleRenderer (dev) / JSONRenderer (prod) based on ENVIRONMENT env var
 - 01-02: ChromaDB singleton uses threading.Lock with double-check pattern for thread safety
 - 01-02: WebSocket heartbeat uses application-level JSON pings for client compatibility
+- 02-01: Prediction scoring uses 5 weighted factors with proportional rebalancing when data sources missing
+- 02-01: Confidence ranges from stdev of input signals; pre-qualifying fallback widens by 15pp
+- 02-01: Accuracy history stored as JSON with atomic write-to-temp-then-rename
+- 02-01: Data module pattern established: pure computation in app/data/, thin wrappers in tools.py
 
 ### Pending Todos
 
@@ -67,5 +72,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 01-02-PLAN.md (Phase 01 complete)
+Stopped at: Completed 02-01-PLAN.md (race prediction engine)
 Resume file: None

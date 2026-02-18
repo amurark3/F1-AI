@@ -492,41 +492,7 @@ def perform_web_search(query: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 11. ML Race Predictions
-# ---------------------------------------------------------------------------
-@mcp.tool()
-def predict_race_results(year: int, grand_prix: str) -> str:
-    """
-    Predicts the finishing order for a Grand Prix using a machine learning model
-    trained on historical F1 data (2018-2025). Considers qualifying position,
-    constructor strength, driver form, track history, and DNF probability.
-    """
-    try:
-        from app.ml.predict import predict_race
-        return predict_race(year, grand_prix)
-    except Exception as e:
-        return f"Prediction failed: {e}"
-
-
-# ---------------------------------------------------------------------------
-# 12. Championship Scenario Calculator
-# ---------------------------------------------------------------------------
-@mcp.tool()
-def calculate_championship_scenario(year: int, driver: str) -> str:
-    """
-    Calculates how many points per remaining race a driver needed to win the
-    World Drivers' Championship, computed after each round of the season.
-    Shows the progression of mathematical possibility throughout the year.
-    """
-    try:
-        from app.ml.scenario import calculate_title_scenario
-        return calculate_title_scenario(year, driver)
-    except Exception as e:
-        return f"Scenario calculation failed: {e}"
-
-
-# ---------------------------------------------------------------------------
-# 13. Health Check
+# 11. Health Check
 # ---------------------------------------------------------------------------
 @mcp.tool()
 def health_check() -> str:
@@ -547,9 +513,6 @@ def health_check() -> str:
     # Rulebook
     db_path = os.path.join(os.path.dirname(__file__), "data", "chroma")
     checks.append(f"Rulebook DB: {'OK' if os.path.exists(db_path) else 'NOT FOUND'}")
-    # Model
-    model_path = os.path.join(os.path.dirname(__file__), "models", "race_predictor.joblib")
-    checks.append(f"ML Model: {'OK' if os.path.exists(model_path) else 'NOT TRAINED'}")
     # Tavily
     checks.append(f"Web Search: {'OK' if os.getenv('TAVILY_API_KEY') else 'NO API KEY'}")
 

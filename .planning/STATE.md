@@ -5,35 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** An intelligent F1 race engineer that can answer any Formula 1 question using real data -- race results, driver comparisons, regulations, and live timing -- across web and mobile.
-**Current focus:** Phase 2: AI Quality
-**Completed:** Phase 1: Infrastructure Hardening
+**Current focus:** Phase 3 (next)
+**Completed:** Phase 1: Infrastructure Hardening, Phase 2: Backend Data Features
 
 ## Current Position
 
-Phase: 2 of 5 (AI Quality)
-Plan: 3 of 3 in current phase
-Status: Executing Phase 2 -- Plan 02 Complete
-Last activity: 2026-02-18 -- Completed 02-02-PLAN.md (pit strategy engine + weather module)
+Phase: 2 of 5 -- COMPLETE
+Plan: 3 of 3 in current phase -- ALL COMPLETE
+Status: Phase 2 Complete -- Ready for Phase 3
+Last activity: 2026-02-18 -- Completed 02-03-PLAN.md (tool wiring + predictions endpoint)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 15min
-- Total execution time: 1.1 hours
+- Total plans completed: 5
+- Average duration: 14min
+- Total execution time: 1.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
-| 02-backend-data-features | 2/3 | 48min | 24min |
+| 02-backend-data-features | 3/3 | 53min | 18min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min)
-- Trend: Phase 2 plans are heavier (data computation modules)
+- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min)
+- Trend: Plan 03 was fast (wiring only, no new data modules)
 
 *Updated after each plan completion*
 
@@ -63,6 +63,10 @@ Recent decisions affecting current work:
 - 02-02: Track surface temp estimated from air temp + cloud cover heuristic (no API provides track temp)
 - 02-02: Strategy impact uses 40% rain threshold for dual scenario, 20% for intermediate backup
 - 02-02: GPS coordinates embedded in CIRCUIT_DATA dict rather than separate mapping
+- 02-03: Weather tool uses asyncio.run() with RuntimeError fallback for event loop detection
+- 02-03: Predictions REST caches until qualifying data available, then recomputes
+- 02-03: Chat predictions include rich narrative; REST returns structured JSON (per CONTEXT.md)
+- 02-03: Old get_track_conditions stub fully removed and replaced by get_weather_conditions
 
 ### Pending Todos
 
@@ -77,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 02-02-PLAN.md (pit strategy engine + weather module)
+Stopped at: Completed 02-03-PLAN.md (tool wiring + predictions endpoint) -- Phase 2 COMPLETE
 Resume file: None

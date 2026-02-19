@@ -21,9 +21,10 @@ The chat endpoint implements an agentic loop:
 import os
 import asyncio
 import threading
+import structlog
 import pandas as pd
 import fastf1
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime, timezone
@@ -35,23 +36,53 @@ from fastf1.ergast import Ergast
 from app.api.tools import TOOL_LIST, TOOL_MAP
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.circuits import get_circuit_info
+from app.config import (
+    TOOL_TIMEOUT_SECONDS,
+    FASTF1_TIMEOUT_SECONDS,
+    OPENF1_HTTP_TIMEOUT_SECONDS,
+    WS_RECEIVE_TIMEOUT,
+    WS_HEARTBEAT_INTERVAL,
+    WS_STALE_TIMEOUT,
+    WS_POLL_INTERVAL,
+    MAX_AGENT_TURNS,
+    LLM_MODEL_NAME,
+    LLM_TEMPERATURE,
+)
+
+logger = structlog.get_logger()
 
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
 # LLM setup
 # ---------------------------------------------------------------------------
-# safety_settings are relaxed because the assistant discusses race incidents,
-# crashes, and driver retirements — content that generic filters can misflag.
+# Safety settings tuned for F1 domain content:
+#
+# DANGEROUS_CONTENT: BLOCK_ONLY_HIGH — F1 legitimately discusses crashes, fires,
+#   driver injuries, and safety incidents (e.g. "the crash at Copse", "driver
+#   hospitalization after impact"). Blocking at medium would break core functionality.
+#
+# HARASSMENT: BLOCK_ONLY_HIGH — F1 coverage includes team rivalries, driver
+#   criticism, steward decisions, and heated radio messages. These are normal
+#   sporting discourse, not harassment.
+#
+# HATE_SPEECH: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can apply
+#   stricter filtering without impacting legitimate queries.
+#
+# SEXUALLY_EXPLICIT: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can
+#   apply stricter filtering without impacting legitimate queries.
+#
+# Defense-in-depth: The system prompt in prompts.py has strong identity guardrails
+# that refuse all non-F1 topics, so these safety settings are a secondary layer.
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",
-    temperature=0,
+    model=LLM_MODEL_NAME,
+    temperature=LLM_TEMPERATURE,
     google_api_key=os.getenv("GOOGLE_API_KEY"),
     safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
     },
 )
 
@@ -125,10 +156,10 @@ async def chat_endpoint(request: ChatRequest):
           - CASE B: Model returns text    → stream it to the client, break.
         """
         try:
-            max_turns = 5
+            max_turns = MAX_AGENT_TURNS
             turn_count = 0
 
-            print("🤖 ASKING MODEL...")
+            logger.info("agent.invoking_model")
             current_response = await llm_with_tools.ainvoke(langchain_messages)
 
             while turn_count < max_turns:
@@ -136,7 +167,7 @@ async def chat_endpoint(request: ChatRequest):
 
                 if current_response.tool_calls:
                     # CASE A — model wants to call tools
-                    print(f"🔄 TURN {turn_count}: Model requested {len(current_response.tool_calls)} tool(s).")
+                    logger.info("agent.turn", turn=turn_count, tool_count=len(current_response.tool_calls))
 
                     # Append the AI's "intent" message before tool results;
                     # LangChain requires this ordering in the message list.
@@ -153,21 +184,21 @@ async def chat_endpoint(request: ChatRequest):
                             friendly = tool_name.replace("_", " ").title()
                             yield f"[TOOL_START]{friendly}[/TOOL_START]"
 
-                            print(f"🛠️  EXECUTING: {tool_name} with args {tool_args}")
+                            logger.info("tool.executing", tool=tool_name, args=tool_args)
                             try:
                                 tool_result = await asyncio.wait_for(
                                     asyncio.to_thread(TOOL_MAP[tool_name].invoke, tool_args),
-                                    timeout=30,
+                                    timeout=TOOL_TIMEOUT_SECONDS,
                                 )
-                                print(f"✅ RESULT (preview): {str(tool_result)[:80]}...")
+                                logger.debug("tool.result", tool=tool_name, preview=str(tool_result)[:80])
                             except asyncio.TimeoutError:
-                                tool_result = f"Tool '{tool_name}' timed out after 30 seconds. The data source may be slow — try again."
-                                print(f"⏱️ TOOL TIMEOUT: {tool_name}")
+                                tool_result = f"Tool '{tool_name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
+                                logger.warning("tool.timeout", tool=tool_name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
                             except Exception as tool_err:
                                 # Surface the error as a tool message so the model
                                 # can decide how to handle it gracefully.
                                 tool_result = f"Error executing tool '{tool_name}': {tool_err}"
-                                print(f"❌ TOOL ERROR: {tool_result}")
+                                logger.error("tool.error", tool=tool_name, error=str(tool_err))
 
                             langchain_messages.append(
                                 ToolMessage(
@@ -184,7 +215,7 @@ async def chat_endpoint(request: ChatRequest):
 
                 else:
                     # CASE B — model has a final text answer; stream it.
-                    print("🤖 GENERATING FINAL TEXT...")
+                    logger.info("agent.generating_response")
                     yield current_response.content
                     return  # Exit the generator cleanly
 
@@ -192,7 +223,7 @@ async def chat_endpoint(request: ChatRequest):
             yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
 
         except Exception as e:
-            print(f"❌ CRITICAL ERROR IN GENERATE: {e}")
+            logger.error("agent.critical_error", error=str(e))
             yield f"**System Error:** My telemetry failed. Reason: {e}"
 
     return StreamingResponse(generate(), media_type="text/plain")
@@ -330,7 +361,7 @@ async def get_driver_standings(year: int):
         return results
 
     except Exception as e:
-        print(f"Driver Standings Error: {e}")
+        logger.error("api.driver_standings.error", error=str(e))
         return []
 
 
@@ -373,7 +404,7 @@ async def get_constructor_standings(year: int):
         return results
 
     except Exception as e:
-        print(f"Constructor Standings Error: {e}")
+        logger.error("api.constructor_standings.error", error=str(e))
         return []
 
 
@@ -517,7 +548,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
         result["podium"] = podium
 
     except Exception as e:
-        print(f"Race results load error for {year} R{round_num}: {e}")
+        logger.error("api.race_results.load_error", year=year, round=round_num, error=str(e))
 
     # --- Load qualifying results ---
     try:
@@ -545,7 +576,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
         result["qualifying"] = qualifying if qualifying else None
 
     except Exception as e:
-        print(f"Qualifying load error for {year} R{round_num}: {e}")
+        logger.error("api.qualifying.load_error", year=year, round=round_num, error=str(e))
 
     # --- Load sprint results (sprint weekends only) ---
     if is_sprint_weekend:
@@ -584,7 +615,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
             result["sprint_results"] = sprint_list if sprint_list else None
 
         except Exception as e:
-            print(f"Sprint results load error for {year} R{round_num}: {e}")
+            logger.error("api.sprint_results.load_error", year=year, round=round_num, error=str(e))
 
         # Sprint qualifying results
         try:
@@ -612,14 +643,14 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
             result["sprint_qualifying"] = sprint_quali if sprint_quali else None
 
         except Exception as e:
-            print(f"Sprint qualifying load error for {year} R{round_num}: {e}")
+            logger.error("api.sprint_qualifying.load_error", year=year, round=round_num, error=str(e))
 
     return result
 
 
 # Per-request timeout for building race detail (seconds).
 # Generous because the lock means requests queue up sequentially.
-FASTF1_TIMEOUT = 60
+FASTF1_TIMEOUT = FASTF1_TIMEOUT_SECONDS
 
 
 @router.get("/race/{year}/{round_num}")
@@ -647,11 +678,320 @@ async def get_race_detail(year: int, round_num: int):
             race_detail_cache[cache_key] = detail
         return detail
     except asyncio.TimeoutError:
-        print(f"⏱️ Race detail TIMEOUT for {year} R{round_num} after {FASTF1_TIMEOUT}s")
+        logger.warning("api.race_detail.timeout", year=year, round=round_num, timeout_seconds=FASTF1_TIMEOUT)
         return {"error": "Request timed out loading race data. Try again later.", "timeout": True}
     except Exception as e:
-        print(f"Race detail error: {e}")
+        logger.error("api.race_detail.error", error=str(e))
         return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Live timing WebSocket
+# ---------------------------------------------------------------------------
+# Polls OpenF1 API and fans out position/timing updates to connected clients.
+
+import time
+import httpx
+
+
+# ---------------------------------------------------------------------------
+# WebSocket Connection Manager — heartbeat + stale connection cleanup
+# ---------------------------------------------------------------------------
+class ConnectionManager:
+    """Manages WebSocket connections with heartbeat pings and stale cleanup.
+
+    Tracks active connections per room and last activity time per connection.
+    Heartbeat pings are application-level JSON (not WebSocket protocol pings)
+    since the client may not handle protocol pings.
+    """
+
+    def __init__(self):
+        self.rooms: dict[str, list[WebSocket]] = {}
+        self.last_activity: dict[int, float] = {}  # id(ws) -> timestamp
+
+    async def connect(self, room: str, ws: WebSocket) -> None:
+        """Accept a WebSocket and register it in the room."""
+        await ws.accept()
+        if room not in self.rooms:
+            self.rooms[room] = []
+        self.rooms[room].append(ws)
+        self.last_activity[id(ws)] = time.time()
+        logger.info("ws.connected", room=room, connection_id=id(ws))
+
+    def disconnect(self, room: str, ws: WebSocket) -> None:
+        """Remove a WebSocket from tracking."""
+        if room in self.rooms:
+            self.rooms[room] = [c for c in self.rooms[room] if c != ws]
+            if not self.rooms[room]:
+                del self.rooms[room]
+        self.last_activity.pop(id(ws), None)
+        logger.info("ws.disconnected", room=room, connection_id=id(ws))
+
+    def touch(self, ws: WebSocket) -> None:
+        """Update last activity timestamp for a connection."""
+        self.last_activity[id(ws)] = time.time()
+
+    def is_stale(self, ws: WebSocket) -> bool:
+        """Check if a connection has been inactive beyond the stale timeout."""
+        last = self.last_activity.get(id(ws), 0)
+        return (time.time() - last) > WS_STALE_TIMEOUT
+
+    async def heartbeat(self, ws: WebSocket) -> None:
+        """Send periodic JSON pings to keep the connection alive.
+
+        Runs until the WebSocket is closed or a send failure occurs.
+        """
+        try:
+            while True:
+                await asyncio.sleep(WS_HEARTBEAT_INTERVAL)
+                await ws.send_json({"type": "ping"})
+                logger.debug("ws.heartbeat_sent", connection_id=id(ws))
+        except Exception:
+            # Connection closed or send failed -- caller handles cleanup
+            pass
+
+
+manager = ConnectionManager()
+
+
+async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
+    """Fetch latest positions from OpenF1 API."""
+    try:
+        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
+            resp = await client.get(
+                "https://api.openf1.org/v1/position",
+                params={"session_key": session_key, "position__lte": 20},
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if not data:
+                return None
+
+            # Group by driver, take latest entry per driver
+            latest: dict[int, dict] = {}
+            for entry in data:
+                dn = entry.get("driver_number")
+                if dn is not None:
+                    latest[dn] = entry
+
+            positions = []
+            for dn, entry in sorted(latest.items(), key=lambda x: x[1].get("position", 99)):
+                positions.append({
+                    "position": entry.get("position", 0),
+                    "driver": str(dn),
+                    "gap": entry.get("gap_to_leader", "LEADER") or "LEADER",
+                    "last_lap": None,
+                    "sector1": None,
+                    "sector2": None,
+                    "sector3": None,
+                    "tyre": None,
+                    "pit_stops": None,
+                })
+            return positions
+    except Exception as e:
+        logger.error("openf1.poll_error", error=str(e))
+        return None
+
+
+async def _find_openf1_session(year: int, round_num: int) -> str | None:
+    """Find the current live session key from OpenF1."""
+    try:
+        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
+            resp = await client.get(
+                "https://api.openf1.org/v1/sessions",
+                params={"year": year, "session_type": "Race"},
+            )
+            if resp.status_code != 200:
+                return None
+            sessions = resp.json()
+            # Match by meeting_key or round number approximation
+            for s in sessions:
+                if s.get("session_key"):
+                    return str(s["session_key"])
+            return None
+    except Exception:
+        return None
+
+
+@router.get("/compare/{year}/{driver1}/{driver2}")
+async def compare_drivers_endpoint(year: int, driver1: str, driver2: str):
+    """
+    Head-to-head comparison of two drivers across the season.
+
+    Returns qualifying battle, race battle, average positions, points,
+    and per-round breakdown for charts.
+    """
+    try:
+        result = await asyncio.to_thread(_build_comparison_sync, year, driver1, driver2)
+        return result
+    except asyncio.TimeoutError:
+        return {"error": "Comparison timed out. Try again."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) -> dict:
+    """Build season-long head-to-head stats for two drivers."""
+    ergast = Ergast()
+
+    # Resolve driver codes from standings
+    standings_data = ergast.get_driver_standings(season=year)
+    if not standings_data.content:
+        return {"error": f"No standings data for {year}"}
+
+    df = standings_data.content[0]
+
+    def find_driver(query: str) -> dict | None:
+        q = query.lower().strip()
+        for _, row in df.iterrows():
+            code = str(row.get("driverCode", "")).lower()
+            family = str(row.get("familyName", "")).lower()
+            given = str(row.get("givenName", "")).lower()
+            if q == code or q in family or q in given:
+                teams = row.get("constructorNames", row.get("constructorName", "Unknown"))
+                team = teams[-1] if isinstance(teams, list) and teams else str(teams)
+                return {
+                    "code": str(row.get("driverCode", "")),
+                    "name": f"{row.get('givenName', '')} {row.get('familyName', '')}",
+                    "team": team,
+                    "points": float(row.get("points", 0)),
+                    "wins": int(row.get("wins", 0)),
+                    "position": int(row.get("position", 0)),
+                }
+        return None
+
+    d1 = find_driver(driver1_query)
+    d2 = find_driver(driver2_query)
+
+    if not d1 or not d2:
+        return {"error": f"Could not find driver '{driver1_query}' or '{driver2_query}' in {year} standings."}
+
+    # Get race results for each round to build head-to-head
+    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+    now_utc = datetime.now()
+
+    quali_h2h = {"d1": 0, "d2": 0}
+    race_h2h = {"d1": 0, "d2": 0}
+    rounds = []
+
+    d1_positions = []
+    d2_positions = []
+
+    for _, event in schedule.iterrows():
+        race_date = event["EventDate"]
+        if race_date > now_utc:
+            break  # Skip future races
+
+        round_num = int(event["RoundNumber"])
+        gp_name = event["EventName"]
+
+        round_data = {"round": round_num, "name": gp_name}
+
+        # Try loading race results from Ergast (lighter than FastF1)
+        try:
+            race_data = ergast.get_race_results(season=year, round=round_num)
+            if race_data.content:
+                rdf = race_data.content[0]
+                d1_row = rdf[rdf["driverCode"] == d1["code"]]
+                d2_row = rdf[rdf["driverCode"] == d2["code"]]
+
+                if not d1_row.empty and not d2_row.empty:
+                    d1_pos = int(d1_row.iloc[0]["position"])
+                    d2_pos = int(d2_row.iloc[0]["position"])
+                    round_data["d1_race"] = d1_pos
+                    round_data["d2_race"] = d2_pos
+                    d1_positions.append(d1_pos)
+                    d2_positions.append(d2_pos)
+
+                    if d1_pos < d2_pos:
+                        race_h2h["d1"] += 1
+                    elif d2_pos < d1_pos:
+                        race_h2h["d2"] += 1
+        except Exception:
+            pass
+
+        # Try qualifying
+        try:
+            quali_data = ergast.get_qualifying_results(season=year, round=round_num)
+            if quali_data.content:
+                qdf = quali_data.content[0]
+                d1_q = qdf[qdf["driverCode"] == d1["code"]]
+                d2_q = qdf[qdf["driverCode"] == d2["code"]]
+
+                if not d1_q.empty and not d2_q.empty:
+                    d1_qpos = int(d1_q.iloc[0]["position"])
+                    d2_qpos = int(d2_q.iloc[0]["position"])
+                    round_data["d1_quali"] = d1_qpos
+                    round_data["d2_quali"] = d2_qpos
+
+                    if d1_qpos < d2_qpos:
+                        quali_h2h["d1"] += 1
+                    elif d2_qpos < d1_qpos:
+                        quali_h2h["d2"] += 1
+        except Exception:
+            pass
+
+        rounds.append(round_data)
+
+    return {
+        "driver1": d1,
+        "driver2": d2,
+        "qualifying_h2h": quali_h2h,
+        "race_h2h": race_h2h,
+        "avg_race_position": {
+            "d1": round(sum(d1_positions) / len(d1_positions), 1) if d1_positions else None,
+            "d2": round(sum(d2_positions) / len(d2_positions), 1) if d2_positions else None,
+        },
+        "rounds": rounds,
+    }
+
+
+@router.websocket("/live/{year}/{round_num}")
+async def live_timing(websocket: WebSocket, year: int, round_num: int):
+    """WebSocket endpoint for live race timing data.
+
+    Uses ConnectionManager for heartbeat pings and stale connection cleanup.
+    """
+    room = f"{year}-{round_num}"
+    await manager.connect(room, websocket)
+
+    # Start heartbeat as a background task
+    heartbeat_task = asyncio.create_task(manager.heartbeat(websocket))
+
+    try:
+        session_key = await _find_openf1_session(year, round_num)
+
+        while True:
+            # Check if connection is stale
+            if manager.is_stale(websocket):
+                logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
+                break
+
+            if session_key:
+                positions = await _poll_openf1_positions(session_key)
+                if positions:
+                    await websocket.send_json({
+                        "type": "positions",
+                        "data": positions,
+                    })
+                    manager.touch(websocket)
+
+            # Wait before next poll
+            await asyncio.sleep(WS_POLL_INTERVAL)
+
+            # Check if client is still alive
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
+                manager.touch(websocket)
+            except asyncio.TimeoutError:
+                pass  # Client didn't send anything -- that's fine
+
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        heartbeat_task.cancel()
+        manager.disconnect(room, websocket)
 
 
 @router.get("/health")

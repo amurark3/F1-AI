@@ -34,10 +34,13 @@ the updated database.
 import os
 import shutil
 import re
+import structlog
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+
+logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -64,21 +67,18 @@ def ingest_data():
     # Wiping ensures old document versions don't mix with new ones.
     if os.path.exists(DB_PATH):
         shutil.rmtree(DB_PATH)
-        print(f"🧹 Cleared old database at '{DB_PATH}' (starting fresh)")
+        logger.info("ingest.cleared_database", path=DB_PATH)
 
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
-        print(
-            f"📂 Created '{DATA_DIR}'. "
-            "Please create year sub-folders inside (e.g. data/raw/2025/) and add PDFs."
-        )
+        logger.info("ingest.created_data_dir", path=DATA_DIR)
         return
 
     all_docs = []
     total_files = 0
 
     # Step 2 — Walk directory tree
-    print(f"🔍 Scanning '{DATA_DIR}' for PDFs...")
+    logger.info("ingest.scanning", path=DATA_DIR)
 
     for root, dirs, files in os.walk(DATA_DIR):
         for filename in files:
@@ -108,8 +108,7 @@ def ingest_data():
             elif "financial" in name_lower:
                 doc_type = "Financial"
 
-            print(f"   📄 Processing: {filename}")
-            print(f"      → Year: {year} | Type: {doc_type}")
+            logger.info("ingest.processing", filename=filename, year=year, doc_type=doc_type)
 
             try:
                 # Step 4 — Load and split
@@ -136,14 +135,14 @@ def ingest_data():
                     doc.metadata["source"] = filename
 
                 all_docs.extend(splits)
-                print(f"      → Added {len(splits)} chunks.")
+                logger.info("ingest.chunks_added", filename=filename, chunks=len(splits))
 
             except Exception as e:
-                print(f"      ⚠️  Failed to load '{filename}': {e}")
+                logger.error("ingest.load_failed", filename=filename, error=str(e))
 
     # Step 6 & 7 — Embed and persist
     if all_docs:
-        print(f"\n💾 Saving {len(all_docs)} chunks to '{DB_PATH}'...")
+        logger.info("ingest.saving", total_chunks=len(all_docs), path=DB_PATH)
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
         Chroma.from_documents(
@@ -151,13 +150,9 @@ def ingest_data():
             embedding=embeddings,
             persist_directory=DB_PATH,
         )
-        print("✅ Knowledge base updated successfully!")
-        print("   Restart the backend server to load the new regulations.")
+        logger.info("ingest.complete", status="success")
     else:
-        print(
-            f"\n⚠️  No PDFs found under '{DATA_DIR}'. "
-            "Organise them like: data/raw/2025/Sporting_Regulations.pdf"
-        )
+        logger.warning("ingest.no_pdfs_found", data_dir=DATA_DIR)
 
 
 if __name__ == "__main__":

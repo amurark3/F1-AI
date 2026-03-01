@@ -37,6 +37,7 @@ Progress: [██████░░░░] 60%
 - Trend: 03-01 was fast (pure model/viewmodel scaffolding, no logic changes)
 
 *Updated after each plan completion*
+| Phase 03-client-feature-surface P06 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - 03-01: PredictionsResponse.error field decodes HTTP 200 error body (no upcoming race / data failure)
 - 03-01: First-load failure sets self.error (ContentUnavailableView); background refresh sets toastMessage (toast overlay)
 - 03-01: fetchPredictions caches 1800s (30 min) — backend recomputes on qualifying data availability
+- [Phase 03-06]: Web predictions use two-step SWR fetch (schedule then predictions) to find upcoming round dynamically
+- [Phase 03-06]: Toast used only for background refresh failures; first-load failures use inline error state with Retry
 
 ### Pending Todos
 

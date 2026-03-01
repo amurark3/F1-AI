@@ -62,11 +62,15 @@ Plans:
   3. iOS fires local notifications for all session types (FP1, FP2, FP3, Qualifying, Sprint Qualifying, Sprint Race) not just race start
   4. Both iOS and web show meaningful empty states, error banners, and retry buttons instead of blank screens when API calls fail
   5. Web prediction panel displays race outcome analysis matching the iOS predictions view
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — iOS predictions data layer (models, APIClient extension, PredictionsViewModel)
+- [ ] 03-02-PLAN.md — iOS PredictionsView with expandable driver cards, embedded in StandingsTab
+- [ ] 03-03-PLAN.md — iOS championship scenario view with WDC/WCC tabs and what-if preset buttons
+- [ ] 03-04-PLAN.md — iOS notification expansion to all session types with settings sheet
+- [ ] 03-05-PLAN.md — iOS ToastView shared component wired into PredictionsView for refresh errors
+- [ ] 03-06-PLAN.md — Web predictions page, expandable cards, toast, and NavShell update
 
 ### Phase 4: Live Race Experience
 **Goal**: During active sessions, users get live position tracking on Dynamic Island and AI-generated commentary that explains what is happening in real time
@@ -108,6 +112,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Hardening | 0/2 | Planning complete | - |
 | 2. Backend Data Features | 0/3 | Planning complete | - |
-| 3. Client Feature Surface | 0/0 | Not started | - |
+| 3. Client Feature Surface | 0/6 | Planning complete | - |
 | 4. Live Race Experience | 0/0 | Not started | - |
 | 5. Push Infrastructure | 0/0 | Not started | - |

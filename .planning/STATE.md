@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** An intelligent F1 race engineer that can answer any Formula 1 question using real data -- race results, driver comparisons, regulations, and live timing -- across web and mobile.
-**Current focus:** Phase 3 (next)
+**Current focus:** Phase 3 (in progress)
 **Completed:** Phase 1: Infrastructure Hardening, Phase 2: Backend Data Features
 
 ## Current Position
 
-Phase: 2 of 5 -- COMPLETE
-Plan: 3 of 3 in current phase -- ALL COMPLETE
-Status: Phase 2 Complete -- Ready for Phase 3
-Last activity: 2026-02-18 -- Completed 02-03-PLAN.md (tool wiring + predictions endpoint)
+Phase: 3 of 5 -- IN PROGRESS
+Plan: 1 of 6 in current phase -- 03-01 COMPLETE
+Status: Phase 3 Active -- Predictions data layer complete
+Last activity: 2026-03-01 -- Completed 03-01-PLAN.md (iOS predictions data layer)
 
 Progress: [██████░░░░] 60%
 
@@ -30,10 +30,11 @@ Progress: [██████░░░░] 60%
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
 | 02-backend-data-features | 3/3 | 53min | 18min |
+| 03-client-feature-surface | 1/6 | 1min | 1min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min)
-- Trend: Plan 03 was fast (wiring only, no new data modules)
+- Last 6 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min)
+- Trend: 03-01 was fast (pure model/viewmodel scaffolding, no logic changes)
 
 *Updated after each plan completion*
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - 02-03: Predictions REST caches until qualifying data available, then recomputes
 - 02-03: Chat predictions include rich narrative; REST returns structured JSON (per CONTEXT.md)
 - 02-03: Old get_track_conditions stub fully removed and replaced by get_weather_conditions
+- 03-01: PredictionsResponse.error field decodes HTTP 200 error body (no upcoming race / data failure)
+- 03-01: First-load failure sets self.error (ContentUnavailableView); background refresh sets toastMessage (toast overlay)
+- 03-01: fetchPredictions caches 1800s (30 min) — backend recomputes on qualifying data availability
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 02-03-PLAN.md (tool wiring + predictions endpoint) -- Phase 2 COMPLETE
+Last session: 2026-03-01
+Stopped at: Completed 03-01-PLAN.md (iOS predictions data layer) -- Phase 3 Plan 1 of 6 COMPLETE
 Resume file: None

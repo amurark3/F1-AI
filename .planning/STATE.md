@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 3 of 5 -- IN PROGRESS
-Plan: 1 of 6 in current phase -- 03-01 COMPLETE
-Status: Phase 3 Active -- Predictions data layer complete
-Last activity: 2026-03-01 -- Completed 03-01-PLAN.md (iOS predictions data layer)
+Plan: 2 of 6 in current phase -- 03-02 COMPLETE
+Status: Phase 3 Active -- PredictionsView + StandingsTab three-segment picker complete
+Last activity: 2026-03-03 -- Completed 03-02-PLAN.md (iOS PredictionsView and expandable driver cards)
 
 Progress: [██████░░░░] 60%
 
@@ -30,14 +30,15 @@ Progress: [██████░░░░] 60%
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
 | 02-backend-data-features | 3/3 | 53min | 18min |
-| 03-client-feature-surface | 1/6 | 1min | 1min |
+| 03-client-feature-surface | 2/6 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 6 plans: 01-01 (6min), 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min)
-- Trend: 03-01 was fast (pure model/viewmodel scaffolding, no logic changes)
+- Last 6 plans: 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min), 03-02 (8min)
+- Trend: 03-02 fast (plan provided complete Swift code, minor type fix only)
 
 *Updated after each plan completion*
 | Phase 03-client-feature-surface P06 | 2 | 2 tasks | 5 files |
+| Phase 03 P02 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - 03-01: PredictionsResponse.error field decodes HTTP 200 error body (no upcoming race / data failure)
 - 03-01: First-load failure sets self.error (ContentUnavailableView); background refresh sets toastMessage (toast overlay)
 - 03-01: fetchPredictions caches 1800s (30 min) — backend recomputes on qualifying data availability
+- 03-02: Segment picker uses integer tag (0/1/2) not Bool — clean extension point for future segments
+- 03-02: PredictionsView receives upcomingRace+year as params from StandingsTab to avoid duplicating schedule fetch
+- 03-02: ProgressView used for loading state (no .shimmering() third-party dependency)
 - [Phase 03-06]: Web predictions use two-step SWR fetch (schedule then predictions) to find upcoming round dynamically
 - [Phase 03-06]: Toast used only for background refresh failures; first-load failures use inline error state with Retry
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Completed 03-01-PLAN.md (iOS predictions data layer) -- Phase 3 Plan 1 of 6 COMPLETE
+Last session: 2026-03-03
+Stopped at: Completed 03-02-PLAN.md (iOS PredictionsView + StandingsTab three-segment picker) -- Phase 3 Plan 2 of 6 COMPLETE
 Resume file: None

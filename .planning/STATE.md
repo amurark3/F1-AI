@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 3 of 5 -- IN PROGRESS
-Plan: 3 of 6 in current phase -- 03-03 COMPLETE
-Status: Phase 3 Active -- ChampionshipView + StandingsTab four-segment picker complete
-Last activity: 2026-03-03 -- Completed 03-03-PLAN.md (iOS ChampionshipView with WDC/WCC contention math and what-if scenarios)
+Plan: 5 of 6 in current phase -- 03-05 COMPLETE
+Status: Phase 3 Active -- ToastView shared component + PredictionsView toast overlay complete
+Last activity: 2026-03-03 -- Completed 03-05-PLAN.md (ToastView component + PredictionsView background refresh error toast)
 
 Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 14min
-- Total execution time: 1.2 hours
+- Total plans completed: 7
+- Average duration: 8min
+- Total execution time: 1.5 hours
 
 **By Phase:**
 
@@ -30,16 +30,17 @@ Progress: [███████░░░] 70%
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
 | 02-backend-data-features | 3/3 | 53min | 18min |
-| 03-client-feature-surface | 3/6 | 21min | 7min |
+| 03-client-feature-surface | 5/6 | 23min | 5min |
 
 **Recent Trend:**
-- Last 6 plans: 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min), 03-02 (8min), 03-03 (12min)
-- Trend: 03-03 straightforward (plan provided complete Swift code, no deviations needed)
+- Last 6 plans: 02-02 (28min), 02-03 (5min), 03-01 (1min), 03-02 (8min), 03-03 (12min), 03-05 (2min)
+- Trend: 03-05 very fast (plan provided complete Swift code, no deviations needed)
 
 *Updated after each plan completion*
 | Phase 03-client-feature-surface P06 | 2 | 2 tasks | 5 files |
 | Phase 03 P02 | 8 | 2 tasks | 3 files |
 | Phase 03 P03 | 12 | 2 tasks | 4 files |
+| Phase 03-client-feature-surface P05 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - 03-03: whatIfRaces defaults to 3 (Next 3 preset) — most actionable scenario for mid-season viewers
 - [Phase 03-06]: Web predictions use two-step SWR fetch (schedule then predictions) to find upcoming round dynamically
 - [Phase 03-06]: Toast used only for background refresh failures; first-load failures use inline error state with Retry
+- [Phase 03-05]: ToastView holds no internal state — caller controls visibility via onDismiss closure, making it stateless and reusable
+- [Phase 03-05]: Auto-dismiss uses Task.sleep structured concurrency (not DispatchQueue) — cancellation-safe
 
 ### Pending Todos
 
@@ -96,5 +99,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 03-03-PLAN.md (iOS ChampionshipView + StandingsTab four-segment picker) -- Phase 3 Plan 3 of 6 COMPLETE
+Stopped at: Completed 03-05-PLAN.md (ToastView + PredictionsView toast overlay) -- Phase 3 Plan 5 of 6 COMPLETE
 Resume file: None

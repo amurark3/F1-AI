@@ -9,11 +9,12 @@ struct StandingsTab: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Three-segment picker
+                    // Four-segment picker
                     Picker("Standings", selection: $segment) {
                         Text("Drivers").tag(0)
                         Text("Constructors").tag(1)
                         Text("Predictions").tag(2)
+                        Text("Championship").tag(3)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
@@ -49,11 +50,15 @@ struct StandingsTab: View {
                         } else {
                             ConstructorStandingsView(constructors: vm.constructors)
                         }
-                    default: // case 2: Predictions
+                    case 2: // Predictions
                         PredictionsView(
                             upcomingRace: calVm.schedule.first(where: { $0.raceStatus == .upcoming }),
                             year: calVm.selectedYear
                         )
+                    case 3: // Championship
+                        ChampionshipView(year: vm.selectedYear)
+                    default:
+                        EmptyView()
                     }
                 }
                 .padding(.top, 8)

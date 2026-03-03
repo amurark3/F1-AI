@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 3 of 5 -- IN PROGRESS
-Plan: 2 of 6 in current phase -- 03-02 COMPLETE
-Status: Phase 3 Active -- PredictionsView + StandingsTab three-segment picker complete
-Last activity: 2026-03-03 -- Completed 03-02-PLAN.md (iOS PredictionsView and expandable driver cards)
+Plan: 3 of 6 in current phase -- 03-03 COMPLETE
+Status: Phase 3 Active -- ChampionshipView + StandingsTab four-segment picker complete
+Last activity: 2026-03-03 -- Completed 03-03-PLAN.md (iOS ChampionshipView with WDC/WCC contention math and what-if scenarios)
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -30,15 +30,16 @@ Progress: [██████░░░░] 60%
 |-------|-------|-------|----------|
 | 01-infrastructure-hardening | 2/2 | 14min | 7min |
 | 02-backend-data-features | 3/3 | 53min | 18min |
-| 03-client-feature-surface | 2/6 | 9min | 4.5min |
+| 03-client-feature-surface | 3/6 | 21min | 7min |
 
 **Recent Trend:**
-- Last 6 plans: 01-02 (8min), 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min), 03-02 (8min)
-- Trend: 03-02 fast (plan provided complete Swift code, minor type fix only)
+- Last 6 plans: 02-01 (20min), 02-02 (28min), 02-03 (5min), 03-01 (1min), 03-02 (8min), 03-03 (12min)
+- Trend: 03-03 straightforward (plan provided complete Swift code, no deviations needed)
 
 *Updated after each plan completion*
 | Phase 03-client-feature-surface P06 | 2 | 2 tasks | 5 files |
 | Phase 03 P02 | 8 | 2 tasks | 3 files |
+| Phase 03 P03 | 12 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - 03-02: Segment picker uses integer tag (0/1/2) not Bool — clean extension point for future segments
 - 03-02: PredictionsView receives upcomingRace+year as params from StandingsTab to avoid duplicating schedule fetch
 - 03-02: ProgressView used for loading state (no .shimmering() third-party dependency)
+- 03-03: ChampionshipView receives vm.selectedYear from StandingsTab year picker so both standings and championship stay in sync
+- 03-03: wdcContenders / wccContenders use dynamic maxPointsRemaining from actual schedule — sprint weekends add 8 pts (both cars)
+- 03-03: whatIfRaces defaults to 3 (Next 3 preset) — most actionable scenario for mid-season viewers
 - [Phase 03-06]: Web predictions use two-step SWR fetch (schedule then predictions) to find upcoming round dynamically
 - [Phase 03-06]: Toast used only for background refresh failures; first-load failures use inline error state with Retry
 
@@ -92,5 +96,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 03-02-PLAN.md (iOS PredictionsView + StandingsTab three-segment picker) -- Phase 3 Plan 2 of 6 COMPLETE
+Stopped at: Completed 03-03-PLAN.md (iOS ChampionshipView + StandingsTab four-segment picker) -- Phase 3 Plan 3 of 6 COMPLETE
 Resume file: None

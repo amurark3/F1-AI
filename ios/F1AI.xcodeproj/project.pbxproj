@@ -7,18 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0580B0BC8A840EDB16328BEA /* PredictionDriverCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A21B40D4355B0216DA8D81 /* PredictionDriverCard.swift */; };
 		0E4BB7CB75F4C842A80AE893 /* LiveTimingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FE0A62DB4EFA6CB5F20CA6 /* LiveTimingViewModel.swift */; };
 		0EFCFEB49C63DADA002D2385 /* RaceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E25079A927A338F60AA349C /* RaceDetail.swift */; };
 		114DD3FE666DF0B84305E8C1 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B66652163C26B24068380B /* NotificationService.swift */; };
+		16F0749938972E67D8D288AF /* PredictionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB35DFF8EAB60ACDF8CBA35 /* PredictionsView.swift */; };
+		1B1FF7F8AF2AD8BDFA1F165F /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F4802029C6A1E2F4054A31 /* ToastView.swift */; };
 		1DA4F3C78D395A61EC1E2BF6 /* LiveTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F0F0293C266C857F83A0ED /* LiveTiming.swift */; };
 		1E886B58B9F04DA4FA18C2D9 /* NextRaceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 039DED4E07039FF701A5650B /* NextRaceWidget.swift */; };
 		2FB9FBCB3133144839A83143 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00499FC341A51BD887388EB9 /* StatusBadge.swift */; };
 		31544F7AADC11A1A59AE33EE /* SessionSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9FE2C7106FB5A8D666ECE5 /* SessionSchedule.swift */; };
 		338FC0AF683F222910D0B5A8 /* PitWallTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586313474E0AC1A83974602A /* PitWallTab.swift */; };
 		3417A85169C4B9D7E96CDAA5 /* ChatStreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13263646F4AEBF75B953B255 /* ChatStreamService.swift */; };
+		3C668774748D342E4A9E8B2E /* ChampionshipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234B5B520F256CD462D0CDC9 /* ChampionshipViewModel.swift */; };
 		42789C1F61440B72511C9972 /* RaceDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C81CB2636DFEECFD628281 /* RaceDetailViewModel.swift */; };
 		42908CC872A158181E62710A /* CachedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BA71066DC48FE272190AAE9 /* CachedData.swift */; };
 		49F1831FD122017709BD3D06 /* Chat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD2AA6031FE2989826E4521 /* Chat.swift */; };
+		50A54180CAA382A424526B5C /* ChampionshipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F420C0B269DCFFA562A9D02 /* ChampionshipView.swift */; };
 		5561C79D6531DB5B4D70DB73 /* CalendarTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BDCCC2AEBFE7EBB9A9FD55 /* CalendarTab.swift */; };
 		5620292DF92F49837783E5B4 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7983B64B042E4633D2157016 /* ChatViewModel.swift */; };
 		5A57767FE1024784011CE398 /* PositionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44DAF5941CF75246DE05CDE /* PositionRow.swift */; };
@@ -34,10 +39,13 @@
 		6C5038293E4212DF8B740868 /* Compare.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6399609738B3BECDF390C4 /* Compare.swift */; };
 		7244885BFC37E216D9976F0E /* ShareableResultCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4119243322EA537914F128 /* ShareableResultCard.swift */; };
 		780CCF6414C836D2D818952F /* F1AIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5FF0EB12247F7E8AB868B /* F1AIApp.swift */; };
+		784E02BD6B266F65338312CC /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36D32BB7916AEF45B67135A /* NotificationSettingsView.swift */; };
 		795EE0B41EDEE9D0D64DD823 /* CircuitInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C4CFA443F1105A8FEFF3C9 /* CircuitInfoCard.swift */; };
+		8674C22289E4C818944ED86D /* Predictions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633BA875D651304C56A961BF /* Predictions.swift */; };
 		890F3E9344A54D3F8C5EAC27 /* DriverStandingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E042BE6201F66F92BF6A0448 /* DriverStandingsView.swift */; };
 		8AA77DE21E9737D8CFD316BC /* LiveTimingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */; };
 		926749B5F4823A24C692428E /* RaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461D6F9807482987BCD5BCE6 /* RaceDetailView.swift */; };
+		95AD9557D5F1821036C02370 /* PredictionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC048C49E4E10BE24FAA5B18 /* PredictionsViewModel.swift */; };
 		95D409359B1A804017ED1A57 /* LiveTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBEE0C5D11790C2016F998D /* LiveTab.swift */; };
 		A15AB60398D54D280928E700 /* TimingTower.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */; };
 		AA8EEC3F011D0400A7513358 /* ResultsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D3CE420F228CBD2E97DB4E /* ResultsTable.swift */; };
@@ -46,6 +54,7 @@
 		CE41CC402FFA80A9318EE84E /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2086D81F9D7D9033695FBC3 /* ChatView.swift */; };
 		D418B2EA4C619E40BA1EBB47 /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4BF715D6759A7DC2081CB23 /* AdManager.swift */; };
 		D4D34902F631D9A083FA4B6B /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C5D9A047C5D9008792084F /* MessageBubble.swift */; };
+		D81A4063147B498069D4C183 /* ChampionshipDriverRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67AA916BA5A1A89651AB977 /* ChampionshipDriverRow.swift */; };
 		DB867D94326EF59C0FDF47BA /* CompareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A03BD54E737DEAD995C55DB2 /* CompareViewModel.swift */; };
 		DF6E2AADBA91AB0FA60A1E37 /* RaceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA40875DCE4D80D31378BBAE /* RaceRow.swift */; };
 		E6255AFE1F5C9369A14097DA /* CalendarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7140C7E72AA96B663BBF81A /* CalendarViewModel.swift */; };
@@ -79,11 +88,14 @@
 /* Begin PBXFileReference section */
 		00499FC341A51BD887388EB9 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
 		039DED4E07039FF701A5650B /* NextRaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextRaceWidget.swift; sourceTree = "<group>"; };
+		07F4802029C6A1E2F4054A31 /* ToastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		07FDF94CEEB3A4D0BBC7725D /* TeamColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamColor.swift; sourceTree = "<group>"; };
 		0AF0EA78C604B944C001F488 /* PodiumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodiumView.swift; sourceTree = "<group>"; };
 		13263646F4AEBF75B953B255 /* ChatStreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamService.swift; sourceTree = "<group>"; };
 		1528E764CD91AA4D4EF0A873 /* StandingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandingsViewModel.swift; sourceTree = "<group>"; };
+		16A21B40D4355B0216DA8D81 /* PredictionDriverCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PredictionDriverCard.swift; sourceTree = "<group>"; };
 		1E25079A927A338F60AA349C /* RaceDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceDetail.swift; sourceTree = "<group>"; };
+		234B5B520F256CD462D0CDC9 /* ChampionshipViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChampionshipViewModel.swift; sourceTree = "<group>"; };
 		2602F327CFC760B18899E994 /* ConstructorStandingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstructorStandingsView.swift; sourceTree = "<group>"; };
 		39FE0A62DB4EFA6CB5F20CA6 /* LiveTimingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTimingViewModel.swift; sourceTree = "<group>"; };
 		3A9FE2C7106FB5A8D666ECE5 /* SessionSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSchedule.swift; sourceTree = "<group>"; };
@@ -94,10 +106,12 @@
 		4FD2AA6031FE2989826E4521 /* Chat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chat.swift; sourceTree = "<group>"; };
 		53B66652163C26B24068380B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		586313474E0AC1A83974602A /* PitWallTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitWallTab.swift; sourceTree = "<group>"; };
+		633BA875D651304C56A961BF /* Predictions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Predictions.swift; sourceTree = "<group>"; };
 		664587F0019523848866ED98 /* F1AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = F1AI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7983B64B042E4633D2157016 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		8BA71066DC48FE272190AAE9 /* CachedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedData.swift; sourceTree = "<group>"; };
 		8E4119243322EA537914F128 /* ShareableResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableResultCard.swift; sourceTree = "<group>"; };
+		8F420C0B269DCFFA562A9D02 /* ChampionshipView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChampionshipView.swift; sourceTree = "<group>"; };
 		8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = F1AIWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9FBEE0C5D11790C2016F998D /* LiveTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTab.swift; sourceTree = "<group>"; };
 		A03BD54E737DEAD995C55DB2 /* CompareViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareViewModel.swift; sourceTree = "<group>"; };
@@ -113,11 +127,15 @@
 		BF6399609738B3BECDF390C4 /* Compare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compare.swift; sourceTree = "<group>"; };
 		D7140C7E72AA96B663BBF81A /* CalendarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarViewModel.swift; sourceTree = "<group>"; };
 		D8BDCCC2AEBFE7EBB9A9FD55 /* CalendarTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarTab.swift; sourceTree = "<group>"; };
+		DAB35DFF8EAB60ACDF8CBA35 /* PredictionsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PredictionsView.swift; sourceTree = "<group>"; };
+		DC048C49E4E10BE24FAA5B18 /* PredictionsViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PredictionsViewModel.swift; sourceTree = "<group>"; };
 		E042BE6201F66F92BF6A0448 /* DriverStandingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverStandingsView.swift; sourceTree = "<group>"; };
 		E2086D81F9D7D9033695FBC3 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		E36D32BB7916AEF45B67135A /* NotificationSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		E9D3CE420F228CBD2E97DB4E /* ResultsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsTable.swift; sourceTree = "<group>"; };
 		EA6CC3A62AB4277EAA525848 /* DriverCompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverCompareView.swift; sourceTree = "<group>"; };
 		F44DAF5941CF75246DE05CDE /* PositionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionRow.swift; sourceTree = "<group>"; };
+		F67AA916BA5A1A89651AB977 /* ChampionshipDriverRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChampionshipDriverRow.swift; sourceTree = "<group>"; };
 		F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingTower.swift; sourceTree = "<group>"; };
 		F98499957A21E2C03E881CCC /* Standings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standings.swift; sourceTree = "<group>"; };
 		FA40875DCE4D80D31378BBAE /* RaceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceRow.swift; sourceTree = "<group>"; };
@@ -146,8 +164,20 @@
 				05787138BE59603F89DC694C /* Services */,
 				8E1B4B62F308E72A364BF639 /* ViewModels */,
 				5440D33503ECC1368CF77250 /* Views */,
+				E76F0AFDDE90E2B2C4C086D5 /* Models */,
+				1C865C19DC4C9F8D017D8785 /* ViewModels */,
+				328B59524D8FEF9653E11AE8 /* Views */,
 			);
 			path = F1AI;
+			sourceTree = "<group>";
+		};
+		173D238EB7920A911D9FEA83 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				07F4802029C6A1E2F4054A31 /* ToastView.swift */,
+			);
+			name = Shared;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		1A9293C59F8E6995DCA92939 = {
@@ -157,6 +187,16 @@
 				F62A232B364E902EEEF3F429 /* F1AIWidgets */,
 				8C1792DCCBC237D4BD8F295A /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		1C865C19DC4C9F8D017D8785 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				DC048C49E4E10BE24FAA5B18 /* PredictionsViewModel.swift */,
+				234B5B520F256CD462D0CDC9 /* ChampionshipViewModel.swift */,
+			);
+			name = ViewModels;
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		1E6F03D67C8E0EBFB6F70B5D /* Models */ = {
@@ -173,6 +213,28 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		328B59524D8FEF9653E11AE8 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				50F5D3BC157841EB8498792D /* Predictions */,
+				32C85D7B92557AF9C26FA0F2 /* Championship */,
+				3EF2CF719A7431F519DB75A1 /* Settings */,
+				173D238EB7920A911D9FEA83 /* Shared */,
+			);
+			name = Views;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		32C85D7B92557AF9C26FA0F2 /* Championship */ = {
+			isa = PBXGroup;
+			children = (
+				F67AA916BA5A1A89651AB977 /* ChampionshipDriverRow.swift */,
+				8F420C0B269DCFFA562A9D02 /* ChampionshipView.swift */,
+			);
+			name = Championship;
+			path = Championship;
+			sourceTree = "<group>";
+		};
 		35A90C6ED26B55075CB8EE27 /* Standings */ = {
 			isa = PBXGroup;
 			children = (
@@ -180,6 +242,25 @@
 				E042BE6201F66F92BF6A0448 /* DriverStandingsView.swift */,
 			);
 			path = Standings;
+			sourceTree = "<group>";
+		};
+		3EF2CF719A7431F519DB75A1 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E36D32BB7916AEF45B67135A /* NotificationSettingsView.swift */,
+			);
+			name = Settings;
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		50F5D3BC157841EB8498792D /* Predictions */ = {
+			isa = PBXGroup;
+			children = (
+				16A21B40D4355B0216DA8D81 /* PredictionDriverCard.swift */,
+				DAB35DFF8EAB60ACDF8CBA35 /* PredictionsView.swift */,
+			);
+			name = Predictions;
+			path = Predictions;
 			sourceTree = "<group>";
 		};
 		5440D33503ECC1368CF77250 /* Views */ = {
@@ -271,6 +352,15 @@
 			path = Chat;
 			sourceTree = "<group>";
 		};
+		E76F0AFDDE90E2B2C4C086D5 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				633BA875D651304C56A961BF /* Predictions.swift */,
+			);
+			name = Models;
+			path = Models;
+			sourceTree = "<group>";
+		};
 		F62A232B364E902EEEF3F429 /* F1AIWidgets */ = {
 			isa = PBXGroup;
 			children = (
@@ -302,8 +392,6 @@
 			dependencies = (
 			);
 			name = F1AIWidgets;
-			packageProductDependencies = (
-			);
 			productName = F1AIWidgets;
 			productReference = 8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -321,8 +409,6 @@
 				E7BE3BDF0570D56AF6460627 /* PBXTargetDependency */,
 			);
 			name = F1AI;
-			packageProductDependencies = (
-			);
 			productName = F1AI;
 			productReference = 664587F0019523848866ED98 /* F1AI.app */;
 			productType = "com.apple.product-type.application";
@@ -346,6 +432,7 @@
 			);
 			mainGroup = 1A9293C59F8E6995DCA92939;
 			minimizedProjectReferenceProxies = 1;
+			productRefGroup = 8C1792DCCBC237D4BD8F295A /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -409,6 +496,15 @@
 				2FB9FBCB3133144839A83143 /* StatusBadge.swift in Sources */,
 				6696DE83FA6116A0A378A3F4 /* TeamColor.swift in Sources */,
 				A15AB60398D54D280928E700 /* TimingTower.swift in Sources */,
+				8674C22289E4C818944ED86D /* Predictions.swift in Sources */,
+				95AD9557D5F1821036C02370 /* PredictionsViewModel.swift in Sources */,
+				0580B0BC8A840EDB16328BEA /* PredictionDriverCard.swift in Sources */,
+				16F0749938972E67D8D288AF /* PredictionsView.swift in Sources */,
+				3C668774748D342E4A9E8B2E /* ChampionshipViewModel.swift in Sources */,
+				D81A4063147B498069D4C183 /* ChampionshipDriverRow.swift in Sources */,
+				50A54180CAA382A424526B5C /* ChampionshipView.swift in Sources */,
+				784E02BD6B266F65338312CC /* NotificationSettingsView.swift in Sources */,
+				1B1FF7F8AF2AD8BDFA1F165F /* ToastView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

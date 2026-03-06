@@ -82,11 +82,16 @@ Plans:
   3. When a significant event occurs (position change, safety car, fastest lap, pit stop), AI commentary appears within 30 seconds explaining the context
   4. AI commentary does not fire more than once every 30 seconds regardless of event frequency
   5. Commentary panel is visible in both iOS and web UIs as a dedicated section during live sessions
-**Plans**: TBD
+**Plans**: 04-01 through 04-07
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01: ActivityKit Live Activity declaration (RaceLiveActivity views + widget bundle + NSSupportsLiveActivities)
+- [ ] 04-02: Live Activity lifecycle manager (start/update/end wired to session detection + WebSocket data)
+- [ ] 04-03: Favorite driver settings (driver picker in App Settings, UserDefaults key)
+- [ ] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast)
+- [ ] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot)
+- [ ] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel)
+- [ ] 04-07: Lap count integration (OpenF1 /v1/laps poll, session_status broadcast, Dynamic Island compact view)
 
 ### Phase 5: Push Infrastructure
 **Goal**: iOS users receive real-time push notifications for live race events on physical devices, with reliable token management

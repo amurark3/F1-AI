@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/calendar', label: 'Calendar' },
   { href: '/standings', label: 'Standings' },
   { href: '/predictions', label: 'Predictions' },
+  { href: '/live', label: 'Live' },
 ];
 
 export default function NavShell({ children }: { children: React.ReactNode }) {

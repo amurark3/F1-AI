@@ -96,7 +96,7 @@
 		0AF0EA78C604B944C001F488 /* PodiumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodiumView.swift; sourceTree = "<group>"; };
 		0FBDCAEE25BF61D9D2DA2857 /* ChampionshipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChampionshipView.swift; sourceTree = "<group>"; };
 		13263646F4AEBF75B953B255 /* ChatStreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamService.swift; sourceTree = "<group>"; };
-		14F226F7B4D434E9FB967EEB /* RaceLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RaceLiveActivity.swift; path = ../../F1AIWidgets/RaceLiveActivity.swift; sourceTree = "<group>"; };
+		14F226F7B4D434E9FB967EEB /* RaceLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceLiveActivity.swift; sourceTree = "<group>"; };
 		1528E764CD91AA4D4EF0A873 /* StandingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandingsViewModel.swift; sourceTree = "<group>"; };
 		1E25079A927A338F60AA349C /* RaceDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceDetail.swift; sourceTree = "<group>"; };
 		2542D2069F6DDBC425D0FA69 /* ChampionshipDriverRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChampionshipDriverRow.swift; sourceTree = "<group>"; };
@@ -165,14 +165,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		0983A652C594E0979E3115CC /* Widgets */ = {
-			isa = PBXGroup;
-			children = (
-				14F226F7B4D434E9FB967EEB /* RaceLiveActivity.swift */,
-			);
-			path = Widgets;
-			sourceTree = "<group>";
-		};
 		0B83C6D47921012021B97DB1 /* F1AI */ = {
 			isa = PBXGroup;
 			children = (
@@ -182,7 +174,6 @@
 				05787138BE59603F89DC694C /* Services */,
 				8E1B4B62F308E72A364BF639 /* ViewModels */,
 				5440D33503ECC1368CF77250 /* Views */,
-				0983A652C594E0979E3115CC /* Widgets */,
 			);
 			path = F1AI;
 			sourceTree = "<group>";

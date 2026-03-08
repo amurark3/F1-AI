@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 ## Current Position
 
-Phase: 3 of 5 -- COMPLETE (Phase 4 is next)
-Plan: 6 of 6 in completed phase -- ALL PLANS DONE
-Status: Phase 3 Complete -- verified PASS (2026-03-03)
-Last activity: 2026-03-03 -- Completed all 6 plans; registered 9 Swift files in Xcode project.pbxproj
+Phase: 4 of 5 -- IN PROGRESS
+Plan: 1 of 7 complete
+Status: Phase 4 Active -- 04-01 done (2026-03-08)
+Last activity: 2026-03-08 -- Completed 04-01: ActivityKit Live Activity declaration, Dynamic Island widget, dual-target xcodegen
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -41,6 +41,8 @@ Progress: [████████░░] 80%
 | Phase 03 P02 | 8 | 2 tasks | 3 files |
 | Phase 03 P03 | 12 | 2 tasks | 4 files |
 | Phase 03-client-feature-surface P05 | 2 | 2 tasks | 2 files |
+| Phase 04-live-race-experience P01 | 2 | 4 tasks | 4 files |
+| Phase 04-live-race-experience P04-04 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -85,6 +87,10 @@ Recent decisions affecting current work:
 - [Phase 03-06]: Toast used only for background refresh failures; first-load failures use inline error state with Retry
 - [Phase 03-05]: ToastView holds no internal state — caller controls visibility via onDismiss closure, making it stateless and reusable
 - [Phase 03-05]: Auto-dismiss uses Task.sleep structured concurrency (not DispatchQueue) — cancellation-safe
+- [Phase 04-01]: RaceLiveActivity.swift placed in F1AIWidgets/ and added to F1AI target via xcodegen explicit source path — avoids third Shared/ directory
+- [Phase 04-01]: isLeader Bool included in ContentState for UI branching without gap string parsing
+- [Phase 04-live-race-experience]: Commentary state keyed by room string at module level for shared 30s cooldown across connections
+- [Phase 04-live-race-experience]: asyncio.to_thread wraps llm.invoke to prevent blocking WebSocket event loop; template fallback on LLM error
 
 ### Pending Todos
 
@@ -98,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Phase 3 fully complete and verified PASS. All 6 plans done, 9 Swift files registered in Xcode. Ready for Phase 4: Live Race Experience.
+Last session: 2026-03-08
+Stopped at: Completed 04-01-PLAN.md. RaceLiveActivityAttributes + Dynamic Island widget declared, NSSupportsLiveActivities added, xcodegen regenerated. Ready for 04-02: LiveActivityService lifecycle.
 Resume file: None

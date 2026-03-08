@@ -4,6 +4,8 @@ import UserNotifications
 struct NotificationSettingsView: View {
     // Advance minutes via @AppStorage (SwiftUI-native UserDefaults wrapper)
     @AppStorage("notificationAdvanceMinutes") private var advanceMinutes: Int = 15
+    // Favorite driver abbreviation for Dynamic Island live tracking
+    @AppStorage("favoriteDriver") private var favoriteDriver: String = ""
 
     // Per-session toggle state — loaded from UserDefaults, saved on change
     @State private var enabledSessions: Set<String> = UserDefaults.standard.enabledNotificationSessions
@@ -23,6 +25,17 @@ struct NotificationSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Live race tracking — favorite driver for Dynamic Island
+                Section {
+                    TextField("Driver abbreviation (e.g. VER)", text: $favoriteDriver)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                } header: {
+                    Text("Live Race Tracking")
+                } footer: {
+                    Text("Dynamic Island tracks this driver during live sessions. Leave blank to track the race leader.")
+                }
+
                 // Advance notice picker
                 Section {
                     Picker("Notify me", selection: $advanceMinutes) {

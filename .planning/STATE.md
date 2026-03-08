@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 4 of 5 -- IN PROGRESS
-Plan: 4 of 7 complete
-Status: Phase 4 Active -- 04-04 done (2026-03-08)
-Last activity: 2026-03-08 -- Completed 04-04: Backend commentary engine with Gemini, event detection, and 30s cooldown guard
+Plan: 5 of 7 complete
+Status: Phase 4 Active -- 04-03 done (2026-03-08)
+Last activity: 2026-03-08 -- Completed 04-03: Favorite driver TextField in NotificationSettingsView, @AppStorage("favoriteDriver") wired to LiveActivityService
 
 Progress: [████████░░] 82%
 
@@ -43,6 +43,7 @@ Progress: [████████░░] 82%
 | Phase 03-client-feature-surface P05 | 2 | 2 tasks | 2 files |
 | Phase 04-live-race-experience P01 | 2 | 4 tasks | 4 files |
 | Phase 04-live-race-experience P04-04 | 2 | 1 tasks | 1 files |
+| Phase 04-live-race-experience P04-03 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 04-01]: isLeader Bool included in ContentState for UI branching without gap string parsing
 - [Phase 04-live-race-experience]: Commentary state keyed by room string at module level for shared 30s cooldown across connections
 - [Phase 04-live-race-experience]: asyncio.to_thread wraps llm.invoke to prevent blocking WebSocket event loop; template fallback on LLM error
+- [Phase 04-live-race-experience]: favoriteDriver AppStorage key empty-string default — LiveActivityService interprets empty as track-leader fallback; no validation in settings layer
 
 ### Pending Todos
 
@@ -105,5 +107,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 04-04-PLAN.md. Commentary engine wired into live_timing WebSocket handler — _fetch_session_status, _fetch_stint_counts, _detect_event, _generate_commentary helpers added; 30s cooldown guard per room. Ready for 04-05: iOS live race tab.
+Stopped at: Completed 04-03-PLAN.md. Favorite driver TextField added to NotificationSettingsView — @AppStorage("favoriteDriver") key now written by Settings UI. Ready for 04-05: iOS live race tab.
 Resume file: None

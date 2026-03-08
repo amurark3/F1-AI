@@ -419,6 +419,10 @@ race_detail_cache: dict[tuple[int, int], dict] = {}
 # Predictions cache — keyed by (year, round_num), same pattern as race_detail_cache.
 predictions_cache: dict[tuple[int, int], dict] = {}
 
+# Per-room commentary state — keyed by "{year}-{round_num}"
+_commentary_state: dict[str, dict] = {}
+COMMENTARY_COOLDOWN_SECONDS = 30
+
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
 _fastf1_lock = threading.Lock()
@@ -951,6 +955,156 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
     }
 
 
+async def _fetch_session_status(session_key: int) -> str:
+    """
+    Poll OpenF1 /v1/race_control for the most recent safety car or flag event.
+    Returns a normalized status string: "safety car", "vsc", "red flag", or "".
+    """
+    try:
+        url = f"https://api.openf1.org/v1/race_control?session_key={session_key}&category=SafetyCar,Flag"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            messages = resp.json()
+        if not messages:
+            return ""
+        # Messages are in chronological order; take the last one
+        latest = messages[-1]
+        msg = (latest.get("message") or "").lower()
+        flag = (latest.get("flag") or "").lower()
+        if "safety car" in msg or flag == "safety car":
+            return "safety car"
+        if "virtual safety car" in msg or flag == "virtual safety car":
+            return "vsc"
+        if "red flag" in msg or flag == "red":
+            return "red flag"
+        return ""
+    except Exception as e:
+        logger.warning("commentary.race_control_fetch_error", error=str(e))
+        return ""
+
+
+async def _fetch_stint_counts(session_key: int) -> dict[str, int]:
+    """
+    Poll OpenF1 /v1/stints for current session.
+    Returns a dict mapping driver_number (str) to number of stints (proxy for pit stops).
+    A driver on stint 2 has made 1 pit stop, stint 3 = 2 pit stops, etc.
+    """
+    try:
+        url = f"https://api.openf1.org/v1/stints?session_key={session_key}"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            stints = resp.json()
+        counts: dict[str, int] = {}
+        for stint in stints:
+            drv = str(stint.get("driver_number", ""))
+            if drv:
+                counts[drv] = max(counts.get(drv, 0), stint.get("stint_number", 1))
+        return counts
+    except Exception as e:
+        logger.warning("commentary.stints_fetch_error", error=str(e))
+        return {}
+
+
+def _detect_event(
+    prev_positions: list[dict],
+    curr_positions: list[dict],
+    prev_session_status: str,
+    curr_session_status: str,
+    prev_stints: dict[str, int],
+    curr_stints: dict[str, int],
+) -> dict | None:
+    """
+    Compare successive snapshots and return the highest-priority event dict, or None.
+    Priority: (1) safety car / red flag, (2) position change, (3) pit stop.
+    """
+    # 1. Safety car / red flag
+    if curr_session_status and curr_session_status != prev_session_status and curr_session_status.lower() in (
+        "safety car", "vsc", "virtual safety car", "red flag"
+    ):
+        return {"type": "safety_car", "status": curr_session_status}
+
+    # Build lookup maps
+    curr_map = {p["driver"]: p for p in curr_positions}
+    prev_map = {p["driver"]: p for p in prev_positions}
+
+    # 2. Position change (any driver moved at least 1 place)
+    for driver, curr in curr_map.items():
+        prev = prev_map.get(driver)
+        if prev and curr["position"] != prev["position"]:
+            return {
+                "type": "position_change",
+                "driver": driver,
+                "from_pos": prev["position"],
+                "to_pos": curr["position"],
+                "positions": curr_positions[:5],
+            }
+
+    # 3. Pit stop (stint count increased for any driver)
+    for driver, curr_stint in curr_stints.items():
+        prev_stint = prev_stints.get(driver, 1)
+        if curr_stint > prev_stint:
+            curr_pos = curr_map.get(driver, {}).get("position", "?")
+            return {
+                "type": "pit_stop",
+                "driver": driver,
+                "pit_count": curr_stint - 1,  # stints = pit_stops + 1
+                "position": curr_pos,
+            }
+
+    return None
+
+
+async def _generate_commentary(event: dict, race_name: str) -> str:
+    """
+    Call Gemini to generate 2-3 sentence excited-commentator commentary.
+    Wrapped in asyncio.to_thread so it does not block the WebSocket event loop.
+    Falls back to a template string on any LLM error.
+    """
+    event_type = event["type"]
+
+    if event_type == "safety_car":
+        prompt = (
+            f"You are an excited F1 race commentator at {race_name}. "
+            f"The {event['status']} has just been deployed. "
+            "Write 2-3 energetic, fan-friendly sentences explaining what this means for the race. "
+            "No technical jargon."
+        )
+    elif event_type == "position_change":
+        top5 = event.get("positions", [])
+        top5_str = ", ".join(f"P{p['position']} #{p['driver']}" for p in top5)
+        prompt = (
+            f"You are an excited F1 race commentator at {race_name}. "
+            f"Driver #{event['driver']} just moved from P{event['from_pos']} to P{event['to_pos']}. "
+            f"Current top 5: {top5_str}. "
+            "Write 2-3 energetic, fan-friendly sentences. No technical jargon."
+        )
+    elif event_type == "pit_stop":
+        prompt = (
+            f"You are an excited F1 race commentator at {race_name}. "
+            f"Driver #{event['driver']} just pitted (stop #{event['pit_count']}), "
+            f"currently P{event['position']} after the stop. "
+            "Write 2-3 energetic, fan-friendly sentences. No technical jargon."
+        )
+    else:
+        return ""
+
+    try:
+        response = await asyncio.to_thread(llm.invoke, prompt)
+        return response.content.strip()
+    except Exception as e:
+        logger.error("commentary.llm_error", error=str(e))
+        # Template fallback
+        if event_type == "safety_car":
+            return f"Safety car out at {race_name}! The field bunches up and strategy windows open!"
+        elif event_type == "position_change":
+            return f"Position change! Driver #{event['driver']} moves to P{event['to_pos']}!"
+        elif event_type == "pit_stop":
+            return f"Driver #{event['driver']} dives into the pits for stop #{event['pit_count']}!"
+        return ""
+
+
 @router.websocket("/live/{year}/{round_num}")
 async def live_timing(websocket: WebSocket, year: int, round_num: int):
     """WebSocket endpoint for live race timing data.
@@ -965,6 +1119,7 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
 
     try:
         session_key = await _find_openf1_session(year, round_num)
+        race_name = f"Round {round_num} {year}"  # fallback; sufficient for prompts
 
         while True:
             # Check if connection is stale
@@ -980,6 +1135,60 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
                         "data": positions,
                     })
                     manager.touch(websocket)
+
+                    # --- Commentary detection ---
+                    # Fetch auxiliary data for event types not available in positions endpoint
+                    curr_status, curr_stints = await asyncio.gather(
+                        _fetch_session_status(session_key),
+                        _fetch_stint_counts(session_key),
+                    )
+
+                    state = _commentary_state.setdefault(room, {
+                        "last_time": 0.0,
+                        "prev_positions": [],
+                        "prev_session_status": "",
+                        "prev_stints": {},
+                    })
+
+                    if not state["prev_positions"]:
+                        # First snapshot — store and skip detection to avoid false positives
+                        state["prev_positions"] = positions
+                        state["prev_session_status"] = curr_status
+                        state["prev_stints"] = curr_stints
+                    else:
+                        now_ts = time.time()
+                        if now_ts - state["last_time"] >= COMMENTARY_COOLDOWN_SECONDS:
+                            event = _detect_event(
+                                state["prev_positions"],
+                                positions,
+                                state["prev_session_status"],
+                                curr_status,
+                                state["prev_stints"],
+                                curr_stints,
+                            )
+                            if event:
+                                commentary_text = await _generate_commentary(event, race_name)
+                                if commentary_text:
+                                    commentary_entry = {
+                                        "type": "commentary",
+                                        "data": {
+                                            "id": str(time.time()),
+                                            "text": commentary_text,
+                                            "event_type": event["type"],
+                                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                                        },
+                                    }
+                                    await websocket.send_json(commentary_entry)
+                                    state["last_time"] = time.time()
+                                    logger.info(
+                                        "commentary.broadcast",
+                                        room=room,
+                                        event_type=event["type"],
+                                    )
+
+                        state["prev_positions"] = positions
+                        state["prev_session_status"] = curr_status
+                        state["prev_stints"] = curr_stints
 
             # Wait before next poll
             await asyncio.sleep(WS_POLL_INTERVAL)

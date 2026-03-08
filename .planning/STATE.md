@@ -44,6 +44,7 @@ Progress: [████████░░] 82%
 | Phase 04-live-race-experience P01 | 2 | 4 tasks | 4 files |
 | Phase 04-live-race-experience P04-04 | 2 | 1 tasks | 1 files |
 | Phase 04-live-race-experience P04-03 | 3 | 1 tasks | 1 files |
+| Phase 04-live-race-experience P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 04-live-race-experience]: Commentary state keyed by room string at module level for shared 30s cooldown across connections
 - [Phase 04-live-race-experience]: asyncio.to_thread wraps llm.invoke to prevent blocking WebSocket event loop; template fallback on LLM error
 - [Phase 04-live-race-experience]: favoriteDriver AppStorage key empty-string default — LiveActivityService interprets empty as track-leader fallback; no validation in settings layer
+- [Phase 04-live-race-experience]: LiveActivityService keeps ActivityKit isolated in its own service file — not on LiveTimingViewModel — avoiding import confusion between app and widget targets
+- [Phase 04-live-race-experience]: Tracked driver re-read from UserDefaults on every update() so mid-session favorite changes propagate without restart
 
 ### Pending Todos
 
@@ -107,5 +110,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 04-03-PLAN.md. Favorite driver TextField added to NotificationSettingsView — @AppStorage("favoriteDriver") key now written by Settings UI. Ready for 04-05: iOS live race tab.
+Stopped at: Completed 04-02-PLAN.md. LiveActivityService + LiveTab wiring done. Dynamic Island starts on first positions push, updates every push, ends on session finished/user-leave.
 Resume file: None

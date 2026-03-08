@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0E4BB7CB75F4C842A80AE893 /* LiveTimingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FE0A62DB4EFA6CB5F20CA6 /* LiveTimingViewModel.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* LiveActivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */; };
 		0EFCFEB49C63DADA002D2385 /* RaceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E25079A927A338F60AA349C /* RaceDetail.swift */; };
 		114DD3FE666DF0B84305E8C1 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B66652163C26B24068380B /* NotificationService.swift */; };
 		1C9663FE42B8ACC17162D90B /* PredictionDriverCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54E2B95FCAF0F578BE1C203D /* PredictionDriverCard.swift */; };
@@ -144,6 +145,7 @@
 		F98499957A21E2C03E881CCC /* Standings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standings.swift; sourceTree = "<group>"; };
 		FA40875DCE4D80D31378BBAE /* RaceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceRow.swift; sourceTree = "<group>"; };
 		FAED17B04FD6282E88F4699D /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
+		C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -154,6 +156,7 @@
 				B399A2CBA9DC8D68AD4335A8 /* APIClient.swift */,
 				FAED17B04FD6282E88F4699D /* CacheService.swift */,
 				13263646F4AEBF75B953B255 /* ChatStreamService.swift */,
+				C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */,
 				B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */,
 				53B66652163C26B24068380B /* NotificationService.swift */,
 			);
@@ -459,6 +462,7 @@
 				780CCF6414C836D2D818952F /* F1AIApp.swift in Sources */,
 				95D409359B1A804017ED1A57 /* LiveTab.swift in Sources */,
 				1DA4F3C78D395A61EC1E2BF6 /* LiveTiming.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* LiveActivityService.swift in Sources */,
 				8AA77DE21E9737D8CFD316BC /* LiveTimingService.swift in Sources */,
 				0E4BB7CB75F4C842A80AE893 /* LiveTimingViewModel.swift in Sources */,
 				D4D34902F631D9A083FA4B6B /* MessageBubble.swift in Sources */,

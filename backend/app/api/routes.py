@@ -802,8 +802,32 @@ async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
         return None
 
 
-async def _find_openf1_session(year: int, round_num: int) -> str | None:
-    """Find the current live session key from OpenF1."""
+async def _fetch_current_lap(session_key: str) -> int:
+    """
+    Fetch the highest completed lap number for the session from OpenF1 /v1/laps.
+    Returns 0 on failure or empty response.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
+            resp = await client.get(
+                "https://api.openf1.org/v1/laps",
+                params={"session_key": session_key},
+            )
+            if resp.status_code != 200:
+                return 0
+            data = resp.json()
+            if not data:
+                return 0
+            # Take the maximum lap_number across all drivers' lap entries
+            lap_nums = [entry.get("lap_number", 0) for entry in data if entry.get("lap_number")]
+            return max(lap_nums) if lap_nums else 0
+    except Exception as e:
+        logger.warning("openf1.laps_fetch_error", error=str(e))
+        return 0
+
+
+async def _find_openf1_session(year: int, round_num: int) -> tuple[str, int] | None:
+    """Find the current live session key and total laps from OpenF1."""
     try:
         async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
             resp = await client.get(
@@ -816,7 +840,9 @@ async def _find_openf1_session(year: int, round_num: int) -> str | None:
             # Match by meeting_key or round number approximation
             for s in sessions:
                 if s.get("session_key"):
-                    return str(s["session_key"])
+                    # OpenF1 field names to check (verify at runtime which is present)
+                    total_laps = s.get("total_laps") or s.get("laps") or s.get("number_of_laps") or 0
+                    return str(s["session_key"]), int(total_laps)
             return None
     except Exception:
         return None
@@ -1118,8 +1144,13 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
     heartbeat_task = asyncio.create_task(manager.heartbeat(websocket))
 
     try:
-        session_key = await _find_openf1_session(year, round_num)
+        session_result = await _find_openf1_session(year, round_num)
+        if session_result:
+            session_key, total_laps = session_result
+        else:
+            session_key, total_laps = None, 0
         race_name = f"Round {round_num} {year}"  # fallback; sufficient for prompts
+        last_known_lap = 0
 
         while True:
             # Check if connection is stale
@@ -1133,6 +1164,20 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
                     await websocket.send_json({
                         "type": "positions",
                         "data": positions,
+                    })
+                    manager.touch(websocket)
+
+                    # Fetch current lap and broadcast session_status
+                    current_lap = await _fetch_current_lap(session_key)
+                    if current_lap > 0:
+                        last_known_lap = current_lap
+                    await websocket.send_json({
+                        "type": "session_status",
+                        "data": {
+                            "status": "started",
+                            "lap": last_known_lap if last_known_lap > 0 else None,
+                            "total_laps": total_laps if total_laps > 0 else None,
+                        },
                     })
                     manager.touch(websocket)
 

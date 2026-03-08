@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 4 of 5 -- IN PROGRESS
-Plan: 1 of 7 complete
-Status: Phase 4 Active -- 04-01 done (2026-03-08)
-Last activity: 2026-03-08 -- Completed 04-01: ActivityKit Live Activity declaration, Dynamic Island widget, dual-target xcodegen
+Plan: 4 of 7 complete
+Status: Phase 4 Active -- 04-04 done (2026-03-08)
+Last activity: 2026-03-08 -- Completed 04-04: Backend commentary engine with Gemini, event detection, and 30s cooldown guard
 
 Progress: [████████░░] 82%
 
@@ -105,5 +105,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 04-01-PLAN.md. RaceLiveActivityAttributes + Dynamic Island widget declared, NSSupportsLiveActivities added, xcodegen regenerated. Ready for 04-02: LiveActivityService lifecycle.
+Stopped at: Completed 04-04-PLAN.md. Commentary engine wired into live_timing WebSocket handler — _fetch_session_status, _fetch_stint_counts, _detect_event, _generate_commentary helpers added; 30s cooldown guard per room. Ready for 04-05: iOS live race tab.
 Resume file: None

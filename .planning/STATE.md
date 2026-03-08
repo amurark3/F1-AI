@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** An intelligent F1 race engineer that can answer any Formula 1 question using real data -- race results, driver comparisons, regulations, and live timing -- across web and mobile.
-**Current focus:** Phase 4 (next)
-**Completed:** Phase 1: Infrastructure Hardening, Phase 2: Backend Data Features, Phase 3: Client Feature Surface
+**Current focus:** Phase 5 (next)
+**Completed:** Phase 1: Infrastructure Hardening, Phase 2: Backend Data Features, Phase 3: Client Feature Surface, Phase 4: Live Race Experience
 
 ## Current Position
 
-Phase: 4 of 5 -- IN PROGRESS
-Plan: 6 of 7 complete
-Status: Phase 4 Active -- 04-06 done (2026-03-08)
-Last activity: 2026-03-08 -- Completed 04-06: Web /live page with useLiveTiming WebSocket hook, LiveTimingTower, CommentaryPanel, and Live nav link in NavShell
+Phase: 4 of 5 -- COMPLETE
+Plan: 7 of 7 complete
+Status: Phase 4 Complete -- 04-07 done (2026-03-08)
+Last activity: 2026-03-08 -- Completed 04-07: Lap count integration — backend broadcasts session_status with lap/total_laps via OpenF1 /v1/laps
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [████████░░] 82%
 | Phase 04-live-race-experience P02 | 2 | 2 tasks | 3 files |
 | Phase 04-live-race-experience P04-06 | 8 | 5 tasks | 5 files |
 | Phase 04-live-race-experience P05 | 3 | 5 tasks | 6 files |
+| Phase 04-live-race-experience P04-07 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,9 @@ Recent decisions affecting current work:
 - [Phase 04-live-race-experience]: Commentary badge dot uses @State hasNewCommentary cleared on Commentary tab .onAppear — no auto-switch, visual only
 - [Phase 04-06]: useLiveTiming guards useEffect with !year || !round check so hook can be called unconditionally; round 0 is never a valid F1 round
 - [Phase 04-06]: AnimatePresence initial=false on CommentaryPanel so only newly prepended entries animate in; initial render is instant
+- [Phase 04-07]: _find_openf1_session returns tuple[str, int] | None so session_key and total_laps are fetched atomically in one call
+- [Phase 04-07]: last_known_lap cache variable preserves last good lap count across failed /v1/laps fetches rather than broadcasting null
+- [Phase 04-07]: session_status message sent after positions so iOS receives positions first (triggering activity start) then lap update follows
 
 ### Pending Todos
 
@@ -116,5 +120,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 04-06-PLAN.md. Web /live page with useLiveTiming hook, LiveTimingTower, CommentaryPanel, and Live nav link in NavShell. npm run build passes cleanly.
+Stopped at: Completed 04-07-PLAN.md. Phase 4 complete. Lap count integration: backend broadcasts session_status with lap/total_laps via OpenF1 /v1/laps. Ready to plan Phase 5.
 Resume file: None

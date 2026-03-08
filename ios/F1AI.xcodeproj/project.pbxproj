@@ -27,6 +27,7 @@
 		5561C79D6531DB5B4D70DB73 /* CalendarTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BDCCC2AEBFE7EBB9A9FD55 /* CalendarTab.swift */; };
 		5620292DF92F49837783E5B4 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7983B64B042E4633D2157016 /* ChatViewModel.swift */; };
 		5A57767FE1024784011CE398 /* PositionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44DAF5941CF75246DE05CDE /* PositionRow.swift */; };
+		B2C3D4E5F6A7081929384B5C /* CommentaryFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */; };
 		5AEBF7A9555BE62783D3DFC8 /* F1AIWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5E8B08A930D83E15736A466D /* Race.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE06C4DC97F9A78CE89EE9D4 /* Race.swift */; };
 		5F02F33DC5D3DED38157EA65 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAED17B04FD6282E88F4699D /* CacheService.swift */; };
@@ -140,6 +141,7 @@
 		E2086D81F9D7D9033695FBC3 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		E9D3CE420F228CBD2E97DB4E /* ResultsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsTable.swift; sourceTree = "<group>"; };
 		EA6CC3A62AB4277EAA525848 /* DriverCompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverCompareView.swift; sourceTree = "<group>"; };
+		C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentaryFeedView.swift; sourceTree = "<group>"; };
 		F44DAF5941CF75246DE05CDE /* PositionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionRow.swift; sourceTree = "<group>"; };
 		F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingTower.swift; sourceTree = "<group>"; };
 		F98499957A21E2C03E881CCC /* Standings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standings.swift; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 		82D6A1C08DA125AFE2378474 /* Live */ = {
 			isa = PBXGroup;
 			children = (
+				C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */,
 				F44DAF5941CF75246DE05CDE /* PositionRow.swift */,
 				F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */,
 			);
@@ -470,6 +473,7 @@
 				489E833333A5157AD721650B /* NotificationSettingsView.swift in Sources */,
 				338FC0AF683F222910D0B5A8 /* PitWallTab.swift in Sources */,
 				68134953A17F385C80FE8AE1 /* PodiumView.swift in Sources */,
+				B2C3D4E5F6A7081929384B5C /* CommentaryFeedView.swift in Sources */,
 				5A57767FE1024784011CE398 /* PositionRow.swift in Sources */,
 				1C9663FE42B8ACC17162D90B /* PredictionDriverCard.swift in Sources */,
 				1F6DF76FDAF2AA8E40D66A55 /* Predictions.swift in Sources */,

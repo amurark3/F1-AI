@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 4 of 5 -- IN PROGRESS
-Plan: 5 of 7 complete
-Status: Phase 4 Active -- 04-03 done (2026-03-08)
-Last activity: 2026-03-08 -- Completed 04-03: Favorite driver TextField in NotificationSettingsView, @AppStorage("favoriteDriver") wired to LiveActivityService
+Plan: 6 of 7 complete
+Status: Phase 4 Active -- 04-06 done (2026-03-08)
+Last activity: 2026-03-08 -- Completed 04-06: Web /live page with useLiveTiming WebSocket hook, LiveTimingTower, CommentaryPanel, and Live nav link in NavShell
 
 Progress: [████████░░] 82%
 
@@ -45,6 +45,8 @@ Progress: [████████░░] 82%
 | Phase 04-live-race-experience P04-04 | 2 | 1 tasks | 1 files |
 | Phase 04-live-race-experience P04-03 | 3 | 1 tasks | 1 files |
 | Phase 04-live-race-experience P02 | 2 | 2 tasks | 3 files |
+| Phase 04-live-race-experience P04-06 | 8 | 5 tasks | 5 files |
+| Phase 04-live-race-experience P05 | 3 | 5 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -96,6 +98,10 @@ Recent decisions affecting current work:
 - [Phase 04-live-race-experience]: favoriteDriver AppStorage key empty-string default — LiveActivityService interprets empty as track-leader fallback; no validation in settings layer
 - [Phase 04-live-race-experience]: LiveActivityService keeps ActivityKit isolated in its own service file — not on LiveTimingViewModel — avoiding import confusion between app and widget targets
 - [Phase 04-live-race-experience]: Tracked driver re-read from UserDefaults on every update() so mid-session favorite changes propagate without restart
+- [Phase 04-live-race-experience]: Two-step WebSocket decode (JSONSerialization for type, then JSONDecoder) avoids touching brittle LiveTimingData singleValueContainer enum
+- [Phase 04-live-race-experience]: Commentary badge dot uses @State hasNewCommentary cleared on Commentary tab .onAppear — no auto-switch, visual only
+- [Phase 04-06]: useLiveTiming guards useEffect with !year || !round check so hook can be called unconditionally; round 0 is never a valid F1 round
+- [Phase 04-06]: AnimatePresence initial=false on CommentaryPanel so only newly prepended entries animate in; initial render is instant
 
 ### Pending Todos
 
@@ -110,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 04-02-PLAN.md. LiveActivityService + LiveTab wiring done. Dynamic Island starts on first positions push, updates every push, ends on session finished/user-leave.
+Stopped at: Completed 04-06-PLAN.md. Web /live page with useLiveTiming hook, LiveTimingTower, CommentaryPanel, and Live nav link in NavShell. npm run build passes cleanly.
 Resume file: None

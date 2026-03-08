@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Infrastructure Hardening** - Fix production-blocking performance issues, remove dead code and stale README references, add structured logging
 - [ ] **Phase 2: Backend Data Features** - Build predictions, pit strategy, and weather tools as new backend capabilities
 - [ ] **Phase 3: Client Feature Surface** - Surface predictions, championship scenarios, and error handling in iOS and web UIs
-- [ ] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions
+- [x] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions
 - [ ] **Phase 5: Push Infrastructure** - Wire up APNs push notifications for live race events on physical iOS devices
 
 ## Phase Details
@@ -85,13 +85,13 @@ Plans:
 **Plans**: 04-01 through 04-07
 
 Plans:
-- [ ] 04-01: ActivityKit Live Activity declaration (RaceLiveActivity views + widget bundle + NSSupportsLiveActivities)
-- [ ] 04-02: Live Activity lifecycle manager (start/update/end wired to session detection + WebSocket data)
-- [ ] 04-03: Favorite driver settings (driver picker in App Settings, UserDefaults key)
-- [ ] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast)
-- [ ] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot)
-- [ ] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel)
-- [ ] 04-07: Lap count integration (OpenF1 /v1/laps poll, session_status broadcast, Dynamic Island compact view)
+- [x] 04-01: ActivityKit Live Activity declaration (RaceLiveActivity views + widget bundle + NSSupportsLiveActivities)
+- [x] 04-02: Live Activity lifecycle manager (start/update/end wired to session detection + WebSocket data)
+- [x] 04-03: Favorite driver settings (driver picker in App Settings, UserDefaults key)
+- [x] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast)
+- [x] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot)
+- [x] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel)
+- [x] 04-07: Lap count integration (OpenF1 /v1/laps poll, session_status broadcast, Dynamic Island compact view)
 
 ### Phase 5: Push Infrastructure
 **Goal**: iOS users receive real-time push notifications for live race events on physical devices, with reliable token management
@@ -118,5 +118,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Infrastructure Hardening | 0/2 | Planning complete | - |
 | 2. Backend Data Features | 0/3 | Planning complete | - |
 | 3. Client Feature Surface | 6/6 | Complete | 2026-03-03 |
-| 4. Live Race Experience | 0/0 | Not started | - |
+| 4. Live Race Experience | 7/7 | Complete | 2026-03-08 |
 | 5. Push Infrastructure | 0/0 | Not started | - |

@@ -1,0 +1,93 @@
+{
+  "(2025,1)": {
+    "predicted_positions": {
+      "NOR": 1,
+      "PIA": 2,
+      "VER": 3,
+      "RUS": 4,
+      "LEC": 5,
+      "ALB": 6,
+      "HAM": 7,
+      "TSU": 8,
+      "STR": 9,
+      "ANT": 10,
+      "ALO": 11,
+      "SAI": 12,
+      "GAS": 13,
+      "HUL": 14,
+      "HAD": 15,
+      "LAW": 16,
+      "BOR": 17,
+      "OCO": 18,
+      "BEA": 19,
+      "DOO": 20
+    },
+    "generated_at": "2026-03-06T02:38:53.898035+00:00",
+    "actual_positions": {
+      "NOR": 1,
+      "VER": 2,
+      "RUS": 3,
+      "ANT": 4,
+      "ALB": 5,
+      "STR": 6,
+      "HUL": 7,
+      "LEC": 8,
+      "PIA": 9,
+      "HAM": 10,
+      "GAS": 11,
+      "TSU": 12,
+      "OCO": 13,
+      "BEA": 14,
+      "LAW": 15,
+      "BOR": 16,
+      "ALO": 17,
+      "SAI": 18,
+      "DOO": 19,
+      "HAD": 20
+    }
+  },
+  "(2026,2)": {
+    "predicted_positions": {
+      "NOR": 1,
+      "RUS": 2,
+      "VER": 3,
+      "ANT": 4,
+      "LEC": 5,
+      "BEA": 6,
+      "OCO": 7,
+      "LIN": 8,
+      "HAM": 9,
+      "ALB": 10,
+      "PER": 11,
+      "SAI": 12,
+      "LAW": 13,
+      "COL": 14,
+      "BOR": 15,
+      "GAS": 16
+    },
+    "generated_at": "2026-03-08T19:37:14.238502+00:00",
+    "actual_positions": null
+  },
+  "(2026,5)": {
+    "predicted_positions": {
+      "VER": 1,
+      "RUS": 2,
+      "ANT": 3,
+      "LEC": 4,
+      "NOR": 5,
+      "HAM": 6,
+      "LIN": 7,
+      "BEA": 8,
+      "OCO": 9,
+      "PER": 10,
+      "ALB": 11,
+      "SAI": 12,
+      "COL": 13,
+      "LAW": 14,
+      "GAS": 15,
+      "BOR": 16
+    },
+    "generated_at": "2026-03-08T19:52:59.126316+00:00",
+    "actual_positions": null
+  }
+}

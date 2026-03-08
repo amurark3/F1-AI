@@ -9,6 +9,18 @@ struct StandingsTab: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    // Fallback notice
+                    if vm.isUsingFallback {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                            Text("\(vm.selectedYear) standings not yet available — showing \(vm.displayYear) final standings")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     // Four-segment picker
                     Picker("Standings", selection: $segment) {
                         Text("Drivers").tag(0)

@@ -85,9 +85,12 @@ const PredictionPanel = () => {
   // Backend-level error on initial load (HTTP 200 + error body, no prior data)
   const backendError = !data?.predictions?.length && data?.error ? data.error : null;
 
-  const isFirstLoad = isLoading && !data;
+  const scheduleLoading = schedule === undefined;
+  const isFirstLoad = scheduleLoading || (isLoading && !data);
   const hasContent = data?.predictions && data.predictions.length > 0;
-  const noUpcomingRace = !isLoading && schedule && !upcomingRace;
+  const noUpcomingRace = !scheduleLoading && !upcomingRace;
+  // Upcoming race found but qualifying hasn't happened yet → predictions array is empty
+  const qualifyingPending = !isFirstLoad && !swrError && !backendError && !hasContent && !noUpcomingRace && data !== undefined;
 
   return (
     <div className="relative">
@@ -97,6 +100,15 @@ const PredictionPanel = () => {
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-16 glass rounded-2xl animate-pulse" />
           ))}
+        </div>
+      )}
+
+      {/* Upcoming race found but qualifying hasn't happened yet */}
+      {qualifyingPending && (
+        <div className="p-16 border border-dashed border-white/10 glass rounded-2xl text-center">
+          <div className="text-4xl mb-4">🏎</div>
+          <h3 className="text-xl text-white font-bold mb-2">{upcomingRace?.name ?? 'Upcoming Race'}</h3>
+          <p className="text-gray-500 text-sm">Predictions will be available after qualifying.</p>
         </div>
       )}
 

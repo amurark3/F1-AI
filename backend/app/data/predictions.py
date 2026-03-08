@@ -67,6 +67,9 @@ _constructor_cache: dict[tuple[int,], list[dict]] = {}
 # (circuit_key,) -> dict of driver_code -> avg grid delta
 _grid_delta_cache: dict[tuple[str,], dict[str, float]] = {}
 
+# (year, round_num) -> sprint results dict (empty if no sprint that weekend)
+_sprint_cache: dict[tuple[int, int], list[dict]] = {}
+
 # ---------------------------------------------------------------------------
 # Prediction history file lock for atomic writes
 # ---------------------------------------------------------------------------
@@ -236,12 +239,76 @@ def _load_recent_form(driver_code: str, year: int, current_round: int) -> list[i
     return positions
 
 
+def _load_sprint_result(year: int, round_num: int) -> list[dict]:
+    """Load sprint race results for the current weekend, if one was held.
+
+    Returns a list of dicts with keys: driver_code, driver_name, team, position.
+    Returns an empty list when no sprint was held that weekend.
+    Sprint races exist at selected rounds from 2021 onward.
+    """
+    cache_key = (year, round_num)
+    if cache_key in _sprint_cache:
+        return _sprint_cache[cache_key]
+
+    try:
+        with _fastf1_lock:
+            session = fastf1.get_session(year, round_num, "S")
+            session.load(telemetry=False, laps=False, weather=False)
+
+        results = session.results
+        if results is None or results.empty:
+            _sprint_cache[cache_key] = []
+            return []
+
+        drivers = []
+        for _, row in results.sort_values("Position").iterrows():
+            pos = row.get("Position")
+            if pos is None or (hasattr(pos, "__float__") and pos != pos):
+                continue
+            drivers.append({
+                "driver_code": str(row.get("Abbreviation", "")),
+                "driver_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
+                "team": str(row.get("TeamName", "")),
+                "position": int(pos),
+            })
+
+        _sprint_cache[cache_key] = drivers
+        logger.info("predictions.sprint_loaded", year=year, round=round_num, drivers=len(drivers))
+        return drivers
+
+    except Exception:
+        # No sprint session this weekend — not an error
+        _sprint_cache[cache_key] = []
+        return []
+
+
+def _find_round_for_location(year: int, location: str) -> int | None:
+    """Return the round number where ``location`` was held in ``year``.
+
+    Uses the FastF1 event schedule so the lookup is correct even when the
+    calendar order changes between seasons (e.g. Miami added in 2022, Las
+    Vegas in 2023, China returning in 2024).  Returns None if the location
+    was not on the calendar that year.
+    """
+    try:
+        schedule = fastf1.get_event_schedule(year, include_testing=False)
+        match = schedule[schedule["Location"].str.lower() == location.lower()]
+        if not match.empty:
+            return int(match.iloc[0]["RoundNumber"])
+    except Exception:
+        pass
+    return None
+
+
 def _load_circuit_history(
     year: int, round_num: int, circuit_key: str
 ) -> dict[str, list[int]]:
     """Load driver results at this circuit for the last 3 editions.
 
     Returns dict of driver_code -> list of finishing positions.
+    Looks up the correct round number for each past year so that calendar
+    changes (new venues, dropped venues, reordered rounds) don't cause the
+    wrong race to be loaded.
     """
     cache_key = (circuit_key, year)
     if cache_key in _circuit_history_cache:
@@ -250,9 +317,16 @@ def _load_circuit_history(
     history: dict[str, list[int]] = {}
 
     for past_year in range(year - 1, max(year - 4, 2018), -1):
+        past_round = _find_round_for_location(past_year, circuit_key)
+        if past_round is None:
+            logger.debug(
+                "predictions.circuit_not_on_calendar",
+                circuit=circuit_key, year=past_year,
+            )
+            continue
         try:
             with _fastf1_lock:
-                session = fastf1.get_session(past_year, round_num, "R")
+                session = fastf1.get_session(past_year, past_round, "R")
                 session.load(telemetry=False, laps=False, weather=False)
 
             results = session.results
@@ -339,9 +413,12 @@ def _load_grid_to_finish_delta(
     deltas: dict[str, list[float]] = {}
 
     for past_year in range(year - 1, max(year - 4, 2018), -1):
+        past_round = _find_round_for_location(past_year, circuit_key)
+        if past_round is None:
+            continue
         try:
             with _fastf1_lock:
-                session = fastf1.get_session(past_year, round_num, "R")
+                session = fastf1.get_session(past_year, past_round, "R")
                 session.load(telemetry=False, laps=False, weather=False)
 
             results = session.results
@@ -419,9 +496,21 @@ def _generate_factors(
     team_pos: int,
     grid_delta: float,
     is_pre_qualifying: bool,
+    sprint_pos: int | None = None,
 ) -> list[str]:
     """Generate top 3 reasoning factors from dominant scoring components."""
     factors: list[tuple[float, str]] = []
+
+    # Sprint result factor — highest weight when available (same-weekend data)
+    if sprint_pos is not None:
+        if sprint_pos == 1:
+            factors.append((6.0, "Won the sprint race this weekend"))
+        elif sprint_pos <= 3:
+            factors.append((5.0, f"Sprint race podium (P{sprint_pos})"))
+        elif sprint_pos <= 8:
+            factors.append((3.5, f"Points finish in sprint (P{sprint_pos})"))
+        else:
+            factors.append((1.5, f"Sprint race P{sprint_pos}"))
 
     # Qualifying / practice factor
     if quali_pos is not None:
@@ -577,6 +666,12 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 
     grid_deltas = _load_grid_to_finish_delta(year, round_num, circuit_key)
 
+    # Sprint result — only available if the sprint has already been run
+    sprint_data = _load_sprint_result(year, round_num)
+    sprint_positions: dict[str, int] = {d["driver_code"]: d["position"] for d in sprint_data}
+    if sprint_data:
+        data_sources.append("sprint_result")
+
     # ------------------------------------------------------------------
     # 4. Build driver list (from qualifying/practice or fallback to schedule)
     # ------------------------------------------------------------------
@@ -622,12 +717,15 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     # ------------------------------------------------------------------
     # Determine active weights (adjust proportionally if data is missing)
     active_weights = {}
+    if sprint_data:
+        # Sprint result is same-weekend race pace — strongest available signal
+        active_weights["sprint"] = 0.30
     if quali_data:
         if is_pre_qualifying:
-            # Practice data is a weak signal
             active_weights["qualifying"] = 0.10
         else:
-            active_weights["qualifying"] = QUALIFYING_WEIGHT
+            # Reduce qualifying weight slightly when sprint result is also available
+            active_weights["qualifying"] = 0.20 if sprint_data else QUALIFYING_WEIGHT
     active_weights["recent_form"] = RECENT_FORM_WEIGHT
     if circuit_history:
         active_weights["circuit_history"] = CIRCUIT_HISTORY_WEIGHT
@@ -650,6 +748,9 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         # Qualifying / practice position
         quali_pos = driver.get("position", 10)
 
+        # Sprint result this weekend (if available)
+        sprint_pos = sprint_positions.get(code)
+
         # Recent form
         recent_positions = _load_recent_form(code, year, round_num)
         if recent_positions:
@@ -669,6 +770,11 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 
         # Compute weighted score (lower = better predicted position)
         score = 0.0
+        if "sprint" in active_weights and sprint_pos is not None:
+            score += active_weights["sprint"] * sprint_pos
+        elif "sprint" in active_weights:
+            # Driver has no sprint result (DNF/DNS) — penalise slightly
+            score += active_weights["sprint"] * 18.0
         if "qualifying" in active_weights:
             score += active_weights["qualifying"] * quali_pos
         if "recent_form" in active_weights:
@@ -682,7 +788,10 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             score -= active_weights["grid_delta"] * driver_delta
 
         # Confidence range based on variance of input signals
+        # Sprint result tightens confidence because it's same-weekend race pace
         input_signals = [float(quali_pos)]
+        if sprint_pos is not None:
+            input_signals.append(float(sprint_pos))
         if recent_positions:
             input_signals.append(recent_avg)
         if driver_circuit:
@@ -697,6 +806,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         factors = _generate_factors(
             code, quali_pos, recent_positions, driver_circuit,
             team_pos, driver_delta, is_pre_qualifying,
+            sprint_pos=sprint_pos,
         )
 
         scored_drivers.append({

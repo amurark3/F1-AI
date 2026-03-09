@@ -23,3 +23,13 @@ frontend/.env.local
 .idea/
 *.swp
 *.swo
+
+# Xcode user state
+ios/**/*.xcuserstate
+ios/**/xcuserdata/
+
+# Runtime data
+backend/data/prediction_history.json
+
+# Claude Code project data
+.claude/

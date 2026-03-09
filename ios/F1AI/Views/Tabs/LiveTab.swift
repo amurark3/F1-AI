@@ -150,7 +150,8 @@ struct LiveTab: View {
             }
         }
         .onAppear {
-            vm.connect(year: calendarVM.selectedYear, round: race.round)
+            let raceYear = race.date.flatMap { Int($0.prefix(4)) } ?? calendarVM.selectedYear
+            vm.connect(year: raceYear, round: race.round)
             // Activity starts only after first positions arrive (handled by onChange above)
         }
         .onDisappear {

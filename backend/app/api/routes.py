@@ -762,41 +762,79 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+# Cache driver info per session to avoid re-fetching every poll cycle
+_driver_cache: dict[str, dict[int, dict]] = {}
+
+
 async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
-    """Fetch latest positions from OpenF1 API."""
+    """Fetch latest positions, gaps, and driver names from OpenF1 API."""
     try:
         async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-            resp = await client.get(
-                "https://api.openf1.org/v1/position",
-                params={"session_key": session_key, "position__lte": 20},
-            )
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            if not data:
-                return None
+            # Fetch driver info once per session, then cache
+            if session_key not in _driver_cache:
+                drv_resp = await client.get("https://api.openf1.org/v1/drivers", params={"session_key": session_key})
+                if drv_resp.status_code == 200 and isinstance(drv_resp.json(), list):
+                    _driver_cache[session_key] = {
+                        d["driver_number"]: d for d in drv_resp.json() if "driver_number" in d
+                    }
 
-            # Group by driver, take latest entry per driver
-            latest: dict[int, dict] = {}
-            for entry in data:
+            pos_resp = await client.get("https://api.openf1.org/v1/position", params={"session_key": session_key})
+            int_resp = await client.get("https://api.openf1.org/v1/intervals", params={"session_key": session_key})
+
+        if pos_resp.status_code != 200:
+            return None
+        pos_data = pos_resp.json()
+        if not isinstance(pos_data, list) or not pos_data:
+            return None
+
+        # Latest interval per driver
+        intervals: dict[int, dict] = {}
+        if int_resp.status_code == 200 and isinstance(int_resp.json(), list):
+            for entry in int_resp.json():
                 dn = entry.get("driver_number")
                 if dn is not None:
-                    latest[dn] = entry
+                    intervals[dn] = entry
 
-            positions = []
-            for dn, entry in sorted(latest.items(), key=lambda x: x[1].get("position", 99)):
-                positions.append({
-                    "position": entry.get("position", 0),
-                    "driver": str(dn),
-                    "gap": entry.get("gap_to_leader", "LEADER") or "LEADER",
-                    "last_lap": None,
-                    "sector1": None,
-                    "sector2": None,
-                    "sector3": None,
-                    "tyre": None,
-                    "pit_stops": None,
-                })
-            return positions
+        drivers = _driver_cache.get(session_key, {})
+
+        # Latest position per driver
+        latest: dict[int, dict] = {}
+        for entry in pos_data:
+            dn = entry.get("driver_number")
+            if dn is not None:
+                latest[dn] = entry
+
+        positions = []
+        for dn, entry in sorted(latest.items(), key=lambda x: x[1].get("position", 99)):
+            pos = entry.get("position", 0)
+            interval = intervals.get(dn, {})
+            gap_raw = interval.get("gap_to_leader")
+            try:
+                gap_float = float(gap_raw) if gap_raw is not None else None
+            except (ValueError, TypeError):
+                gap_float = None
+            if pos == 1 or gap_float == 0.0:
+                gap = "LEADER"
+            elif gap_float is not None:
+                gap = f"+{gap_float:.3f}"
+            else:
+                gap = "—"
+
+            drv_info = drivers.get(dn, {})
+            acronym = drv_info.get("name_acronym") or str(dn)
+
+            positions.append({
+                "position": pos,
+                "driver": acronym,
+                "gap": gap,
+                "last_lap": None,
+                "sector1": None,
+                "sector2": None,
+                "sector3": None,
+                "tyre": None,
+                "pit_stops": None,
+            })
+        return positions
     except Exception as e:
         logger.error("openf1.poll_error", error=str(e))
         return None
@@ -827,20 +865,38 @@ async def _fetch_current_lap(session_key: str) -> int:
 
 
 async def _find_openf1_session(year: int, round_num: int) -> tuple[str, int] | None:
-    """Find the current live session key and total laps from OpenF1."""
+    """Find the session key and total laps for a specific race round from OpenF1."""
     try:
         async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-            resp = await client.get(
-                "https://api.openf1.org/v1/sessions",
-                params={"year": year, "session_type": "Race"},
+            # Step 1: find the meeting_key for this round
+            meetings_resp = await client.get(
+                "https://api.openf1.org/v1/meetings",
+                params={"year": year},
             )
-            if resp.status_code != 200:
+            if meetings_resp.status_code != 200:
                 return None
-            sessions = resp.json()
-            # Match by meeting_key or round number approximation
+            meetings = meetings_resp.json()
+            # Sort by date; exclude testing events which shift round indices
+            meetings_sorted = sorted(
+                [m for m in meetings if "test" not in m.get("meeting_name", "").lower()],
+                key=lambda m: m.get("date_start", ""),
+            )
+            if round_num < 1 or round_num > len(meetings_sorted):
+                return None
+            meeting_key = meetings_sorted[round_num - 1].get("meeting_key")
+            if not meeting_key:
+                return None
+
+            # Step 2: find the Race session for that meeting
+            sessions_resp = await client.get(
+                "https://api.openf1.org/v1/sessions",
+                params={"meeting_key": meeting_key, "session_type": "Race"},
+            )
+            if sessions_resp.status_code != 200:
+                return None
+            sessions = sessions_resp.json()
             for s in sessions:
                 if s.get("session_key"):
-                    # OpenF1 field names to check (verify at runtime which is present)
                     total_laps = s.get("total_laps") or s.get("laps") or s.get("number_of_laps") or 0
                     return str(s["session_key"]), int(total_laps)
             return None

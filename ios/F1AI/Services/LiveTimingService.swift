@@ -10,6 +10,9 @@ final class LiveTimingService {
 
     private var webSocketTask: URLSessionWebSocketTask?
     private let session = URLSession(configuration: .default)
+    private var reconnectBaseURL: String?
+    private var reconnectYear: Int?
+    private var reconnectRound: Int?
 
     func connect(baseURL: String, year: Int, round: Int) {
         let wsURL = baseURL
@@ -18,7 +21,14 @@ final class LiveTimingService {
 
         guard let url = URL(string: "\(wsURL)/api/live/\(year)/\(round)") else { return }
 
-        disconnect()
+        // Cancel old task without touching reconnect params
+        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        webSocketTask = nil
+
+        // Store for auto-reconnect (set AFTER cancel, not before)
+        reconnectBaseURL = baseURL
+        reconnectYear = year
+        reconnectRound = round
 
         let task = session.webSocketTask(with: url)
         self.webSocketTask = task
@@ -28,7 +38,11 @@ final class LiveTimingService {
         receiveMessages()
     }
 
+    /// Manual disconnect — clears reconnect params so auto-reconnect stops.
     func disconnect() {
+        reconnectBaseURL = nil
+        reconnectYear = nil
+        reconnectRound = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         isConnected = false
@@ -37,14 +51,18 @@ final class LiveTimingService {
     private func receiveMessages() {
         webSocketTask?.receive { [weak self] result in
             guard let self else { return }
-
             switch result {
             case .success(let message):
                 self.handleMessage(message)
-                self.receiveMessages() // Continue listening
+                self.receiveMessages()
             case .failure:
                 Task { @MainActor in
                     self.isConnected = false
+                    guard let base = self.reconnectBaseURL,
+                          let year = self.reconnectYear,
+                          let round = self.reconnectRound else { return }
+                    try? await Task.sleep(for: .seconds(5))
+                    self.connect(baseURL: base, year: year, round: round)
                 }
             }
         }
@@ -61,24 +79,20 @@ final class LiveTimingService {
             return
         }
 
-        // Step 1: Decode type field only
         guard let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = raw["type"] as? String else { return }
 
-        // Step 2: Branch on type
         if type == "commentary" {
             guard let dataObj = raw["data"],
                   let dataData = try? JSONSerialization.data(withJSONObject: dataObj),
                   let entry = try? JSONDecoder().decode(CommentaryEntry.self, from: dataData)
             else { return }
             Task { @MainActor in
-                // Prepend new entry (most recent first), keep up to 100
                 self.commentaryEntries = ([entry] + self.commentaryEntries).prefix(100).map { $0 }
             }
             return
         }
 
-        // Existing path: decode as LiveTimingMessage for positions/sessionStatus/flag
         guard let decoded = try? JSONDecoder().decode(LiveTimingMessage.self, from: data) else { return }
 
         Task { @MainActor in

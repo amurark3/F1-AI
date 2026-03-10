@@ -12,6 +12,7 @@ struct LiveTab: View {
     @State private var liveActivityService = LiveActivityService()
     @State private var selectedSegment: LiveSegment = .timing
     @State private var hasNewCommentary = false
+    @State private var serverStatus = ServerStatusService.shared
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,7 @@ struct LiveTab: View {
             }
             .navigationTitle("Live")
             .task {
+                serverStatus.startPolling()
                 if calendarVM.schedule.isEmpty {
                     await calendarVM.loadSchedule()
                 }
@@ -33,6 +35,19 @@ struct LiveTab: View {
 
     private func liveContent(race: RaceEvent) -> some View {
         VStack(spacing: 0) {
+            if serverStatus.status == .warming {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Warming up server...")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial)
+            }
+
             // Race header
             VStack(spacing: 4) {
                 HStack {

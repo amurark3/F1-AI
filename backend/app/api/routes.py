@@ -59,16 +59,40 @@ router = APIRouter()
 def _safe_int(value, default: int = 0) -> int:
     """Convert Ergast/FastF1 values to int, treating NaN/None as default.
 
-    Ergast returns NaN for position fields when a driver DNF'd, didn't start,
-    or is a reserve entry with no championship standing. Calling int() on NaN
-    raises ValueError. Use this everywhere you read a numeric field from an
-    Ergast DataFrame row.
+    Ergast returns NaN for position/wins fields when a driver DNF'd, didn't
+    start, or is a reserve entry with no championship standing. Calling int()
+    on NaN raises ValueError. Use this everywhere you read an integer field
+    from an Ergast/FastF1 DataFrame row.
     """
     if value is None:
         return default
     if isinstance(value, float) and math.isnan(value):
         return default
     return int(value)
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    """Convert Ergast/FastF1 values to float, treating NaN/None as default.
+
+    Same class of bug as _safe_int — use for points and other float fields.
+    """
+    if value is None:
+        return default
+    if isinstance(value, float) and math.isnan(value):
+        return default
+    return float(value)
+
+
+def _safe_str(row, key: str, default: str = "") -> str:
+    """Safely read a string column from an Ergast/FastF1 DataFrame row.
+
+    Direct bracket access raises KeyError if the column is absent from the
+    response schema. Use this instead of row["column"] for all string fields.
+    """
+    val = row.get(key, default)
+    if val is None or (isinstance(val, float) and math.isnan(val)):
+        return default
+    return str(val)
 
 # ---------------------------------------------------------------------------
 # LLM setup
@@ -271,7 +295,7 @@ async def get_schedule(year: int):
             location_str = f"{row['Location']}, {row['Country']}"
 
             event = {
-                "round": int(row["RoundNumber"]),
+                "round": _safe_int(row["RoundNumber"]),
                 "name": row["EventName"],
                 "location": location_str,
                 "date": event_date_str,
@@ -351,10 +375,10 @@ async def get_driver_standings(year: int):
 
                 results.append({
                     "position": _safe_int(row["position"]),
-                    "driver": f"{row['givenName']} {row['familyName']}",
+                    "driver": f"{_safe_str(row, 'givenName')} {_safe_str(row, 'familyName')}".strip(),
                     "team": team_name,
-                    "points": float(row["points"]),
-                    "wins": int(row["wins"]),
+                    "points": _safe_float(row.get("points", 0)),
+                    "wins": _safe_int(row.get("wins", 0)),
                 })
             return results
 
@@ -373,7 +397,7 @@ async def get_driver_standings(year: int):
             for _, drow in drivers_df.iterrows():
                 results.append({
                     "position": pos,
-                    "driver": f"{drow['givenName']} {drow['familyName']}",
+                    "driver": f"{_safe_str(drow, 'givenName')} {_safe_str(drow, 'familyName')}".strip(),
                     "team": team_name,
                     "points": 0.0,
                     "wins": 0,
@@ -404,9 +428,9 @@ async def get_constructor_standings(year: int):
                     continue
                 results.append({
                     "position": _safe_int(row["position"]),
-                    "team": row["constructorName"],
-                    "points": float(row["points"]),
-                    "wins": int(row["wins"]),
+                    "team": _safe_str(row, "constructorName", "Unknown"),
+                    "points": _safe_float(row.get("points", 0)),
+                    "wins": _safe_int(row.get("wins", 0)),
                 })
             return results
 
@@ -561,9 +585,9 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
 
             results_list.append({
                 "position": pos,
-                "driver": r["Abbreviation"],
-                "full_name": f"{r['FirstName']} {r['LastName']}",
-                "team": r["TeamName"],
+                "driver": r.get("Abbreviation", ""),
+                "full_name": f"{r.get('FirstName', '')} {r.get('LastName', '')}".strip(),
+                "team": r.get("TeamName", "Unknown"),
                 "grid": grid,
                 "time": time_str,
                 "points": float(r["Points"]) if pd.notna(r["Points"]) else 0,
@@ -596,7 +620,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
                     q_list.append({
                         "position": i,
                         "driver": r["Abbreviation"],
-                        "full_name": f"{r['FirstName']} {r['LastName']}",
+                        "full_name": f"{r.get('FirstName', '')} {r.get('LastName', '')}".strip(),
                         "team": r["TeamName"],
                         "time": _fmt_td(r[q_label]),
                     })
@@ -634,7 +658,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
                 sprint_list.append({
                     "position": pos,
                     "driver": r["Abbreviation"],
-                    "full_name": f"{r['FirstName']} {r['LastName']}",
+                    "full_name": f"{r.get('FirstName', '')} {r.get('LastName', '')}".strip(),
                     "team": r["TeamName"],
                     "grid": grid,
                     "time": time_str,
@@ -663,7 +687,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
                         sq_list.append({
                             "position": i,
                             "driver": r["Abbreviation"],
-                            "full_name": f"{r['FirstName']} {r['LastName']}",
+                            "full_name": f"{r.get('FirstName', '')} {r.get('LastName', '')}".strip(),
                             "team": r["TeamName"],
                             "time": _fmt_td(r[sq_label]),
                         })
@@ -922,7 +946,8 @@ async def _find_openf1_session(year: int, round_num: int) -> tuple[str, int] | N
                     total_laps = s.get("total_laps") or s.get("laps") or s.get("number_of_laps") or 0
                     return str(s["session_key"]), int(total_laps)
             return None
-    except Exception:
+    except Exception as e:
+        logger.warning("openf1.session_lookup_error", error=str(e))
         return None
 
 
@@ -1025,8 +1050,8 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
                         race_h2h["d1"] += 1
                     elif d2_pos < d1_pos:
                         race_h2h["d2"] += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("compare.race_results_error", year=year, round=round_num, error=str(e))
 
         # Try qualifying
         try:
@@ -1046,8 +1071,8 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
                         quali_h2h["d1"] += 1
                     elif d2_qpos < d1_qpos:
                         quali_h2h["d2"] += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("compare.quali_results_error", year=year, round=round_num, error=str(e))
 
         rounds.append(round_data)
 

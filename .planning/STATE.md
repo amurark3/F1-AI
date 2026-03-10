@@ -109,7 +109,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- [Handle Render cold start with UI loading state](.planning/todos/pending/2026-03-10-handle-render-cold-start-with-ui-loading-state.md) — Show warm-up banner when server is cold, allow passive navigation during startup; also decide on ChromaDB persistence strategy
+None
 
 ### Blockers/Concerns
 
@@ -119,6 +119,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-08
-Stopped at: Phase 4 fully complete — verified PASS (5/5). All 7 plans done. Dynamic Island, commentary engine, iOS/web commentary UI, and lap count integration shipped. Ready for Phase 5: Push Infrastructure.
+Last session: 2026-03-10
+Stopped at: Quick task 1 complete — Render cold start warming banner shipped for iOS (PitWallTab, LiveTab) and web (/, /live). Ready for Phase 5: Push Infrastructure.
 Resume file: None

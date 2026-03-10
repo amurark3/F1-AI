@@ -948,13 +948,15 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
             if q == code or q in family or q in given:
                 teams = row.get("constructorNames", row.get("constructorName", "Unknown"))
                 team = teams[-1] if isinstance(teams, list) and teams else str(teams)
+                raw_pos = row.get("position", 0)
+                position = int(raw_pos) if raw_pos and not (isinstance(raw_pos, float) and math.isnan(raw_pos)) else 0
                 return {
                     "code": str(row.get("driverCode", "")),
                     "name": f"{row.get('givenName', '')} {row.get('familyName', '')}",
                     "team": team,
                     "points": float(row.get("points", 0)),
                     "wins": int(row.get("wins", 0)),
-                    "position": int(row.get("position", 0)),
+                    "position": position,
                 }
         return None
 
@@ -994,8 +996,13 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
                 d2_row = rdf[rdf["driverCode"] == d2["code"]]
 
                 if not d1_row.empty and not d2_row.empty:
-                    d1_pos = int(d1_row.iloc[0]["position"])
-                    d2_pos = int(d2_row.iloc[0]["position"])
+                    r1 = d1_row.iloc[0]["position"]
+                    r2 = d2_row.iloc[0]["position"]
+                    if (isinstance(r1, float) and math.isnan(r1)) or (isinstance(r2, float) and math.isnan(r2)):
+                        rounds.append(round_data)
+                        continue
+                    d1_pos = int(r1)
+                    d2_pos = int(r2)
                     round_data["d1_race"] = d1_pos
                     round_data["d2_race"] = d2_pos
                     d1_positions.append(d1_pos)

@@ -109,7 +109,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [Handle Render cold start with UI loading state](.planning/todos/pending/2026-03-10-handle-render-cold-start-with-ui-loading-state.md) — Show warm-up banner when server is cold, allow passive navigation during startup; also decide on ChromaDB persistence strategy
 
 ### Blockers/Concerns
 

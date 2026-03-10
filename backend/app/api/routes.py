@@ -19,6 +19,7 @@ The chat endpoint implements an agentic loop:
 """
 
 import os
+import math
 import asyncio
 import threading
 import structlog
@@ -319,6 +320,10 @@ async def get_driver_standings(year: int):
             df = data.content[0]
             results = []
             for _, row in df.iterrows():
+                # Skip entries with no position (reserve/non-racing drivers)
+                if "position" not in row or (isinstance(row["position"], float) and math.isnan(row["position"])):
+                    continue
+
                 # FastF1/Ergast returns either 'constructorName' (string) for
                 # single-team drivers, or 'constructorNames' (list) for drivers
                 # who raced for multiple teams in one season.
@@ -380,6 +385,8 @@ async def get_constructor_standings(year: int):
             df = data.content[0]
             results = []
             for _, row in df.iterrows():
+                if "position" not in row or (isinstance(row["position"], float) and math.isnan(row["position"])):
+                    continue
                 results.append({
                     "position": int(row["position"]),
                     "team": row["constructorName"],

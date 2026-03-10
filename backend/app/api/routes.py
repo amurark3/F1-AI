@@ -55,6 +55,21 @@ logger = structlog.get_logger()
 
 router = APIRouter()
 
+
+def _safe_int(value, default: int = 0) -> int:
+    """Convert Ergast/FastF1 values to int, treating NaN/None as default.
+
+    Ergast returns NaN for position fields when a driver DNF'd, didn't start,
+    or is a reserve entry with no championship standing. Calling int() on NaN
+    raises ValueError. Use this everywhere you read a numeric field from an
+    Ergast DataFrame row.
+    """
+    if value is None:
+        return default
+    if isinstance(value, float) and math.isnan(value):
+        return default
+    return int(value)
+
 # ---------------------------------------------------------------------------
 # LLM setup
 # ---------------------------------------------------------------------------
@@ -335,7 +350,7 @@ async def get_driver_standings(year: int):
                     team_name = names[-1] if isinstance(names, list) and names else str(names)
 
                 results.append({
-                    "position": int(row["position"]),
+                    "position": _safe_int(row["position"]),
                     "driver": f"{row['givenName']} {row['familyName']}",
                     "team": team_name,
                     "points": float(row["points"]),
@@ -388,7 +403,7 @@ async def get_constructor_standings(year: int):
                 if "position" not in row or (isinstance(row["position"], float) and math.isnan(row["position"])):
                     continue
                 results.append({
-                    "position": int(row["position"]),
+                    "position": _safe_int(row["position"]),
                     "team": row["constructorName"],
                     "points": float(row["points"]),
                     "wins": int(row["wins"]),
@@ -948,15 +963,13 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
             if q == code or q in family or q in given:
                 teams = row.get("constructorNames", row.get("constructorName", "Unknown"))
                 team = teams[-1] if isinstance(teams, list) and teams else str(teams)
-                raw_pos = row.get("position", 0)
-                position = int(raw_pos) if raw_pos and not (isinstance(raw_pos, float) and math.isnan(raw_pos)) else 0
                 return {
                     "code": str(row.get("driverCode", "")),
                     "name": f"{row.get('givenName', '')} {row.get('familyName', '')}",
                     "team": team,
                     "points": float(row.get("points", 0)),
                     "wins": int(row.get("wins", 0)),
-                    "position": position,
+                    "position": _safe_int(row.get("position", 0)),
                 }
         return None
 
@@ -1024,8 +1037,8 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
                 d2_q = qdf[qdf["driverCode"] == d2["code"]]
 
                 if not d1_q.empty and not d2_q.empty:
-                    d1_qpos = int(d1_q.iloc[0]["position"])
-                    d2_qpos = int(d2_q.iloc[0]["position"])
+                    d1_qpos = _safe_int(d1_q.iloc[0]["position"])
+                    d2_qpos = _safe_int(d2_q.iloc[0]["position"])
                     round_data["d1_quali"] = d1_qpos
                     round_data["d2_quali"] = d2_qpos
 

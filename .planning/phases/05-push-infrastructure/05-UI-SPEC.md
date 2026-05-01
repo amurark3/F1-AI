@@ -1,7 +1,8 @@
 ---
 phase: 5
 slug: push-infrastructure
-status: draft
+status: approved
+reviewed_at: 2026-05-01
 shadcn_initialized: false
 preset: not applicable
 created: 2026-04-30

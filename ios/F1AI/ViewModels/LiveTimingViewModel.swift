@@ -13,6 +13,7 @@ final class LiveTimingViewModel {
     var positions: [LivePosition] { service.positions }
     var sessionStatus: SessionStatus? { service.sessionStatus }
     var lastFlag: FlagEvent? { service.lastFlag }
+    var commentaryEntries: [CommentaryEntry] { service.commentaryEntries }
 
     func connect(year: Int, round: Int) {
         // Store current positions before reconnect for delta detection

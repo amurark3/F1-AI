@@ -12,6 +12,8 @@ targets:
     platform: iOS
     sources:
       - F1AI
+      - path: F1AIWidgets/RaceLiveActivity.swift
+        group: F1AI/Widgets
     settings:
       base:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -25,6 +27,8 @@ targets:
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: YES
         TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
       - target: F1AIWidgets

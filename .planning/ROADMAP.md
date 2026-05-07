@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Infrastructure Hardening** - Fix production-blocking performance issues, remove dead code and stale README references, add structured logging
 - [ ] **Phase 2: Backend Data Features** - Build predictions, pit strategy, and weather tools as new backend capabilities
 - [ ] **Phase 3: Client Feature Surface** - Surface predictions, championship scenarios, and error handling in iOS and web UIs
-- [ ] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions
+- [x] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions
 - [ ] **Phase 5: Push Infrastructure** - Wire up APNs push notifications for live race events on physical iOS devices
 
 ## Phase Details
@@ -62,11 +62,15 @@ Plans:
   3. iOS fires local notifications for all session types (FP1, FP2, FP3, Qualifying, Sprint Qualifying, Sprint Race) not just race start
   4. Both iOS and web show meaningful empty states, error banners, and retry buttons instead of blank screens when API calls fail
   5. Web prediction panel displays race outcome analysis matching the iOS predictions view
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [x] 03-01-PLAN.md — iOS predictions data layer (models, APIClient extension, PredictionsViewModel)
+- [x] 03-02-PLAN.md — iOS PredictionsView with expandable driver cards, embedded in StandingsTab
+- [x] 03-03-PLAN.md — iOS championship scenario view with WDC/WCC tabs and what-if preset buttons
+- [x] 03-04-PLAN.md — iOS notification expansion to all session types with settings sheet
+- [x] 03-05-PLAN.md — iOS ToastView shared component wired into PredictionsView for refresh errors
+- [x] 03-06-PLAN.md — Web predictions page, expandable cards, toast, and NavShell update
 
 ### Phase 4: Live Race Experience
 **Goal**: During active sessions, users get live position tracking on Dynamic Island and AI-generated commentary that explains what is happening in real time
@@ -78,11 +82,16 @@ Plans:
   3. When a significant event occurs (position change, safety car, fastest lap, pit stop), AI commentary appears within 30 seconds explaining the context
   4. AI commentary does not fire more than once every 30 seconds regardless of event frequency
   5. Commentary panel is visible in both iOS and web UIs as a dedicated section during live sessions
-**Plans**: TBD
+**Plans**: 04-01 through 04-07
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [x] 04-01: ActivityKit Live Activity declaration (RaceLiveActivity views + widget bundle + NSSupportsLiveActivities)
+- [x] 04-02: Live Activity lifecycle manager (start/update/end wired to session detection + WebSocket data)
+- [x] 04-03: Favorite driver settings (driver picker in App Settings, UserDefaults key)
+- [x] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast)
+- [x] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot)
+- [x] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel)
+- [x] 04-07: Lap count integration (OpenF1 /v1/laps poll, session_status broadcast, Dynamic Island compact view)
 
 ### Phase 5: Push Infrastructure
 **Goal**: iOS users receive real-time push notifications for live race events on physical devices, with reliable token management
@@ -108,6 +117,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Hardening | 0/2 | Planning complete | - |
 | 2. Backend Data Features | 0/3 | Planning complete | - |
-| 3. Client Feature Surface | 0/0 | Not started | - |
-| 4. Live Race Experience | 0/0 | Not started | - |
+| 3. Client Feature Surface | 6/6 | Complete | 2026-03-03 |
+| 4. Live Race Experience | 7/7 | Complete | 2026-03-08 |
 | 5. Push Infrastructure | 0/0 | Not started | - |

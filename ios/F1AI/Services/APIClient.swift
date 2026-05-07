@@ -4,7 +4,7 @@ import Foundation
 final class APIClient {
     static let shared = APIClient()
 
-    var baseURL: String = "https://f1-ai.onrender.com"
+    var baseURL: String = "http://localhost:8000"
 
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -76,6 +76,14 @@ final class APIClient {
         let d2 = driver2.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? driver2
         let url = URL(string: "\(baseURL)/api/compare/\(year)/\(d1)/\(d2)")!
         return try await fetchCached(url: url, cacheKey: "compare-\(year)-\(d1)-\(d2)", maxAge: 3600)
+    }
+
+    // MARK: - Predictions
+
+    func fetchPredictions(year: Int, round: Int) async throws -> PredictionsResponse {
+        let url = URL(string: "\(baseURL)/api/predictions/\(year)/\(round)")!
+        // Cache for 30 minutes — backend recomputes when qualifying data becomes available
+        return try await fetchCached(url: url, cacheKey: "predictions-\(year)-\(round)", maxAge: 1800)
     }
 
     // MARK: - Health

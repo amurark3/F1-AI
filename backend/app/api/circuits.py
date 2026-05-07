@@ -5,6 +5,8 @@ Static lookup table of F1 circuit information keyed by FastF1 Location field.
 
 Updated for the 2025 season calendar.  Lap records reflect the fastest race
 lap set at each venue (not qualifying).
+
+Each entry includes GPS coordinates (lat/lon) for weather lookups.
 """
 
 CIRCUIT_DATA: dict[str, dict] = {
@@ -15,6 +17,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:31.447", "driver": "Pedro de la Rosa", "year": 2005},
         "first_gp": 2004,
         "circuit_type": "Purpose-built",
+        "lat": 26.0325,
+        "lon": 50.5106,
     },
     "Jeddah": {
         "circuit_name": "Jeddah Corniche Circuit",
@@ -23,6 +27,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:30.734", "driver": "Lewis Hamilton", "year": 2021},
         "first_gp": 2021,
         "circuit_type": "Street circuit",
+        "lat": 21.6319,
+        "lon": 39.1044,
     },
     "Melbourne": {
         "circuit_name": "Albert Park Circuit",
@@ -31,6 +37,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:19.813", "driver": "Charles Leclerc", "year": 2024},
         "first_gp": 1996,
         "circuit_type": "Street circuit",
+        "lat": -37.8497,
+        "lon": 144.9680,
     },
     "Suzuka": {
         "circuit_name": "Suzuka International Racing Course",
@@ -39,6 +47,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:30.983", "driver": "Lewis Hamilton", "year": 2019},
         "first_gp": 1987,
         "circuit_type": "Purpose-built",
+        "lat": 34.8431,
+        "lon": 136.5407,
     },
     "Shanghai": {
         "circuit_name": "Shanghai International Circuit",
@@ -47,6 +57,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:32.238", "driver": "Michael Schumacher", "year": 2004},
         "first_gp": 2004,
         "circuit_type": "Purpose-built",
+        "lat": 31.3389,
+        "lon": 121.2198,
     },
     "Miami": {
         "circuit_name": "Miami International Autodrome",
@@ -55,6 +67,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:29.708", "driver": "Max Verstappen", "year": 2023},
         "first_gp": 2022,
         "circuit_type": "Street circuit",
+        "lat": 25.9581,
+        "lon": -80.2389,
     },
     "Miami Gardens": {
         "circuit_name": "Miami International Autodrome",
@@ -63,6 +77,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:29.708", "driver": "Max Verstappen", "year": 2023},
         "first_gp": 2022,
         "circuit_type": "Street circuit",
+        "lat": 25.9581,
+        "lon": -80.2389,
     },
     "Imola": {
         "circuit_name": "Autodromo Enzo e Dino Ferrari",
@@ -71,6 +87,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:15.484", "driver": "Lewis Hamilton", "year": 2020},
         "first_gp": 1980,
         "circuit_type": "Purpose-built",
+        "lat": 44.3439,
+        "lon": 11.7167,
     },
     "Monte Carlo": {
         "circuit_name": "Circuit de Monaco",
@@ -79,6 +97,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:12.909", "driver": "Lewis Hamilton", "year": 2021},
         "first_gp": 1950,
         "circuit_type": "Street circuit",
+        "lat": 43.7347,
+        "lon": 7.4206,
     },
     "Monaco": {
         "circuit_name": "Circuit de Monaco",
@@ -87,6 +107,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:12.909", "driver": "Lewis Hamilton", "year": 2021},
         "first_gp": 1950,
         "circuit_type": "Street circuit",
+        "lat": 43.7347,
+        "lon": 7.4206,
     },
     "Barcelona": {
         "circuit_name": "Circuit de Barcelona-Catalunya",
@@ -95,6 +117,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:16.330", "driver": "Max Verstappen", "year": 2023},
         "first_gp": 1991,
         "circuit_type": "Purpose-built",
+        "lat": 41.5700,
+        "lon": 2.2611,
     },
     "Montréal": {
         "circuit_name": "Circuit Gilles Villeneuve",
@@ -103,6 +127,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:13.078", "driver": "Valtteri Bottas", "year": 2019},
         "first_gp": 1978,
         "circuit_type": "Semi-street circuit",
+        "lat": 45.5017,
+        "lon": -73.5228,
     },
     "Spielberg": {
         "circuit_name": "Red Bull Ring",
@@ -111,6 +137,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:05.619", "driver": "Carlos Sainz", "year": 2020},
         "first_gp": 1970,
         "circuit_type": "Purpose-built",
+        "lat": 47.2197,
+        "lon": 14.7647,
     },
     "Silverstone": {
         "circuit_name": "Silverstone Circuit",
@@ -119,6 +147,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:27.097", "driver": "Max Verstappen", "year": 2020},
         "first_gp": 1950,
         "circuit_type": "Purpose-built",
+        "lat": 52.0786,
+        "lon": -1.0169,
     },
     "Mogyoród": {
         "circuit_name": "Hungaroring",
@@ -127,6 +157,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:16.627", "driver": "Lewis Hamilton", "year": 2020},
         "first_gp": 1986,
         "circuit_type": "Purpose-built",
+        "lat": 47.5789,
+        "lon": 19.2486,
     },
     "Budapest": {
         "circuit_name": "Hungaroring",
@@ -135,6 +167,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:16.627", "driver": "Lewis Hamilton", "year": 2020},
         "first_gp": 1986,
         "circuit_type": "Purpose-built",
+        "lat": 47.5789,
+        "lon": 19.2486,
     },
     "Spa-Francorchamps": {
         "circuit_name": "Circuit de Spa-Francorchamps",
@@ -143,6 +177,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:46.286", "driver": "Valtteri Bottas", "year": 2018},
         "first_gp": 1950,
         "circuit_type": "Purpose-built",
+        "lat": 50.4372,
+        "lon": 5.9714,
     },
     "Stavelot": {
         "circuit_name": "Circuit de Spa-Francorchamps",
@@ -151,6 +187,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:46.286", "driver": "Valtteri Bottas", "year": 2018},
         "first_gp": 1950,
         "circuit_type": "Purpose-built",
+        "lat": 50.4372,
+        "lon": 5.9714,
     },
     "Zandvoort": {
         "circuit_name": "Circuit Zandvoort",
@@ -159,6 +197,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:11.097", "driver": "Lewis Hamilton", "year": 2021},
         "first_gp": 1952,
         "circuit_type": "Purpose-built",
+        "lat": 52.3888,
+        "lon": 4.5409,
     },
     "Monza": {
         "circuit_name": "Autodromo Nazionale Monza",
@@ -167,6 +207,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:21.046", "driver": "Rubens Barrichello", "year": 2004},
         "first_gp": 1950,
         "circuit_type": "Purpose-built",
+        "lat": 45.6156,
+        "lon": 9.2811,
     },
     "Baku": {
         "circuit_name": "Baku City Circuit",
@@ -175,6 +217,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:43.009", "driver": "Charles Leclerc", "year": 2019},
         "first_gp": 2016,
         "circuit_type": "Street circuit",
+        "lat": 40.3725,
+        "lon": 49.8533,
     },
     "Marina Bay": {
         "circuit_name": "Marina Bay Street Circuit",
@@ -183,6 +227,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:35.867", "driver": "Lewis Hamilton", "year": 2023},
         "first_gp": 2008,
         "circuit_type": "Street circuit",
+        "lat": 1.2914,
+        "lon": 103.8640,
     },
     "Singapore": {
         "circuit_name": "Marina Bay Street Circuit",
@@ -191,6 +237,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:35.867", "driver": "Lewis Hamilton", "year": 2023},
         "first_gp": 2008,
         "circuit_type": "Street circuit",
+        "lat": 1.2914,
+        "lon": 103.8640,
     },
     "Austin": {
         "circuit_name": "Circuit of the Americas",
@@ -199,6 +247,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:36.169", "driver": "Charles Leclerc", "year": 2019},
         "first_gp": 2012,
         "circuit_type": "Purpose-built",
+        "lat": 30.1328,
+        "lon": -97.6411,
     },
     "Mexico City": {
         "circuit_name": "Autódromo Hermanos Rodríguez",
@@ -207,6 +257,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:17.774", "driver": "Valtteri Bottas", "year": 2021},
         "first_gp": 1963,
         "circuit_type": "Purpose-built",
+        "lat": 19.4042,
+        "lon": -99.0907,
     },
     "São Paulo": {
         "circuit_name": "Autódromo José Carlos Pace (Interlagos)",
@@ -215,6 +267,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:10.540", "driver": "Valtteri Bottas", "year": 2018},
         "first_gp": 1973,
         "circuit_type": "Purpose-built",
+        "lat": -23.7036,
+        "lon": -46.6997,
     },
     "Las Vegas": {
         "circuit_name": "Las Vegas Strip Circuit",
@@ -223,6 +277,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:35.490", "driver": "Oscar Piastri", "year": 2024},
         "first_gp": 2023,
         "circuit_type": "Street circuit",
+        "lat": 36.1147,
+        "lon": -115.1728,
     },
     "Lusail": {
         "circuit_name": "Lusail International Circuit",
@@ -231,6 +287,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:24.319", "driver": "Max Verstappen", "year": 2023},
         "first_gp": 2021,
         "circuit_type": "Purpose-built",
+        "lat": 25.4900,
+        "lon": 51.4542,
     },
     "Yas Island": {
         "circuit_name": "Yas Marina Circuit",
@@ -239,6 +297,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:26.103", "driver": "Max Verstappen", "year": 2021},
         "first_gp": 2009,
         "circuit_type": "Purpose-built",
+        "lat": 24.4672,
+        "lon": 54.6031,
     },
     "Abu Dhabi": {
         "circuit_name": "Yas Marina Circuit",
@@ -247,6 +307,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:26.103", "driver": "Max Verstappen", "year": 2021},
         "first_gp": 2009,
         "circuit_type": "Purpose-built",
+        "lat": 24.4672,
+        "lon": 54.6031,
     },
     "Yas Marina": {
         "circuit_name": "Yas Marina Circuit",
@@ -255,6 +317,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "1:26.103", "driver": "Max Verstappen", "year": 2021},
         "first_gp": 2009,
         "circuit_type": "Purpose-built",
+        "lat": 24.4672,
+        "lon": 54.6031,
     },
     "Madrid": {
         "circuit_name": "Circuito de Madrid IFEMA",
@@ -263,6 +327,8 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lap_record": {"time": "-", "driver": "-", "year": 0},
         "first_gp": 2026,
         "circuit_type": "Purpose-built",
+        "lat": 40.4680,
+        "lon": -3.6163,
     },
 }
 
@@ -270,10 +336,23 @@ CIRCUIT_DATA: dict[str, dict] = {
 def get_circuit_info(location: str) -> dict | None:
     """Look up circuit metadata by Location string from the schedule.
 
-    The schedule provides locations like ``"Sakhir, Bahrain"`` — we try the
+    The schedule provides locations like ``"Sakhir, Bahrain"`` -- we try the
     full string first, then just the city part (before the comma).
     """
     if location in CIRCUIT_DATA:
         return CIRCUIT_DATA[location]
     city = location.split(",")[0].strip()
     return CIRCUIT_DATA.get(city)
+
+
+def get_circuit_gps(location: str) -> tuple[float, float] | None:
+    """Return (lat, lon) for a circuit, or None if not found."""
+    data = CIRCUIT_DATA.get(location)
+    if data and "lat" in data and "lon" in data:
+        return (data["lat"], data["lon"])
+    # Try city-part fallback
+    city = location.split(",")[0].strip()
+    data = CIRCUIT_DATA.get(city)
+    if data and "lat" in data and "lon" in data:
+        return (data["lat"], data["lon"])
+    return None

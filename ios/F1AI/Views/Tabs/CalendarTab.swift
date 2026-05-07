@@ -3,6 +3,7 @@ import SwiftUI
 struct CalendarTab: View {
     @Binding var mainTab: Int
     @State private var vm = CalendarViewModel()
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,18 @@ struct CalendarTab: View {
             }
             .navigationTitle("Calendar")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                            .foregroundStyle(.primary)
+                    }
+                    .sheet(isPresented: $showingSettings) {
+                        NotificationSettingsView()
+                            .presentationDetents([.medium, .large])
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     yearPicker
                 }
@@ -33,6 +46,12 @@ struct CalendarTab: View {
             .task {
                 if vm.schedule.isEmpty {
                     await vm.loadSchedule()
+                }
+                // Request notification permission on first load if not yet determined
+                let center = UNUserNotificationCenter.current()
+                let settings = await center.notificationSettings()
+                if settings.authorizationStatus == .notDetermined {
+                    _ = await NotificationService.shared.requestPermission()
                 }
             }
             .refreshable {

@@ -69,3 +69,15 @@ struct FlagEvent: Codable, Hashable {
     let flag: String
     let sector: Int?
 }
+
+struct CommentaryEntry: Codable, Identifiable, Hashable {
+    let id: String
+    let text: String
+    let eventType: String     // "safety_car" | "position_change" | "pit_stop"
+    let timestamp: String     // ISO 8601 string
+
+    enum CodingKeys: String, CodingKey {
+        case id, text, timestamp
+        case eventType = "event_type"
+    }
+}

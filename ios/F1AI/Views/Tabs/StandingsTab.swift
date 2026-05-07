@@ -2,36 +2,75 @@ import SwiftUI
 
 struct StandingsTab: View {
     @State private var vm = StandingsViewModel()
+    @State private var calVm = CalendarViewModel()
+    @State private var segment = 0   // 0=Drivers, 1=Constructors, 2=Predictions
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Driver/Constructor toggle
-                    Picker("Standings", selection: $vm.showingDrivers) {
-                        Text("Drivers").tag(true)
-                        Text("Constructors").tag(false)
+                    // Fallback notice
+                    if vm.isUsingFallback {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                            Text("\(vm.selectedYear) standings not yet available — showing \(vm.displayYear) final standings")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    // Four-segment picker
+                    Picker("Standings", selection: $segment) {
+                        Text("Drivers").tag(0)
+                        Text("Constructors").tag(1)
+                        Text("Predictions").tag(2)
+                        Text("Championship").tag(3)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
 
-                    if vm.isLoading {
-                        ProgressView("Loading standings...")
-                            .padding(.top, 60)
-                    } else if let error = vm.error {
-                        ContentUnavailableView {
-                            Label("Failed to Load", systemImage: "exclamationmark.triangle")
-                        } description: {
-                            Text(error)
-                        } actions: {
-                            Button("Retry") { Task { await vm.loadStandings() } }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.red)
+                    switch segment {
+                    case 0:
+                        if vm.isLoading {
+                            ProgressView("Loading standings...").padding(.top, 60)
+                        } else if let error = vm.error {
+                            ContentUnavailableView {
+                                Label("Failed to Load", systemImage: "exclamationmark.triangle")
+                            } description: {
+                                Text(error)
+                            } actions: {
+                                Button("Retry") { Task { await vm.loadStandings() } }
+                                    .buttonStyle(.borderedProminent).tint(.red)
+                            }
+                        } else {
+                            DriverStandingsView(drivers: vm.drivers)
                         }
-                    } else if vm.showingDrivers {
-                        DriverStandingsView(drivers: vm.drivers)
-                    } else {
-                        ConstructorStandingsView(constructors: vm.constructors)
+                    case 1:
+                        if vm.isLoading {
+                            ProgressView("Loading standings...").padding(.top, 60)
+                        } else if let error = vm.error {
+                            ContentUnavailableView {
+                                Label("Failed to Load", systemImage: "exclamationmark.triangle")
+                            } description: {
+                                Text(error)
+                            } actions: {
+                                Button("Retry") { Task { await vm.loadStandings() } }
+                                    .buttonStyle(.borderedProminent).tint(.red)
+                            }
+                        } else {
+                            ConstructorStandingsView(constructors: vm.constructors)
+                        }
+                    case 2: // Predictions
+                        PredictionsView(
+                            upcomingRace: calVm.schedule.first(where: { $0.raceStatus == .upcoming }),
+                            year: calVm.selectedYear
+                        )
+                    case 3: // Championship
+                        ChampionshipView(year: vm.selectedYear)
+                    default:
+                        EmptyView()
                     }
                 }
                 .padding(.top, 8)
@@ -43,9 +82,13 @@ struct StandingsTab: View {
                 }
             }
             .task {
-                if vm.drivers.isEmpty {
-                    await vm.loadStandings()
-                }
+                async let standings: () = {
+                    if vm.drivers.isEmpty { await vm.loadStandings() }
+                }()
+                async let schedule: () = {
+                    if calVm.schedule.isEmpty { await calVm.loadSchedule() }
+                }()
+                _ = await (standings, schedule)
             }
             .refreshable {
                 await vm.loadStandings()

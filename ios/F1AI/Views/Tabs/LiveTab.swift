@@ -1,8 +1,18 @@
+import ActivityKit
 import SwiftUI
+
+private enum LiveSegment: String, CaseIterable {
+    case timing = "Timing"
+    case commentary = "Commentary"
+}
 
 struct LiveTab: View {
     @State private var vm = LiveTimingViewModel()
     @State private var calendarVM = CalendarViewModel()
+    @State private var liveActivityService = LiveActivityService()
+    @State private var selectedSegment: LiveSegment = .timing
+    @State private var hasNewCommentary = false
+    @State private var serverStatus = ServerStatusService.shared
 
     var body: some View {
         NavigationStack {
@@ -15,6 +25,7 @@ struct LiveTab: View {
             }
             .navigationTitle("Live")
             .task {
+                serverStatus.startPolling()
                 if calendarVM.schedule.isEmpty {
                     await calendarVM.loadSchedule()
                 }
@@ -24,6 +35,19 @@ struct LiveTab: View {
 
     private func liveContent(race: RaceEvent) -> some View {
         VStack(spacing: 0) {
+            if serverStatus.status == .warming {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Warming up server...")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial)
+            }
+
             // Race header
             VStack(spacing: 4) {
                 HStack {
@@ -57,42 +81,102 @@ struct LiveTab: View {
 
             Divider()
 
-            // Timing tower
-            ScrollView {
-                if vm.isConnected {
-                    if vm.positions.isEmpty {
-                        VStack(spacing: 8) {
-                            ProgressView()
-                            Text("Waiting for timing data...")
+            // Segment picker
+            Picker("", selection: $selectedSegment) {
+                ForEach(LiveSegment.allCases, id: \.self) { seg in
+                    if seg == .commentary && hasNewCommentary {
+                        Label(seg.rawValue, systemImage: "circle.fill")
+                            .labelStyle(.titleAndIcon)
+                    } else {
+                        Text(seg.rawValue)
+                    }
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            // Content switch
+            switch selectedSegment {
+            case .timing:
+                ScrollView {
+                    if vm.isConnected {
+                        if vm.positions.isEmpty {
+                            VStack(spacing: 8) {
+                                ProgressView()
+                                Text("Waiting for timing data...")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 60)
+                        } else {
+                            TimingTower(
+                                positions: vm.positions,
+                                sessionStatus: vm.sessionStatus
+                            )
+                            .padding(.top, 8)
+                        }
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.secondary)
+                            Text("Connecting to live timing...")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.top, 60)
-                    } else {
-                        TimingTower(
-                            positions: vm.positions,
-                            sessionStatus: vm.sessionStatus
-                        )
-                        .padding(.top, 8)
                     }
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.secondary)
-                        Text("Connecting to live timing...")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 60)
+                }
+            case .commentary:
+                CommentaryFeedView(entries: vm.commentaryEntries)
+                    .onAppear { hasNewCommentary = false }
+            }
+        }
+        .onChange(of: vm.commentaryEntries.count) {
+            if selectedSegment != .commentary {
+                hasNewCommentary = true
+            }
+        }
+        .onChange(of: vm.positions) {
+            guard !vm.positions.isEmpty else { return }
+            if !liveActivityService.isActive {
+                liveActivityService.startActivity(
+                    race: race,
+                    positions: vm.positions,
+                    sessionStatus: vm.sessionStatus
+                )
+            } else {
+                Task {
+                    await liveActivityService.update(
+                        positions: vm.positions,
+                        sessionStatus: vm.sessionStatus
+                    )
                 }
             }
         }
+        .onChange(of: vm.sessionStatus?.status) { _, newStatus in
+            guard let s = newStatus, s == "finished" || s == "ended" else { return }
+            Task {
+                await liveActivityService.endActivity(
+                    positions: vm.positions,
+                    sessionStatus: vm.sessionStatus
+                )
+            }
+        }
         .onAppear {
-            vm.connect(year: calendarVM.selectedYear, round: race.round)
+            let raceYear = race.date.flatMap { Int($0.prefix(4)) } ?? calendarVM.selectedYear
+            vm.connect(year: raceYear, round: race.round)
+            // Activity starts only after first positions arrive (handled by onChange above)
         }
         .onDisappear {
             vm.disconnect()
+            Task {
+                await liveActivityService.endActivity(
+                    positions: vm.positions,
+                    sessionStatus: vm.sessionStatus
+                )
+            }
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: vm.positions.first?.driver) // Haptic on leader change
     }

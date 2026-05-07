@@ -206,5 +206,6 @@ struct NextRaceWidget: Widget {
 struct F1AIWidgets: WidgetBundle {
     var body: some Widget {
         NextRaceWidget()
+        RaceLiveActivityView()
     }
 }

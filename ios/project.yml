@@ -13,7 +13,6 @@ targets:
     sources:
       - F1AI
       - path: F1AIWidgets/RaceLiveActivity.swift
-        group: F1AI/Widgets
     settings:
       base:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -30,6 +29,8 @@ targets:
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
         INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: YES
         TARGETED_DEVICE_FAMILY: "1,2"
+        DEVELOPMENT_TEAM: DXGRJ4875F
+        CODE_SIGN_STYLE: Automatic
     dependencies:
       - target: F1AIWidgets
 
@@ -52,3 +53,5 @@ targets:
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: 1
         TARGETED_DEVICE_FAMILY: "1,2"
+        DEVELOPMENT_TEAM: DXGRJ4875F
+        CODE_SIGN_STYLE: Automatic

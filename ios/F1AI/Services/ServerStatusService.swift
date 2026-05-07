@@ -23,10 +23,10 @@ final class ServerStatusService {
     }
 
     func startPolling() {
-        guard status != .ready else { return }
+        guard status != .ready, pollTask == nil else { return }
         status = .warming
 
-        pollTask = Task {
+        pollTask = Task { @MainActor in
             while !Task.isCancelled {
                 let isHealthy = await probeHealth()
                 if isHealthy {

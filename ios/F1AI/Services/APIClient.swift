@@ -4,7 +4,7 @@ import Foundation
 final class APIClient {
     static let shared = APIClient()
 
-    var baseURL: String = "http://localhost:8000"
+    var baseURL: String = "https://f1-ai-backend.onrender.com"
 
     private let session: URLSession
     private let decoder: JSONDecoder

@@ -63,7 +63,7 @@ final class ChampionshipViewModel {
     // Can this driver overtake the leader if they win whatIfRaces?
     func canOvertake(driver: DriverStanding) -> Bool {
         guard let leader = drivers.first, leader.driver != driver.driver else { return false }
-        return wdcProjectedPoints(for: driver) > driver.points  // simplified: just show points gap closing
+        return wdcProjectedPoints(for: driver) > wdcLeaderProjectedPoints()
     }
 
     func pointsToOvertake(driver: DriverStanding) -> Double {

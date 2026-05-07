@@ -3,12 +3,11 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		0E4BB7CB75F4C842A80AE893 /* LiveTimingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FE0A62DB4EFA6CB5F20CA6 /* LiveTimingViewModel.swift */; };
-		A1B2C3D4E5F60718293A4B5C /* LiveActivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */; };
 		0EFCFEB49C63DADA002D2385 /* RaceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E25079A927A338F60AA349C /* RaceDetail.swift */; };
 		114DD3FE666DF0B84305E8C1 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B66652163C26B24068380B /* NotificationService.swift */; };
 		1C9663FE42B8ACC17162D90B /* PredictionDriverCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54E2B95FCAF0F578BE1C203D /* PredictionDriverCard.swift */; };
@@ -27,7 +26,6 @@
 		5561C79D6531DB5B4D70DB73 /* CalendarTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BDCCC2AEBFE7EBB9A9FD55 /* CalendarTab.swift */; };
 		5620292DF92F49837783E5B4 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7983B64B042E4633D2157016 /* ChatViewModel.swift */; };
 		5A57767FE1024784011CE398 /* PositionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44DAF5941CF75246DE05CDE /* PositionRow.swift */; };
-		B2C3D4E5F6A7081929384B5C /* CommentaryFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */; };
 		5AEBF7A9555BE62783D3DFC8 /* F1AIWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5E8B08A930D83E15736A466D /* Race.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE06C4DC97F9A78CE89EE9D4 /* Race.swift */; };
 		5F02F33DC5D3DED38157EA65 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAED17B04FD6282E88F4699D /* CacheService.swift */; };
@@ -48,10 +46,13 @@
 		8AA77DE21E9737D8CFD316BC /* LiveTimingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */; };
 		926749B5F4823A24C692428E /* RaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461D6F9807482987BCD5BCE6 /* RaceDetailView.swift */; };
 		95D409359B1A804017ED1A57 /* LiveTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBEE0C5D11790C2016F998D /* LiveTab.swift */; };
+		9674C5F2961C4CCA9D9C8662 /* ServerStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1EA8BA6D154425A3650AA0 /* ServerStatusService.swift */; };
 		A15AB60398D54D280928E700 /* TimingTower.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* LiveActivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */; };
 		AA52AE1BE038E421BDEBAB4F /* PredictionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E908ECA414066FF26BD0597 /* PredictionsView.swift */; };
 		AA8EEC3F011D0400A7513358 /* ResultsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D3CE420F228CBD2E97DB4E /* ResultsTable.swift */; };
 		B03DC4F0941922166FCC118A /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B399A2CBA9DC8D68AD4335A8 /* APIClient.swift */; };
+		B2C3D4E5F6A7081929384B5C /* CommentaryFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */; };
 		B99BEC23D61CBAB73C358043 /* ChampionshipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FBDCAEE25BF61D9D2DA2857 /* ChampionshipView.swift */; };
 		BE36DA7E961F4F592859F127 /* RaceLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F226F7B4D434E9FB967EEB /* RaceLiveActivity.swift */; };
 		BFE7BDDDDE0F4AA150959B35 /* StandingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1528E764CD91AA4D4EF0A873 /* StandingsViewModel.swift */; };
@@ -82,7 +83,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				5AEBF7A9555BE62783D3DFC8 /* F1AIWidgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -114,12 +114,12 @@
 		53B66652163C26B24068380B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		54E2B95FCAF0F578BE1C203D /* PredictionDriverCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionDriverCard.swift; sourceTree = "<group>"; };
 		586313474E0AC1A83974602A /* PitWallTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitWallTab.swift; sourceTree = "<group>"; };
-		664587F0019523848866ED98 /* F1AI.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = F1AI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		664587F0019523848866ED98 /* F1AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = F1AI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		75BE24EE5A3859ED95EADB39 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7983B64B042E4633D2157016 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		8BA71066DC48FE272190AAE9 /* CachedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedData.swift; sourceTree = "<group>"; };
 		8E4119243322EA537914F128 /* ShareableResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableResultCard.swift; sourceTree = "<group>"; };
-		8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = F1AIWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F91BE7BBCB1C457F19DDB8B /* F1AIWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = F1AIWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9458CEDA653E741EA7D6D837 /* PredictionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionsViewModel.swift; sourceTree = "<group>"; };
 		9FBEE0C5D11790C2016F998D /* LiveTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTab.swift; sourceTree = "<group>"; };
 		A03BD54E737DEAD995C55DB2 /* CompareViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareViewModel.swift; sourceTree = "<group>"; };
@@ -134,6 +134,8 @@
 		B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTimingService.swift; sourceTree = "<group>"; };
 		BE06C4DC97F9A78CE89EE9D4 /* Race.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Race.swift; sourceTree = "<group>"; };
 		BF6399609738B3BECDF390C4 /* Compare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compare.swift; sourceTree = "<group>"; };
+		C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentaryFeedView.swift; sourceTree = "<group>"; };
+		C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 		CA6696231D2C90137A03F5AA /* ChampionshipViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChampionshipViewModel.swift; sourceTree = "<group>"; };
 		D7140C7E72AA96B663BBF81A /* CalendarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarViewModel.swift; sourceTree = "<group>"; };
 		D8BDCCC2AEBFE7EBB9A9FD55 /* CalendarTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarTab.swift; sourceTree = "<group>"; };
@@ -141,13 +143,12 @@
 		E2086D81F9D7D9033695FBC3 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		E9D3CE420F228CBD2E97DB4E /* ResultsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsTable.swift; sourceTree = "<group>"; };
 		EA6CC3A62AB4277EAA525848 /* DriverCompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverCompareView.swift; sourceTree = "<group>"; };
-		C3D4E5F6A7B8091A2B3C4D5E /* CommentaryFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentaryFeedView.swift; sourceTree = "<group>"; };
+		ED1EA8BA6D154425A3650AA0 /* ServerStatusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusService.swift; sourceTree = "<group>"; };
 		F44DAF5941CF75246DE05CDE /* PositionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionRow.swift; sourceTree = "<group>"; };
 		F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingTower.swift; sourceTree = "<group>"; };
 		F98499957A21E2C03E881CCC /* Standings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standings.swift; sourceTree = "<group>"; };
 		FA40875DCE4D80D31378BBAE /* RaceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceRow.swift; sourceTree = "<group>"; };
 		FAED17B04FD6282E88F4699D /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
-		C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -161,6 +162,7 @@
 				C6D7E8F9A0B1C2D3E4F5A6B7 /* LiveActivityService.swift */,
 				B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */,
 				53B66652163C26B24068380B /* NotificationService.swift */,
+				ED1EA8BA6D154425A3650AA0 /* ServerStatusService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -381,7 +383,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E7BE3BDF0570D56AF6460627 /* PBXTargetDependency */,
 			);
 			name = F1AI;
 			packageProductDependencies = (
@@ -409,7 +410,6 @@
 			);
 			mainGroup = 1A9293C59F8E6995DCA92939;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -461,6 +461,7 @@
 				0E4BB7CB75F4C842A80AE893 /* LiveTimingViewModel.swift in Sources */,
 				D4D34902F631D9A083FA4B6B /* MessageBubble.swift in Sources */,
 				114DD3FE666DF0B84305E8C1 /* NotificationService.swift in Sources */,
+				9674C5F2961C4CCA9D9C8662 /* ServerStatusService.swift in Sources */,
 				489E833333A5157AD721650B /* NotificationSettingsView.swift in Sources */,
 				338FC0AF683F222910D0B5A8 /* PitWallTab.swift in Sources */,
 				68134953A17F385C80FE8AE1 /* PodiumView.swift in Sources */,
@@ -504,6 +505,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = F1AIWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -523,6 +525,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = F1AIWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -544,6 +547,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = F1AI/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -571,6 +575,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = F1AI/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

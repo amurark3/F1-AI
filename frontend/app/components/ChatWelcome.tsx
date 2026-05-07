@@ -2,29 +2,29 @@
 
 import { motion } from 'framer-motion';
 
-const EXAMPLE_PROMPTS = [
-  { emoji: "🏎️", text: "Who won the 2024 Drivers' Championship?" },
-  { emoji: "📊", text: "Compare Norris vs Verstappen qualifying at Monza 2024" },
-  { emoji: "🏁", text: "What are the new rule changes for 2026?" },
-  { emoji: "🔧", text: "Explain DRS and how it affects overtaking" },
-  { emoji: "🗓️", text: "When is the next race this season?" },
-  { emoji: "🏆", text: "Which team has the most constructors' titles?" },
+interface Prompt {
+  color: string;
+  label: string;
+  text: string;
+}
+
+const PROMPTS: Prompt[] = [
+  { color: '#E10600', label: 'Championship',  text: "Who won the 2024 Drivers' Championship?" },
+  { color: '#3671C6', label: 'Analysis',      text: 'Compare Norris vs Verstappen qualifying at Monza 2024' },
+  { color: '#FF8000', label: 'Regulations',   text: 'What are the new rule changes for 2026?' },
+  { color: '#27F4D2', label: 'Technical',     text: 'Explain DRS and how it affects overtaking' },
+  { color: '#00CC00', label: 'Schedule',      text: 'When is the next race this season?' },
+  { color: '#BE3AFF', label: 'History',       text: "Which team has the most constructors' titles?" },
 ];
 
 const containerVariants = {
   hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.07 },
-  },
+  visible: { transition: { staggerChildren: 0.055 } },
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, x: 40 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring" as const, damping: 20, stiffness: 200 },
-  },
+  hidden:  { opacity: 0, x: 32, skewX: -3 },
+  visible: { opacity: 1, x: 0,  skewX: 0, transition: { type: 'spring' as const, damping: 22, stiffness: 210 } },
 };
 
 interface ChatWelcomeProps {
@@ -35,48 +35,84 @@ interface ChatWelcomeProps {
 export default function ChatWelcome({ onSelectPrompt, disabled }: ChatWelcomeProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full px-4 sm:px-6 pb-6 sm:pb-8">
+
+      {/* ── Hero heading ─────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center mb-6 sm:mb-10"
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center mb-8 sm:mb-12"
       >
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-red-600/15 to-orange-500/15 border border-red-500/20 text-red-400 text-xs font-bold uppercase tracking-widest mb-4 sm:mb-6">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500 animate-glow-pulse shadow-sm shadow-red-500/50" />
+        {/* Sector-time style badge */}
+        <div className="inline-flex items-center gap-2 px-3 py-1 mb-5 rounded border text-[10px] font-black uppercase tracking-[0.2em] sector-best">
+          <span
+            className="h-[7px] w-[7px] rounded-full animate-glow-pulse"
+            style={{ background: '#BE3AFF' }}
+          />
           AI Race Engineer
         </div>
-        <h2 className="text-2xl sm:text-4xl md:text-5xl font-black italic tracking-tight text-white mb-2 sm:mb-3">
-          Welcome to the{' '}
-          <span className="bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
-            Pit Wall
-          </span>
-        </h2>
-        <p className="text-neutral-400 text-sm sm:text-base max-w-lg mx-auto">
+
+        <h1
+          className="text-5xl sm:text-6xl md:text-7xl font-black italic tracking-tighter uppercase text-white mb-3 leading-none"
+          style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+        >
+          Pit{' '}
+          <span style={{ color: '#E10600' }}>Wall</span>
+        </h1>
+
+        {/* Speed lines decoration */}
+        <div className="flex items-center justify-center gap-1 mb-4">
+          {[40, 64, 96, 64, 40].map((w, i) => (
+            <motion.div
+              key={i}
+              className="h-[2px] rounded-full"
+              style={{ width: w, background: i === 2 ? '#E10600' : 'rgba(255,255,255,0.12)' }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.3 + i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            />
+          ))}
+        </div>
+
+        <p className="text-neutral-500 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
           Ask me anything about Formula 1 — race stats, driver comparisons,
           regulations, strategy, history, and more.
         </p>
       </motion.div>
 
+      {/* ── Prompt cards ─────────────────────────────── */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-3xl w-full"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 max-w-3xl w-full"
       >
-        {EXAMPLE_PROMPTS.map(({ emoji, text }) => (
+        {PROMPTS.map(({ color, label, text }) => (
           <motion.button
             key={text}
             variants={cardVariants}
-            whileHover={{ scale: 1.03, x: 4 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.02, x: 3 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => onSelectPrompt(text)}
             disabled={disabled}
-            className="group text-left p-4 sm:p-5 rounded-2xl glass hover:border-red-500/30 hover:bg-white/8 hover:shadow-lg hover:shadow-red-600/5 transition-all duration-300 disabled:opacity-50"
+            className="group text-left rounded-xl glass overflow-hidden
+              hover:border-white/15 transition-all duration-200 disabled:opacity-40"
           >
-            <span className="text-2xl mb-2.5 block">{emoji}</span>
-            <span className="text-sm text-neutral-400 group-hover:text-neutral-200 transition-colors leading-snug">
-              {text}
-            </span>
+            {/* coloured top stripe */}
+            <div className="h-[2px] w-full" style={{ background: color }} />
+
+            <div className="px-4 pt-3 pb-4">
+              {/* category label */}
+              <div
+                className="text-[9px] font-black uppercase tracking-[0.18em] mb-2"
+                style={{ color }}
+              >
+                {label}
+              </div>
+              <p className="text-sm text-neutral-400 group-hover:text-neutral-200 transition-colors leading-snug">
+                {text}
+              </p>
+            </div>
           </motion.button>
         ))}
       </motion.div>

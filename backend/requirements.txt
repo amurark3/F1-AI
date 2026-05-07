@@ -41,5 +41,3 @@ requests
 httpx
 python-dotenv
 pandas
-scikit-learn
-joblib

@@ -358,10 +358,8 @@ async def get_driver_standings(year: int):
         if data.content:
             df = data.content[0]
             results = []
-            for _, row in df.iterrows():
-                # Skip entries with no position (reserve/non-racing drivers)
-                if "position" not in row or (isinstance(row["position"], float) and math.isnan(row["position"])):
-                    continue
+            for idx, (_, row) in enumerate(df.iterrows(), start=1):
+                has_pos = "position" in row and not (isinstance(row["position"], float) and math.isnan(row["position"]))
 
                 # FastF1/Ergast returns either 'constructorName' (string) for
                 # single-team drivers, or 'constructorNames' (list) for drivers
@@ -374,7 +372,7 @@ async def get_driver_standings(year: int):
                     team_name = names[-1] if isinstance(names, list) and names else str(names)
 
                 results.append({
-                    "position": _safe_int(row["position"]),
+                    "position": _safe_int(row["position"]) if has_pos else idx,
                     "driver": f"{_safe_str(row, 'givenName')} {_safe_str(row, 'familyName')}".strip(),
                     "team": team_name,
                     "points": _safe_float(row.get("points", 0)),
@@ -423,11 +421,10 @@ async def get_constructor_standings(year: int):
         if data.content:
             df = data.content[0]
             results = []
-            for _, row in df.iterrows():
-                if "position" not in row or (isinstance(row["position"], float) and math.isnan(row["position"])):
-                    continue
+            for idx, (_, row) in enumerate(df.iterrows(), start=1):
+                has_pos = "position" in row and not (isinstance(row["position"], float) and math.isnan(row["position"]))
                 results.append({
-                    "position": _safe_int(row["position"]),
+                    "position": _safe_int(row["position"]) if has_pos else idx,
                     "team": _safe_str(row, "constructorName", "Unknown"),
                     "points": _safe_float(row.get("points", 0)),
                     "wins": _safe_int(row.get("wins", 0)),

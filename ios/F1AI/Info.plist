@@ -7,11 +7,9 @@
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>NSAppTransportSecurity</key>
-	<dict>
-		<!-- Allow HTTP to localhost / 127.0.0.1 in Simulator DEBUG builds -->
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
+	<dict/>
+	<!-- NSAllowsLocalNetworking removed: all backend traffic uses HTTPS.
+	     Re-add in a Debug xcconfig if localhost HTTP access is needed. -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

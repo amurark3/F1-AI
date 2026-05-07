@@ -1,0 +1,5 @@
+# Offline ML training dependencies — not needed for the API server at runtime.
+# Install with: pip install -r requirements-train.txt
+-r requirements.txt
+scikit-learn
+joblib

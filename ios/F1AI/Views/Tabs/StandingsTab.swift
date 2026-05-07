@@ -3,7 +3,7 @@ import SwiftUI
 struct StandingsTab: View {
     @State private var vm = StandingsViewModel()
     @State private var calVm = CalendarViewModel()
-    @State private var segment = 0   // 0=Drivers, 1=Constructors, 2=Predictions
+    @State private var segment = 0   // 0=Drivers, 1=Constructors, 2=Predictions, 3=Championship
 
     var body: some View {
         NavigationStack {

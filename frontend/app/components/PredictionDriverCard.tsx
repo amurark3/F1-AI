@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
-// Team colour map — matches Standings.tsx TEAM_COLORS exactly
-const TEAM_COLORS: Record<string, string> = {
+export const TEAM_COLORS: Record<string, string> = {
   "Red Bull Racing": "#3671C6",
   "Red Bull":        "#3671C6",
   "Mercedes":        "#27F4D2",
@@ -23,14 +21,14 @@ const TEAM_COLORS: Record<string, string> = {
   "Cadillac F1 Team": "#E0D4B8",
 };
 
-const getTeamColor = (team: string): string => {
+export const getTeamColor = (team: string): string => {
   for (const [key, color] of Object.entries(TEAM_COLORS)) {
     if (team.includes(key) || key.includes(team)) return color;
   }
   return "#6B7280";
 };
 
-interface DriverPrediction {
+export interface DriverPrediction {
   position: number;
   driver_code: string;
   driver_name: string;
@@ -42,87 +40,109 @@ interface DriverPrediction {
 
 interface PredictionDriverCardProps {
   prediction: DriverPrediction;
-  index: number;  // for stagger animation
+  index: number;
 }
 
+const rowVariants = {
+  hidden:  { opacity: 0, x: 24 },
+  visible: (i: number) => ({
+    opacity: 1, x: 0,
+    transition: { type: 'spring' as const, damping: 22, stiffness: 210, delay: i * 0.025 },
+  }),
+};
+
 export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const teamColor = getTeamColor(prediction.team);
-  const isTopThree = prediction.position <= 3;
+  const color   = getTeamColor(prediction.team);
+  const midConf = Math.round((prediction.confidence_low + prediction.confidence_high) / 2);
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: "spring", damping: 20, stiffness: 200, delay: index * 0.03 }}
-      className={`relative rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer ${
-        isTopThree ? 'glass border border-white/8' : 'bg-white/3 border border-white/5'
-      }`}
-      onClick={() => setIsExpanded(prev => !prev)}
+      custom={index}
+      variants={rowVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ scale: 1.007, x: 3 }}
+      className="relative flex items-center gap-3 sm:gap-4 px-4 py-3 rounded-xl glass border border-white/5
+        hover:border-white/12 overflow-hidden transition-all duration-150 group"
     >
-      {/* Left team colour accent bar */}
+      {/* Background confidence fill */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1"
-        style={{ backgroundColor: teamColor }}
+        className="absolute left-0 top-0 bottom-0 opacity-[0.055] transition-all duration-700"
+        style={{ width: `${prediction.confidence_high}%`, background: color }}
       />
 
-      {/* Always-visible header */}
-      <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 pl-5 sm:pl-6">
-        {/* Position */}
-        <div className={`w-8 sm:w-10 text-center font-black text-base sm:text-lg shrink-0 ${
-          isTopThree ? 'text-white' : 'text-neutral-500'
-        }`}>
-          {prediction.position}
-        </div>
+      {/* Team colour left bar */}
+      <div
+        className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+        style={{ background: color }}
+      />
 
-        {/* Driver + Team */}
-        <div className="flex-1 min-w-0">
-          <p className={`font-bold truncate ${isTopThree ? 'text-white text-sm sm:text-base' : 'text-gray-300 text-sm'}`}>
-            {prediction.driver_name}
-          </p>
-          <p className="text-[10px] sm:text-xs font-medium truncate" style={{ color: teamColor }}>
-            {prediction.team}
-          </p>
-        </div>
+      {/* Position */}
+      <div
+        className="w-7 sm:w-9 text-center font-black text-base sm:text-lg shrink-0 text-neutral-500"
+        style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+      >
+        {prediction.position}
+      </div>
 
-        {/* Confidence range — the "win probability" field */}
-        <div className="text-right shrink-0">
-          <p className={`font-mono font-black text-base sm:text-lg ${isTopThree ? 'text-white' : 'text-gray-300'}`}>
-            {prediction.confidence_low}–{prediction.confidence_high}%
-          </p>
-          <p className="text-[10px] text-neutral-600 uppercase tracking-wider">confidence</p>
-        </div>
+      {/* Driver code badge */}
+      <div
+        className="hidden sm:flex items-center justify-center h-7 w-11 rounded shrink-0 text-[11px] font-black"
+        style={{
+          background: `${color}22`,
+          color,
+          fontFamily: 'var(--font-barlow, var(--font-geist-sans))',
+        }}
+      >
+        {prediction.driver_code}
+      </div>
 
-        {/* Expand chevron */}
-        <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} shrink-0`}>
-          <svg className="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+      {/* Name + team */}
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm text-white truncate leading-tight">{prediction.driver_name}</p>
+        <p className="text-[10px] font-semibold truncate mt-0.5" style={{ color }}>{prediction.team}</p>
+      </div>
+
+      {/* Probability bar */}
+      <div className="hidden md:flex flex-col gap-1 w-28 shrink-0">
+        <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${midConf}%` }}
+            transition={{ duration: 0.8, delay: index * 0.025, ease: [0.22, 1, 0.36, 1] }}
+            style={{ background: color }}
+          />
+        </div>
+        <div className="flex justify-between text-[9px] text-neutral-600 font-mono">
+          <span>{prediction.confidence_low}%</span>
+          <span>{prediction.confidence_high}%</span>
         </div>
       </div>
 
-      {/* Expandable factors section */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="overflow-hidden"
+      {/* Factor chips — desktop only */}
+      <div className="hidden lg:flex gap-1 flex-wrap max-w-[200px] shrink-0">
+        {prediction.factors.slice(0, 2).map((f, i) => (
+          <span
+            key={i}
+            className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-500 leading-tight"
+            style={{ maxWidth: 190 }}
           >
-            <div className="border-t border-white/8 mx-4 sm:mx-5" />
-            <ul className="px-5 sm:px-6 py-3 space-y-2">
-              {prediction.factors.slice(0, 3).map((factor, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="shrink-0 mt-0.5" style={{ color: teamColor }}>›</span>
-                  <span className="text-xs text-gray-400 leading-relaxed">{factor}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {f.length > 28 ? f.slice(0, 26) + '…' : f}
+          </span>
+        ))}
+      </div>
+
+      {/* Confidence % */}
+      <div className="text-right shrink-0 w-12 sm:w-14">
+        <p
+          className="font-mono font-black text-sm sm:text-base text-white leading-none"
+          style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+        >
+          {midConf}%
+        </p>
+        <p className="text-[9px] text-neutral-600 uppercase tracking-wider">conf</p>
+      </div>
     </motion.div>
   );
 };

@@ -1,20 +1,23 @@
 "use client";
 
+import type { CSSProperties, ComponentType } from 'react';
 import { motion } from 'framer-motion';
+import { BarChart3, CalendarClock, FileSearch, Gauge, History, Trophy } from 'lucide-react';
 
 interface Prompt {
   color: string;
   label: string;
   text: string;
+  icon: ComponentType<{ className?: string; style?: CSSProperties }>;
 }
 
 const PROMPTS: Prompt[] = [
-  { color: '#E10600', label: 'Championship',  text: "Who won the 2024 Drivers' Championship?" },
-  { color: '#3671C6', label: 'Analysis',      text: 'Compare Norris vs Verstappen qualifying at Monza 2024' },
-  { color: '#FF8000', label: 'Regulations',   text: 'What are the new rule changes for 2026?' },
-  { color: '#27F4D2', label: 'Technical',     text: 'Explain DRS and how it affects overtaking' },
-  { color: '#00CC00', label: 'Schedule',      text: 'When is the next race this season?' },
-  { color: '#BE3AFF', label: 'History',       text: "Which team has the most constructors' titles?" },
+  { color: '#E10600', label: 'Championship',  text: "Brief me on the current title fight and the biggest points swing risk", icon: Trophy },
+  { color: '#3671C6', label: 'Driver Delta',  text: 'Compare Norris vs Verstappen qualifying at Monza 2024', icon: BarChart3 },
+  { color: '#FF8000', label: 'Regulations',   text: 'What 2026 regulation changes matter most for race operations?', icon: FileSearch },
+  { color: '#27F4D2', label: 'Technical',     text: 'Explain DRS in terms of attack, defense, and race strategy', icon: Gauge },
+  { color: '#00CC00', label: 'Schedule',      text: 'When is the next race and what sessions should I watch?', icon: CalendarClock },
+  { color: '#BE3AFF', label: 'History',       text: "Which team has the most constructors' titles?", icon: History },
 ];
 
 const containerVariants = {
@@ -49,7 +52,7 @@ export default function ChatWelcome({ onSelectPrompt, disabled }: ChatWelcomePro
             className="h-[7px] w-[7px] rounded-full animate-glow-pulse"
             style={{ background: '#BE3AFF' }}
           />
-          AI Race Engineer
+          Public Pit Wall
         </div>
 
         <h1
@@ -75,8 +78,8 @@ export default function ChatWelcome({ onSelectPrompt, disabled }: ChatWelcomePro
         </div>
 
         <p className="text-neutral-500 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
-          Ask me anything about Formula 1 — race stats, driver comparisons,
-          regulations, strategy, history, and more.
+          Ask the race engineer for race context, driver comparisons, regulations,
+          strategy language, and championship implications.
         </p>
       </motion.div>
 
@@ -87,7 +90,7 @@ export default function ChatWelcome({ onSelectPrompt, disabled }: ChatWelcomePro
         animate="visible"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 max-w-3xl w-full"
       >
-        {PROMPTS.map(({ color, label, text }) => (
+        {PROMPTS.map(({ color, label, text, icon: Icon }) => (
           <motion.button
             key={text}
             variants={cardVariants}
@@ -103,6 +106,7 @@ export default function ChatWelcome({ onSelectPrompt, disabled }: ChatWelcomePro
 
             <div className="px-4 pt-3 pb-4">
               {/* category label */}
+              <Icon className="h-4 w-4 mb-3" style={{ color }} />
               <div
                 className="text-[9px] font-black uppercase tracking-[0.18em] mb-2"
                 style={{ color }}

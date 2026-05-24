@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, BarChart3, ClipboardList, Gauge, Target } from 'lucide-react';
 import { fetcher } from '../utils/fetcher';
 import { API_BASE } from '../constants/api';
 import { PredictionDriverCard, getTeamColor, type DriverPrediction } from './PredictionDriverCard';
@@ -142,8 +143,12 @@ const PredictionPanel = () => {
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4"
       >
-        {/* Icon */}
-        <div className="text-6xl mb-6 animate-flag inline-block">🎯</div>
+        <div
+          className="h-14 w-14 rounded-xl flex items-center justify-center border mb-6"
+          style={{ borderColor: 'rgba(225,6,0,0.32)', background: 'rgba(225,6,0,0.10)' }}
+        >
+          <Target className="h-7 w-7" style={{ color: '#E10600' }} />
+        </div>
 
         <div
           className="text-[10px] font-black uppercase tracking-[0.22em] mb-4"
@@ -182,18 +187,18 @@ const PredictionPanel = () => {
               {upcomingRace!.name}
             </h2>
             <p className="text-neutral-500 text-sm mb-8 max-w-sm">
-              AI-powered race outcome predictions based on qualifying results, team performance, circuit characteristics, and recent form.
+              Build a race-order branch from qualifying, team performance, circuit characteristics, and recent form.
             </p>
 
-            {/* What you'll see */}
-            <div className="flex items-center gap-4 sm:gap-8 mb-10 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-10 w-full max-w-3xl">
               {[
-                { label: 'Predicted Podium', desc: 'P1 · P2 · P3' },
-                { label: 'Full Grid Order', desc: 'P4 → P20' },
-                { label: 'Confidence Range', desc: 'Per driver %' },
-                { label: 'Key Factors',      desc: 'Why each pick' },
-              ].map(({ label, desc }) => (
-                <div key={label}>
+                { label: 'Podium branch', desc: 'P1 - P3', icon: Target },
+                { label: 'Full order', desc: 'P4 - P20', icon: ClipboardList },
+                { label: 'Confidence', desc: 'Driver bands', icon: Gauge },
+                { label: 'Model review', desc: 'Accuracy', icon: BarChart3 },
+              ].map(({ label, desc, icon: Icon }) => (
+                <div key={label} className="glass rounded-xl px-3 py-3 text-left">
+                  <Icon className="h-4 w-4 mb-3" style={{ color: '#E10600' }} />
                   <div className="text-xs font-bold text-white mb-0.5">{label}</div>
                   <div className="text-[10px] text-neutral-600">{desc}</div>
                 </div>
@@ -240,7 +245,7 @@ const PredictionPanel = () => {
       {/* Qualifying not done yet */}
       {qualPending && (
         <div className="p-14 glass rounded-xl border border-dashed border-white/8 text-center">
-          <div className="text-5xl mb-4">🏎</div>
+          <Gauge className="h-10 w-10 mx-auto mb-4 text-neutral-600" />
           <h3 className="text-xl font-black uppercase italic text-white mb-2"
             style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
             {upcomingRace?.name}
@@ -252,7 +257,7 @@ const PredictionPanel = () => {
       {/* Error */}
       {!isLoading && (swrError || backendError) && !hasContent && (
         <div className="p-12 glass rounded-xl text-center">
-          <div className="text-4xl mb-4">⚠</div>
+          <AlertTriangle className="h-10 w-10 mx-auto mb-4 text-red-400" />
           <h3 className="text-lg font-black text-white mb-2 uppercase italic"
             style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
             Something went wrong

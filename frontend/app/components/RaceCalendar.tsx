@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import { ChevronDown } from 'lucide-react';
 import F1_TIMEZONES from '../constants/timeZone';
@@ -59,8 +59,7 @@ const RaceCalendar = () => {
 
   const [year, setYear] = useState(defaultYear);
   const [timezone, setTimezone] = useState(LOCAL_TZ);
-  const [expandedRound, setExpandedRound] = useState<number | null>(null);
-  const [autoExpanded, setAutoExpanded] = useState(false);
+  const [expandedRound, setExpandedRound] = useState<number | null | undefined>(undefined);
 
   const { data: schedule, isLoading } = useSWR<RaceEvent[]>(
     `${API_BASE}/api/schedule/${year}`,
@@ -68,35 +67,19 @@ const RaceCalendar = () => {
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
-  const getTargetRound = useCallback((): number | null => {
+  const targetRound = (() => {
     if (!schedule) return null;
     const live = schedule.find(r => r.status === 'in_progress');
     if (live) return live.round;
     const next = schedule.find(r => r.status === 'upcoming');
     if (next) return next.round;
     return schedule[schedule.length - 1]?.round ?? null;
-  }, [schedule]);
+  })();
 
-  // Auto-expand the next/current race on first load
-  useEffect(() => {
-    if (!schedule || autoExpanded) return;
-    const target = getTargetRound();
-    if (target !== null) {
-      setExpandedRound(target);
-      setAutoExpanded(true);
-    }
-  }, [schedule, autoExpanded, getTargetRound]);
-
-  // Reset auto-expand when year changes
-  useEffect(() => {
-    setAutoExpanded(false);
-    setExpandedRound(null);
-  }, [year]);
-
-  const targetRound = getTargetRound();
+  const activeExpandedRound = expandedRound === undefined ? targetRound : expandedRound;
 
   const toggle = (round: number) =>
-    setExpandedRound(prev => prev === round ? null : round);
+    setExpandedRound(activeExpandedRound === round ? null : round);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-10">
@@ -109,12 +92,15 @@ const RaceCalendar = () => {
             className="text-xl font-black italic uppercase tracking-tight text-white"
             style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
           >
-            Calendar
+            Weekend Board
           </h2>
           <div className="relative">
             <select
               value={year}
-              onChange={e => { setYear(Number(e.target.value)); }}
+              onChange={e => {
+                setYear(Number(e.target.value));
+                setExpandedRound(undefined);
+              }}
               className="appearance-none glass text-white text-xs font-black uppercase tracking-widest rounded-lg px-3 py-1.5 pr-7 focus:ring-1 focus:ring-[#E10600]/50 outline-none"
               style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
             >
@@ -172,7 +158,7 @@ const RaceCalendar = () => {
               year={year}
               timezone={timezone}
               isNext={race.round === targetRound}
-              expanded={expandedRound === race.round}
+              expanded={activeExpandedRound === race.round}
               onToggle={() => toggle(race.round)}
               isLastRow={i === schedule.length - 1}
             />

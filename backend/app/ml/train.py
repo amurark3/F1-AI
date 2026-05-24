@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 from fastf1.ergast import Ergast
 from fastf1.exceptions import RateLimitExceededError as F1RateLimitError
+from app.utils.fastf1_cache import enable_fastf1_cache
 
 # Suppress fastf1 and pandas noise during bulk data loading
 warnings.filterwarnings("ignore")
@@ -353,7 +354,7 @@ TARGET = "finish_position"
 
 def collect_data() -> pd.DataFrame:
     """Fetch historical race data for all training years and return a DataFrame."""
-    fastf1.Cache.enable_cache(str(CACHE_DIR))
+    enable_fastf1_cache(CACHE_DIR)
     all_rows: list[dict] = []
 
     # Circuit history accumulated across all years (keyed by location string)

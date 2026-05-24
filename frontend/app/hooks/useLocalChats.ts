@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -29,12 +29,7 @@ function writeChats(chats: Chat[]) {
 }
 
 export function useLocalChats() {
-  const [chats, setChats] = useState<Chat[]>([]);
-
-  // Load from localStorage on mount.
-  useEffect(() => {
-    setChats(readChats());
-  }, []);
+  const [chats, setChats] = useState<Chat[]>(readChats);
 
   const persist = useCallback((next: Chat[]) => {
     setChats(next);

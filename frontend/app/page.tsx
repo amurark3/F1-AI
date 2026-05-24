@@ -1,13 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import ChatScreen from '@/app/components/ChatScreen';
-import ServerWarmingBanner from '@/app/components/ServerWarmingBanner';
-
-export default function Home() {
-  return (
-    <>
-      <ServerWarmingBanner />
-      <ChatScreen />
-    </>
-  );
+export default function HomePage() {
+  redirect("/race-control");
 }

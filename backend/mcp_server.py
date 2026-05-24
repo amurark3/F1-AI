@@ -22,6 +22,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP, Context
 from fastf1.ergast import Ergast
+from app.utils.fastf1_cache import enable_fastf1_cache
 
 # ---------------------------------------------------------------------------
 # Environment & cache setup
@@ -29,9 +30,7 @@ from fastf1.ergast import Ergast
 load_dotenv()
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "f1_cache")
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
-fastf1.Cache.enable_cache(CACHE_DIR)
+enable_fastf1_cache(CACHE_DIR)
 
 # Silence FastF1's verbose logging.
 fastf1.logger.set_log_level(logging.ERROR)

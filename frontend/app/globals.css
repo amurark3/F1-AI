@@ -26,7 +26,7 @@
   --color-foreground:     var(--foreground);
   --font-sans:            var(--font-geist-sans);
   --font-mono:            var(--font-geist-mono);
-  --font-f1:              var(--font-barlow);
+  --font-f1:              var(--font-geist-sans);
 
   /* F1 palette exposed to Tailwind */
   --color-f1-red:         #E10600;

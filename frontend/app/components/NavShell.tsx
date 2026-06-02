@@ -7,7 +7,10 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const NAV_ITEMS = [
-  { href: '/',            label: 'Pit Wall' },
+  { href: '/',            label: 'Workspaces' },
+  { href: '/race-control',label: 'Race Control' },
+  { href: '/consumer',    label: 'Consumer' },
+  { href: '/strategy',    label: 'Strategy HQ' },
   { href: '/calendar',   label: 'Calendar' },
   { href: '/standings',  label: 'Standings' },
   { href: '/predictions',label: 'Predictions' },
@@ -17,6 +20,10 @@ const NAV_ITEMS = [
 export default function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  if (pathname?.startsWith('/race-control')) {
+    return <>{children}</>;
+  }
 
   return (
     <main className="min-h-screen" style={{ background: '#080808' }}>

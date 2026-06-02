@@ -108,3 +108,6 @@ WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "600"))
 # ---------------------------------------------------------------------------
 # Path to JSON file storing prediction history for accuracy comparison
 PREDICTION_HISTORY_PATH = os.getenv("PREDICTION_HISTORY_PATH", "data/prediction_history.json")
+
+# Path to JSON file storing race prediction snapshots between backend restarts
+PREDICTION_CACHE_PATH = os.getenv("PREDICTION_CACHE_PATH", "data/prediction_cache.json")

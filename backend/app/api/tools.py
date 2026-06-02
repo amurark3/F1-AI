@@ -38,9 +38,10 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
-from app.data.predictions import compute_race_predictions
 from app.data.strategy import analyze_pit_strategy
 from app.data.weather import get_weather_for_circuit
+from app.services.predictions import get_or_compute_race_prediction
+from app.utils.fastf1_cache import enable_fastf1_cache
 
 logger = structlog.get_logger()
 
@@ -81,9 +82,8 @@ def _get_vector_db():
 tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 # Enable FastF1 disk cache to avoid re-downloading session data on every call.
-if not os.path.exists("f1_cache"):
-    os.makedirs("f1_cache")
-fastf1.Cache.enable_cache("f1_cache")
+# Corrupted cache files are quarantined and recreated on startup.
+enable_fastf1_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def get_race_predictions(year: int, round_num: int):
     """
     logger.info("tool.race_predictions", year=year, round_num=round_num)
     try:
-        result = compute_race_predictions(year, round_num)
+        result = get_or_compute_race_prediction(year, round_num)
 
         if not result.get("predictions"):
             warnings = result.get("warnings", [])

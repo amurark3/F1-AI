@@ -64,10 +64,36 @@ export default function Standings() {
   );
 
   const leaderPts  = data?.[0]?.points ?? 1;
-  const totalRaces = data ? Math.max(1, Math.ceil(leaderPts / 26)) : 1; // rough estimate
+  const leader = data?.[0];
+  const second = data?.[1];
+  const leaderName = type === 'drivers' ? leader?.driver : leader?.team;
+  const gapToSecond = leader && second ? leader.points - second.points : null;
+  const activeRows = data?.length ?? 0;
+  const totalWins = data?.reduce((sum, row) => sum + row.wins, 0) ?? 0;
 
   return (
     <div>
+      {!isLoading && data && data.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-5">
+          {[
+            { label: 'Leader', value: leaderName ?? 'TBC', sub: leader?.team ?? 'Championship control' },
+            { label: 'Gap P1-P2', value: gapToSecond != null ? `${gapToSecond} pts` : 'TBC', sub: 'Primary pressure delta' },
+            { label: 'Classified', value: String(activeRows), sub: type === 'drivers' ? 'Drivers tracked' : 'Constructors tracked' },
+            { label: 'Wins', value: String(totalWins), sub: 'Season win count' },
+          ].map(({ label, value, sub }) => (
+            <div key={label} className="glass rounded-xl px-4 py-3 min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-600 mb-1" style={F1}>
+                {label}
+              </p>
+              <p className="text-lg sm:text-xl font-black uppercase text-white truncate" style={F1}>
+                {value}
+              </p>
+              <p className="text-[10px] text-neutral-600 truncate">{sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Controls ─────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
         <div className="flex glass rounded-xl p-0.5 gap-0.5">

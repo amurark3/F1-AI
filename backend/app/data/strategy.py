@@ -16,6 +16,7 @@ to prevent data corruption from concurrent loads.
 import threading
 import time
 from collections import Counter
+from statistics import median
 from typing import Any
 
 import fastf1
@@ -445,6 +446,49 @@ def _get_pit_stop_laps(laps: pd.DataFrame, driver_code: str) -> list[int]:
     return pit_laps
 
 
+def _percentile(values: list[int | float], percentile: float) -> float | None:
+    """Small percentile helper to avoid adding another numeric dependency."""
+    if not values:
+        return None
+    ordered = sorted(float(value) for value in values)
+    if len(ordered) == 1:
+        return ordered[0]
+    rank = (len(ordered) - 1) * percentile
+    lower = int(rank)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = rank - lower
+    return ordered[lower] * (1 - weight) + ordered[upper] * weight
+
+
+def _summarize_compound_stints(stints_by_driver: list[dict]) -> list[dict]:
+    """Summarize observed stint lengths and degradation by compound."""
+    lengths_by_compound: dict[str, list[int]] = {}
+    degradation_by_compound: dict[str, list[float]] = {}
+
+    for driver_row in stints_by_driver:
+        for stint in driver_row.get("stints", []):
+            compound = str(stint.get("compound") or "UNKNOWN").upper()
+            length = stint.get("stint_length")
+            if isinstance(length, int) and length > 0:
+                lengths_by_compound.setdefault(compound, []).append(length)
+            degradation = stint.get("degradation_sec")
+            if isinstance(degradation, (int, float)):
+                degradation_by_compound.setdefault(compound, []).append(float(degradation))
+
+    summary = []
+    for compound, lengths in sorted(lengths_by_compound.items()):
+        degradations = degradation_by_compound.get(compound, [])
+        summary.append({
+            "compound": compound,
+            "sample_size": len(lengths),
+            "median_stint": round(median(lengths), 1),
+            "p75_stint": round(_percentile(lengths, 0.75) or median(lengths), 1),
+            "max_observed_stint": max(lengths),
+            "avg_degradation_sec": round(sum(degradations) / len(degradations), 2) if degradations else None,
+        })
+    return summary
+
+
 def _calculate_safety_car_probability(location: str, current_year: int) -> tuple[int, str]:
     """Calculate safety car probability from circuit history.
 
@@ -588,24 +632,45 @@ def analyze_pit_strategy(
         all_drivers = laps["Driver"].unique()
         strategy_distribution: dict[str, int] = {}
         all_stints_summary = []
+        stints_by_driver = []
+        first_stop_laps = []
+        stop_counts = []
 
         for drv in all_drivers:
             drv_stints = _extract_stint_data(laps, drv)
             if drv_stints:
                 compounds = "-".join([s["compound"] for s in drv_stints])
                 num_stops = len(drv_stints) - 1
+                pit_laps = _get_pit_stop_laps(laps, drv)
                 key = f"{num_stops}-stop ({compounds})"
                 strategy_distribution[key] = strategy_distribution.get(key, 0) + 1
+                stop_counts.append(num_stops)
+                if pit_laps:
+                    first_stop_laps.append(pit_laps[0])
                 all_stints_summary.append({
                     "driver": drv,
                     "strategy": key,
                     "num_stops": num_stops,
+                    "first_stop_lap": pit_laps[0] if pit_laps else None,
                 })
+                stints_by_driver.append({"driver": drv, "stints": drv_stints})
 
         response["strategy_distribution"] = dict(
             sorted(strategy_distribution.items(), key=lambda x: x[1], reverse=True)
         )
         response["drivers"] = all_stints_summary
+        response["compound_summary"] = _summarize_compound_stints(stints_by_driver)
+        response["first_stop_window"] = {
+            "sample_size": len(first_stop_laps),
+            "p25": round(_percentile(first_stop_laps, 0.25), 1) if first_stop_laps else None,
+            "median": round(median(first_stop_laps), 1) if first_stop_laps else None,
+            "p75": round(_percentile(first_stop_laps, 0.75), 1) if first_stop_laps else None,
+        }
+        response["stop_count_summary"] = {
+            "sample_size": len(stop_counts),
+            "median": round(median(stop_counts), 1) if stop_counts else None,
+            "most_common": Counter(stop_counts).most_common(1)[0][0] if stop_counts else None,
+        }
 
     # Historical strategies
     try:

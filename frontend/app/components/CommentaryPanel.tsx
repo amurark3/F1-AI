@@ -7,12 +7,12 @@ interface Props {
   entries: CommentaryEntry[];
 }
 
-const EVENT_STYLES: Record<string, { icon: string; colorClass: string }> = {
-  safety_car:      { icon: "\u26a0",  colorClass: "text-yellow-400 border-yellow-400/30" },
-  position_change: { icon: "\u2191\u2193", colorClass: "text-blue-400 border-blue-400/30" },
-  pit_stop:        { icon: "\uD83D\uDD27", colorClass: "text-orange-400 border-orange-400/30" },
+const EVENT_STYLES: Record<string, { label: string; colorClass: string }> = {
+  safety_car:      { label: "SC",  colorClass: "text-yellow-400 border-yellow-400/30" },
+  position_change: { label: "POS", colorClass: "text-blue-400 border-blue-400/30" },
+  pit_stop:        { label: "PIT", colorClass: "text-orange-400 border-orange-400/30" },
 };
-const DEFAULT_STYLE = { icon: "\u2691", colorClass: "text-neutral-400 border-white/10" };
+const DEFAULT_STYLE = { label: "RC", colorClass: "text-neutral-400 border-white/10" };
 
 function formatTime(isoString: string): string {
   try {
@@ -28,9 +28,9 @@ function formatTime(isoString: string): string {
 
 export default function CommentaryPanel({ entries }: Props) {
   return (
-    <div className="glass rounded-2xl p-4 h-full flex flex-col">
-      <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">
-        Commentary
+    <div className="glass rounded-xl p-4 h-full flex flex-col">
+      <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 mb-3">
+        Strategy Commentary
       </h2>
 
       {entries.length === 0 ? (
@@ -51,8 +51,8 @@ export default function CommentaryPanel({ entries }: Props) {
                   className={`border rounded-xl p-3 ${style.colorClass}`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-base leading-none mt-0.5 shrink-0" aria-hidden="true">
-                      {style.icon}
+                    <span className="text-[10px] font-black leading-none mt-0.5 shrink-0 rounded border border-current px-1.5 py-1" aria-hidden="true">
+                      {style.label}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-snug">{entry.text}</p>

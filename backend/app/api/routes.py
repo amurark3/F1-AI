@@ -18,7 +18,6 @@ The chat endpoint implements an agentic loop:
   5. Stream the final text back to the client.
 """
 
-import os
 import math
 import asyncio
 import threading
@@ -26,431 +25,41 @@ import structlog
 import pandas as pd
 import fastf1
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-from typing import List
 from datetime import datetime, timezone
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
-from fastapi.responses import StreamingResponse
-from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from fastf1.ergast import Ergast
 
-from app.api.tools import TOOL_LIST, TOOL_MAP
-from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.circuits import get_circuit_info
-from app.data.predictions import compute_race_predictions
+from app.api.routers.chat import router as chat_router
+from app.api.routers.predictions import router as predictions_router
+from app.api.routers.race_control import router as race_control_router
+from app.api.routers.season import router as season_router
+from app.utils.f1_values import safe_float as _safe_float
+from app.utils.f1_values import safe_int as _safe_int
+from app.utils.f1_values import safe_str as _safe_str
+from app.utils.f1_values import utc_isoformat
+from app.utils.fastf1_cache import enable_fastf1_cache
 from app.config import (
-    TOOL_TIMEOUT_SECONDS,
     FASTF1_TIMEOUT_SECONDS,
     OPENF1_HTTP_TIMEOUT_SECONDS,
     WS_RECEIVE_TIMEOUT,
     WS_HEARTBEAT_INTERVAL,
     WS_STALE_TIMEOUT,
     WS_POLL_INTERVAL,
-    MAX_AGENT_TURNS,
-    LLM_MODEL_NAME,
-    LLM_TEMPERATURE,
 )
 
 logger = structlog.get_logger()
 
 router = APIRouter()
-
-
-def _safe_int(value, default: int = 0) -> int:
-    """Convert Ergast/FastF1 values to int, treating NaN/None as default.
-
-    Ergast returns NaN for position/wins fields when a driver DNF'd, didn't
-    start, or is a reserve entry with no championship standing. Calling int()
-    on NaN raises ValueError. Use this everywhere you read an integer field
-    from an Ergast/FastF1 DataFrame row.
-    """
-    if value is None:
-        return default
-    if isinstance(value, float) and math.isnan(value):
-        return default
-    return int(value)
-
-
-def _safe_float(value, default: float = 0.0) -> float:
-    """Convert Ergast/FastF1 values to float, treating NaN/None as default.
-
-    Same class of bug as _safe_int — use for points and other float fields.
-    """
-    if value is None:
-        return default
-    if isinstance(value, float) and math.isnan(value):
-        return default
-    return float(value)
-
-
-def _safe_str(row, key: str, default: str = "") -> str:
-    """Safely read a string column from an Ergast/FastF1 DataFrame row.
-
-    Direct bracket access raises KeyError if the column is absent from the
-    response schema. Use this instead of row["column"] for all string fields.
-    """
-    val = row.get(key, default)
-    if val is None or (isinstance(val, float) and math.isnan(val)):
-        return default
-    return str(val)
-
-# ---------------------------------------------------------------------------
-# LLM setup
-# ---------------------------------------------------------------------------
-# Safety settings tuned for F1 domain content:
-#
-# DANGEROUS_CONTENT: BLOCK_ONLY_HIGH — F1 legitimately discusses crashes, fires,
-#   driver injuries, and safety incidents (e.g. "the crash at Copse", "driver
-#   hospitalization after impact"). Blocking at medium would break core functionality.
-#
-# HARASSMENT: BLOCK_ONLY_HIGH — F1 coverage includes team rivalries, driver
-#   criticism, steward decisions, and heated radio messages. These are normal
-#   sporting discourse, not harassment.
-#
-# HATE_SPEECH: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can apply
-#   stricter filtering without impacting legitimate queries.
-#
-# SEXUALLY_EXPLICIT: BLOCK_MEDIUM_AND_ABOVE — Not relevant to F1 content. Can
-#   apply stricter filtering without impacting legitimate queries.
-#
-# Defense-in-depth: The system prompt in prompts.py has strong identity guardrails
-# that refuse all non-F1 topics, so these safety settings are a secondary layer.
-llm = ChatGoogleGenerativeAI(
-    model=LLM_MODEL_NAME,
-    temperature=LLM_TEMPERATURE,
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-)
-
-# Bind all available tools so the model can call them by name.
-llm_with_tools = llm.bind_tools(TOOL_LIST)
+router.include_router(chat_router)
+router.include_router(predictions_router)
+router.include_router(race_control_router)
+router.include_router(season_router)
 
 # ---------------------------------------------------------------------------
 # FastF1 cache — speeds up repeated session data requests significantly.
+# Corrupted cache files are quarantined and recreated on startup.
 # ---------------------------------------------------------------------------
-if not os.path.exists("f1_cache"):
-    os.makedirs("f1_cache")
-fastf1.Cache.enable_cache("f1_cache")
-
-
-# ---------------------------------------------------------------------------
-# Request / Response models
-# ---------------------------------------------------------------------------
-class ChatRequest(BaseModel):
-    """Payload expected by POST /api/chat."""
-    messages: List[dict]
-
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
-@router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
-    """
-    Streaming chat endpoint that drives an agentic tool-use loop.
-
-    The client should read the response as a plain-text stream (text/plain).
-    Each chunk is a fragment of the final assistant message.
-    """
-    today = datetime.now().strftime("%B %d, %Y")
-
-    # Build a system prompt that injects today's date and tool-usage rules.
-    final_system_prompt = f"""
-    {RACE_ENGINEER_PERSONA}
-
-    CURRENT CONTEXT:
-    - TODAY'S DATE: {today}
-
-    TOOL USAGE:
-    - **CRITICAL:** If the user asks for "last race", "next race", or "schedule",
-      ALWAYS call `get_season_schedule({today.split(',')[-1].strip()})` FIRST to
-      identify the correct Grand Prix name before calling any results tool.
-    - Use 'get_race_results' for final race classifications.
-    - Use 'compare_drivers' for specific lap-time comparisons.
-    - Use 'perform_web_search' for recent news or information beyond your knowledge.
-    - If a tool returns a Markdown table, present it exactly as-is.
-    """
-
-    # Seed the message history with the system prompt, then replay the
-    # conversation so the model has full context.
-    langchain_messages = [SystemMessage(content=final_system_prompt)]
-
-    for msg in request.messages:
-        if msg["role"] == "user":
-            langchain_messages.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            langchain_messages.append(AIMessage(content=msg["content"]))
-
-    async def generate():
-        """
-        Inner async generator that drives the agentic loop and yields text chunks.
-
-        The loop runs at most `max_turns` times to prevent runaway tool calls.
-        Each turn is one of:
-          - CASE A: Model requests tools  → execute them, append results, continue.
-          - CASE B: Model returns text    → stream it to the client, break.
-        """
-        try:
-            max_turns = MAX_AGENT_TURNS
-            turn_count = 0
-
-            logger.info("agent.invoking_model")
-            current_response = await llm_with_tools.ainvoke(langchain_messages)
-
-            while turn_count < max_turns:
-                turn_count += 1
-
-                if current_response.tool_calls:
-                    # CASE A — model wants to call tools
-                    logger.info("agent.turn", turn=turn_count, tool_count=len(current_response.tool_calls))
-
-                    # Append the AI's "intent" message before tool results;
-                    # LangChain requires this ordering in the message list.
-                    langchain_messages.append(current_response)
-
-                    for tool_call in current_response.tool_calls:
-                        tool_name = tool_call["name"]
-                        tool_args = tool_call["args"]
-                        tool_id = tool_call["id"]
-
-                        if tool_name in TOOL_MAP:
-                            # Stream a tool-start indicator so the frontend
-                            # can show the user what's happening.
-                            friendly = tool_name.replace("_", " ").title()
-                            yield f"[TOOL_START]{friendly}[/TOOL_START]"
-
-                            logger.info("tool.executing", tool=tool_name, args=tool_args)
-                            try:
-                                tool_result = await asyncio.wait_for(
-                                    asyncio.to_thread(TOOL_MAP[tool_name].invoke, tool_args),
-                                    timeout=TOOL_TIMEOUT_SECONDS,
-                                )
-                                logger.debug("tool.result", tool=tool_name, preview=str(tool_result)[:80])
-                            except asyncio.TimeoutError:
-                                tool_result = f"Tool '{tool_name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
-                                logger.warning("tool.timeout", tool=tool_name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
-                            except Exception as tool_err:
-                                # Surface the error as a tool message so the model
-                                # can decide how to handle it gracefully.
-                                tool_result = f"Error executing tool '{tool_name}': {tool_err}"
-                                logger.error("tool.error", tool=tool_name, error=str(tool_err))
-
-                            langchain_messages.append(
-                                ToolMessage(
-                                    tool_call_id=tool_id,
-                                    content=str(tool_result),
-                                    name=tool_name,
-                                )
-                            )
-
-                            yield f"[TOOL_END]{friendly}[/TOOL_END]"
-
-                    # Ask the model what to do next given the tool results.
-                    current_response = await llm_with_tools.ainvoke(langchain_messages)
-
-                else:
-                    # CASE B — model has a final text answer; stream it.
-                    logger.info("agent.generating_response")
-                    yield current_response.content
-                    return  # Exit the generator cleanly
-
-            # If we exhausted max_turns without a text answer, tell the user.
-            yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
-
-        except Exception as e:
-            logger.error("agent.critical_error", error=str(e))
-            yield f"**System Error:** My telemetry failed. Reason: {e}"
-
-    return StreamingResponse(generate(), media_type="text/plain")
-
-
-@router.get("/schedule/{year}")
-async def get_schedule(year: int):
-    """
-    Returns the full season schedule for `year` with UTC timestamps.
-
-    Each event includes all sessions (Practice 1-3, Qualifying, Sprint,
-    Sprint Qualifying, Race) when available. Sprint weekends are detected
-    automatically by FastF1.
-
-    The frontend is responsible for converting UTC times to the user's timezone.
-    """
-    try:
-        # include_testing=False omits pre-season test events.
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-
-        data = []
-        for _, row in schedule.iterrows():
-            # Ensure the event date is always UTC-suffixed for JS Date parsing.
-            event_date_str = row["EventDate"].isoformat()
-            if not event_date_str.endswith("Z") and "+" not in event_date_str:
-                event_date_str += "Z"
-
-            location_str = f"{row['Location']}, {row['Country']}"
-
-            event = {
-                "round": _safe_int(row["RoundNumber"]),
-                "name": row["EventName"],
-                "location": location_str,
-                "date": event_date_str,
-                "sessions": {},
-                "circuit": get_circuit_info(location_str),
-            }
-
-            # FastF1 uses Session1…Session5 columns; iterate to capture all
-            # sessions including sprints without hard-coding session names.
-            first_session_date = None
-            last_session_date = None
-            for i in range(1, 6):
-                s_name_col = f"Session{i}"
-                s_date_col = f"Session{i}DateUtc"
-
-                if s_name_col in row and pd.notna(row[s_name_col]):
-                    session_name = row[s_name_col]
-                    session_date = row[s_date_col]
-                    if pd.notna(session_date):
-                        event["sessions"][session_name] = session_date.isoformat()
-                        ts = session_date.to_pydatetime()
-                        if first_session_date is None or ts < first_session_date:
-                            first_session_date = ts
-                        if last_session_date is None or ts > last_session_date:
-                            last_session_date = ts
-
-            # Detect sprint weekend
-            event["is_sprint"] = "Sprint" in event["sessions"]
-
-            # Determine event status relative to current UTC time.
-            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-            if last_session_date and now_utc > last_session_date + pd.Timedelta(hours=3):
-                event["status"] = "completed"
-            elif first_session_date and now_utc >= first_session_date:
-                event["status"] = "in_progress"
-            else:
-                event["status"] = "upcoming"
-
-            data.append(event)
-
-        return data
-
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@router.get("/standings/drivers/{year}")
-async def get_driver_standings(year: int):
-    """
-    Returns World Drivers' Championship standings for `year`.
-
-    Each entry contains: position, driver full name, team, points, wins.
-
-    Note: A driver who switched teams mid-season will have multiple
-    constructor names; we take the most recent (last) one.
-    """
-    try:
-        ergast = Ergast()
-        data = ergast.get_driver_standings(season=year)
-        if data.content:
-            df = data.content[0]
-            results = []
-            for idx, (_, row) in enumerate(df.iterrows(), start=1):
-                has_pos = "position" in row and not (isinstance(row["position"], float) and math.isnan(row["position"]))
-
-                # FastF1/Ergast returns either 'constructorName' (string) for
-                # single-team drivers, or 'constructorNames' (list) for drivers
-                # who raced for multiple teams in one season.
-                team_name = "Unknown"
-                if "constructorName" in row:
-                    team_name = row["constructorName"]
-                elif "constructorNames" in row:
-                    names = row["constructorNames"]
-                    team_name = names[-1] if isinstance(names, list) and names else str(names)
-
-                results.append({
-                    "position": _safe_int(row["position"]) if has_pos else idx,
-                    "driver": f"{_safe_str(row, 'givenName')} {_safe_str(row, 'familyName')}".strip(),
-                    "team": team_name,
-                    "points": _safe_float(row.get("points", 0)),
-                    "wins": _safe_int(row.get("wins", 0)),
-                })
-            return results
-
-        # No standings yet (season hasn't started) — build a placeholder
-        # entry list by querying each constructor's drivers for the season.
-        constructors_df = ergast.get_constructor_info(season=year)
-        if constructors_df.empty:
-            return []
-
-        results = []
-        pos = 1
-        for _, crow in constructors_df.iterrows():
-            cid = crow["constructorId"]
-            team_name = crow["constructorName"]
-            drivers_df = ergast.get_driver_info(season=year, constructor=cid)
-            for _, drow in drivers_df.iterrows():
-                results.append({
-                    "position": pos,
-                    "driver": f"{_safe_str(drow, 'givenName')} {_safe_str(drow, 'familyName')}".strip(),
-                    "team": team_name,
-                    "points": 0.0,
-                    "wins": 0,
-                })
-                pos += 1
-        return results
-
-    except Exception as e:
-        logger.error("api.driver_standings.error", error=str(e))
-        return []
-
-
-@router.get("/standings/constructors/{year}")
-async def get_constructor_standings(year: int):
-    """
-    Returns World Constructors' Championship standings for `year`.
-
-    Each entry contains: position, team name, points, wins.
-    """
-    try:
-        ergast = Ergast()
-        data = ergast.get_constructor_standings(season=year)
-        if data.content:
-            df = data.content[0]
-            results = []
-            for idx, (_, row) in enumerate(df.iterrows(), start=1):
-                has_pos = "position" in row and not (isinstance(row["position"], float) and math.isnan(row["position"]))
-                results.append({
-                    "position": _safe_int(row["position"]) if has_pos else idx,
-                    "team": _safe_str(row, "constructorName", "Unknown"),
-                    "points": _safe_float(row.get("points", 0)),
-                    "wins": _safe_int(row.get("wins", 0)),
-                })
-            return results
-
-        # No standings yet (season hasn't started) — return the entry list
-        # from the Ergast constructor info endpoint with 0 points.
-        constructors_df = ergast.get_constructor_info(season=year)
-        if constructors_df.empty:
-            return []
-
-        results = []
-        for idx, (_, row) in enumerate(constructors_df.iterrows(), start=1):
-            results.append({
-                "position": idx,
-                "team": row["constructorName"],
-                "points": 0.0,
-                "wins": 0,
-            })
-        return results
-
-    except Exception as e:
-        logger.error("api.constructor_standings.error", error=str(e))
-        return []
-
+enable_fastf1_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -459,8 +68,6 @@ async def get_constructor_standings(year: int):
 # ---------------------------------------------------------------------------
 race_detail_cache: dict[tuple[int, int], dict] = {}
 
-# Predictions cache — keyed by (year, round_num), same pattern as race_detail_cache.
-predictions_cache: dict[tuple[int, int], dict] = {}
 
 # Per-room commentary state — keyed by "{year}-{round_num}"
 _commentary_state: dict[str, dict] = {}
@@ -511,7 +118,7 @@ def _build_race_detail_sync(year: int, round_num: int) -> dict:
         if s_name_col in row and pd.notna(row[s_name_col]):
             session_date = row[s_date_col]
             if pd.notna(session_date):
-                sessions[row[s_name_col]] = session_date.isoformat()
+                sessions[row[s_name_col]] = utc_isoformat(session_date)
 
     # Circuit info
     circuit = get_circuit_info(location_str)
@@ -1356,58 +963,6 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int):
         heartbeat_task.cancel()
         manager.disconnect(room, websocket)
 
-
-def _should_recompute_predictions(year: int, round_num: int, cached: dict) -> bool:
-    """Return True if cached prediction should be recomputed.
-
-    Recompute when qualifying data becomes available but cached prediction
-    was generated from practice/historical data only.
-    """
-    cached_sources = cached.get("data_sources", [])
-    if "qualifying" in cached_sources:
-        return False  # Already has qualifying data, no need to recompute
-
-    # Check if qualifying data is now available by trying to load it
-    # This is a lightweight check -- just see if the session exists
-    try:
-        session = fastf1.get_session(year, round_num, "Q")
-        # If we can get the session object without error, qualifying happened
-        return True
-    except Exception:
-        return False
-
-
-@router.get("/predictions/{year}/{round_num}")
-async def get_predictions_endpoint(year: int, round_num: int):
-    """Structured race predictions for iOS and web consumption.
-
-    Returns all 20 drivers with predicted positions, confidence ranges,
-    reasoning factors, and model accuracy statistics.
-
-    Per CONTEXT.md: REST version returns structured numbers + factors.
-    Chat version (via tool) adds narrative reasoning and personality.
-    """
-    cache_key = (year, round_num)
-
-    if cache_key in predictions_cache:
-        cached = predictions_cache[cache_key]
-        # Return cached unless qualifying data is now available
-        if not _should_recompute_predictions(year, round_num, cached):
-            return cached
-
-    try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(compute_race_predictions, year, round_num),
-            timeout=FASTF1_TIMEOUT_SECONDS,
-        )
-        predictions_cache[cache_key] = result
-        return result
-    except asyncio.TimeoutError:
-        logger.error("predictions.timeout", year=year, round_num=round_num)
-        return {"error": "Prediction computation timed out", "year": year, "round": round_num}
-    except Exception as e:
-        logger.error("predictions.error", year=year, round_num=round_num, error=str(e))
-        return {"error": f"Failed to compute predictions: {str(e)}", "year": year, "round": round_num}
 
 
 @router.get("/health")

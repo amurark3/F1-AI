@@ -25,7 +25,7 @@ export default function ChatInput({ input, isLoading, inputRef, onInputChange, o
           className="text-[9px] font-black uppercase tracking-[0.2em]"
           style={{ color: '#E10600', fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
         >
-          Race Engineer — Radio Open
+          Race Engineer Channel
         </span>
       </div>
 
@@ -35,7 +35,7 @@ export default function ChatInput({ input, isLoading, inputRef, onInputChange, o
           type="text"
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Ask about any driver, race, or regulation…"
+          placeholder="Ask for a race brief, driver delta, regulation call, or strategy explanation…"
           className="flex-1 min-w-0 glass rounded-xl px-4 sm:px-5 py-3 text-sm text-white
             focus:outline-none focus:ring-1 focus:ring-[#E10600]/50
             focus:border-[#E10600]/30 focus:shadow-[0_0_16px_rgba(225,6,0,0.12)]

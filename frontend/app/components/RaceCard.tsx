@@ -105,7 +105,6 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
 
   // Only fetch details once the row has been expanded at least once and race is done
   const [hasExpanded, setHasExpanded] = useState(false);
-  useEffect(() => { if (expanded) setHasExpanded(true); }, [expanded]);
 
   const isCompleted   = race.status === 'completed';
   const isInProgress  = race.status === 'in_progress';
@@ -119,6 +118,11 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
   );
 
   const circuitInfo = detail?.circuit ?? race.circuit;
+
+  const handleToggle = () => {
+    if (!expanded) setHasExpanded(true);
+    onToggle();
+  };
 
   const [countdown, setCountdown] = useState('');
   useEffect(() => {
@@ -162,7 +166,7 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
 
       {/* ── Compact row ──────────────────────────── */}
       <button
-        onClick={onToggle}
+        onClick={handleToggle}
         className={`w-full flex items-center gap-2 sm:gap-3 pl-5 pr-4 py-3 sm:py-3.5 text-left
           transition-colors duration-150 hover:bg-white/3
           ${expanded ? 'bg-white/3' : ''}

@@ -30,6 +30,7 @@ ios/**/xcuserdata/
 
 # Runtime data
 backend/data/prediction_history.json
+backend/data/prediction_cache.json
 
 # Claude Code project data
 .claude/

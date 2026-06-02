@@ -13,7 +13,6 @@ import {
   Gauge,
   LayoutDashboard,
   Radio,
-  Swords,
   Target,
   Users,
   ChevronRight,
@@ -26,22 +25,21 @@ const NAV_GROUPS = [
     label: "Operations",
     items: [
       { href: "/race-control", label: "Command Center", icon: LayoutDashboard },
-      { href: "/race-control/engineer", label: "AI Engineer", icon: Bot },
       { href: "/race-control/live", label: "Live Timing", icon: Radio },
+      { href: "/race-control/engineer", label: "AI Engineer", icon: Bot },
     ],
   },
   {
-    label: "Strategy",
+    label: "Decision Tools",
     items: [
-      { href: "/race-control/strategy", label: "Pit Strategy", icon: Target },
-      { href: "/race-control/battles", label: "Priority Call", icon: Swords },
-      { href: "/race-control/predictions", label: "Forecasts", icon: Gauge },
-    ],
-  },
-  {
-    label: "Analysis",
-    items: [
+      { href: "/race-control/strategy", label: "Strategy Lab", icon: Target },
+      { href: "/race-control/predictions", label: "Championship Forecast", icon: Gauge },
       { href: "/race-control/teams", label: "Standings", icon: Users },
+    ],
+  },
+  {
+    label: "Reference",
+    items: [
       { href: "/race-control/intel", label: "Rival Intel", icon: BarChart3 },
       { href: "/race-control/debriefs", label: "Race Debriefs", icon: ClipboardList },
       { href: "/race-control/rulebook", label: "Rules Search", icon: BookOpenCheck },

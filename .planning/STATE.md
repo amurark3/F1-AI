@@ -135,6 +135,10 @@ None
 |---|-------------|------|--------|-----------|
 | 1 | Handle Render cold start with UI loading state | 2026-03-10 | e9265ab | [1-handle-render-cold-start-with-ui-loading](./quick/1-handle-render-cold-start-with-ui-loading/) |
 
+### Roadmap Evolution
+
+- Phase 6 added: ML-backed data analytics revamp with professional UI, sophisticated models, and iOS cleanup
+
 ### Blockers/Concerns
 
 - Phase 5 requires Apple Developer account with p8 auth key -- confirm availability before planning Phase 5

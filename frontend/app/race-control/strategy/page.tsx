@@ -39,16 +39,31 @@ interface SimulationRequest {
 
 interface SimulationResult {
   recommendation: { plan: string; pit_window: string; rationale: string; confidence?: string; branch_delta?: number };
+  data_quality?: {
+    grade: string;
+    observed_sources: number;
+    total_sources: number;
+    scenario_inputs: string[];
+    note: string;
+  };
+  data_sources?: Array<{ label: string; status: string; value: string; source?: string | null }>;
+  reference?: {
+    status?: string | null;
+    summary?: string | null;
+    race?: { name?: string | null; round?: number | null; location?: string | null; status?: string | null; total_laps?: number | null; circuit?: string | null };
+  };
   stint?: {
     current_lap: number;
     tyre_age_now: number;
     tyre_age_at_stop: number;
     compound_life: number;
+    compound_reference_source?: string;
+    compound_reference_status?: string;
     life_used_pct: number;
     laps_to_stop: number;
   };
   plans: Array<{ name: string; score: number; expected_finish: string; pit_window: string; risk: string; notes: string[] }>;
-  battle_cards: Array<{ label: string; value: number; call: string }>;
+  battle_cards: Array<{ label: string; value: string; call?: string | null }>;
   model_inputs?: Array<{ label: string; value: string; impact: string; source: string; tone: "good" | "warning" | "critical" }>;
   decision_matrix?: Array<{ gate: string; status: string; detail: string }>;
 }
@@ -440,7 +455,13 @@ export default function StrategySimulatorPage() {
               <MetricRow className="mb-0">
                 <MetricCard label="Recommended" value={data?.recommendation.plan ?? "Awaiting simulation"} sub={data?.recommendation.rationale ?? "Set stint state and run the branch comparison"} icon={Target} />
                 <MetricCard label="Pit Window" value={data?.recommendation.pit_window ?? "Pending"} sub={data?.recommendation.confidence ? `${data.recommendation.confidence} confidence · ${data.recommendation.branch_delta} pt gap` : "Primary call"} icon={Timer} color="#FF8000" />
-                <MetricCard label="Tyre At Stop" value={`${data?.stint?.tyre_age_at_stop ?? tyreAgeAtStop} laps`} sub={`${data?.stint?.compound_life ?? compoundLife}-lap nominal life`} icon={Gauge} color="#3671C6" />
+                <MetricCard
+                  label="Tyre At Stop"
+                  value={`${data?.stint?.tyre_age_at_stop ?? tyreAgeAtStop} laps`}
+                  sub={data?.stint?.compound_reference_source ?? `${data?.stint?.compound_life ?? compoundLife}-lap planning baseline`}
+                  icon={Gauge}
+                  color="#3671C6"
+                />
                 <MetricCard label="Driver" value={effectiveDriver} sub={effectiveTeam} icon={UserRound} color="#BE3AFF" />
               </MetricRow>
 
@@ -450,6 +471,32 @@ export default function StrategySimulatorPage() {
                   <button onClick={() => void run()} className="ml-2 font-bold text-white underline decoration-white/30">Retry</button>
                 </InlineNotice>
               )}
+
+              <Panel className="p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-neutral-400">Data Provenance</p>
+                    <h2 className="mt-1 text-xl font-black text-white" style={rcFont}>
+                      {data?.data_quality?.grade ?? "No strategy run yet"}
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                      {data?.data_quality?.note ?? "Run the simulator to see which numbers are observed data and which are scenario inputs."}
+                    </p>
+                  </div>
+                  <StatusPill color={data?.data_quality?.grade === "Data-backed" ? "#00FF78" : data?.data_quality?.grade === "Partial data" ? "#FFF200" : "#3671C6"}>
+                    {data?.data_quality ? `${data.data_quality.observed_sources}/${data.data_quality.total_sources} sources` : "Awaiting run"}
+                  </StatusPill>
+                </div>
+                {data?.data_sources?.length ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {data.data_sources.map((source) => (
+                      <SourceCard key={source.label} source={source} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500">No source card is shown until the strategy model has run.</p>
+                )}
+              </Panel>
 
               <Panel className="p-5">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -536,19 +583,19 @@ export default function StrategySimulatorPage() {
               </WorkspaceSplit>
 
               <Panel className="p-5">
-                <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Undercut / Overcut Board</h2>
+                <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Evidence Board</h2>
                 {data?.battle_cards?.length ? (
                   <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap [&>*]:min-w-[180px] [&>*]:flex-1">
                     {data.battle_cards.map((card) => (
                       <div key={card.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-neutral-400">{card.label}</p>
-                        <p className="mt-2 text-3xl font-black text-white" style={rcFont}>{card.value}</p>
-                        <p className="mt-1 text-sm font-bold text-[#00FF78]">{card.call}</p>
+                        <p className="mt-2 text-2xl font-black text-white" style={rcFont}>{card.value}</p>
+                        {card.call && <p className="mt-1 text-sm font-bold text-[#00FF78]">{card.call}</p>}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-neutral-500">Run a simulation to populate undercut strength, overcut viability, tyre age, and traffic risk.</p>
+                  <p className="text-sm text-neutral-500">Run a simulation to populate tyre margin, first-stop reference, stop tendency, and scenario risk.</p>
                 )}
               </Panel>
             </>
@@ -653,6 +700,25 @@ function ScenarioChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SourceCard({ source }: { source: { label: string; status: string; value: string; source?: string | null } }) {
+  const color = source.status === "available" || source.status === "observed"
+    ? "#00FF78"
+    : source.status === "baseline"
+      ? "#FFF200"
+      : "#737373";
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-neutral-400">{source.label}</p>
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+      </div>
+      <p className="text-base font-semibold text-white" style={rcFont}>{source.value}</p>
+      {source.source && <p className="mt-2 text-sm leading-relaxed text-neutral-500">{source.source}</p>}
+    </div>
+  );
+}
+
 function PlanCard({
   plan,
   selected,
@@ -671,7 +737,7 @@ function PlanCard({
       </div>
       <div className="mb-5">
         <div className="mb-1 flex justify-between text-xs">
-          <span className="font-black uppercase text-neutral-500">Branch score</span>
+          <span className="font-black uppercase text-neutral-500">Viability index</span>
           <span className="font-mono text-neutral-300">{plan.score}</span>
         </div>
         <div className="h-2 overflow-hidden rounded bg-white/8">

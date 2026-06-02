@@ -1,0 +1,24 @@
+{
+  "phase": "6",
+  "phase_name": "ml-backed-data-analytics-revamp-with-professional-ui-sophist",
+  "timestamp": "2026-05-24T00:01:00.000Z",
+  "areas_completed": ["ML model scope", "iOS fate"],
+  "areas_remaining": ["AI integration depth", "Analytics hub architecture"],
+  "decisions": {
+    "ML model scope": [
+      {"question": "What should the ML models actually predict or analyze?", "answer": "Full analytics ML suite — race predictions + tire degradation curves + sector time pace modeling + championship trajectory", "options_presented": ["Race predictions only", "Predictions + tire degradation", "Full analytics ML suite"]},
+      {"question": "What data does the ML model train on?", "answer": "FastF1 + external datasets (Ergast API, weather correlation, circuit characteristics)", "options_presented": ["Historical FastF1 data only", "FastF1 + OpenF1 live data", "FastF1 + external datasets"]},
+      {"question": "Where does ML model training happen?", "answer": "Offline pre-training, serve artifacts — joblib/pickle serialized models loaded at startup", "options_presented": ["Offline pre-training, serve artifacts", "On-demand retraining via API", "Train on every request"]},
+      {"question": "What ML framework?", "answer": "scikit-learn — XGBoost/RandomForest/LightGBM via sklearn", "options_presented": ["scikit-learn", "PyTorch / neural net", "statsmodels / pure stats"]},
+      {"question": "What's the key output of the ML models?", "answer": "Probability distributions with confidence intervals — e.g. 'Verstappen: 47% win probability ±8%'", "options_presented": ["Probability distributions with confidence intervals", "Rankings + scores", "Both — summary ranking + expandable confidence view"]},
+      {"question": "How do you want model interpretability shown?", "answer": "SHAP values per prediction — per-driver SHAP waterfall charts", "options_presented": ["Feature importance chart", "SHAP values per prediction", "Plain text reasoning only"]}
+    ],
+    "iOS fate": [
+      {"question": "What happens to the iOS app?", "answer": "Remove iOS entirely — delete the ios/ directory", "options_presented": ["Remove iOS entirely", "Keep iOS but gut it to a thin shell", "Refactor iOS in-place"]},
+      {"question": "Confirming removal of ios/ directory", "answer": "Yes — remove ios/ entirely. Full delete.", "options_presented": ["Yes — remove ios/ entirely", "Archive it first", "Actually keep iOS"]},
+      {"question": "Should new ML analytics be surfaced on iOS?", "answer": "No — web-only for analytics. iOS is removed.", "options_presented": ["No — web-only", "Yes — simplified card"]}
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [".planning/PROJECT.md", ".planning/ROADMAP.md", ".planning/REQUIREMENTS.md", "backend/app/ml/train.py", "backend/app/data/predictions.py"]
+}

@@ -120,3 +120,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Client Feature Surface | 6/6 | Complete | 2026-03-03 |
 | 4. Live Race Experience | 7/7 | Complete | 2026-03-08 |
 | 5. Push Infrastructure | 0/0 | Not started | - |
+
+### Phase 6: ML-backed data analytics revamp with professional UI, sophisticated models, and iOS cleanup
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)

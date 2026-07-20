@@ -10,7 +10,10 @@ backend/*.pyc
 backend/.env
 backend/data/chroma/
 backend/f1_cache/
+# Ignore stray/experiment model artifacts but track the production model so it
+# ships with deploys (Render's filesystem is ephemeral).
 backend/models/*.joblib
+!backend/models/race_predictor.joblib
 
 # Node Frontend
 frontend/node_modules/
@@ -31,6 +34,10 @@ ios/**/xcuserdata/
 # Runtime data
 backend/data/prediction_history.json
 backend/data/prediction_cache.json
+
+# Downloaded / generated ML + reference datasets (recreated on demand)
+backend/data/f1db.db
+backend/data/training_dataset.csv
 
 # Claude Code project data
 .claude/

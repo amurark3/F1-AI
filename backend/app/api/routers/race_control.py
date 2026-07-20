@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import structlog
 from fastapi import APIRouter
 
-from app.api.schemas.race_control import RulebookSearchRequest, StrategySimulationRequest
+from app.api.schemas.race_control import RulebookSearchRequest
 from app.services import rulebook
 from app.services.race_control import build_overview
 from app.services.race_control_battles import build_driver_battle
@@ -14,7 +14,6 @@ from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
 from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
-from app.services.race_control_strategy import simulate_strategy as run_strategy_simulation
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/race-control", tags=["race-control"])
@@ -65,11 +64,6 @@ async def get_championship_forecast(year: int):
     except Exception as exc:
         logger.error("api.race_control_forecast.error", year=year, error=str(exc))
         return {"year": year, "drivers": [], "constructors": [], "error": str(exc)}
-
-
-@router.post("/strategy/simulate")
-async def simulate_strategy(request: StrategySimulationRequest):
-    return run_strategy_simulation(request)
 
 
 @router.get("/battle/{year}/{driver1}/{driver2}")

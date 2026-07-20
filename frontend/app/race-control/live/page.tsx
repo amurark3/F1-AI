@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Activity, RadioTower, Satellite, Timer } from "lucide-react";
+import { Activity, RadioTower, Satellite } from "lucide-react";
 import CommentaryPanel from "@/app/components/CommentaryPanel";
 import LiveTimingTower from "@/app/components/LiveTimingTower";
 import RaceCountdown from "@/app/components/RaceCountdown";
@@ -108,10 +108,6 @@ export default function RaceControlLivePage() {
               <Link href="/race-control/engineer" className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-bold text-neutral-300 hover:text-white">
                 <RadioTower className="h-4 w-4 text-[#00FF78]" />
                 Ask the engineer for a pre-race brief
-              </Link>
-              <Link href="/race-control/strategy" className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-bold text-neutral-300 hover:text-white">
-                <Timer className="h-4 w-4 text-[#FF8000]" />
-                Run strategy scenarios
               </Link>
             </div>
           </Panel>

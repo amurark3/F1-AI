@@ -1,8 +1,9 @@
 """
 ML Training Pipeline
 ====================
-Trains a GradientBoostingRegressor on 2018–2025 historical F1 race data
-and saves the model to ``models/race_predictor.joblib``.
+Trains the race-finish model (a Ridge regression over standardized features,
+chosen via the app.ml.evaluate backtest) on 2018–2024 historical F1 race data
+and saves it to ``models/race_predictor.joblib``.
 
 Features per driver-race row:
   - grid_position       : qualifying grid position (1–20)
@@ -26,225 +27,91 @@ Usage:
 from __future__ import annotations
 
 import sys
-import time
 import warnings
 from pathlib import Path
 
-import fastf1
-import numpy as np
 import pandas as pd
-from fastf1.ergast import Ergast
-from fastf1.exceptions import RateLimitExceededError as F1RateLimitError
-from app.utils.fastf1_cache import enable_fastf1_cache
+from app.data.f1db_results import (
+    driver_teams,
+    qualifying_positions,
+    race_results,
+    race_schedule,
+    sprint_positions,
+)
+from app.data.f1db_standings import (
+    constructor_standings_after_round,
+    driver_standings_after_round,
+)
+from app.ml.features import FEATURES, TARGET, build_feature_row
 
-# Suppress fastf1 and pandas noise during bulk data loading
+# Suppress pandas noise during bulk data assembly
 warnings.filterwarnings("ignore")
-fastf1.set_log_level("ERROR")
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-TRAIN_YEARS = list(range(2018, 2025))   # 2018–2024 (2025 still in progress)
+TRAIN_YEARS = list(range(2018, 2027))   # 2018–2026 (2026 in progress; partial season handled)
 MODEL_PATH = Path(__file__).parent.parent.parent / "models" / "race_predictor.joblib"
-CACHE_DIR = Path(__file__).parent.parent.parent / "f1_cache"
-ERGAST_RATE_LIMIT = 0.4   # minimum seconds between Ergast calls
-ERGAST_MAX_RETRIES = 4    # max attempts before giving up on a single call
-ERGAST_BACKOFF_BASE = 2.0 # first retry waits this many seconds; doubles each time
-
-ergast = Ergast()
-
-# ---------------------------------------------------------------------------
-# In-process caches for Ergast calls
-# These survive for the lifetime of one training run.  FastF1 already
-# provides persistent disk-cache for session loads (qualifying/race/sprint).
-# ---------------------------------------------------------------------------
-_driver_standings_cache: dict[tuple[int, int], dict[str, int]] = {}
-_constructor_standings_cache: dict[tuple[int, int], dict[str, int]] = {}
-
-# Track the wall-clock time of the last Ergast HTTP call so we can enforce
-# a minimum gap even across different helper functions.
-_last_ergast_call: float = 0.0
 
 
 # ---------------------------------------------------------------------------
 # Data collection helpers
 # ---------------------------------------------------------------------------
 
-def _sleep() -> None:
-    """Enforce the minimum inter-call gap since the last Ergast request."""
-    global _last_ergast_call
-    elapsed = time.monotonic() - _last_ergast_call
-    wait = ERGAST_RATE_LIMIT - elapsed
-    if wait > 0:
-        time.sleep(wait)
-    _last_ergast_call = time.monotonic()
-
-
-def _ergast_call_with_retry(fn, *args, **kwargs):
-    """Call an Ergast method with exponential backoff on failure.
-
-    Catches FastF1's RateLimitExceededError (500 calls/h bucket) and generic
-    HTTP 429 responses, backing off significantly before retrying.
-    Returns None if all retries are exhausted.
-    """
-    for attempt in range(ERGAST_MAX_RETRIES):
-        _sleep()
-        try:
-            result = fn(*args, **kwargs)
-            return result
-        except F1RateLimitError as exc:
-            # FastF1 client-side rate bucket exceeded — must wait for window to drain
-            wait = 120.0 * (attempt + 1)  # 120s, 240s, 360s, 480s
-            print(f"\n  [rate-limit] FastF1 bucket exhausted — waiting {wait:.0f}s (attempt {attempt + 1}/{ERGAST_MAX_RETRIES})")
-            time.sleep(wait)
-        except Exception as exc:
-            msg = str(exc).lower()
-            is_rate_limit = "429" in msg or "too many" in msg or "500 calls" in msg
-            wait = ERGAST_BACKOFF_BASE * (2 ** attempt)
-            if is_rate_limit:
-                wait = max(wait, 120.0)
-                print(f"\n  [rate-limit] HTTP 429 — waiting {wait:.0f}s (attempt {attempt + 1}/{ERGAST_MAX_RETRIES})")
-            else:
-                print(f"\n  [retry {attempt + 1}/{ERGAST_MAX_RETRIES}] {exc!r} — waiting {wait:.1f}s")
-            time.sleep(wait)
-
-    print(f"\n  [error] all {ERGAST_MAX_RETRIES} retries exhausted")
-    return None
-
-
 def _get_race_schedule(year: int) -> pd.DataFrame:
-    """Return the race schedule for a season as a DataFrame."""
-    try:
-        schedule = fastf1.get_event_schedule(year, include_testing=False)
-        return schedule[["RoundNumber", "EventName", "Location"]].copy()
-    except Exception as exc:
-        print(f"  [warn] schedule {year}: {exc}")
+    """Return the race schedule for a season as a DataFrame (from f1db)."""
+    rows = race_schedule(year)
+    if not rows:
         return pd.DataFrame()
+    return pd.DataFrame(
+        [
+            {"RoundNumber": r["round"], "EventName": r["name"], "Location": r["location"]}
+            for r in rows
+        ]
+    )
 
 
 def _get_qualifying_positions(year: int, round_num: int) -> dict[str, int]:
-    """Return {driver_code: grid_position} for a race weekend."""
-    try:
-        session = fastf1.get_session(year, round_num, "Q")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results
-        if results is None or results.empty:
-            return {}
-        return {
-            str(row["Abbreviation"]): int(row["Position"])
-            for _, row in results.iterrows()
-            if pd.notna(row.get("Position"))
-        }
-    except Exception:
-        return {}
+    """Return {driver_code: qualifying_position} for a race weekend (from f1db)."""
+    return qualifying_positions(year, round_num)
 
 
 def _get_race_results(year: int, round_num: int) -> dict[str, int]:
-    """Return {driver_code: finish_position} for a completed race."""
-    try:
-        session = fastf1.get_session(year, round_num, "R")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results
-        if results is None or results.empty:
-            return {}
-        return {
-            str(row["Abbreviation"]): int(row["Position"])
-            for _, row in results.iterrows()
-            if pd.notna(row.get("Position"))
-        }
-    except Exception:
-        return {}
+    """Return {driver_code: finish_position} for a completed race (from f1db)."""
+    return race_results(year, round_num)
 
 
 def _get_sprint_positions(year: int, round_num: int) -> dict[str, int]:
-    """Return {driver_code: sprint_finish_position} or {} if no sprint that weekend.
-
-    Sprint races were introduced in 2021 at selected rounds only.
-    FastF1 raises an exception when trying to load a non-existent sprint
-    session, which we catch and treat as «no sprint».
-    """
-    try:
-        session = fastf1.get_session(year, round_num, "S")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results
-        if results is None or results.empty:
-            return {}
-        return {
-            str(row["Abbreviation"]): int(row["Position"])
-            for _, row in results.iterrows()
-            if pd.notna(row.get("Position"))
-        }
-    except Exception:
-        return {}
+    """Return {driver_code: sprint_finish_position}, or {} if no sprint (from f1db)."""
+    return sprint_positions(year, round_num)
 
 
 def _get_driver_standings(year: int, round_num: int) -> dict[str, int]:
-    """Return {driver_code: championship_position} after round_num-1.
+    """Return {driver_code: championship_position} going into ``round_num``.
 
-    Results are cached in-process so repeated calls for the same (year, round)
-    within a single training run never hit the network twice.
+    Standings *before* a race are those recorded after the previous round.
+    Sourced from the local f1db dataset — no live API, no rate limits.
     """
     lookup_round = max(1, round_num - 1)
-    cache_key = (year, lookup_round)
-    if cache_key in _driver_standings_cache:
-        return _driver_standings_cache[cache_key]
-
-    data = _ergast_call_with_retry(
-        ergast.get_driver_standings, season=year, round=lookup_round
-    )
-    if data is None or not data.content:
-        return {}
-
-    result = {
-        str(row["driverCode"]): int(row["position"])
-        for _, row in data.content[0].iterrows()
-        if pd.notna(row.get("driverCode")) and pd.notna(row.get("position"))
-    }
-    _driver_standings_cache[cache_key] = result
-    return result
+    return driver_standings_after_round(year, lookup_round)
 
 
 def _get_constructor_standings(year: int, round_num: int) -> dict[str, int]:
-    """Return {constructor_name: championship_position} after round_num-1.
+    """Return {constructor_name: championship_position} going into ``round_num``.
 
-    Results are cached in-process so repeated calls for the same (year, round)
-    within a single training run never hit the network twice.
+    Standings *before* a race are those recorded after the previous round.
+    Sourced from the local f1db dataset — no live API, no rate limits.
     """
     lookup_round = max(1, round_num - 1)
-    cache_key = (year, lookup_round)
-    if cache_key in _constructor_standings_cache:
-        return _constructor_standings_cache[cache_key]
-
-    data = _ergast_call_with_retry(
-        ergast.get_constructor_standings, season=year, round=lookup_round
-    )
-    if data is None or not data.content:
-        return {}
-
-    result = {
-        str(row["constructorName"]): int(row["position"])
-        for _, row in data.content[0].iterrows()
-        if pd.notna(row.get("constructorName")) and pd.notna(row.get("position"))
+    return {
+        row["constructor_name"]: row["position"]
+        for row in constructor_standings_after_round(year, lookup_round)
     }
-    _constructor_standings_cache[cache_key] = result
-    return result
 
 
 def _get_team_for_driver(year: int, round_num: int) -> dict[str, str]:
-    """Return {driver_code: team_name} for a race weekend."""
-    try:
-        session = fastf1.get_session(year, round_num, "R")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results
-        if results is None or results.empty:
-            return {}
-        return {
-            str(row["Abbreviation"]): str(row["TeamName"])
-            for _, row in results.iterrows()
-            if pd.notna(row.get("Abbreviation"))
-        }
-    except Exception:
-        return {}
+    """Return {driver_code: team_name} for a race weekend (from f1db)."""
+    return driver_teams(year, round_num)
 
 
 def _team_position(team_name: str, constructor_standings: dict[str, int]) -> int:
@@ -284,50 +151,26 @@ def _build_race_rows(
     if not race:
         return [], {}
 
-    had_sprint = 1 if sprint else 0
-
     rows = []
     for driver_code, finish_pos in race.items():
-        grid_pos = grid.get(driver_code, 15)  # fallback: midfield
-
-        # Sprint result this weekend (0 = no sprint)
-        sprint_pos = sprint.get(driver_code, 0)
-
-        # Recent race form: last 5 full-race finishes this season
-        recent = season_results_so_far.get(driver_code, [])[-5:]
-        recent_avg = float(np.mean(recent)) if recent else 10.0
-
-        # Recent sprint form: last 3 sprint finishes this season (0 = none yet)
-        recent_sprints = season_sprints_so_far.get(driver_code, [])[-3:]
-        recent_sprint_avg = float(np.mean(recent_sprints)) if recent_sprints else 0.0
-
-        # Circuit history: avg finish at this location (across past seasons)
-        circ_hist = circuit_results.get(driver_code, [])
-        circuit_avg = float(np.mean(circ_hist)) if circ_hist else 10.0
-
-        # Grid-to-finish delta history at this circuit
-        deltas = circuit_grid_deltas.get(driver_code, [])
-        grid_delta_avg = float(np.mean(deltas)) if deltas else 0.0
-
-        # Standings
-        driver_pos = driver_standings.get(driver_code, 10)
         team_name = driver_teams.get(driver_code, "")
-        team_pos = _team_position(team_name, constructor_standings)
-
+        features = build_feature_row(
+            grid_position=grid.get(driver_code),
+            sprint_position=sprint.get(driver_code),
+            had_sprint=bool(sprint),
+            recent_finishes=season_results_so_far.get(driver_code, []),
+            recent_sprint_finishes=season_sprints_so_far.get(driver_code, []),
+            circuit_finishes=circuit_results.get(driver_code, []),
+            circuit_grid_deltas=circuit_grid_deltas.get(driver_code, []),
+            team_standing=_team_position(team_name, constructor_standings),
+            driver_standing=driver_standings.get(driver_code, 10),
+        )
         rows.append({
             "year": year,
             "round": round_num,
             "location": location,
             "driver_code": driver_code,
-            "grid_position": grid_pos,
-            "sprint_position": sprint_pos,
-            "had_sprint": had_sprint,
-            "recent_form_avg": recent_avg,
-            "recent_sprint_avg": recent_sprint_avg,
-            "circuit_avg": circuit_avg,
-            "team_standing": team_pos,
-            "driver_standing": driver_pos,
-            "grid_delta_avg": grid_delta_avg,
+            **features,
             "finish_position": finish_pos,
         })
 
@@ -338,26 +181,11 @@ def _build_race_rows(
 # Main training routine
 # ---------------------------------------------------------------------------
 
-FEATURES = [
-    "grid_position",
-    "sprint_position",
-    "had_sprint",
-    "recent_form_avg",
-    "recent_sprint_avg",
-    "circuit_avg",
-    "team_standing",
-    "driver_standing",
-    "grid_delta_avg",
-]
-TARGET = "finish_position"
-
-
 def collect_data() -> pd.DataFrame:
-    """Fetch historical race data for all training years and return a DataFrame."""
-    enable_fastf1_cache(CACHE_DIR)
+    """Assemble historical race data for all training years from f1db (offline)."""
     all_rows: list[dict] = []
 
-    # Circuit history accumulated across all years (keyed by location string)
+    # Circuit history accumulated across all years (keyed by circuit id)
     all_circuit_results: dict[str, dict[str, list[int]]] = {}
     all_circuit_deltas: dict[str, dict[str, list[float]]] = {}
 
@@ -413,57 +241,180 @@ def collect_data() -> pd.DataFrame:
     return pd.DataFrame(all_rows)
 
 
+# Model hyperparameters — kept in one place so validation and the final
+# production fit always use an identical estimator.
+#
+# A regularized linear model (Ridge over standardized features) was chosen over
+# gradient boosting after backtesting: the boosted trees overfit the noisy
+# historical signals and lost to a plain "predict the grid order" baseline on
+# 2021-2024, whereas this model beats that baseline on Spearman rank
+# correlation, podium hit rate and MAE across every held-out season. See
+# app.ml.evaluate for the harness that established this.
+MODEL_PARAMS = {
+    "alpha": 10.0,
+}
+
+
+def _build_model():
+    from sklearn.linear_model import Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    return make_pipeline(StandardScaler(), Ridge(**MODEL_PARAMS))
+
+
+def _print_feature_influence(model) -> None:
+    """Print each feature's influence, whichever estimator kind is in use.
+
+    Linear models expose standardized ``coef_`` (sign matters: positive means the
+    feature pushes the predicted finish worse); tree ensembles expose
+    ``feature_importances_`` (magnitude only).
+    """
+    final = model.steps[-1][1] if hasattr(model, "steps") else model
+    if hasattr(final, "coef_"):
+        print("\nStandardized coefficients (sign = direction, |value| = strength):")
+        for feat, coef in sorted(zip(FEATURES, final.coef_), key=lambda x: -abs(x[1])):
+            print(f"  {feat:<22} {coef:+.3f}")
+    elif hasattr(final, "feature_importances_"):
+        print("\nFeature importances:")
+        for feat, imp in sorted(zip(FEATURES, final.feature_importances_), key=lambda x: -x[1]):
+            print(f"  {feat:<22} {imp:.3f}")
+
+
+def walk_forward_validation(df: pd.DataFrame) -> list[dict]:
+    """Season-forward backtest: train on all seasons < N, validate on season N.
+
+    This respects chronology — a plain k-fold CV would leak future races into the
+    training folds and report an over-optimistic error. Returns one result dict
+    per validated season.
+    """
+    from sklearn.metrics import mean_absolute_error
+
+    seasons = sorted(df["year"].unique())
+    results: list[dict] = []
+
+    # Start from the second season so there is always at least one prior season
+    # to train on.
+    for season in seasons[1:]:
+        train_df = df[df["year"] < season]
+        val_df = df[df["year"] == season]
+        if train_df.empty or val_df.empty:
+            continue
+
+        model = _build_model()
+        model.fit(train_df[FEATURES].values, train_df[TARGET].values)
+        preds = model.predict(val_df[FEATURES].values)
+        mae = float(mean_absolute_error(val_df[TARGET].values, preds))
+        results.append({"season": int(season), "n": len(val_df), "mae": mae})
+
+    return results
+
+
 def train(df: pd.DataFrame) -> None:
-    """Train a GradientBoostingRegressor and save to MODEL_PATH."""
-    from sklearn.ensemble import GradientBoostingRegressor
-    from sklearn.model_selection import cross_val_score
+    """Validate with a season-forward backtest, then fit the production model."""
     import joblib
 
     df = df.dropna(subset=FEATURES + [TARGET])
-    X = df[FEATURES].values
-    y = df[TARGET].values
 
     sprint_rounds = int((df["had_sprint"] == 1).sum())
-    print(f"\nTraining on {len(df)} driver-race samples across {df['year'].nunique()} seasons")
+    print(f"\nCollected {len(df)} driver-race samples across {df['year'].nunique()} seasons")
     print(f"  of which {sprint_rounds} driver-rows are from sprint weekends")
 
-    model = GradientBoostingRegressor(
-        n_estimators=300,
-        learning_rate=0.05,
-        max_depth=4,
-        subsample=0.8,
-        min_samples_leaf=5,
-        random_state=42,
+    seasons = sorted(df["year"].unique())
+
+    # ------------------------------------------------------------------
+    # Walk-forward validation across all seasons (honest, leakage-free MAE)
+    # ------------------------------------------------------------------
+    print("\nWalk-forward validation (train on prior seasons, test on next):")
+    wf_results = walk_forward_validation(df)
+    for r in wf_results:
+        print(f"  {r['season']}: MAE {r['mae']:.2f} positions  (n={r['n']})")
+    wf_mae = (
+        sum(r["mae"] for r in wf_results) / len(wf_results) if wf_results else float("nan")
     )
+    print(f"  mean walk-forward MAE: {wf_mae:.2f} positions")
 
-    # Cross-validation for a quick sanity check
-    scores = cross_val_score(model, X, y, cv=5, scoring="neg_mean_absolute_error")
-    mae = -scores.mean()
-    print(f"CV mean absolute error: {mae:.2f} positions")
+    # ------------------------------------------------------------------
+    # Held-out most-recent season — the headline generalization number.
+    # Trained only on strictly earlier seasons, never on the test season.
+    # ------------------------------------------------------------------
+    holdout_mae = float("nan")
+    ranking_results: dict = {}
+    if len(seasons) >= 2:
+        from sklearn.metrics import mean_absolute_error
 
-    # Fit on full dataset
-    model.fit(X, y)
+        from app.ml.evaluate import backtest
 
-    # Feature importances
-    print("\nFeature importances:")
-    for feat, imp in sorted(zip(FEATURES, model.feature_importances_), key=lambda x: -x[1]):
-        print(f"  {feat:<22} {imp:.3f}")
+        holdout_season = seasons[-1]
+        train_df = df[df["year"] < holdout_season]
+        test_df = df[df["year"] == holdout_season]
+        holdout_model = _build_model()
+        holdout_model.fit(train_df[FEATURES].values, train_df[TARGET].values)
+        holdout_mae = float(
+            mean_absolute_error(test_df[TARGET].values, holdout_model.predict(test_df[FEATURES].values))
+        )
+        print(
+            f"\nHeld-out {holdout_season} season MAE: {holdout_mae:.2f} positions "
+            f"(trained on {int(train_df['year'].min())}–{int(holdout_season) - 1}, "
+            f"tested on {holdout_season})"
+        )
 
-    # Save model + feature list so inference code always uses matching features
+        # Ranking metrics vs. trivial baselines — the numbers that actually
+        # measure whether the predicted finishing order is any good.
+        ranking_results = backtest(df, _build_model, holdout_seasons=[int(holdout_season)])
+        model_rank = ranking_results.get("model", {})
+        grid_rank = ranking_results.get("grid_order", {})
+        print(
+            f"  ranking vs grid-order baseline (held-out {holdout_season}):\n"
+            f"    Spearman     model {model_rank.get('spearman', float('nan')):.3f} "
+            f"vs grid {grid_rank.get('spearman', float('nan')):.3f}\n"
+            f"    podium hit   model {model_rank.get('podium_hit_rate', float('nan')):.3f} "
+            f"vs grid {grid_rank.get('podium_hit_rate', float('nan')):.3f}\n"
+            f"    winner acc   model {model_rank.get('winner_accuracy', float('nan')):.3f} "
+            f"vs grid {grid_rank.get('winner_accuracy', float('nan')):.3f}"
+        )
+
+    # ------------------------------------------------------------------
+    # Fit the production model on ALL available seasons for maximum data.
+    # ------------------------------------------------------------------
+    model = _build_model()
+    model.fit(df[FEATURES].values, df[TARGET].values)
+
+    _print_feature_influence(model)
+
+    # Save model + feature list so inference code always uses matching features.
+    # Metrics travel with the artifact so a model can be compared/rolled back.
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"model": model, "features": FEATURES}, MODEL_PATH)
+    joblib.dump(
+        {
+            "model": model,
+            "features": FEATURES,
+            "metrics": {
+                "walk_forward_mae": wf_mae,
+                "walk_forward_by_season": wf_results,
+                "holdout_mae": holdout_mae,
+                "holdout_ranking": ranking_results,
+                "trained_seasons": [int(s) for s in seasons],
+                "n_samples": int(len(df)),
+            },
+        },
+        MODEL_PATH,
+    )
     print(f"\nModel saved to {MODEL_PATH}")
 
 
 if __name__ == "__main__":
-    print("Collecting historical race data (2018–2024)...")
-    print("This may take several minutes due to API rate limiting.\n")
+    # By default reuse the cached dataset (fast, seconds). Pass --refresh to
+    # re-collect session data from FastF1 and standings from the local f1db
+    # dataset (slower, but no live API rate limits).
+    from app.ml.evaluate import load_or_collect_dataset
 
-    df = collect_data()
+    refresh = "--refresh" in sys.argv
+    df = load_or_collect_dataset(refresh=refresh)
 
     if df.empty:
-        print("No data collected — check your network connection and FastF1 cache.")
+        print("No data available — run once with --refresh to collect it.")
         sys.exit(1)
 
-    print(f"\nTotal rows collected: {len(df)}")
+    print(f"\nTotal rows: {len(df)}")
     train(df)

@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 
 export const rcFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };
+const rcMono = { fontFamily: "var(--font-geist-mono, var(--font-geist-sans, monospace))" };
 
 export function SectionHeader({
   eyebrow,
@@ -14,14 +15,14 @@ export function SectionHeader({
   description?: string;
 }) {
   return (
-    <div className="mb-7 border-b border-white/10 pb-6">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#00FF78]" style={rcFont}>
+    <div className="mb-5 border-b border-[#1E2633] pb-4">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-[#7F8797]" style={rcMono}>
         {eyebrow}
       </p>
-      <h1 className="text-3xl font-semibold leading-tight text-white sm:text-4xl" style={rcFont}>
+      <h1 className="text-2xl font-black leading-tight text-white sm:text-3xl" style={rcFont}>
         {title}
       </h1>
-      {description && <p className="mt-3 max-w-5xl text-base leading-relaxed text-neutral-300">{description}</p>}
+      {description && <p className="mt-2 max-w-5xl text-sm leading-relaxed text-[#8E96A8]">{description}</p>}
     </div>
   );
 }
@@ -36,8 +37,8 @@ export function Panel({
   accent?: string;
 }) {
   return (
-    <div className={`w-full min-w-0 rounded-lg border border-white/12 bg-[#101211] overflow-hidden ${className}`}>
-      {accent && <div data-panel-accent className="mb-5 h-[3px]" style={{ background: accent }} />}
+    <div className={`w-full min-w-0 overflow-hidden rounded-md border border-[#1E2633] bg-[#0D111B] ${className}`}>
+      {accent && <div data-panel-accent className="h-[2px]" style={{ background: accent }} />}
       {children}
     </div>
   );
@@ -61,7 +62,7 @@ export function MetricRow({
   className?: string;
 }) {
   return (
-    <div className={`mb-7 flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap [&>*]:min-w-[220px] [&>*]:flex-1 ${className}`}>
+    <div className={`mb-5 grid w-full min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4 ${className}`}>
       {children}
     </div>
   );
@@ -107,15 +108,17 @@ export function MetricCard({
   className?: string;
 }) {
   return (
-    <Panel className={`flex min-h-[124px] min-w-0 flex-1 flex-col p-5 ${className}`}>
-      <Icon className="h-5 w-5 mb-3" style={{ color }} />
-      <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400" style={rcFont}>
-        {label}
-      </p>
-      <p className="break-words text-xl font-semibold leading-tight text-white" style={rcFont}>
+    <Panel className={`flex min-h-[96px] min-w-0 flex-col justify-between p-4 ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#7F8797]" style={rcMono}>
+          {label}
+        </p>
+        <Icon className="h-4 w-4 shrink-0" style={{ color }} />
+      </div>
+      <p className="break-words font-mono text-2xl font-black leading-tight text-white">
         {value}
       </p>
-      {sub && <p className="text-sm text-neutral-400 leading-snug mt-1">{sub}</p>}
+      {sub && <p className="mt-1 line-clamp-2 text-xs leading-snug text-[#6F7789]">{sub}</p>}
     </Panel>
   );
 }
@@ -129,8 +132,8 @@ export function StatusPill({
 }) {
   return (
     <span
-      className="inline-flex items-center rounded px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider border"
-      style={{ color, borderColor: `${color}55`, background: `${color}14`, ...rcFont }}
+      className="inline-flex items-center rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em]"
+      style={{ color, borderColor: `${color}55`, background: `${color}14`, ...rcMono }}
     >
       {children}
     </span>
@@ -138,7 +141,7 @@ export function StatusPill({
 }
 
 export function SkeletonPanel({ className = "h-32" }: { className?: string }) {
-  return <div className={`w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] animate-pulse ${className}`} />;
+  return <div className={`w-full min-w-0 animate-pulse rounded-md border border-[#1E2633] bg-[#101520] ${className}`} />;
 }
 
 export function PageLoader({
@@ -221,8 +224,8 @@ export function InlineNotice({
   }[tone];
 
   return (
-    <div className={`rounded-lg border px-4 py-3 ${styles}`}>
-      <p className="text-sm font-semibold" style={rcFont}>{title}</p>
+    <div className={`rounded-md border px-4 py-3 ${styles}`}>
+      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{title}</p>
       <div className="mt-1 text-sm leading-relaxed text-neutral-200">{children}</div>
     </div>
   );

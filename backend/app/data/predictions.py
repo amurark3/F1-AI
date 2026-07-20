@@ -38,8 +38,13 @@ from app.config import (
     RECENT_FORM_WEIGHT,
     TEAM_STRENGTH_WEIGHT,
 )
+from app.data.f1db_standings import current_constructor_standings, current_driver_standings
+from app.ml.features import build_feature_row
 
 logger = structlog.get_logger()
+MODEL_PATH = Path(os.getenv("RACE_PREDICTOR_MODEL_PATH", "models/race_predictor.joblib"))
+ML_BLEND_WEIGHT = float(os.getenv("ML_PREDICTION_BLEND_WEIGHT", "0.55"))
+ADAPTIVE_CORRECTION_WEIGHT = float(os.getenv("PREDICTION_ADAPTIVE_WEIGHT", "0.22"))
 
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
@@ -58,17 +63,28 @@ _practice_cache: dict[tuple[int, int], Any] = {}
 # (driver_code, year) -> list of recent finishing positions
 _recent_form_cache: dict[tuple[str, int], list[int]] = {}
 
+# (year,) -> driver_code -> list of (round, sprint finishing position) this season
+_recent_sprint_form_cache: dict[tuple[int,], dict[str, list[tuple[int, int]]]] = {}
+
 # (circuit_key, year) -> dict of driver_code -> list of past positions
 _circuit_history_cache: dict[tuple[str, int], dict[str, list[int]]] = {}
 
 # (year,) -> list of constructor standings dicts
 _constructor_cache: dict[tuple[int,], list[dict]] = {}
 
+# (year,) -> driver_code -> championship position
+_driver_standings_cache: dict[tuple[int,], dict[str, int]] = {}
+
 # (circuit_key,) -> dict of driver_code -> avg grid delta
 _grid_delta_cache: dict[tuple[str,], dict[str, float]] = {}
 
 # (year, round_num) -> sprint results dict (empty if no sprint that weekend)
 _sprint_cache: dict[tuple[int, int], list[dict]] = {}
+
+# (driver_code, year, round_num) -> recent incident profile
+_incident_cache: dict[tuple[str, int, int], dict[str, Any]] = {}
+
+_ml_model_cache: dict[str, Any] | None | bool = None
 
 # ---------------------------------------------------------------------------
 # Prediction history file lock for atomic writes
@@ -239,6 +255,47 @@ def _load_recent_form(driver_code: str, year: int, current_round: int) -> list[i
     return positions
 
 
+def _load_recent_sprint_form(year: int, current_round: int) -> dict[str, list[int]]:
+    """Get each driver's sprint finishing positions from earlier rounds this season.
+
+    Returns ``driver_code -> [sprint finishes]`` in chronological order, covering
+    only rounds *before* ``current_round`` so it mirrors the ``season_sprints_so_far``
+    accumulator used at training time (the current weekend's sprint is fed
+    separately as the ``sprint_position`` feature). Returns an empty mapping when
+    no sprints have been held yet this season.
+    """
+    cache_key = (year,)
+    cached = _recent_sprint_form_cache.get(cache_key)
+    if cached is None:
+        cached = {}
+        try:
+            ergast = Ergast()
+            data = ergast.get_sprint_results(season=year, limit=1000)
+            if data.content:
+                rounds = list(data.description.get("round", []))
+                for index, sprint_results in enumerate(data.content):
+                    sprint_round = int(rounds[index]) if index < len(rounds) else index + 1
+                    for _, row in sprint_results.iterrows():
+                        code = str(row.get("driverCode", ""))
+                        pos = row.get("position")
+                        if not code or pos is None:
+                            continue
+                        try:
+                            cached.setdefault(code, []).append((sprint_round, int(pos)))
+                        except (ValueError, TypeError):
+                            pass
+        except Exception as exc:
+            logger.warning("predictions.recent_sprint_form_error", year=year, error=str(exc))
+        _recent_sprint_form_cache[cache_key] = cached
+
+    result: dict[str, list[int]] = {}
+    for code, entries in cached.items():
+        finishes = [pos for rnd, pos in sorted(entries) if rnd < current_round]
+        if finishes:
+            result[code] = finishes
+    return result
+
+
 def _load_sprint_result(year: int, round_num: int) -> list[dict]:
     """Load sprint race results for the current weekend, if one was held.
 
@@ -358,43 +415,65 @@ def _load_circuit_history(
     return history
 
 
-def _load_constructor_standings(year: int) -> list[dict]:
-    """Load constructor championship standings.
+def _ergast_constructor_standings(year: int) -> list[dict]:
+    """Live Ergast fallback for constructor standings (current or previous season)."""
+    for season in (year, year - 1):
+        try:
+            data = Ergast().get_constructor_standings(season=season)
+            if data.content:
+                return [
+                    {
+                        "constructor_name": str(row.get("constructorName", "")),
+                        "position": int(row.get("position", 10)),
+                    }
+                    for _, row in data.content[0].iterrows()
+                ]
+        except Exception as exc:
+            logger.warning("predictions.constructor_standings_error", year=season, error=str(exc))
+    return []
 
-    Returns list of dicts with keys: constructor_name, position.
+
+def _load_constructor_standings(year: int) -> list[dict]:
+    """Constructor standings ([{constructor_name, position}]).
+
+    Sourced from the local f1db dataset first (no rate limits); falls back to the
+    live Ergast API when f1db lacks the season (e.g. a brand-new in-progress round).
     """
     cache_key = (year,)
     if cache_key in _constructor_cache:
         return _constructor_cache[cache_key]
 
-    standings: list[dict] = []
-    try:
-        ergast = Ergast()
-        data = ergast.get_constructor_standings(season=year)
-        if data.content:
-            df = data.content[0]
-            for _, row in df.iterrows():
-                standings.append({
-                    "constructor_name": str(row.get("constructorName", "")),
-                    "position": int(row.get("position", 10)),
-                })
-    except Exception as exc:
-        logger.warning("predictions.constructor_standings_error", error=str(exc))
-        # If current year fails, try previous year
-        try:
-            ergast = Ergast()
-            data = ergast.get_constructor_standings(season=year - 1)
-            if data.content:
-                df = data.content[0]
-                for _, row in df.iterrows():
-                    standings.append({
-                        "constructor_name": str(row.get("constructorName", "")),
-                        "position": int(row.get("position", 10)),
-                    })
-        except Exception:
-            pass
-
+    standings = current_constructor_standings(year) or _ergast_constructor_standings(year)
     _constructor_cache[cache_key] = standings
+    return standings
+
+
+def _ergast_driver_standings(year: int) -> dict[str, int]:
+    """Live Ergast fallback for driver standings (current or previous season)."""
+    for season in (year, year - 1):
+        try:
+            data = Ergast().get_driver_standings(season=season)
+            if data.content:
+                result = {
+                    str(row.get("driverCode", "")): int(row.get("position", 10))
+                    for _, row in data.content[0].iterrows()
+                    if str(row.get("driverCode", ""))
+                }
+                if result:
+                    return result
+        except Exception as exc:
+            logger.warning("predictions.driver_standings_error", year=season, error=str(exc))
+    return {}
+
+
+def _load_driver_standings(year: int) -> dict[str, int]:
+    """Driver standings as {driver_code: position} — f1db first, Ergast fallback."""
+    cache_key = (year,)
+    if cache_key in _driver_standings_cache:
+        return _driver_standings_cache[cache_key]
+
+    standings = current_driver_standings(year) or _ergast_driver_standings(year)
+    _driver_standings_cache[cache_key] = standings
     return standings
 
 
@@ -450,6 +529,162 @@ def _load_grid_to_finish_delta(
     return result
 
 
+def _load_ml_model() -> dict[str, Any] | None:
+    """Load the trained finish-position model if runtime dependencies exist."""
+    global _ml_model_cache
+    if _ml_model_cache is False:
+        return None
+    if isinstance(_ml_model_cache, dict):
+        return _ml_model_cache
+
+    try:
+        import joblib
+
+        payload = joblib.load(MODEL_PATH)
+        if isinstance(payload, dict) and payload.get("model") and payload.get("features"):
+            _ml_model_cache = payload
+            logger.info("predictions.ml_model_loaded", path=str(MODEL_PATH))
+            return payload
+    except Exception as exc:
+        logger.warning("predictions.ml_model_unavailable", path=str(MODEL_PATH), error=str(exc))
+
+    _ml_model_cache = False
+    return None
+
+
+def _ml_finish_score(features: dict[str, float]) -> float | None:
+    payload = _load_ml_model()
+    if not payload:
+        return None
+
+    model = payload["model"]
+    feature_names = payload["features"]
+    try:
+        row = [[float(features.get(name, 0.0)) for name in feature_names]]
+        prediction = model.predict(row)[0]
+        return float(prediction)
+    except Exception as exc:
+        logger.warning("predictions.ml_inference_failed", error=str(exc))
+        return None
+
+
+def _status_text(row: Any) -> str:
+    for key in ("status", "Status"):
+        value = row.get(key)
+        if value is not None:
+            return str(value)
+    return ""
+
+
+def _classify_status(status: str) -> dict[str, bool]:
+    text = status.lower()
+    classified = bool(text) and "finished" not in text and "lap" not in text
+    crash_terms = ("accident", "collision", "crash", "spun", "damage")
+    mechanical_terms = (
+        "engine", "gearbox", "hydraul", "electrical", "brake", "power unit",
+        "transmission", "suspension", "overheating", "oil", "water", "fuel",
+    )
+    return {
+        "dnf": classified,
+        "crash": any(term in text for term in crash_terms),
+        "mechanical": any(term in text for term in mechanical_terms),
+    }
+
+
+def _load_recent_incidents(driver_code: str, year: int, current_round: int) -> dict[str, Any]:
+    """Return recent DNF/crash profile for a driver across current and prior season."""
+    cache_key = (driver_code, year, current_round)
+    if cache_key in _incident_cache:
+        return _incident_cache[cache_key]
+
+    starts = 0
+    dnfs = 0
+    crashes = 0
+    mechanical = 0
+    statuses: list[str] = []
+
+    try:
+        ergast = Ergast()
+        for season in (year, year - 1):
+            data = ergast.get_race_results(season=season)
+            if not data.content:
+                continue
+            for index, race_results in enumerate(data.content, 1):
+                if season == year and index >= current_round:
+                    continue
+                for _, row in race_results.iterrows():
+                    if str(row.get("driverCode", "")) != driver_code:
+                        continue
+                    starts += 1
+                    status = _status_text(row)
+                    flags = _classify_status(status)
+                    if flags["dnf"]:
+                        dnfs += 1
+                        statuses.append(status)
+                    if flags["crash"]:
+                        crashes += 1
+                    if flags["mechanical"]:
+                        mechanical += 1
+    except Exception as exc:
+        logger.warning("predictions.incident_history_error", driver=driver_code, error=str(exc))
+
+    profile = {
+        "starts": starts,
+        "dnfs": dnfs,
+        "crashes": crashes,
+        "mechanical": mechanical,
+        "dnf_rate": dnfs / starts if starts else 0.08,
+        "crash_rate": crashes / starts if starts else 0.03,
+        "mechanical_rate": mechanical / starts if starts else 0.04,
+        "recent_statuses": statuses[-3:],
+    }
+    _incident_cache[cache_key] = profile
+    return profile
+
+
+def _adaptive_position_corrections() -> dict[str, dict[str, float]]:
+    """Learn small driver-specific corrections from evaluated prediction misses.
+
+    Positive correction means the model has been too optimistic and the score
+    should move worse. Negative correction means the driver has usually beaten
+    the model and the score can improve slightly.
+    """
+    history = _load_prediction_history()
+    corrections: dict[str, list[float]] = {}
+
+    for entry in history.values():
+        snapshots = entry.get("snapshots")
+        if not snapshots:
+            snapshots = [{
+                "predicted_positions": entry.get("predicted_positions") or {},
+                "generated_at": entry.get("generated_at"),
+            }]
+        actual = entry.get("actual_positions") or {}
+        if not actual:
+            continue
+
+        latest = snapshots[-1] if snapshots else {}
+        predicted = latest.get("predicted_positions") or entry.get("predicted_positions") or {}
+        for code, predicted_pos in predicted.items():
+            actual_pos = actual.get(code)
+            if actual_pos is None:
+                continue
+            try:
+                miss = float(actual_pos) - float(predicted_pos)
+            except (TypeError, ValueError):
+                continue
+            corrections.setdefault(code, []).append(max(-6.0, min(6.0, miss)))
+
+    return {
+        code: {
+            "correction": statistics.mean(values[-6:]),
+            "samples": len(values[-6:]),
+        }
+        for code, values in corrections.items()
+        if values
+    }
+
+
 # ===================================================================
 # Scoring engine
 # ===================================================================
@@ -459,6 +694,14 @@ def _safe_mean(values: list[int | float], default: float = 10.0) -> float:
     if not values:
         return default
     return statistics.mean(values)
+
+
+def safe_number(value: object) -> float:
+    """Coerce optional numeric API/history fields for accuracy math."""
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _compute_confidence(
@@ -601,6 +844,96 @@ def _get_team_position(team_name: str, standings: list[dict]) -> int:
     return 10
 
 
+def _risk_level(value: int) -> str:
+    if value >= 22:
+        return "high"
+    if value >= 13:
+        return "medium"
+    return "low"
+
+
+def _risk_factors(
+    profile: dict[str, Any],
+    quali_pos: int,
+    team_pos: int,
+    sprint_pos: int | None,
+    dnf_risk: int,
+    crash_risk: int,
+) -> list[str]:
+    factors: list[str] = []
+    if profile.get("dnfs", 0) > 0:
+        factors.append(f"{profile['dnfs']} DNF events in recent history")
+    if profile.get("crashes", 0) > 0:
+        factors.append(f"{profile['crashes']} accident/collision flags in recent history")
+    if 8 <= quali_pos <= 16:
+        factors.append("Starts in the highest traffic band")
+    elif quali_pos <= 4:
+        factors.append("Front group restart exposure")
+    if team_pos >= 7:
+        factors.append(f"Lower constructor reliability proxy (P{team_pos})")
+    if sprint_pos is None:
+        factors.append("No same-weekend sprint reliability signal")
+    if not factors:
+        factors.append("Low recent incident profile")
+    if dnf_risk >= 22 and crash_risk < 10:
+        factors.append("Risk leans mechanical rather than contact")
+    return factors[:3]
+
+
+def _compute_risk_predictions(
+    predictions: list[dict],
+    scored_by_code: dict[str, dict],
+    year: int,
+    round_num: int,
+) -> list[dict]:
+    """Build separate DNF/crash risk predictions for every classified driver."""
+    risk_rows: list[dict] = []
+
+    for prediction in predictions:
+        code = prediction["driver_code"]
+        scored = scored_by_code.get(code, {})
+        quali_pos = int(scored.get("quali_pos") or prediction.get("position") or 10)
+        team_pos = int(scored.get("team_pos") or 10)
+        sprint_pos = scored.get("sprint_pos")
+        profile = _load_recent_incidents(code, year, round_num)
+
+        traffic_risk = 4 if 8 <= quali_pos <= 16 else 2 if quali_pos <= 4 else 1
+        constructor_risk = max(0, team_pos - 5) * 1.1
+        dnf_risk = round(
+            6
+            + profile["dnf_rate"] * 31
+            + profile["mechanical_rate"] * 18
+            + constructor_risk
+            + traffic_risk
+        )
+        crash_risk = round(
+            3
+            + profile["crash_rate"] * 26
+            + traffic_risk * 1.2
+            + (2 if 10 <= quali_pos <= 18 else 0)
+        )
+        mechanical_risk = round(max(2, dnf_risk - crash_risk * 0.45))
+
+        dnf_risk = max(3, min(42, dnf_risk))
+        crash_risk = max(1, min(30, crash_risk))
+        mechanical_risk = max(2, min(35, mechanical_risk))
+
+        risk_rows.append({
+            "driver_code": code,
+            "driver_name": prediction["driver_name"],
+            "team": prediction["team"],
+            "projected_finish": prediction["position"],
+            "dnf_risk_pct": dnf_risk,
+            "crash_risk_pct": crash_risk,
+            "mechanical_risk_pct": mechanical_risk,
+            "risk_level": _risk_level(dnf_risk),
+            "factors": _risk_factors(profile, quali_pos, team_pos, sprint_pos, dnf_risk, crash_risk),
+        })
+
+    risk_rows.sort(key=lambda row: (row["dnf_risk_pct"], row["crash_risk_pct"]), reverse=True)
+    return risk_rows
+
+
 # ===================================================================
 # Main prediction function
 # ===================================================================
@@ -635,6 +968,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             is_pre_qualifying = True
             warnings.append("Qualifying data unavailable; using practice session pace as proxy")
         else:
+            is_pre_qualifying = True
             warnings.append("No qualifying or practice data available; using historical data only")
 
     # ------------------------------------------------------------------
@@ -660,6 +994,10 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     else:
         warnings.append("Constructor standings unavailable")
 
+    driver_standings = _load_driver_standings(year)
+    if driver_standings:
+        data_sources.append("driver_standings")
+
     circuit_history = _load_circuit_history(year, round_num, circuit_key)
     if circuit_history:
         data_sources.append("circuit_history")
@@ -671,6 +1009,14 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     sprint_positions: dict[str, int] = {d["driver_code"]: d["position"] for d in sprint_data}
     if sprint_data:
         data_sources.append("sprint_result")
+
+    # Sprint finishes from earlier rounds this season — feeds recent_sprint_avg,
+    # matching the season accumulator used at training time.
+    recent_sprint_form = _load_recent_sprint_form(year, round_num)
+
+    adaptive_corrections = _adaptive_position_corrections()
+    if adaptive_corrections:
+        data_sources.append("adaptive_history")
 
     # ------------------------------------------------------------------
     # 4. Build driver list (from qualifying/practice or fallback to schedule)
@@ -707,6 +1053,8 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "data_sources": data_sources,
             "accuracy": get_accuracy_stats(),
             "predictions": [],
+            "risk_predictions": [],
+            "prediction_review": get_prediction_review(year, round_num),
             "weather_impact": "unknown",
             "wet_scenario": None,
             "warnings": warnings + ["No driver data available for predictions"],
@@ -741,6 +1089,9 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             active_weights[k] /= total_weight
 
     scored_drivers: list[dict] = []
+    scored_by_code: dict[str, dict] = {}
+    ml_used = False
+    adaptive_used = False
 
     for driver in drivers_input:
         code = driver["driver_code"]
@@ -764,6 +1115,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 
         # Team strength
         team_pos = _get_team_position(driver.get("team", ""), constructor_standings)
+        driver_standing = driver_standings.get(code, 10)
 
         # Grid-to-finish delta
         driver_delta = grid_deltas.get(code, 0.0)
@@ -787,6 +1139,28 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             # Positive delta means driver gains positions, so subtract
             score -= active_weights["grid_delta"] * driver_delta
 
+        heuristic_score = score
+        ml_features = build_feature_row(
+            grid_position=quali_pos,
+            sprint_position=sprint_pos,
+            had_sprint=bool(sprint_data),
+            recent_finishes=recent_positions,
+            recent_sprint_finishes=recent_sprint_form.get(code, []),
+            circuit_finishes=driver_circuit,
+            circuit_grid_deltas=[driver_delta] if driver_delta else [],
+            team_standing=team_pos,
+            driver_standing=driver_standing,
+        )
+        ml_score = _ml_finish_score(ml_features)
+        if ml_score is not None:
+            score = (ML_BLEND_WEIGHT * ml_score) + ((1 - ML_BLEND_WEIGHT) * heuristic_score)
+            ml_used = True
+
+        correction = adaptive_corrections.get(code)
+        if correction and correction.get("samples", 0) > 0:
+            score += ADAPTIVE_CORRECTION_WEIGHT * correction["correction"]
+            adaptive_used = True
+
         # Confidence range based on variance of input signals
         # Sprint result tightens confidence because it's same-weekend race pace
         input_signals = [float(quali_pos)]
@@ -797,6 +1171,8 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         if driver_circuit:
             input_signals.append(circuit_avg)
         input_signals.append(float(team_pos))
+        if ml_score is not None:
+            input_signals.append(ml_score)
 
         confidence_low, confidence_high = _compute_confidence(
             input_signals, is_pre_qualifying
@@ -808,16 +1184,36 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             team_pos, driver_delta, is_pre_qualifying,
             sprint_pos=sprint_pos,
         )
+        if ml_score is not None:
+            factors = [f"Trained model projects P{ml_score:.1f}"] + factors
+        if correction and abs(correction["correction"]) >= 1:
+            direction = "downgrades" if correction["correction"] > 0 else "upgrades"
+            factors.append(f"Adaptive history {direction} by {abs(correction['correction']):.1f} places")
+        factors = factors[:3]
 
-        scored_drivers.append({
+        scored = {
             "driver_code": code,
             "driver_name": driver.get("driver_name", code),
             "team": driver.get("team", ""),
             "score": score,
+            "heuristic_score": heuristic_score,
+            "ml_score": ml_score,
+            "adaptive_correction": correction,
+            "quali_pos": quali_pos,
+            "sprint_pos": sprint_pos,
+            "team_pos": team_pos,
+            "driver_standing": driver_standing,
             "confidence_low": confidence_low,
             "confidence_high": confidence_high,
             "factors": factors,
-        })
+        }
+        scored_drivers.append(scored)
+        scored_by_code[code] = scored
+
+    if ml_used:
+        data_sources.append("trained_ml_model")
+    if adaptive_used and "adaptive_history" not in data_sources:
+        data_sources.append("adaptive_history")
 
     # ------------------------------------------------------------------
     # 6. Sort by score and assign positions
@@ -836,6 +1232,8 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "factors": driver["factors"],
         })
 
+    risk_predictions = _compute_risk_predictions(predictions, scored_by_code, year, round_num)
+
     # ------------------------------------------------------------------
     # 7. Build response
     # ------------------------------------------------------------------
@@ -847,6 +1245,9 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         "data_sources": sorted(set(data_sources)),
         "accuracy": get_accuracy_stats(),
         "predictions": predictions,
+        "risk_predictions": risk_predictions,
+        "prediction_review": get_prediction_review(year, round_num),
+        "prediction_phase": "pre_qualifying" if is_pre_qualifying else "post_qualifying",
         "weather_impact": "dry",  # Weather module (Plan 02) will populate this
         "wet_scenario": None,
         "warnings": warnings if warnings else None,
@@ -942,12 +1343,40 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
     if not predicted_positions:
         return
 
+    risk_predictions = {
+        entry.get("driver_code", ""): {
+            "dnf_risk_pct": entry.get("dnf_risk_pct"),
+            "crash_risk_pct": entry.get("crash_risk_pct"),
+            "mechanical_risk_pct": entry.get("mechanical_risk_pct"),
+            "risk_level": entry.get("risk_level"),
+        }
+        for entry in predictions.get("risk_predictions", [])
+        if entry.get("driver_code")
+    }
+    snapshot = {
+        "generated_at": predictions.get("generated_at", datetime.now(timezone.utc).isoformat()),
+        "prediction_phase": predictions.get("prediction_phase"),
+        "data_sources": predictions.get("data_sources") or [],
+        "predicted_positions": predicted_positions,
+        "risk_predictions": risk_predictions,
+    }
+
     with _history_file_lock:
         history = _load_prediction_history()
+        existing = history.get(key, {})
+        snapshots = list(existing.get("snapshots") or [])
+        snapshots.append(snapshot)
         history[key] = {
+            **existing,
             "predicted_positions": predicted_positions,
-            "generated_at": predictions.get("generated_at", datetime.now(timezone.utc).isoformat()),
-            "actual_positions": history.get(key, {}).get("actual_positions"),  # Preserve if already recorded
+            "risk_predictions": risk_predictions,
+            "generated_at": snapshot["generated_at"],
+            "prediction_phase": snapshot["prediction_phase"],
+            "data_sources": snapshot["data_sources"],
+            "actual_positions": existing.get("actual_positions"),
+            "actual_statuses": existing.get("actual_statuses"),
+            "actual_incidents": existing.get("actual_incidents"),
+            "snapshots": snapshots[-8:],
         }
         _save_prediction_history(history)
 
@@ -972,6 +1401,8 @@ def record_actual_result(year: int, round_num: int) -> None:
 
     # Load actual results (outside the file lock to avoid holding it during I/O)
     actual_positions = {}
+    actual_statuses = {}
+    actual_incidents = {}
     try:
         with _fastf1_lock:
             session = fastf1.get_session(year, round_num, "R")
@@ -985,6 +1416,9 @@ def record_actual_result(year: int, round_num: int) -> None:
                 if code and pos is not None:
                     try:
                         actual_positions[code] = int(pos)
+                        status = str(row.get("Status", "") or row.get("status", ""))
+                        actual_statuses[code] = status
+                        actual_incidents[code] = _classify_status(status)
                     except (ValueError, TypeError):
                         pass
     except Exception as exc:
@@ -1002,11 +1436,93 @@ def record_actual_result(year: int, round_num: int) -> None:
         history = _load_prediction_history()
         if key in history:
             history[key]["actual_positions"] = actual_positions
+            history[key]["actual_statuses"] = actual_statuses
+            history[key]["actual_incidents"] = actual_incidents
             _save_prediction_history(history)
             logger.info("predictions.actual_recorded", key=key, drivers=len(actual_positions))
 
 
-def get_accuracy_stats(last_n_races: int = 5) -> dict:
+def _latest_prediction_snapshot(entry: dict) -> dict:
+    snapshots = entry.get("snapshots") or []
+    if snapshots:
+        return snapshots[-1]
+    return {
+        "generated_at": entry.get("generated_at"),
+        "prediction_phase": entry.get("prediction_phase"),
+        "data_sources": entry.get("data_sources") or [],
+        "predicted_positions": entry.get("predicted_positions") or {},
+        "risk_predictions": entry.get("risk_predictions") or {},
+    }
+
+
+def get_prediction_review(year: int, round_num: int) -> dict:
+    """Compare the latest saved prediction with actual race data when available."""
+    key = f"({year},{round_num})"
+    record_actual_result(year, round_num)
+
+    history = _load_prediction_history()
+    entry = history.get(key)
+    if not entry:
+        return {"evaluated": False, "reason": "No stored prediction snapshot for this race."}
+
+    snapshot = _latest_prediction_snapshot(entry)
+    predicted = snapshot.get("predicted_positions") or {}
+    actual = entry.get("actual_positions") or {}
+    if not predicted:
+        return {"evaluated": False, "reason": "Stored prediction has no finishing order."}
+    if not actual:
+        return {"evaluated": False, "reason": "Actual race result is not available yet."}
+
+    common_drivers = set(predicted) & set(actual)
+    if not common_drivers:
+        return {"evaluated": False, "reason": "Prediction and result do not share driver codes."}
+
+    predicted_winner = min(predicted, key=predicted.get)
+    actual_winner = min(actual, key=actual.get)
+    predicted_top3 = {code for code, pos in predicted.items() if pos <= 3}
+    actual_top3 = {code for code, pos in actual.items() if pos <= 3}
+    predicted_top10 = {code for code, pos in predicted.items() if pos <= 10}
+    actual_top10 = {code for code, pos in actual.items() if pos <= 10}
+    exact_hits = sum(1 for code in common_drivers if predicted[code] == actual[code])
+    position_errors = [abs(float(predicted[code]) - float(actual[code])) for code in common_drivers]
+
+    incidents = entry.get("actual_incidents") or {}
+    actual_dnfs = {code for code, flags in incidents.items() if flags.get("dnf")}
+    actual_crashes = {code for code, flags in incidents.items() if flags.get("crash")}
+    risks = snapshot.get("risk_predictions") or {}
+    predicted_dnfs = {
+        code for code, risk in risks.items()
+        if safe_number(risk.get("dnf_risk_pct")) >= 16
+    }
+    predicted_crashes = {
+        code for code, risk in risks.items()
+        if safe_number(risk.get("crash_risk_pct")) >= 10
+    }
+
+    return {
+        "evaluated": True,
+        "generated_at": snapshot.get("generated_at"),
+        "prediction_phase": snapshot.get("prediction_phase"),
+        "winner_correct": predicted_winner == actual_winner,
+        "predicted_winner": predicted_winner,
+        "actual_winner": actual_winner,
+        "top3_correct": len(predicted_top3 & actual_top3),
+        "top3_possible": min(3, len(actual_top3)),
+        "top10_correct": len(predicted_top10 & actual_top10),
+        "top10_possible": min(10, len(actual_top10)),
+        "exact_position_hits": exact_hits,
+        "drivers_compared": len(common_drivers),
+        "avg_position_error": round(statistics.mean(position_errors), 1) if position_errors else 0.0,
+        "dnf_correct": len(predicted_dnfs & actual_dnfs),
+        "dnf_predicted": len(predicted_dnfs),
+        "dnf_actual": len(actual_dnfs),
+        "crash_correct": len(predicted_crashes & actual_crashes),
+        "crash_predicted": len(predicted_crashes),
+        "crash_actual": len(actual_crashes),
+    }
+
+
+def get_accuracy_stats(last_n_races: int = 8) -> dict:
     """Compute rolling accuracy over the last N races with both prediction and actual data.
 
     Returns:
@@ -1026,13 +1542,16 @@ def get_accuracy_stats(last_n_races: int = 5) -> dict:
     # Collect entries that have both predicted and actual positions
     evaluated: list[dict] = []
     for key, entry in history.items():
-        predicted = entry.get("predicted_positions")
+        snapshot = _latest_prediction_snapshot(entry)
+        predicted = snapshot.get("predicted_positions")
         actual = entry.get("actual_positions")
         if predicted and actual:
             evaluated.append({
                 "predicted": predicted,
                 "actual": actual,
-                "generated_at": entry.get("generated_at", ""),
+                "risk_predictions": snapshot.get("risk_predictions") or {},
+                "actual_incidents": entry.get("actual_incidents") or {},
+                "generated_at": snapshot.get("generated_at") or entry.get("generated_at", ""),
             })
 
     if not evaluated:
@@ -1054,13 +1573,16 @@ def get_accuracy_stats(last_n_races: int = 5) -> dict:
             return {"races_evaluated": 0}
 
         for key, entry in history.items():
-            predicted = entry.get("predicted_positions")
+            snapshot = _latest_prediction_snapshot(entry)
+            predicted = snapshot.get("predicted_positions")
             actual = entry.get("actual_positions")
             if predicted and actual:
                 evaluated.append({
                     "predicted": predicted,
                     "actual": actual,
-                    "generated_at": entry.get("generated_at", ""),
+                    "risk_predictions": snapshot.get("risk_predictions") or {},
+                    "actual_incidents": entry.get("actual_incidents") or {},
+                    "generated_at": snapshot.get("generated_at") or entry.get("generated_at", ""),
                 })
 
     if not evaluated:
@@ -1075,6 +1597,13 @@ def get_accuracy_stats(last_n_races: int = 5) -> dict:
     total_top3_possible = 0
     total_top10_correct = 0
     total_top10_possible = 0
+    total_winner_correct = 0
+    total_exact_positions = 0
+    total_drivers_compared = 0
+    total_dnf_correct = 0
+    total_dnf_actual = 0
+    total_crash_correct = 0
+    total_crash_actual = 0
     total_position_errors: list[float] = []
 
     for race in evaluated:
@@ -1100,10 +1629,35 @@ def get_accuracy_stats(last_n_races: int = 5) -> dict:
         total_top10_correct += top10_correct
         total_top10_possible += min(10, len(predicted_top10))
 
+        predicted_winner = min(predicted, key=predicted.get)
+        actual_winner = min(actual, key=actual.get)
+        if predicted_winner == actual_winner:
+            total_winner_correct += 1
+
         # Average position error across all common drivers
         for driver in common_drivers:
             error = abs(predicted[driver] - actual[driver])
             total_position_errors.append(error)
+            if predicted[driver] == actual[driver]:
+                total_exact_positions += 1
+        total_drivers_compared += len(common_drivers)
+
+        incidents = race.get("actual_incidents") or {}
+        actual_dnfs = {code for code, flags in incidents.items() if flags.get("dnf")}
+        actual_crashes = {code for code, flags in incidents.items() if flags.get("crash")}
+        risks = race.get("risk_predictions") or {}
+        predicted_dnfs = {
+            code for code, risk in risks.items()
+            if safe_number(risk.get("dnf_risk_pct")) >= 16
+        }
+        predicted_crashes = {
+            code for code, risk in risks.items()
+            if safe_number(risk.get("crash_risk_pct")) >= 10
+        }
+        total_dnf_correct += len(predicted_dnfs & actual_dnfs)
+        total_dnf_actual += len(actual_dnfs)
+        total_crash_correct += len(predicted_crashes & actual_crashes)
+        total_crash_actual += len(actual_crashes)
 
     races_evaluated = len(evaluated)
 
@@ -1119,10 +1673,19 @@ def get_accuracy_stats(last_n_races: int = 5) -> dict:
         round(statistics.mean(total_position_errors), 1)
         if total_position_errors else 0.0
     )
+    winner_pct = round(total_winner_correct / races_evaluated * 100) if races_evaluated else 0
+    exact_pct = round(total_exact_positions / total_drivers_compared * 100) if total_drivers_compared else 0
+    dnf_capture_pct = round(total_dnf_correct / total_dnf_actual * 100) if total_dnf_actual else None
+    crash_capture_pct = round(total_crash_correct / total_crash_actual * 100) if total_crash_actual else None
 
     return {
+        "recent_winner_pct": winner_pct,
         "recent_top3_pct": top3_pct,
         "recent_top10_pct": top10_pct,
+        "exact_position_pct": exact_pct,
         "avg_position_error": avg_error,
+        "dnf_capture_pct": dnf_capture_pct,
+        "crash_capture_pct": crash_capture_pct,
         "races_evaluated": races_evaluated,
+        "rolling_window": last_n_races,
     }

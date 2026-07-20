@@ -16,8 +16,8 @@ from app.config import PREDICTION_CACHE_PATH
 
 logger = structlog.get_logger()
 
-CACHE_SCHEMA_VERSION = 1
-CACHE_POLICY = "stable_until_next_race"
+CACHE_SCHEMA_VERSION = 2
+CACHE_POLICY = "stored_until_manual_recompute"
 
 
 def _utc_now() -> datetime:
@@ -78,8 +78,8 @@ class PredictionSnapshotCache:
     """Small JSON-backed cache keyed by season and round.
 
     Race prediction outputs are intentionally stable snapshots. They are
-    reused until the next race starts, then regenerated so standings and
-    recent-form inputs can move forward.
+    reused until a user explicitly asks the model to compute or recompute,
+    so old calls remain available for post-race review.
     """
 
     def __init__(self, path: str = PREDICTION_CACHE_PATH) -> None:
@@ -91,24 +91,36 @@ class PredictionSnapshotCache:
         self._ensure_loaded()
         key = self._key(year, round_num)
         entry = self._entries.get(key)
-        if not entry or not self._is_valid(entry):
+        if not entry or not self._has_prediction(entry):
             return None
 
         logger.info("prediction_cache.hit", year=year, round=round_num)
         return self._with_metadata(entry, status="hit")
 
-    def set(self, year: int, round_num: int, result: dict) -> dict:
+    def set(self, year: int, round_num: int, result: dict, *, reason: str = "manual_compute") -> dict:
         self._ensure_loaded()
         key = self._key(year, round_num)
         stored_result = copy.deepcopy(result)
         stored_result.pop("cache", None)
 
+        previous = self._normalise_entry(self._entries.get(key))
+        snapshots = list(previous.get("snapshots") or [])
+        stored_at = _iso(_utc_now())
+        snapshot = {
+            "id": f"v{len(snapshots) + 1}-{stored_at}",
+            "stored_at": stored_at,
+            "reason": reason,
+            "result": stored_result,
+        }
+        snapshots.append(snapshot)
+
         entry = {
             "schema_version": CACHE_SCHEMA_VERSION,
-            "stored_at": _iso(_utc_now()),
-            "valid_until": _iso(next_race_start(year)),
+            "stored_at": previous.get("stored_at") or stored_at,
+            "updated_at": stored_at,
             "policy": CACHE_POLICY,
-            "result": stored_result,
+            "active_snapshot_id": snapshot["id"],
+            "snapshots": snapshots,
         }
         self._entries[key] = entry
         self._save()
@@ -117,39 +129,85 @@ class PredictionSnapshotCache:
             "prediction_cache.stored",
             year=year,
             round=round_num,
-            valid_until=entry["valid_until"],
+            snapshot_id=snapshot["id"],
+            reason=reason,
         )
         return self._with_metadata(entry, status="stored")
 
     def _with_metadata(self, entry: dict[str, Any], status: str) -> dict:
-        result = copy.deepcopy(entry.get("result") or {})
+        normalised = self._normalise_entry(entry)
+        snapshot = self._active_snapshot(normalised)
+        result = copy.deepcopy((snapshot or {}).get("result") or {})
         result["cache"] = {
             "status": status,
-            "stored_at": entry.get("stored_at"),
-            "valid_until": entry.get("valid_until"),
-            "policy": entry.get("policy", CACHE_POLICY),
+            "stored_at": (snapshot or {}).get("stored_at") or normalised.get("stored_at"),
+            "updated_at": normalised.get("updated_at") or normalised.get("stored_at"),
+            "valid_until": None,
+            "policy": normalised.get("policy", CACHE_POLICY),
+            "snapshot_id": (snapshot or {}).get("id"),
+            "snapshot_count": len(normalised.get("snapshots") or []),
+            "recompute_count": max(0, len(normalised.get("snapshots") or []) - 1),
+            "reason": (snapshot or {}).get("reason"),
         }
         return result
 
-    def _is_valid(self, entry: dict[str, Any]) -> bool:
-        if entry.get("schema_version") != CACHE_SCHEMA_VERSION:
-            return False
-        result = entry.get("result") or {}
+    def _has_prediction(self, entry: dict[str, Any]) -> bool:
+        snapshot = self._active_snapshot(self._normalise_entry(entry))
+        result = (snapshot or {}).get("result") or {}
         if not result.get("predictions"):
             return False
+        return True
 
-        valid_until = entry.get("valid_until")
-        if not valid_until:
-            return True
+    def _active_snapshot(self, entry: dict[str, Any]) -> dict[str, Any] | None:
+        snapshots = entry.get("snapshots") or []
+        if not snapshots:
+            return None
+        active_id = entry.get("active_snapshot_id")
+        for snapshot in snapshots:
+            if snapshot.get("id") == active_id:
+                return snapshot
+        return snapshots[-1]
 
-        try:
-            expiry = datetime.fromisoformat(valid_until)
-        except ValueError:
-            return False
-        if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
+    def _normalise_entry(self, entry: dict[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(entry, dict):
+            return {
+                "schema_version": CACHE_SCHEMA_VERSION,
+                "policy": CACHE_POLICY,
+                "snapshots": [],
+            }
 
-        return _utc_now() < expiry.astimezone(timezone.utc)
+        if entry.get("schema_version") == CACHE_SCHEMA_VERSION:
+            normalised = copy.deepcopy(entry)
+            normalised["policy"] = normalised.get("policy") or CACHE_POLICY
+            normalised["snapshots"] = [
+                snapshot for snapshot in normalised.get("snapshots", [])
+                if isinstance(snapshot, dict) and isinstance(snapshot.get("result"), dict)
+            ]
+            return normalised
+
+        legacy_result = entry.get("result")
+        if isinstance(legacy_result, dict):
+            stored_at = entry.get("stored_at") or legacy_result.get("generated_at") or _iso(_utc_now())
+            snapshot = {
+                "id": f"v1-{stored_at}",
+                "stored_at": stored_at,
+                "reason": "legacy_cache",
+                "result": copy.deepcopy(legacy_result),
+            }
+            return {
+                "schema_version": CACHE_SCHEMA_VERSION,
+                "stored_at": stored_at,
+                "updated_at": stored_at,
+                "policy": CACHE_POLICY,
+                "active_snapshot_id": snapshot["id"],
+                "snapshots": [snapshot],
+            }
+
+        return {
+            "schema_version": CACHE_SCHEMA_VERSION,
+            "policy": CACHE_POLICY,
+            "snapshots": [],
+        }
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -167,12 +225,13 @@ class PredictionSnapshotCache:
             self._entries = {}
             return
 
-        if payload.get("schema_version") != CACHE_SCHEMA_VERSION:
+        schema_version = payload.get("schema_version")
+        if schema_version not in {1, CACHE_SCHEMA_VERSION}:
             self._entries = {}
             return
 
         self._entries = {
-            str(key): value
+            str(key): self._normalise_entry(value)
             for key, value in (payload.get("entries") or {}).items()
             if isinstance(value, dict)
         }

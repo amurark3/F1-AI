@@ -13,12 +13,12 @@
   --f1-sector-best:  #BE3AFF;
   --f1-sector-pb:    #00CC00;
   --f1-sector-slow:  #FFF200;
-  --background:      #080808;
+  --background:      #07090D;
   --foreground:      #F0F0F0;
-  --surface:         #0F0F0F;
-  --surface-raised:  #141414;
-  --border-subtle:   rgba(255, 255, 255, 0.055);
-  --border-dim:      rgba(255, 255, 255, 0.08);
+  --surface:         #0D111B;
+  --surface-raised:  #101520;
+  --border-subtle:   rgba(126, 140, 170, 0.18);
+  --border-dim:      rgba(126, 140, 170, 0.24);
 }
 
 @theme inline {
@@ -51,10 +51,7 @@
    Base
    ================================================ */
 body {
-  background: #080808;
-  background-image:
-    radial-gradient(ellipse 70% 45% at 0% 0%, rgba(225, 6, 0, 0.07), transparent),
-    radial-gradient(ellipse 50% 35% at 100% 100%, rgba(120, 0, 0, 0.04), transparent);
+  background: #07090D;
   color: var(--foreground);
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
@@ -127,16 +124,16 @@ body {
 
 /* Glass surfaces */
 @utility glass {
-  background: rgba(14, 14, 14, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(13, 17, 27, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
 }
 
 @utility glass-strong {
-  background: rgba(9, 9, 9, 0.88);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(8, 11, 17, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-dim);
 }
 

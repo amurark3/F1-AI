@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from fastf1.ergast import Ergast
 
 from app.api.circuits import get_circuit_info
+from app.api.routers.champions import router as champions_router
 from app.api.routers.chat import router as chat_router
 from app.api.routers.predictions import router as predictions_router
 from app.api.routers.race_control import router as race_control_router
@@ -54,6 +55,7 @@ router.include_router(chat_router)
 router.include_router(predictions_router)
 router.include_router(race_control_router)
 router.include_router(season_router)
+router.include_router(champions_router)
 
 # ---------------------------------------------------------------------------
 # FastF1 cache — speeds up repeated session data requests significantly.

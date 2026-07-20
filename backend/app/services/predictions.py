@@ -2,8 +2,29 @@
 
 from __future__ import annotations
 
-from app.data.predictions import compute_race_predictions
+from app.data.predictions import compute_race_predictions, get_prediction_review
 from app.services.prediction_cache import prediction_snapshot_cache
+
+
+def get_cached_race_prediction(year: int, round_num: int) -> dict | None:
+    """Return a stored race prediction snapshot without computing a new one."""
+
+    cached = prediction_snapshot_cache.get(year, round_num)
+    return enrich_prediction_result(cached) if cached else None
+
+
+def compute_and_store_race_prediction(
+    year: int,
+    round_num: int,
+    *,
+    reason: str = "manual_compute",
+) -> dict:
+    """Compute a fresh race prediction snapshot and store it as the active version."""
+
+    result = compute_race_predictions(year, round_num)
+    if result.get("predictions"):
+        return enrich_prediction_result(prediction_snapshot_cache.set(year, round_num, result, reason=reason))
+    return enrich_prediction_result(result)
 
 
 def get_or_compute_race_prediction(year: int, round_num: int) -> dict:
@@ -13,11 +34,7 @@ def get_or_compute_race_prediction(year: int, round_num: int) -> dict:
     if cached:
         return enrich_prediction_result(cached)
 
-    result = compute_race_predictions(year, round_num)
-    if result.get("predictions"):
-        return enrich_prediction_result(prediction_snapshot_cache.set(year, round_num, result))
-
-    return enrich_prediction_result(result)
+    return compute_and_store_race_prediction(year, round_num, reason="first_compute")
 
 
 def enrich_prediction_result(result: dict) -> dict:
@@ -25,6 +42,7 @@ def enrich_prediction_result(result: dict) -> dict:
 
     enriched = dict(result)
     predictions = enriched.get("predictions") or []
+    risk_predictions = enriched.get("risk_predictions") or []
     sources = set(enriched.get("data_sources") or [])
     warnings = enriched.get("warnings") or []
     top_three = predictions[:3]
@@ -41,9 +59,16 @@ def enrich_prediction_result(result: dict) -> dict:
         "average_top3_confidence": round(sum(confidence_values) / len(confidence_values), 1) if confidence_values else None,
         "source_count": len(sources),
         "status": "ready" if predictions else "data_unavailable",
-        "snapshot_policy": "Race forecasts are stable cached snapshots until the next race window.",
+        "snapshot_policy": "Stored race predictions stay fixed until a manual compute or qualifying recompute is requested.",
+        "risk_count": len(risk_predictions),
     }
     enriched["model_inputs"] = [
+        input_card(
+            "Trained finish model",
+            "available" if "trained_ml_model" in sources else "fallback",
+            "Blends the historical GradientBoosting finish model with heuristic race signals.",
+            "backend/models/race_predictor.joblib" if "trained_ml_model" in sources else "heuristic-only path",
+        ),
         input_card(
             "Qualifying / practice pace",
             "available" if {"qualifying", "practice"} & sources else "missing",
@@ -74,13 +99,31 @@ def enrich_prediction_result(result: dict) -> dict:
             "Tightens confidence if same-weekend sprint race data exists.",
             "sprint classification" if "sprint_result" in sources else "no sprint result",
         ),
+        input_card(
+            "Adaptive correction",
+            "available" if "adaptive_history" in sources else "limited",
+            "Learns from prior over- and under-predictions as race results are reviewed.",
+            "prediction history review" if "adaptive_history" in sources else "waiting for more evaluated races",
+        ),
+        input_card(
+            "DNF / crash risk",
+            "available" if risk_predictions else "limited",
+            "Separates retirement and accident risk from finishing-order prediction.",
+            "recent status history and grid traffic bands" if risk_predictions else "not generated",
+        ),
     ]
     enriched["model_limitations"] = [
         "Forecasts are probabilistic scenario calls, not live timing telemetry.",
         "Weather and safety-car outcomes are not live stochastic simulations in this model.",
-        "Cached snapshots intentionally do not change until the next race window.",
+        "Stored snapshots intentionally do not change until a manual compute or recompute.",
         *warnings[:2],
     ]
+    enriched["risk_predictions"] = risk_predictions
+    if predictions and "prediction_review" not in enriched:
+        enriched["prediction_review"] = get_prediction_review(
+            int(enriched.get("year", 0)),
+            int(enriched.get("round", 0)),
+        )
     return enriched
 
 

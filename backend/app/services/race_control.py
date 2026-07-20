@@ -19,7 +19,6 @@ from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options, get_standings_snapshot, safe_int
 from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
-from app.services.race_control_strategy import simulate_strategy
 from app.utils.f1_values import utc_isoformat
 
 logger = structlog.get_logger()
@@ -164,7 +163,7 @@ def build_workstreams(event: dict | None) -> list[dict]:
             "owner": "Performance",
             "priority": "P1",
             "status": "Build",
-            "href": "/race-control/strategy",
+            "href": "/race-control/predictions",
         },
         {
             "id": "rival-watch",

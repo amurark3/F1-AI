@@ -10,9 +10,9 @@ const NAV_ITEMS = [
   { href: '/',            label: 'Workspaces' },
   { href: '/race-control',label: 'Race Control' },
   { href: '/consumer',    label: 'Consumer' },
-  { href: '/strategy',    label: 'Strategy HQ' },
   { href: '/calendar',   label: 'Calendar' },
   { href: '/standings',  label: 'Standings' },
+  { href: '/champions',  label: 'Champions' },
   { href: '/predictions',label: 'Predictions' },
   { href: '/live',       label: 'Live',      live: true },
 ];

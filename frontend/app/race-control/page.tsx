@@ -221,7 +221,7 @@ export default function RaceControlHome() {
                 href="/race-control/predictions"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-3 text-sm font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
               >
-                Open prediction lab
+                Open predictions
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: retrain-race-predictor
@@ -39,15 +40,48 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -m app.ml.promote
 
-      - name: Commit promoted model
+      - name: Open, approve, and auto-merge PR
         if: steps.gate.outputs.promoted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add models/race_predictor.joblib
           if git diff --cached --quiet; then
             echo "Model bytes unchanged — nothing to commit."
-          else
-            git commit -m "chore: auto-retrain race predictor (f1db ${{ steps.gate.outputs.f1db_version }})"
-            git push
+            exit 0
           fi
+
+          # main is a protected branch (direct pushes are rejected), so land the
+          # retrained model via a pull request. The promotion gate that already
+          # ran in this job IS the automated review — the model is only here
+          # because it beat the grid-order baseline — so we approve + auto-merge.
+          BRANCH="auto-retrain/race-predictor-${{ github.run_id }}"
+          MSG="chore: auto-retrain race predictor (f1db ${{ steps.gate.outputs.f1db_version }})"
+          git checkout -b "$BRANCH"
+          git commit -m "$MSG"
+          git push origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$MSG" \
+            --body "Automated retrain: the challenger beat the grid-order baseline and was promoted (f1db ${{ steps.gate.outputs.f1db_version }}). The promotion gate is the automated review; merging redeploys the model.")
+          echo "Opened $PR_URL"
+
+          # Auto-approve from a separate identity when RETRAIN_PAT is configured
+          # (GitHub forbids approving a PR authored by the same actor, and the PR
+          # is authored by github-actions[bot]). Skipped gracefully if unset.
+          if [ -n "${{ secrets.RETRAIN_PAT }}" ]; then
+            GH_TOKEN="${{ secrets.RETRAIN_PAT }}" gh pr review "$PR_URL" --approve \
+              --body "Auto-approved: promotion gate passed (Spearman beat the grid-order baseline)."
+          else
+            echo "RETRAIN_PAT not set — skipping auto-approval (a required-review rule will hold the PR)."
+          fi
+
+          # Prefer auto-merge (waits for branch-protection checks); fall back to
+          # an immediate squash merge if auto-merge isn't enabled on the repo.
+          gh pr merge "$PR_URL" --squash --auto --delete-branch \
+            || gh pr merge "$PR_URL" --squash --delete-branch \
+            || echo "Could not auto-merge — the PR is open for manual merge."

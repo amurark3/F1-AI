@@ -39,6 +39,7 @@ from langchain_chroma import Chroma
 
 from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
 from app.data.f1db_query import F1DB_SCHEMA_DOC, QueryValidationError, run_readonly_query
+from app.data.f1db_standings import constructor_standings_detailed, driver_standings_detailed
 from app.data.strategy import analyze_pit_strategy
 from app.rag.rerank import rerank
 from app.data.weather import get_weather_for_circuit
@@ -816,6 +817,19 @@ def get_driver_standings(year: int):
     """
     logger.info("tool.driver_standings", year=year)
     try:
+        # f1db first — no rate limits and carries the current season.
+        detailed = driver_standings_detailed(year)
+        if detailed:
+            output = [f"### Driver Standings ({year})"]
+            output.append("| Pos | Driver | Team | Points | Wins |")
+            output.append("| :-- | :----- | :--- | :----- | :--- |")
+            for row in detailed:
+                output.append(
+                    f"| {row['position']} | {row['code']} | {row['team']} "
+                    f"| {row['points']:g} | {row['wins']} |"
+                )
+            return "\n".join(output)
+
         ergast = Ergast()
         data = ergast.get_driver_standings(season=year)
 
@@ -854,6 +868,18 @@ def get_constructor_standings(year: int):
     """
     logger.info("tool.constructor_standings", year=year)
     try:
+        # f1db first — no rate limits and carries the current season.
+        detailed = constructor_standings_detailed(year)
+        if detailed:
+            output = [f"### Constructor Standings ({year})"]
+            output.append("| Pos | Team | Points | Wins |")
+            output.append("| :-- | :--- | :----- | :--- |")
+            for row in detailed:
+                output.append(
+                    f"| {row['position']} | {row['team']} | {row['points']:g} | {row['wins']} |"
+                )
+            return "\n".join(output)
+
         ergast = Ergast()
         data = ergast.get_constructor_standings(season=year)
 

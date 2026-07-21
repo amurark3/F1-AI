@@ -98,3 +98,25 @@ def driver_teams(year: int, round_num: int) -> dict[str, str]:
             (year, round_num),
         ).fetchall()
     return {r["code"]: r["team"] for r in rows}
+
+
+def race_retirements(year: int, round_num: int) -> dict[str, str | None]:
+    """``{driver_code: race_reason_retired}`` for every race entrant.
+
+    The reason is ``None`` for classified finishers and a retirement cause
+    (e.g. ``"Accident"``, ``"Engine"``) for DNFs — enough to profile a driver's
+    reliability/incident history.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.abbreviation AS code, rd.race_reason_retired AS reason
+            FROM race_data rd
+            JOIN race r ON r.id = rd.race_id
+            JOIN driver d ON d.id = rd.driver_id
+            WHERE r.year = ? AND r.round = ? AND rd.type = 'RACE_RESULT'
+              AND d.abbreviation IS NOT NULL
+            """,
+            (year, round_num),
+        ).fetchall()
+    return {r["code"]: r["reason"] for r in rows}

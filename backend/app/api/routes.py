@@ -18,7 +18,6 @@ The chat endpoint implements an agentic loop:
   5. Stream the final text back to the client.
 """
 
-import math
 import asyncio
 import threading
 import structlog
@@ -26,7 +25,6 @@ import pandas as pd
 import fastf1
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from datetime import datetime, timezone
-from fastf1.ergast import Ergast
 
 from app.api.circuits import get_circuit_info
 from app.api.routers.champions import router as champions_router
@@ -577,32 +575,27 @@ async def compare_drivers_endpoint(year: int, driver1: str, driver2: str):
 
 
 def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) -> dict:
-    """Build season-long head-to-head stats for two drivers."""
-    ergast = Ergast()
+    """Build season-long head-to-head stats for two drivers (sourced from f1db)."""
+    from app.data.f1db_results import qualifying_positions, race_results, race_schedule
+    from app.data.f1db_standings import driver_standings_detailed
 
-    # Resolve driver codes from standings
-    standings_data = ergast.get_driver_standings(season=year)
-    if not standings_data.content:
+    standings = driver_standings_detailed(year)
+    if not standings:
         return {"error": f"No standings data for {year}"}
-
-    df = standings_data.content[0]
 
     def find_driver(query: str) -> dict | None:
         q = query.lower().strip()
-        for _, row in df.iterrows():
-            code = str(row.get("driverCode", "")).lower()
-            family = str(row.get("familyName", "")).lower()
-            given = str(row.get("givenName", "")).lower()
-            if q == code or q in family or q in given:
-                teams = row.get("constructorNames", row.get("constructorName", "Unknown"))
-                team = teams[-1] if isinstance(teams, list) and teams else str(teams)
+        for row in standings:
+            code = str(row.get("code", "")).lower()
+            name = str(row.get("name", "")).lower()
+            if q == code or q in name:
                 return {
-                    "code": str(row.get("driverCode", "")),
-                    "name": f"{row.get('givenName', '')} {row.get('familyName', '')}",
-                    "team": team,
+                    "code": row.get("code", ""),
+                    "name": row.get("name", ""),
+                    "team": row.get("team", "Unknown"),
                     "points": float(row.get("points", 0)),
                     "wins": int(row.get("wins", 0)),
-                    "position": _safe_int(row.get("position", 0)),
+                    "position": int(row.get("position", 0)),
                 }
         return None
 
@@ -612,75 +605,44 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
     if not d1 or not d2:
         return {"error": f"Could not find driver '{driver1_query}' or '{driver2_query}' in {year} standings."}
 
-    # Get race results for each round to build head-to-head
-    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-    now_utc = datetime.now()
-
     quali_h2h = {"d1": 0, "d2": 0}
     race_h2h = {"d1": 0, "d2": 0}
     rounds = []
+    d1_positions: list[int] = []
+    d2_positions: list[int] = []
 
-    d1_positions = []
-    d2_positions = []
+    # Walk the season's rounds from f1db. race_results is empty for rounds not
+    # yet run / not in the dataset, so future rounds are naturally skipped.
+    for event in race_schedule(year):
+        round_num = int(event["round"])
+        round_data = {"round": round_num, "name": event.get("name", f"Round {round_num}")}
 
-    for _, event in schedule.iterrows():
-        race_date = event["EventDate"]
-        if race_date > now_utc:
-            break  # Skip future races
+        race_pos = race_results(year, round_num)
+        if not race_pos:
+            continue
 
-        round_num = int(event["RoundNumber"])
-        gp_name = event["EventName"]
+        d1_race = race_pos.get(d1["code"])
+        d2_race = race_pos.get(d2["code"])
+        if d1_race is not None and d2_race is not None:
+            round_data["d1_race"] = d1_race
+            round_data["d2_race"] = d2_race
+            d1_positions.append(d1_race)
+            d2_positions.append(d2_race)
+            if d1_race < d2_race:
+                race_h2h["d1"] += 1
+            elif d2_race < d1_race:
+                race_h2h["d2"] += 1
 
-        round_data = {"round": round_num, "name": gp_name}
-
-        # Try loading race results from Ergast (lighter than FastF1)
-        try:
-            race_data = ergast.get_race_results(season=year, round=round_num)
-            if race_data.content:
-                rdf = race_data.content[0]
-                d1_row = rdf[rdf["driverCode"] == d1["code"]]
-                d2_row = rdf[rdf["driverCode"] == d2["code"]]
-
-                if not d1_row.empty and not d2_row.empty:
-                    r1 = d1_row.iloc[0]["position"]
-                    r2 = d2_row.iloc[0]["position"]
-                    if (isinstance(r1, float) and math.isnan(r1)) or (isinstance(r2, float) and math.isnan(r2)):
-                        rounds.append(round_data)
-                        continue
-                    d1_pos = int(r1)
-                    d2_pos = int(r2)
-                    round_data["d1_race"] = d1_pos
-                    round_data["d2_race"] = d2_pos
-                    d1_positions.append(d1_pos)
-                    d2_positions.append(d2_pos)
-
-                    if d1_pos < d2_pos:
-                        race_h2h["d1"] += 1
-                    elif d2_pos < d1_pos:
-                        race_h2h["d2"] += 1
-        except Exception as e:
-            logger.warning("compare.race_results_error", year=year, round=round_num, error=str(e))
-
-        # Try qualifying
-        try:
-            quali_data = ergast.get_qualifying_results(season=year, round=round_num)
-            if quali_data.content:
-                qdf = quali_data.content[0]
-                d1_q = qdf[qdf["driverCode"] == d1["code"]]
-                d2_q = qdf[qdf["driverCode"] == d2["code"]]
-
-                if not d1_q.empty and not d2_q.empty:
-                    d1_qpos = _safe_int(d1_q.iloc[0]["position"])
-                    d2_qpos = _safe_int(d2_q.iloc[0]["position"])
-                    round_data["d1_quali"] = d1_qpos
-                    round_data["d2_quali"] = d2_qpos
-
-                    if d1_qpos < d2_qpos:
-                        quali_h2h["d1"] += 1
-                    elif d2_qpos < d1_qpos:
-                        quali_h2h["d2"] += 1
-        except Exception as e:
-            logger.warning("compare.quali_results_error", year=year, round=round_num, error=str(e))
+        quali_pos = qualifying_positions(year, round_num)
+        d1_q = quali_pos.get(d1["code"])
+        d2_q = quali_pos.get(d2["code"])
+        if d1_q is not None and d2_q is not None:
+            round_data["d1_quali"] = d1_q
+            round_data["d2_quali"] = d2_q
+            if d1_q < d2_q:
+                quali_h2h["d1"] += 1
+            elif d2_q < d1_q:
+                quali_h2h["d2"] += 1
 
         rounds.append(round_data)
 

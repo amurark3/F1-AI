@@ -28,6 +28,14 @@ export const getTeamColor = (team: string): string => {
   return "#6B7280";
 };
 
+export interface ModelAttribution {
+  feature: string;
+  label: string;
+  value: number;
+  contribution: number;
+  direction: "helps" | "hurts";
+}
+
 export interface DriverPrediction {
   position: number;
   driver_code: string;
@@ -36,6 +44,7 @@ export interface DriverPrediction {
   confidence_low: number;
   confidence_high: number;
   factors: string[];
+  model_attribution?: ModelAttribution[] | null;
 }
 
 interface PredictionDriverCardProps {

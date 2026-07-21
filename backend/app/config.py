@@ -71,9 +71,12 @@ EMBEDDING_MODEL_NAME = os.getenv(
 RULEBOOK_TOP_K = int(os.getenv("RULEBOOK_TOP_K", "6"))
 
 # ---------------------------------------------------------------------------
-# LLM settings
+# LLM settings — Groq only
 # ---------------------------------------------------------------------------
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-2.0-flash")
+# Groq — free, reliable, tool-calling capable engine. Llama 3.3 70B supports the
+# function calling the agentic loop depends on. Get a free key at
+# https://console.groq.com (no card required); set GROQ_API_KEY.
+GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 

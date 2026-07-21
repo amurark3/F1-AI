@@ -33,12 +33,12 @@ from fastf1.ergast import Ergast
 from app.config import (
     CIRCUIT_HISTORY_WEIGHT,
     GRID_TO_FINISH_WEIGHT,
-    PREDICTION_HISTORY_PATH,
     QUALIFYING_WEIGHT,
     RECENT_FORM_WEIGHT,
     TEAM_STRENGTH_WEIGHT,
 )
 from app.data.f1db_standings import current_constructor_standings, current_driver_standings
+from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
 from app.ml.features import build_feature_row
 
 logger = structlog.get_logger()
@@ -568,6 +568,24 @@ def _ml_finish_score(features: dict[str, float]) -> float | None:
         return None
 
 
+def _ml_explanation(features: dict[str, float]):
+    """Return the exact per-feature attribution for one driver's ML projection.
+
+    Returns a list of :class:`FeatureContribution` (strongest first), or None
+    when the model is unavailable or not a supported linear model.
+    """
+    payload = _load_ml_model()
+    if not payload:
+        return None
+    try:
+        from app.ml.explain import explain_prediction
+
+        return explain_prediction(payload, features)
+    except Exception as exc:
+        logger.warning("predictions.ml_explanation_failed", error=str(exc))
+        return None
+
+
 def _status_text(row: Any) -> str:
     for key in ("status", "Status"):
         value = row.get(key)
@@ -938,6 +956,46 @@ def _compute_risk_predictions(
 # Main prediction function
 # ===================================================================
 
+def _qualifying_has_occurred(event_row) -> bool:
+    """Return True if this event's qualifying session is in the past (UTC).
+
+    For an upcoming race weekend the qualifying and practice sessions do not
+    exist yet, so trying to load them from FastF1 just triggers a series of slow
+    failing network calls (and can push a compute past its timeout). We gate the
+    session loads on this check and go straight to the historical/pre-qualifying
+    path when the weekend has not run.
+
+    Falls back to True (attempt the load) whenever the schedule is unavailable,
+    preserving the original behaviour.
+    """
+    import pandas as pd
+
+    now = datetime.now(timezone.utc)
+
+    def _to_utc(value):
+        if value is None or pd.isna(value):
+            return None
+        dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+    # Prefer the explicit Qualifying session datetime.
+    for i in range(1, 6):
+        name = event_row.get(f"Session{i}")
+        if isinstance(name, str) and name.strip().lower() == "qualifying":
+            quali_dt = _to_utc(event_row.get(f"Session{i}DateUtc"))
+            if quali_dt is not None:
+                return quali_dt <= now
+
+    # Fallback: assume qualifying is ~1 day before the race.
+    race_dt = _to_utc(event_row.get("EventDate"))
+    if race_dt is not None:
+        from datetime import timedelta
+
+        return (race_dt - timedelta(days=1)) <= now
+
+    return True  # unknown schedule → attempt the load (original behaviour)
+
+
 def compute_race_predictions(year: int, round_num: int) -> dict:
     """Compute probabilistic race outcome predictions for all drivers.
 
@@ -955,35 +1013,45 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     is_pre_qualifying = False
 
     # ------------------------------------------------------------------
-    # 1. Load qualifying (or practice fallback)
-    # ------------------------------------------------------------------
-    quali_data = _load_qualifying(year, round_num)
-    if quali_data:
-        data_sources.append("qualifying")
-    else:
-        # Pre-qualifying fallback
-        quali_data = _load_practice(year, round_num)
-        if quali_data:
-            data_sources.append("practice")
-            is_pre_qualifying = True
-            warnings.append("Qualifying data unavailable; using practice session pace as proxy")
-        else:
-            is_pre_qualifying = True
-            warnings.append("No qualifying or practice data available; using historical data only")
-
-    # ------------------------------------------------------------------
-    # 2. Get event info for circuit key
+    # 1. Get event info (needed for circuit key AND to gate session loads)
     # ------------------------------------------------------------------
     circuit_key = f"round_{round_num}"
     gp_name = f"Round {round_num}"
+    event_row = None
     try:
         schedule = fastf1.get_event_schedule(year, include_testing=False)
         event = schedule[schedule["RoundNumber"] == round_num]
         if not event.empty:
-            gp_name = str(event.iloc[0].get("EventName", gp_name))
-            circuit_key = str(event.iloc[0].get("Location", circuit_key))
+            event_row = event.iloc[0]
+            gp_name = str(event_row.get("EventName", gp_name))
+            circuit_key = str(event_row.get("Location", circuit_key))
     except Exception as exc:
         warnings.append(f"Could not load event schedule: {exc}")
+
+    # ------------------------------------------------------------------
+    # 2. Load qualifying (or practice fallback) — only if the weekend has run.
+    #    Skipping futile loads for upcoming races avoids slow failing FastF1
+    #    calls and keeps the compute well under its timeout.
+    # ------------------------------------------------------------------
+    sessions_occurred = _qualifying_has_occurred(event_row) if event_row is not None else True
+    quali_data = None
+    if sessions_occurred:
+        quali_data = _load_qualifying(year, round_num)
+        if quali_data:
+            data_sources.append("qualifying")
+        else:
+            quali_data = _load_practice(year, round_num)
+            if quali_data:
+                data_sources.append("practice")
+                is_pre_qualifying = True
+                warnings.append("Qualifying data unavailable; using practice session pace as proxy")
+
+    if not quali_data:
+        is_pre_qualifying = True
+        if sessions_occurred:
+            warnings.append("No qualifying or practice data available; using historical data only")
+        else:
+            warnings.append("Race weekend has not started; using historical form only")
 
     # ------------------------------------------------------------------
     # 3. Load supporting data
@@ -1179,17 +1247,33 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         )
 
         # Factors
-        factors = _generate_factors(
+        heuristic_factors = _generate_factors(
             code, quali_pos, recent_positions, driver_circuit,
             team_pos, driver_delta, is_pre_qualifying,
             sprint_pos=sprint_pos,
         )
+
+        # Model attribution — exact per-feature contributions from the linear
+        # model, so the reasoning shown is the model's own, not a heuristic guess.
+        model_attribution = None
+        model_phrases: list[str] = []
         if ml_score is not None:
-            factors = [f"Trained model projects P{ml_score:.1f}"] + factors
+            contributions = _ml_explanation(ml_features)
+            if contributions:
+                from app.ml.explain import attribution_dicts, attribution_phrases
+
+                model_attribution = attribution_dicts(contributions)
+                model_phrases = attribution_phrases(contributions, top_n=2)
+
+        factors = list(heuristic_factors)
+        if ml_score is not None:
+            factors = [f"Trained model projects P{ml_score:.1f}"] + model_phrases + factors
         if correction and abs(correction["correction"]) >= 1:
             direction = "downgrades" if correction["correction"] > 0 else "upgrades"
             factors.append(f"Adaptive history {direction} by {abs(correction['correction']):.1f} places")
-        factors = factors[:3]
+        # Keep more factors when the model contributes reasoning; heuristic-only
+        # predictions stay at the original 3.
+        factors = factors[:5] if ml_score is not None else factors[:3]
 
         scored = {
             "driver_code": code,
@@ -1206,6 +1290,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "confidence_low": confidence_low,
             "confidence_high": confidence_high,
             "factors": factors,
+            "model_attribution": model_attribution,
         }
         scored_drivers.append(scored)
         scored_by_code[code] = scored
@@ -1230,6 +1315,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "confidence_low": driver["confidence_low"],
             "confidence_high": driver["confidence_high"],
             "factors": driver["factors"],
+            "model_attribution": driver.get("model_attribution"),
         })
 
     risk_predictions = _compute_risk_predictions(predictions, scored_by_code, year, round_num)
@@ -1277,51 +1363,24 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 # ===================================================================
 
 def _load_prediction_history() -> dict:
-    """Load the prediction history JSON file.
+    """Load prediction history from the document store (Postgres or JSON fallback).
 
-    Returns an empty dict if the file is missing or corrupted.
+    Returns an empty dict if absent or malformed.
     Never raises — graceful degradation is paramount.
     """
-    try:
-        path = Path(PREDICTION_HISTORY_PATH)
-        if not path.exists():
-            return {}
-        content = path.read_text(encoding="utf-8").strip()
-        if not content:
-            return {}
-        data = json.loads(content)
-        if not isinstance(data, dict):
-            logger.warning("predictions.history_invalid_format", path=str(path))
-            return {}
-        return data
-    except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("predictions.history_load_error", error=str(exc))
+    data = document_store.read(DOCUMENT_PREDICTION_HISTORY)
+    if not isinstance(data, dict):
         return {}
+    return data
 
 
 def _save_prediction_history(data: dict) -> None:
-    """Atomically write prediction history to JSON file.
+    """Persist prediction history via the document store (Postgres or JSON fallback).
 
-    Creates parent directories if needed.  Uses a write-to-temp-then-rename
-    pattern to avoid corruption from partial writes.
+    Durable when DATABASE_URL is configured; falls back to an atomic local file
+    write otherwise.  Never raises.
     """
-    path = Path(PREDICTION_HISTORY_PATH)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    tmp_path = path.with_suffix(".json.tmp")
-    try:
-        tmp_path.write_text(
-            json.dumps(data, indent=2, default=str),
-            encoding="utf-8",
-        )
-        tmp_path.replace(path)  # Atomic on POSIX
-    except OSError as exc:
-        logger.warning("predictions.history_save_error", error=str(exc))
-        # Clean up temp file if rename failed
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+    document_store.write(DOCUMENT_PREDICTION_HISTORY, data)
 
 
 def save_prediction(year: int, round_num: int, predictions: dict) -> None:

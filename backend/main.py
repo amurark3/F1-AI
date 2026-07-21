@@ -99,6 +99,15 @@ async def _prefetch_race_details():
         except Exception as e:
             logger.error("prefetch.loop_error", error=str(e))
 
+        # Self-improving loop: record actuals + generate LLM miss post-mortems
+        # for completed races. Guarded so a failure never breaks prefetch.
+        try:
+            from app.services.self_improvement import run_self_improvement_pass
+
+            await asyncio.to_thread(run_self_improvement_pass, datetime.now(timezone.utc).year)
+        except Exception as e:
+            logger.error("self_improvement.loop_error", error=str(e))
+
         # Sleep before the next sweep (default 30 minutes).
         await asyncio.sleep(PREFETCH_INTERVAL)
 

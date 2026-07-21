@@ -6,12 +6,9 @@ uvicorn[standard]
 langchain
 langchain-community
 langchain-core
-langchain-google-genai
+langchain-groq
 langchain-huggingface
 langchain-chroma
-
-# Google Generative AI client
-google-generativeai
 
 # Vector database
 chromadb
@@ -34,6 +31,9 @@ fastmcp
 
 # Structured logging
 structlog
+
+# Durable document store (Supabase / Postgres) — optional, JSON fallback if unset
+psycopg[binary]
 
 # Utilities
 pydantic

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getTeamColor, type DriverPrediction } from "@/app/components/PredictionDriverCard";
 import { InlineNotice, SectionLoader, StatusPill, rcFont } from "../components/RaceControlPrimitives";
+import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
 
 interface RaceEvent {
   round: number;
@@ -550,7 +551,36 @@ function PodiumPanel({
           )}
         </div>
       </ConsolePanel>
+
+      <ModelWhyPanel prediction={podium[0]} driverLookup={driverLookup} />
     </div>
+  );
+}
+
+function ModelWhyPanel({ prediction, driverLookup }: { prediction?: DriverPrediction; driverLookup: DriverLookup }) {
+  const attribution = prediction?.model_attribution;
+  if (!prediction || !attribution?.length) return null;
+
+  // Show the strongest signals, largest absolute impact first.
+  const data: AttributionEntry[] = [...attribution]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 6)
+    .map((a) => ({ label: a.label, contribution: a.contribution }));
+
+  return (
+    <ConsolePanel>
+      <ConsoleHeader
+        label={`Why the model picks ${driverDisplayName(prediction, driverLookup)}`}
+        right={<span className="font-mono text-[10px] text-[#7F8797]">exact linear attribution</span>}
+      />
+      <div className="p-4">
+        <p className="mb-2 font-mono text-[11px] text-[#6F7789]">
+          Per-signal effect on the projected finish — <span className="text-[#00FF78]">green improves</span>,{" "}
+          <span className="text-[#FF4655]">red worsens</span>.
+        </p>
+        <ModelAttributionBars data={data} />
+      </div>
+    </ConsolePanel>
   );
 }
 

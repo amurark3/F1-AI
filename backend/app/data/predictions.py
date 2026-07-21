@@ -33,18 +33,26 @@ from fastf1.ergast import Ergast
 from app.config import (
     CIRCUIT_HISTORY_WEIGHT,
     GRID_TO_FINISH_WEIGHT,
+    ML_PREDICTION_BLEND_WEIGHT,
+    PREDICTION_ADAPTIVE_WEIGHT,
     QUALIFYING_WEIGHT,
     RECENT_FORM_WEIGHT,
     TEAM_STRENGTH_WEIGHT,
 )
-from app.data.f1db_standings import current_constructor_standings, current_driver_standings
+from app.data.f1db_standings import (
+    current_constructor_standings,
+    current_driver_standings,
+    driver_standings_detailed,
+)
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
 from app.ml.features import build_feature_row
 
 logger = structlog.get_logger()
 MODEL_PATH = Path(os.getenv("RACE_PREDICTOR_MODEL_PATH", "models/race_predictor.joblib"))
-ML_BLEND_WEIGHT = float(os.getenv("ML_PREDICTION_BLEND_WEIGHT", "0.55"))
-ADAPTIVE_CORRECTION_WEIGHT = float(os.getenv("PREDICTION_ADAPTIVE_WEIGHT", "0.22"))
+# Blend/adaptive weights live in app.config so the backtest harness and the live
+# scorer share one source of truth. Kept as module-level aliases for callers.
+ML_BLEND_WEIGHT = ML_PREDICTION_BLEND_WEIGHT
+ADAPTIVE_CORRECTION_WEIGHT = PREDICTION_ADAPTIVE_WEIGHT
 
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
@@ -60,8 +68,14 @@ _qualifying_cache: dict[tuple[int, int], Any] = {}
 # (year, round_num) -> practice results dict (fallback)
 _practice_cache: dict[tuple[int, int], Any] = {}
 
-# (driver_code, year) -> list of recent finishing positions
-_recent_form_cache: dict[tuple[str, int], list[int]] = {}
+# (driver_code, year, current_round) -> list of recent finishing positions
+_recent_form_cache: dict[tuple[str, int, int], list[int]] = {}
+
+# year -> {round: {driver_code: finishing position}} — whole-season results, loaded once
+_season_results_cache: dict[int, dict[int, dict[str, int]]] = {}
+
+# year -> {round: {driver_code: retirement reason or None}} — loaded once
+_season_retirements_cache: dict[int, dict[int, dict[str, str | None]]] = {}
 
 # (year,) -> driver_code -> list of (round, sprint finishing position) this season
 _recent_sprint_form_cache: dict[tuple[int,], dict[str, list[tuple[int, int]]]] = {}
@@ -202,55 +216,63 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
     return None
 
 
-def _load_recent_form(driver_code: str, year: int, current_round: int) -> list[int]:
-    """Get last 5 race finishing positions for a driver in the current season.
+def _season_race_positions(year: int) -> dict[int, dict[str, int]]:
+    """Return ``{round: {driver_code: finishing_position}}`` for a season from f1db.
 
-    Falls back to previous season if fewer than 2 results available.
+    Loaded once per season and cached. Uses the same ``race_results`` helper the
+    training pipeline uses, so inference recent-form matches training exactly.
     """
-    cache_key = (driver_code, year)
+    cached = _season_results_cache.get(year)
+    if cached is not None:
+        return cached
+
+    from app.data.f1db_results import race_results, race_schedule
+
+    cached = {}
+    try:
+        for event in race_schedule(year):
+            round_num = int(event["round"])
+            positions = race_results(year, round_num)
+            if positions:
+                cached[round_num] = positions
+    except Exception as exc:
+        logger.warning("predictions.season_results_error", year=year, error=str(exc))
+
+    _season_results_cache[year] = cached
+    return cached
+
+
+def _load_recent_form(driver_code: str, year: int, current_round: int) -> list[int]:
+    """Get a driver's last 5 race finishing positions *before* ``current_round``.
+
+    Sourced from f1db (no rate limits). Bounding to rounds before the current one
+    mirrors the ``season_results_so_far`` accumulator used at training time, so
+    the recent_form feature is consistent between training and serving. Falls back
+    to the previous season when fewer than 2 results are available.
+    """
+    cache_key = (driver_code, year, current_round)
     if cache_key in _recent_form_cache:
         return _recent_form_cache[cache_key]
 
-    positions: list[int] = []
+    def _driver_positions(season: int, before_round: int | None) -> list[int]:
+        results = _season_race_positions(season)
+        out: list[int] = []
+        for round_num in sorted(results):
+            if before_round is not None and round_num >= before_round:
+                continue
+            pos = results[round_num].get(driver_code)
+            if pos is not None:
+                out.append(pos)
+        return out
 
-    try:
-        ergast = Ergast()
-        # Current season results
-        data = ergast.get_race_results(season=year)
-        if data.content:
-            for race_results in data.content:
-                for _, row in race_results.iterrows():
-                    if str(row.get("driverCode", "")) == driver_code:
-                        pos = row.get("position")
-                        if pos is not None:
-                            try:
-                                positions.append(int(pos))
-                            except (ValueError, TypeError):
-                                pass
+    positions = _driver_positions(year, current_round)
 
-        # If we have fewer than 2 results, also check previous season
-        if len(positions) < 2:
-            prev_data = ergast.get_race_results(season=year - 1)
-            if prev_data.content:
-                prev_positions = []
-                for race_results in prev_data.content:
-                    for _, row in race_results.iterrows():
-                        if str(row.get("driverCode", "")) == driver_code:
-                            pos = row.get("position")
-                            if pos is not None:
-                                try:
-                                    prev_positions.append(int(pos))
-                                except (ValueError, TypeError):
-                                    pass
-                # Take last 5 from previous season + current
-                positions = prev_positions[-5:] + positions
+    # Fewer than 2 results this season — pad with the tail of the previous season.
+    if len(positions) < 2:
+        prev_positions = _driver_positions(year - 1, None)
+        positions = prev_positions[-5:] + positions
 
-        # Keep only last 5
-        positions = positions[-5:]
-
-    except Exception as exc:
-        logger.warning("predictions.recent_form_error", driver=driver_code, error=str(exc))
-
+    positions = positions[-5:]
     _recent_form_cache[cache_key] = positions
     return positions
 
@@ -269,21 +291,12 @@ def _load_recent_sprint_form(year: int, current_round: int) -> dict[str, list[in
     if cached is None:
         cached = {}
         try:
-            ergast = Ergast()
-            data = ergast.get_sprint_results(season=year, limit=1000)
-            if data.content:
-                rounds = list(data.description.get("round", []))
-                for index, sprint_results in enumerate(data.content):
-                    sprint_round = int(rounds[index]) if index < len(rounds) else index + 1
-                    for _, row in sprint_results.iterrows():
-                        code = str(row.get("driverCode", ""))
-                        pos = row.get("position")
-                        if not code or pos is None:
-                            continue
-                        try:
-                            cached.setdefault(code, []).append((sprint_round, int(pos)))
-                        except (ValueError, TypeError):
-                            pass
+            from app.data.f1db_results import race_schedule, sprint_positions
+
+            for event in race_schedule(year):
+                sprint_round = int(event["round"])
+                for code, pos in sprint_positions(year, sprint_round).items():
+                    cached.setdefault(code, []).append((sprint_round, pos))
         except Exception as exc:
             logger.warning("predictions.recent_sprint_form_error", year=year, error=str(exc))
         _recent_sprint_form_cache[cache_key] = cached
@@ -586,14 +599,6 @@ def _ml_explanation(features: dict[str, float]):
         return None
 
 
-def _status_text(row: Any) -> str:
-    for key in ("status", "Status"):
-        value = row.get(key)
-        if value is not None:
-            return str(value)
-    return ""
-
-
 def _classify_status(status: str) -> dict[str, bool]:
     text = status.lower()
     classified = bool(text) and "finished" not in text and "lap" not in text
@@ -609,6 +614,31 @@ def _classify_status(status: str) -> dict[str, bool]:
     }
 
 
+def _season_retirements(year: int) -> dict[int, dict[str, str | None]]:
+    """Return ``{round: {driver_code: retirement reason or None}}`` for a season.
+
+    Loaded once per season from f1db and cached.
+    """
+    cached = _season_retirements_cache.get(year)
+    if cached is not None:
+        return cached
+
+    from app.data.f1db_results import race_retirements, race_schedule
+
+    cached = {}
+    try:
+        for event in race_schedule(year):
+            round_num = int(event["round"])
+            statuses = race_retirements(year, round_num)
+            if statuses:
+                cached[round_num] = statuses
+    except Exception as exc:
+        logger.warning("predictions.season_retirements_error", year=year, error=str(exc))
+
+    _season_retirements_cache[year] = cached
+    return cached
+
+
 def _load_recent_incidents(driver_code: str, year: int, current_round: int) -> dict[str, Any]:
     """Return recent DNF/crash profile for a driver across current and prior season."""
     cache_key = (driver_code, year, current_round)
@@ -621,28 +651,30 @@ def _load_recent_incidents(driver_code: str, year: int, current_round: int) -> d
     mechanical = 0
     statuses: list[str] = []
 
-    try:
-        ergast = Ergast()
-        for season in (year, year - 1):
-            data = ergast.get_race_results(season=season)
-            if not data.content:
+    def _accumulate(season: int, before_round: int | None) -> None:
+        nonlocal starts, dnfs, crashes, mechanical
+        results = _season_retirements(season)
+        for round_num in sorted(results):
+            if before_round is not None and round_num >= before_round:
                 continue
-            for index, race_results in enumerate(data.content, 1):
-                if season == year and index >= current_round:
-                    continue
-                for _, row in race_results.iterrows():
-                    if str(row.get("driverCode", "")) != driver_code:
-                        continue
-                    starts += 1
-                    status = _status_text(row)
-                    flags = _classify_status(status)
-                    if flags["dnf"]:
-                        dnfs += 1
-                        statuses.append(status)
-                    if flags["crash"]:
-                        crashes += 1
-                    if flags["mechanical"]:
-                        mechanical += 1
+            if driver_code not in results[round_num]:
+                continue
+            starts += 1
+            reason = results[round_num][driver_code]
+            if not reason:  # classified finisher — no retirement
+                continue
+            flags = _classify_status(reason)
+            if flags["dnf"]:
+                dnfs += 1
+                statuses.append(reason)
+            if flags["crash"]:
+                crashes += 1
+            if flags["mechanical"]:
+                mechanical += 1
+
+    try:
+        _accumulate(year, current_round)  # this season, before the current round
+        _accumulate(year - 1, None)       # plus the whole prior season
     except Exception as exc:
         logger.warning("predictions.incident_history_error", driver=driver_code, error=str(exc))
 
@@ -1093,20 +1125,18 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     if quali_data:
         drivers_input = quali_data
     else:
-        # Last resort: use constructor standings to generate a rough grid
-        # based on championship position
+        # Last resort (e.g. an upcoming race with no qualifying yet): build a
+        # rough grid from the latest championship standings. f1db gives real
+        # driver names + teams and has no rate limits.
         try:
-            ergast = Ergast()
-            standings_data = ergast.get_driver_standings(season=year)
-            if standings_data.content:
-                df = standings_data.content[0]
-                for _, row in df.iterrows():
-                    drivers_input.append({
-                        "driver_code": str(row.get("driverCode", "")),
-                        "driver_name": str(row.get("driverCode", "")),
-                        "team": ", ".join(row.get("constructorNames", [])) if isinstance(row.get("constructorNames"), list) else str(row.get("constructorNames", "")),
-                        "position": int(row.get("position", 20)),
-                    })
+            for row in driver_standings_detailed(year):
+                drivers_input.append({
+                    "driver_code": row["code"],
+                    "driver_name": row["name"],
+                    "team": row["team"],
+                    "position": row["position"],
+                })
+            if drivers_input:
                 data_sources.append("championship_position")
         except Exception as exc:
             warnings.append(f"Could not load driver standings for fallback: {exc}")

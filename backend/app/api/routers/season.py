@@ -9,6 +9,10 @@ from fastapi import APIRouter
 from fastf1.ergast import Ergast
 
 from app.api.circuits import get_circuit_info
+from app.data.f1db_standings import (
+    constructor_standings_detailed,
+    driver_standings_detailed,
+)
 from app.utils.f1_values import safe_float, safe_int, safe_str, utc_isoformat
 
 logger = structlog.get_logger()
@@ -72,6 +76,20 @@ def build_schedule_event(row) -> dict:
 async def get_driver_standings(year: int):
     """Returns World Drivers' Championship standings for `year`."""
 
+    # f1db first — no rate limits and carries the current season; Ergast fallback.
+    detailed = driver_standings_detailed(year)
+    if detailed:
+        return [
+            {
+                "position": row["position"],
+                "driver": row["name"],
+                "team": row["team"],
+                "points": row["points"],
+                "wins": row["wins"],
+            }
+            for row in detailed
+        ]
+
     try:
         ergast = Ergast()
         data = ergast.get_driver_standings(season=year)
@@ -125,6 +143,19 @@ def build_zero_point_driver_standings(ergast: Ergast, year: int) -> list[dict]:
 @router.get("/standings/constructors/{year}")
 async def get_constructor_standings(year: int):
     """Returns World Constructors' Championship standings for `year`."""
+
+    # f1db first — no rate limits and carries the current season; Ergast fallback.
+    detailed = constructor_standings_detailed(year)
+    if detailed:
+        return [
+            {
+                "position": row["position"],
+                "team": row["team"],
+                "points": row["points"],
+                "wins": row["wins"],
+            }
+            for row in detailed
+        ]
 
     try:
         ergast = Ergast()

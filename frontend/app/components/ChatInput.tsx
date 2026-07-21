@@ -1,8 +1,9 @@
 "use client";
 
 import { type RefObject } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useVoice } from '@/app/hooks/useVoice';
 
 interface ChatInputProps {
   input: string;
@@ -13,6 +14,10 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ input, isLoading, inputRef, onInputChange, onSubmit }: ChatInputProps) {
+  const { supported: voiceSupported, listening, startListening, stopListening } = useVoice({
+    onTranscript: (text) => onInputChange(input ? `${input} ${text}` : text),
+  });
+
   return (
     <div className="shrink-0 border-t border-white/5 carbon-fiber glass-strong p-3 sm:p-4">
       {/* RADIO channel label */}
@@ -35,7 +40,7 @@ export default function ChatInput({ input, isLoading, inputRef, onInputChange, o
           type="text"
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Ask for a race brief, driver delta, regulation call, or strategy explanation…"
+          placeholder={listening ? "Listening… speak your question" : "Ask for a race brief, driver delta, regulation call, or strategy explanation…"}
           className="flex-1 min-w-0 glass rounded-xl px-4 sm:px-5 py-3 text-sm text-white
             focus:outline-none focus:ring-1 focus:ring-[#E10600]/50
             focus:border-[#E10600]/30 focus:shadow-[0_0_16px_rgba(225,6,0,0.12)]
@@ -43,6 +48,24 @@ export default function ChatInput({ input, isLoading, inputRef, onInputChange, o
           disabled={isLoading}
           autoFocus
         />
+
+        {voiceSupported && (
+          <motion.button
+            type="button"
+            onClick={() => (listening ? stopListening() : startListening())}
+            disabled={isLoading}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.93 }}
+            aria-label={listening ? "Stop voice input" : "Start voice input"}
+            title={listening ? "Stop voice input" : "Speak your question"}
+            className={`shrink-0 px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed ${
+              listening ? 'text-white' : 'text-neutral-300 glass'
+            }`}
+            style={listening ? { background: 'linear-gradient(135deg, #E10600 0%, #FF3300 100%)', boxShadow: '0 4px 20px rgba(225,6,0,0.35)' } : undefined}
+          >
+            {listening ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+          </motion.button>
+        )}
 
         <motion.button
           type="submit"

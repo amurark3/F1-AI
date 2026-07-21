@@ -11,6 +11,11 @@ import pandas as pd
 import structlog
 from fastf1.ergast import Ergast
 
+from app.data.f1db_standings import (
+    constructor_standings_detailed,
+    driver_standings_detailed,
+)
+
 logger = structlog.get_logger()
 
 
@@ -114,6 +119,33 @@ def pluralise(value: int, singular: str, plural: str | None = None) -> str:
 
 
 def get_standings_snapshot(year: int) -> tuple[list[dict], list[dict]]:
+    # f1db first — no rate limits and carries the current in-progress season;
+    # fall back to live Ergast only if the season isn't in the local dataset yet.
+    f1db_drivers = driver_standings_detailed(year)
+    f1db_constructors = constructor_standings_detailed(year)
+    if f1db_drivers or f1db_constructors:
+        drivers = [
+            {
+                "position": row["position"],
+                "code": row["code"],
+                "driver": row["name"],
+                "team": row["team"],
+                "points": row["points"],
+                "wins": row["wins"],
+            }
+            for row in f1db_drivers
+        ]
+        constructors = [
+            {
+                "position": row["position"],
+                "team": row["team"],
+                "points": row["points"],
+                "wins": row["wins"],
+            }
+            for row in f1db_constructors
+        ]
+        return drivers, constructors
+
     ergast = Ergast()
     drivers = []
     constructors = []
@@ -150,6 +182,11 @@ def get_standings_snapshot(year: int) -> tuple[list[dict], list[dict]]:
 
 
 def load_driver_standings(year: int) -> list[dict]:
+    # f1db first (no rate limits, has the current season); Ergast as fallback.
+    detailed = driver_standings_detailed(year)
+    if detailed:
+        return detailed
+
     ergast = Ergast()
     driver_data = ergast.get_driver_standings(season=year)
     if not driver_data.content:
@@ -178,7 +215,7 @@ def get_driver_options(year: int) -> dict:
         return {
             "year": year,
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "source": "jolpica-ergast-driver-standings",
+            "source": "f1db-driver-standings",
             "drivers": [],
             "error": "Driver standings are unavailable right now.",
         }
@@ -186,7 +223,7 @@ def get_driver_options(year: int) -> dict:
     return {
         "year": year,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "source": "jolpica-ergast-driver-standings",
+        "source": "f1db-driver-standings",
         "drivers": drivers,
         "error": None if drivers else "No driver standings found for this season yet.",
     }

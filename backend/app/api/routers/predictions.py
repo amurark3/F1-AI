@@ -77,6 +77,26 @@ async def get_prediction_snapshot(year: int, round_num: int):
     }
 
 
+@router.get("/predictions/{year}/{round_num}/postmortem")
+async def get_prediction_postmortem(year: int, round_num: int):
+    """Return the LLM post-mortem for a completed race, generating it on demand."""
+    from app.services.self_improvement import generate_miss_postmortem, get_postmortem
+
+    existing = get_postmortem(year, round_num)
+    if existing:
+        return existing
+
+    result = await asyncio.to_thread(generate_miss_postmortem, year, round_num)
+    if result:
+        return result
+    return {
+        "year": year,
+        "round": round_num,
+        "available": False,
+        "reason": "Race not evaluated yet (no actual result) or LLM engine unavailable.",
+    }
+
+
 @router.post("/predictions/{year}/{round_num}/compute")
 async def compute_predictions(
     year: int,

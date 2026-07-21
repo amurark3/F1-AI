@@ -4,6 +4,23 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocalChats, type Message } from './useLocalChats';
 import { API_BASE } from '../constants/api';
 
+const USER_ID_KEY = 'f1ai_user_id';
+
+/** Stable per-browser user id (localStorage), created lazily on first send. */
+function getOrCreateUserId(): string {
+  if (typeof window === 'undefined') return 'anonymous';
+  try {
+    let id = window.localStorage.getItem(USER_ID_KEY);
+    if (!id) {
+      id = `u_${crypto.randomUUID()}`;
+      window.localStorage.setItem(USER_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return 'anonymous';
+  }
+}
+
 export function useChat() {
   const { chats, createChat, deleteChat, addMessage, updateLastMessage } = useLocalChats();
 
@@ -78,7 +95,13 @@ export function useChat() {
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          // Stable client id (localStorage) unlocks server-side personalisation
+          // and cross-session memory; the chat id scopes the conversation thread.
+          user_id: getOrCreateUserId(),
+          thread_id: chatId,
+        }),
       });
 
       if (!response.ok) throw new Error(`Server error: ${response.status}`);

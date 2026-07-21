@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import copy
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import fastf1
 import pandas as pd
 import structlog
 
-from app.config import PREDICTION_CACHE_PATH
+from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
 
 logger = structlog.get_logger()
 
@@ -82,8 +80,7 @@ class PredictionSnapshotCache:
     so old calls remain available for post-race review.
     """
 
-    def __init__(self, path: str = PREDICTION_CACHE_PATH) -> None:
-        self.path = Path(path)
+    def __init__(self) -> None:
         self._loaded = False
         self._entries: dict[str, dict[str, Any]] = {}
 
@@ -214,14 +211,8 @@ class PredictionSnapshotCache:
             return
 
         self._loaded = True
-        if not self.path.exists():
-            self._entries = {}
-            return
-
-        try:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("prediction_cache.load_failed", path=str(self.path), error=str(exc))
+        payload = document_store.read(DOCUMENT_PREDICTION_CACHE)
+        if not isinstance(payload, dict):
             self._entries = {}
             return
 
@@ -237,14 +228,11 @@ class PredictionSnapshotCache:
         }
 
     def _save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "schema_version": CACHE_SCHEMA_VERSION,
             "entries": self._entries,
         }
-        tmp_path = self.path.with_suffix(f"{self.path.suffix}.tmp")
-        tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        tmp_path.replace(self.path)
+        document_store.write(DOCUMENT_PREDICTION_CACHE, payload)
 
     @staticmethod
     def _key(year: int, round_num: int) -> str:

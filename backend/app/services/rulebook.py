@@ -1,21 +1,18 @@
-"""Structured FIA rulebook search for Race Control surfaces."""
+"""Structured FIA rulebook search for Race Control surfaces (pgvector-backed)."""
 
 from __future__ import annotations
 
-import math
 import os
-import threading
 from datetime import datetime
-from typing import Any
 
 import structlog
 
-from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
+from app.config import RULEBOOK_TOP_K
+from app.rag.pgvector_store import RULEBOOK_ENABLED
+from app.rag.pgvector_store import search as rulebook_search
+from app.rag.rerank import rerank
 
 logger = structlog.get_logger()
-
-_vector_db = None
-_vector_lock = threading.Lock()
 
 
 def resolve_rulebook_year(year: int | None = None) -> int:
@@ -29,43 +26,9 @@ def resolve_rulebook_year(year: int | None = None) -> int:
     return current_year
 
 
-def _get_vector_db():
-    global _vector_db
-    if _vector_db is not None:
-        return _vector_db
-
-    with _vector_lock:
-        if _vector_db is not None:
-            return _vector_db
-
-        from langchain_chroma import Chroma
-        from langchain_huggingface import HuggingFaceEmbeddings
-
-        logger.info("rulebook.vector.initializing", db_path=CHROMA_DB_PATH, model=EMBEDDING_MODEL_NAME)
-        embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
-        _vector_db = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=embeddings)
-        logger.info("rulebook.vector.ready")
-        return _vector_db
-
-
-def _metadata_value(metadata: dict[str, Any], key: str, default: str = "") -> str:
-    value = metadata.get(key, default)
-    if value is None or (isinstance(value, float) and math.isnan(value)):
-        return default
-    return str(value)
-
-
-def _build_filter(year: int, category: str | None) -> dict:
-    filters: list[dict] = [{"source_year": str(year)}]
-    if category and category.lower() != "all":
-        filters.append({"type": category})
-
-    if len(filters) == 1:
-        return filters[0]
-    return {"$and": filters}
-
-
-def fallback_rulebook_search(query: str, category: str | None = None, year: int | None = None, error: str | None = None) -> dict:
+def fallback_rulebook_search(
+    query: str, category: str | None = None, year: int | None = None, error: str | None = None
+) -> dict:
     resolved_year = resolve_rulebook_year(year)
     document = category if category and category != "All" else "FIA regulations corpus"
 
@@ -78,9 +41,16 @@ def fallback_rulebook_search(query: str, category: str | None = None, year: int 
             "year": str(resolved_year),
             "category": category or "All",
             "page": None,
-            "snippet": "Citation preview unavailable because the local vector search could not answer this request.",
+            "snippet": "Citation preview unavailable because the vector search could not answer this request.",
         }],
     }
+
+
+def _page_label(page) -> str | None:
+    # pgvector stores a 0-indexed page; present it 1-indexed for humans.
+    if isinstance(page, (int, float)):
+        return str(int(page) + 1)
+    return None
 
 
 def search_rulebook(query: str, category: str | None = None, year: int | None = None) -> dict:
@@ -89,48 +59,42 @@ def search_rulebook(query: str, category: str | None = None, year: int | None = 
 
     if not clean_query:
         return fallback_rulebook_search(
-            query,
-            category,
-            resolved_year,
-            "Enter a regulation question before searching.",
+            query, category, resolved_year, "Enter a regulation question before searching."
         )
 
-    if not os.path.exists(CHROMA_DB_PATH):
+    if not RULEBOOK_ENABLED:
         return fallback_rulebook_search(
-            clean_query,
-            category,
-            resolved_year,
-            "Rulebook vector database not found. Run `python app/rag/ingest.py` from the backend directory.",
+            clean_query, category, resolved_year,
+            "Rulebook vector store not configured (DATABASE_URL unset). Run `python -m app.rag.ingest`.",
         )
 
     try:
-        vector_db = _get_vector_db()
-        docs = vector_db.as_retriever(search_kwargs={
-            "k": RULEBOOK_TOP_K,
-            "filter": _build_filter(resolved_year, category),
-        }).invoke(clean_query)
+        # Over-fetch by similarity from pgvector, then cross-encoder rerank.
+        candidates = rulebook_search(
+            clean_query, resolved_year, category=category, k=RULEBOOK_TOP_K * 4
+        )
+        hits = rerank(clean_query, candidates, RULEBOOK_TOP_K)
     except Exception as exc:
         logger.warning("rulebook.search.failed", year=resolved_year, category=category, error=str(exc))
         return fallback_rulebook_search(clean_query, category, resolved_year, str(exc))
 
-    if not docs:
+    if not hits:
         return {
             "answer": f"No cited regulation excerpts matched '{clean_query}' in the {resolved_year} {category or 'All'} corpus.",
-            "source": "chroma-rag",
+            "source": "pgvector-rag",
             "error": None,
             "citations": [],
         }
 
     citations = []
-    for doc in docs:
-        metadata = doc.metadata or {}
-        page = _metadata_value(metadata, "page_label") or _metadata_value(metadata, "page")
+    for hit in hits:
+        metadata = hit.metadata or {}
         citations.append({
-            "document": _metadata_value(metadata, "filename", _metadata_value(metadata, "source", "Unknown regulation PDF")),
-            "year": _metadata_value(metadata, "source_year", str(resolved_year)),
-            "category": _metadata_value(metadata, "type", category or "All"),
-            "page": page or None,
-            "snippet": doc.page_content.replace("\n", " ").strip()[:700],
+            "document": metadata.get("filename", "Unknown regulation PDF"),
+            "year": str(metadata.get("source_year", resolved_year)),
+            "category": metadata.get("type", category or "All"),
+            "page": _page_label(metadata.get("page")),
+            "snippet": hit.page_content.replace("\n", " ").strip()[:700],
         })
 
     return {
@@ -138,7 +102,7 @@ def search_rulebook(query: str, category: str | None = None, year: int | None = 
             f"Found {len(citations)} cited regulation excerpt{'s' if len(citations) != 1 else ''} "
             f"for this ops question. Review the snippets before making a final sporting, technical, or financial call."
         ),
-        "source": "chroma-rag",
+        "source": "pgvector-rag",
         "error": None,
         "citations": citations,
     }

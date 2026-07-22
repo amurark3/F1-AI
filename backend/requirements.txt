@@ -2,22 +2,16 @@
 fastapi
 uvicorn[standard]
 
-# LLM / AI orchestration
-langchain
-langchain-community
+# LLM / AI orchestration (runtime only). PDF/document-loader deps used solely by
+# the offline rulebook ingest live in requirements-ingest.txt so the web build
+# stays lean.
 langchain-core
 langchain-groq
-langchain-huggingface
-langchain-chroma
 
-# Vector database
-chromadb
-
-# Embeddings model (downloaded on first use)
+# Embeddings model (downloaded on first use) — powers rulebook + memory vectors.
+# Rulebook vectors are stored in Postgres/pgvector (see app/rag/pgvector_store.py),
+# so no separate vector-DB package is needed.
 sentence-transformers
-
-# PDF loading (used by PyPDFLoader in ingest.py)
-pypdf
 
 # F1 data
 fastf1

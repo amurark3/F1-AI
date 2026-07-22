@@ -2,11 +2,13 @@
 LLM-Callable Tools
 ==================
 Each function decorated with @tool is registered as a callable tool that the
-Gemini model can invoke during the agentic loop in routes.py.
+Groq LLM (Llama 3.3 70B) can invoke during the agentic loop in the chat router.
 
 Available tools
 ---------------
   get_race_predictions        — Probabilistic race outcome predictions with confidence ranges.
+  query_f1_database           — Read-only text-to-SQL over the f1db dataset (1950–present).
+  get_race_anomalies          — Statistical anomalies/upsets detected in a race result.
   get_pit_strategy            — Pit strategy analysis with stint data and undercut/overcut.
   get_weather_conditions      — Real weather data for F1 circuits (replaces old stub).
   perform_web_search          — Real-time web search via Tavily API.
@@ -15,18 +17,17 @@ Available tools
   get_qualifying_results      — Main Qualifying results split by Q1/Q2/Q3.
   compare_drivers             — Fastest-lap telemetry comparison between two drivers.
   get_race_results            — Full race classification with grid delta and points.
-  consult_rulebook            — Semantic search of FIA regulations via ChromaDB.
-  get_driver_standings        — World Drivers' Championship table (via Ergast).
-  get_constructor_standings   — World Constructors' Championship table (via Ergast).
+  consult_rulebook            — Semantic search of FIA regulations via pgvector.
+  get_driver_standings        — World Drivers' Championship table (via f1db).
+  get_constructor_standings   — World Constructors' Championship table (via f1db).
   get_season_schedule         — Full season calendar with completed/upcoming status.
 
-TOOL_LIST and TOOL_MAP (at the bottom of this file) are imported by routes.py
-to bind tools to the LLM and dispatch them by name.
+TOOL_LIST and TOOL_MAP (at the bottom of this file) are imported by the chat
+router to bind tools to the LLM and dispatch them by name.
 """
 
 import asyncio
 import os
-import threading
 import structlog
 import fastf1
 import pandas as pd
@@ -34,10 +35,8 @@ from datetime import datetime
 from langchain_core.tools import tool
 from fastf1.ergast import Ergast
 from tavily import TavilyClient
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 
-from app.config import CHROMA_DB_PATH, EMBEDDING_MODEL_NAME, RULEBOOK_TOP_K
+from app.config import RULEBOOK_TOP_K
 from app.data.f1db_query import F1DB_SCHEMA_DOC, QueryValidationError, run_readonly_query
 from app.data.f1db_standings import constructor_standings_detailed, driver_standings_detailed
 from app.data.strategy import analyze_pit_strategy
@@ -47,37 +46,6 @@ from app.services.predictions import get_or_compute_race_prediction
 from app.utils.fastf1_cache import enable_fastf1_cache
 
 logger = structlog.get_logger()
-
-# ---------------------------------------------------------------------------
-# ChromaDB lazy singleton — initialized once on first consult_rulebook() call
-# ---------------------------------------------------------------------------
-_embeddings = None
-_vector_db = None
-_chromadb_lock = threading.Lock()
-
-
-def _get_vector_db():
-    """Return the ChromaDB vector store, initializing on first call.
-
-    Uses a threading lock to prevent race conditions if two concurrent
-    requests both trigger initialization.  After init the lock check is
-    effectively free (fast path returns immediately).
-    """
-    global _embeddings, _vector_db
-
-    if _vector_db is not None:
-        return _vector_db
-
-    with _chromadb_lock:
-        # Double-check after acquiring lock
-        if _vector_db is not None:
-            return _vector_db
-
-        logger.info("chromadb.initializing", db_path=CHROMA_DB_PATH, model=EMBEDDING_MODEL_NAME)
-        _embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
-        _vector_db = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=_embeddings)
-        logger.info("chromadb.ready")
-        return _vector_db
 
 # ---------------------------------------------------------------------------
 # Client setup
@@ -736,8 +704,8 @@ def consult_rulebook(query: str, year: int = None):
     Searches the official FIA regulations (Sporting, Technical, Financial)
     for text relevant to `query`.
 
-    The regulations are stored as vector embeddings in a local ChromaDB
-    database populated by running backend/app/rag/ingest.py.
+    The regulations are stored as vector embeddings in Postgres (pgvector),
+    populated by running `python -m app.rag.ingest`.
 
     Args:
         query: A natural-language question, e.g. "What is the penalty for
@@ -763,23 +731,16 @@ def consult_rulebook(query: str, year: int = None):
     logger.info("tool.consult_rulebook", year=year, query=query)
 
     try:
-        if not os.path.exists(CHROMA_DB_PATH):
-            return (
-                "Rulebook database not found. "
-                "Please run `python app/rag/ingest.py` from the backend directory first."
-            )
+        from app.rag.pgvector_store import RULEBOOK_ENABLED
+        from app.rag.pgvector_store import search as rulebook_search
 
-        vector_db = _get_vector_db()
-        logger.debug("chromadb.query", query=query, year=year)
+        if not RULEBOOK_ENABLED:
+            return "Rulebook search is unavailable — DATABASE_URL is not configured."
 
-        # Over-fetch by vector similarity, then cross-encoder rerank down to
-        # RULEBOOK_TOP_K. Similarity is recall-oriented; the reranker fixes the
-        # ordering so the most on-point articles surface first.
-        candidate_k = RULEBOOK_TOP_K * 4
-        candidates = vector_db.similarity_search(
-            query, k=candidate_k, filter={"source_year": str(year)}
-        )
-
+        # Over-fetch by vector similarity from pgvector, then cross-encoder rerank
+        # down to RULEBOOK_TOP_K. Similarity is recall-oriented; the reranker fixes
+        # the ordering so the most on-point articles surface first.
+        candidates = rulebook_search(query, year, k=RULEBOOK_TOP_K * 4)
         if not candidates:
             return f"No regulations found for '{query}' in the {year} rulebook."
 

@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# F1 AI — Web Frontend
+
+The web surface for **F1 AI**, a Next.js 16 / React 19 app styled as a Formula 1
+"Race Control" pit-wall workspace. It talks to the FastAPI backend for AI chat,
+standings, predictions, live timing, and regulation search.
+
+> This is one part of the monorepo. See the [root README](../README.md) for the
+> full architecture, backend setup, and API reference.
 
 ## Getting Started
 
-First, run the development server:
+Point the app at a running backend and start the dev server:
 
 ```bash
+npm install
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) — the root route redirects to
+`/race-control`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Base URL of the FastAPI backend (e.g. `http://localhost:8000`) |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | Run ESLint |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Top-level navigation (`app/components/NavShell.tsx`): Workspaces, Race Control,
+Consumer, Calendar, Standings, Champions, Predictions, Live.
 
-## Deploy on Vercel
+| Route | Purpose |
+|---|---|
+| `/` | Redirects to `/race-control` |
+| `/race-control` | Operational season control board |
+| `/race-control/engineer` | Streaming AI race-engineer chat |
+| `/race-control/teams` · `/teams/[team]` | Constructor breakdowns |
+| `/race-control/debriefs` | LLM post-race debriefs |
+| `/race-control/intel` | Per-team strategic intel |
+| `/race-control/predictions` | Race predictions + post-mortems |
+| `/race-control/rulebook` | FIA regulation semantic search |
+| `/race-control/live` | Live timing + AI commentary |
+| `/race-control/champions` · `/champions/[year]` | Historical champions |
+| `/calendar` | Season schedule with countdown |
+| `/standings` | WDC + WCC tables |
+| `/champions` | Champions 1950→present |
+| `/predictions` | Race predictions + championship scenarios |
+| `/live` | Live timing |
+| `/consumer` | Redirects to `/race-control/engineer` |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · Recharts · Framer Motion ·
+SWR · Vercel AI SDK (`ai` / `@ai-sdk/react`) · lucide-react.
+</content>

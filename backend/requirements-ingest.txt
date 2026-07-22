@@ -1,0 +1,13 @@
+# Dependencies for the offline rulebook ingest (python -m app.rag.ingest).
+# These are NOT needed by the deployed web service — keeping them out of
+# requirements.txt makes the Render build leaner/faster. Install with:
+#     pip install -r requirements-ingest.txt
+# (pulls in the base runtime deps too, so embeddings/pgvector are available).
+
+-r requirements.txt
+
+# PDF loading + chunking for the FIA regulation corpus
+langchain
+langchain-community
+langchain-text-splitters
+pypdf

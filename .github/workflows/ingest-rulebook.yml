@@ -1,0 +1,44 @@
+name: Ingest rulebook (pgvector)
+
+# Re-embeds the FIA regulation PDFs into Supabase pgvector whenever the source
+# PDFs change on main. The `paths` filter IS the change detection — this job
+# only runs when a regulation PDF is added, updated, or removed, so you never
+# have to remember to re-ingest. Also runnable on demand from the Actions tab.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/data/raw/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ingest-rulebook
+  cancel-in-progress: true
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: backend/requirements-ingest.txt
+
+      - name: Install ingest dependencies (CPU-only torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-ingest.txt
+
+      - name: Re-embed rulebook into pgvector
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Optional: set a HF_TOKEN repo secret for faster/rate-limit-free model
+          # downloads. Works without it.
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python -m app.rag.ingest --force

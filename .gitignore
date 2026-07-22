@@ -8,8 +8,10 @@ backend/.venv/
 backend/**/__pycache__/
 backend/*.pyc
 backend/.env
-backend/data/chroma/
 backend/f1_cache/
+# Local ChromaDB is obsolete — rulebook vectors now live in Postgres/pgvector.
+# Any leftover local build is ignored.
+backend/data/chroma/
 # Ignore stray/experiment model artifacts but track the production model so it
 # ships with deploys (Render's filesystem is ephemeral).
 backend/models/*.joblib

@@ -1,16 +1,40 @@
 services:
   - type: web
-    name: f1-ai-backend
+    # Must exactly match the existing Render service name (Settings → General →
+    # Name) so the Blueprint adopts it (keeps f1-ai.onrender.com) instead of
+    # creating a duplicate.
+    name: F1-AI
     runtime: python
+    plan: free
+    region: oregon
+    branch: main
     rootDir: backend
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python app/rag/ingest.py
+    healthCheckPath: /api/health
+    autoDeploy: true
+    # Fast build:
+    #   1) uv — a much faster drop-in for pip.
+    #   2) CPU-only torch first (from the PyTorch CPU index) so we don't pull the
+    #      ~2GB CUDA build via sentence-transformers.
+    #   3) lean runtime deps only. Rulebook/PDF ingest deps live in
+    #      requirements-ingest.txt (not installed here); rulebook vectors live in
+    #      pgvector, populated once via `python -m app.rag.ingest` — nothing is
+    #      built at deploy time.
+    buildCommand: pip install uv && uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu && uv pip install --system -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Values for `sync: false` vars are set in the Render dashboard and preserved
+    # across Blueprint syncs. Declaring them here so adoption never drops them.
     envVars:
-      - key: GOOGLE_API_KEY
+      - key: GROQ_API_KEY          # required — the LLM engine (Groq)
         sync: false
-      - key: TAVILY_API_KEY
+      - key: DATABASE_URL          # required — Supabase Postgres + pgvector
         sync: false
-      - key: ALLOWED_ORIGINS
+      - key: TAVILY_API_KEY        # optional — web search tool
+        sync: false
+      - key: OPENWEATHERMAP_API_KEY # optional — live weather (falls back to historical)
+        sync: false
+      - key: ALLOWED_ORIGINS       # CORS: comma-separated frontend origin(s)
+        sync: false
+      - key: HF_TOKEN              # optional — faster HuggingFace model downloads
         sync: false
       - key: PYTHON_VERSION
         value: 3.10.12

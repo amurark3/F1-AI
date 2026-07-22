@@ -1,6 +1,7 @@
 """AI chat router and agent orchestration."""
 
 import asyncio
+import threading
 from datetime import datetime
 
 import structlog
@@ -20,8 +21,23 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["chat"])
 
 
-llm = build_chat_llm()
-llm_with_tools = llm.bind_tools(TOOL_LIST)
+# The chat model is built lazily on first use, not at import. Constructing it
+# eagerly would (a) import langchain_groq — which pulls in torch — during app
+# startup, spiking memory and risking a slow/OOM boot that fails the deploy
+# health check, and (b) make a missing GROQ_API_KEY crash the whole service
+# instead of only the chat endpoint. Deferring keeps boot fast and isolates the
+# LLM dependency to requests that actually need it.
+_llm_with_tools = None
+_llm_lock = threading.Lock()
+
+
+def _get_llm_with_tools():
+    global _llm_with_tools
+    if _llm_with_tools is None:
+        with _llm_lock:
+            if _llm_with_tools is None:
+                _llm_with_tools = build_chat_llm().bind_tools(TOOL_LIST)
+    return _llm_with_tools
 
 
 async def _ainvoke_with_recovery(messages):
@@ -32,7 +48,7 @@ async def _ainvoke_with_recovery(messages):
     return a synthesized tool-calling message so the agent loop can continue.
     """
     try:
-        return await llm_with_tools.ainvoke(messages)
+        return await _get_llm_with_tools().ainvoke(messages)
     except Exception as exc:
         if not is_tool_use_failed(exc):
             raise

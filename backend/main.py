@@ -3,9 +3,10 @@ F1 AI Backend — Entry Point
 ============================
 Boots the FastAPI application, configures CORS, and mounts the API router.
 
-Environment variables required (place in a .env file in this directory):
-  GOOGLE_API_KEY  — Google Generative AI (Gemini) API key
-  TAVILY_API_KEY  — Tavily web-search API key
+Environment variables (place in a .env file in this directory — see .env.example):
+  GROQ_API_KEY    — Groq API key (Llama 3.3 70B). REQUIRED — the LLM engine.
+  TAVILY_API_KEY  — Tavily web-search API key (optional).
+  DATABASE_URL    — Postgres + pgvector for memory/durable store (optional).
 """
 
 from dotenv import load_dotenv

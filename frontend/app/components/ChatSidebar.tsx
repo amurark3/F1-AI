@@ -48,7 +48,7 @@ export default function ChatSidebar({
         className={`
           fixed lg:relative top-0 left-0 z-50 lg:z-auto
           h-full shrink-0
-          glass-strong border-r border-white/5
+          bg-[#0B0D0C] border-r border-[#1E2633]
           flex flex-col
           transition-all duration-200 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -56,13 +56,13 @@ export default function ChatSidebar({
         `}
       >
         {/* Header — New Chat button */}
-        <div className="p-2 border-b border-white/5">
+        <div className="p-2 border-b border-[#1E2633]">
           {collapsed ? (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onNewChat}
-              className="w-full flex items-center justify-center p-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-lg shadow-red-600/20 transition-colors"
+              className="w-full flex items-center justify-center p-2 rounded-md bg-[#00FF78] hover:bg-white text-black transition-colors"
               title="New Chat"
             >
               <Plus className="w-4 h-4" />
@@ -72,7 +72,7 @@ export default function ChatSidebar({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onNewChat}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white text-sm font-bold uppercase tracking-wider shadow-lg shadow-red-600/20 hover:shadow-red-500/30 transition-all duration-300"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[#00FF78] hover:bg-white text-black text-sm font-black uppercase tracking-wider transition-colors duration-200"
             >
               <Plus className="w-4 h-4" />
               New Chat
@@ -93,10 +93,10 @@ export default function ChatSidebar({
               <div
                 key={chat.id}
                 className={`
-                  group relative mx-2 mb-1 rounded-xl cursor-pointer transition-all duration-200
+                  group relative mx-2 mb-1 rounded-md cursor-pointer transition-colors duration-200
                   ${activeChatId === chat.id
-                    ? 'bg-white/8 text-white border border-white/10'
-                    : 'text-neutral-400 hover:bg-white/5 hover:text-neutral-200 border border-transparent'
+                    ? 'bg-[#00FF78]/10 text-white border border-[#00FF78]/25'
+                    : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200 border border-transparent'
                   }
                 `}
                 onClick={() => {
@@ -118,10 +118,10 @@ export default function ChatSidebar({
                         e.stopPropagation();
                         onDeleteChat(chat.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-500/20 transition-all shrink-0 ml-1"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[#E10600]/15 transition-all shrink-0 ml-1"
                       title="Delete chat"
                     >
-                      <Trash2 className="w-3.5 h-3.5 text-neutral-500 hover:text-red-400" />
+                      <Trash2 className="w-3.5 h-3.5 text-neutral-500 hover:text-[#E10600]" />
                     </button>
                   </div>
                 )}
@@ -131,13 +131,13 @@ export default function ChatSidebar({
         </div>
 
         {/* Footer — Collapse toggle (desktop only) */}
-        <div className="hidden lg:block border-t border-white/5 p-2">
+        <div className="hidden lg:block border-t border-[#1E2633] p-2">
           <button
             onClick={onToggleCollapse}
             className={`
-              w-full flex items-center gap-2 p-2 rounded-xl
-              text-neutral-500 hover:text-neutral-200 hover:bg-white/5
-              transition-all duration-200 text-xs
+              w-full flex items-center gap-2 p-2 rounded-md
+              text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.04]
+              transition-colors duration-200 text-xs
               ${collapsed ? 'justify-center' : 'justify-between'}
             `}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -29,7 +29,14 @@ function writeChats(chats: Chat[]) {
 }
 
 export function useLocalChats() {
-  const [chats, setChats] = useState<Chat[]>(readChats);
+  // Start empty so the server render (no localStorage) matches the client's
+  // first render, then hydrate persisted chats after mount to avoid a
+  // hydration mismatch.
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    setChats(readChats());
+  }, []);
 
   const persist = useCallback((next: Chat[]) => {
     setChats(next);

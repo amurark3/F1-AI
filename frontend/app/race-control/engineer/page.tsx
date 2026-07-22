@@ -41,7 +41,7 @@ export default function EngineerPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="h-[calc(100vh-132px)] min-h-[620px] overflow-hidden rounded-lg border border-white/10 bg-[#090B0A]">
+    <div className="h-[calc(100vh-132px)] min-h-[620px] overflow-hidden rounded-md border border-[#1E2633] bg-[#090B0A]">
       <div className="flex h-full min-h-0">
         <ChatSidebar
           chats={chats}
@@ -56,17 +56,17 @@ export default function EngineerPage() {
         />
 
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="shrink-0 border-b border-white/10 bg-[#0B0D0C]/95 px-3 py-3 sm:px-5">
+          <header className="shrink-0 border-b border-[#1E2633] bg-[#0B0D0C]/95 px-3 py-3 sm:px-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-neutral-300 hover:text-white lg:hidden"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#1E2633] bg-white/[0.04] text-neutral-300 hover:text-white lg:hidden"
                   aria-label="Open chat history"
                 >
                   <PanelLeftOpen className="h-5 w-5" />
                 </button>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00FF78]/25 bg-[#00FF78]/10">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#00FF78]/25 bg-[#00FF78]/10">
                   <Bot className="h-5 w-5 text-[#00FF78]" />
                 </div>
                 <div className="min-w-0">
@@ -98,7 +98,7 @@ export default function EngineerPage() {
               />
             ) : (
               <div className="flex min-h-full flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-[#00FF78]/25 bg-[#00FF78]/10">
+                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-md border border-[#00FF78]/25 bg-[#00FF78]/10">
                   <Radio className="h-7 w-7 text-[#00FF78]" />
                 </div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-500" style={rcFont}>Engineer Console</p>
@@ -111,7 +111,7 @@ export default function EngineerPage() {
 
                 <button
                   onClick={handleNewChat}
-                  className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00FF78] px-5 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-white"
+                  className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#00FF78] px-5 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-white"
                 >
                   <Plus className="h-4 w-4" />
                   New Chat
@@ -123,7 +123,7 @@ export default function EngineerPage() {
                       key={prompt}
                       onClick={() => void sendMessage(prompt)}
                       disabled={isLoading}
-                      className="min-h-20 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-left text-sm leading-relaxed text-neutral-300 transition-colors hover:border-[#00FF78]/30 hover:text-white disabled:opacity-50"
+                      className="min-h-20 rounded-md border border-[#1E2633] bg-[#0D111B] px-4 py-3 text-left text-sm leading-relaxed text-neutral-300 transition-colors hover:border-[#00FF78]/30 hover:text-white disabled:opacity-50"
                     >
                       <Sparkles className="mb-2 h-4 w-4 text-[#00FF78]" />
                       {prompt}

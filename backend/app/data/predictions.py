@@ -54,6 +54,14 @@ MODEL_PATH = Path(os.getenv("RACE_PREDICTOR_MODEL_PATH", "models/race_predictor.
 ML_BLEND_WEIGHT = ML_PREDICTION_BLEND_WEIGHT
 ADAPTIVE_CORRECTION_WEIGHT = PREDICTION_ADAPTIVE_WEIGHT
 
+# Bump this whenever the prediction algorithm changes in a way that makes older
+# stored snapshots outdated (roster construction, scoring, feature set, etc.).
+# The snapshot cache treats any stored result computed under an older version as
+# stale and recomputes it, so users never see predictions from superseded logic.
+# v3: back-fill the full entry list so drivers without a qualifying time are
+#     still predicted instead of being dropped from the grid.
+PREDICTION_LOGIC_VERSION = 3
+
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
 # ---------------------------------------------------------------------------
@@ -1119,27 +1127,49 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         data_sources.append("adaptive_history")
 
     # ------------------------------------------------------------------
-    # 4. Build driver list (from qualifying/practice or fallback to schedule)
+    # 4. Build driver list — every entered driver gets a prediction.
+    #    Start from qualifying/practice, then back-fill the rest of the
+    #    entry list. A missing qualifying time (crash, DNS, no lap set) must
+    #    NOT drop a driver from the grid: unless the field is genuinely
+    #    reduced, the full roster of entered drivers should be predicted.
+    #    The roster comes from the season's championship entry list, which
+    #    gives real names + teams from f1db with no rate limits.
     # ------------------------------------------------------------------
-    drivers_input: list[dict] = []
-    if quali_data:
-        drivers_input = quali_data
-    else:
-        # Last resort (e.g. an upcoming race with no qualifying yet): build a
-        # rough grid from the latest championship standings. f1db gives real
-        # driver names + teams and has no rate limits.
-        try:
-            for row in driver_standings_detailed(year):
-                drivers_input.append({
-                    "driver_code": row["code"],
-                    "driver_name": row["name"],
-                    "team": row["team"],
-                    "position": row["position"],
-                })
-            if drivers_input:
+    drivers_input: list[dict] = list(quali_data) if quali_data else []
+
+    try:
+        roster = driver_standings_detailed(year)
+    except Exception as exc:
+        roster = []
+        warnings.append(f"Could not load full-grid roster: {exc}")
+
+    if roster:
+        present = {d["driver_code"] for d in drivers_input}
+        missing = sorted(
+            (r for r in roster if r["code"] not in present),
+            key=lambda r: r["position"],
+        )
+        # Back-filled drivers line up behind the slowest actual qualifier
+        # (or from P1 when there's no session yet), in championship order,
+        # so they start from a realistic slot rather than an arbitrary one.
+        next_pos = max((d.get("position", 0) for d in drivers_input), default=0) + 1
+        for r in missing:
+            drivers_input.append({
+                "driver_code": r["code"],
+                "driver_name": r["name"],
+                "team": r["team"],
+                "position": next_pos,
+                "no_qualifying_time": True,
+            })
+            next_pos += 1
+        if missing:
+            if "championship_position" not in data_sources:
                 data_sources.append("championship_position")
-        except Exception as exc:
-            warnings.append(f"Could not load driver standings for fallback: {exc}")
+            if quali_data:
+                warnings.append(
+                    f"{len(missing)} entered driver(s) had no qualifying time; "
+                    "included from championship entry list at back of grid"
+                )
 
     if not drivers_input:
         logger.error("predictions.no_driver_data", year=year, round=round_num)
@@ -1148,6 +1178,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "round": round_num,
             "grand_prix": gp_name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
+            "logic_version": PREDICTION_LOGIC_VERSION,
             "data_sources": data_sources,
             "accuracy": get_accuracy_stats(),
             "predictions": [],
@@ -1304,6 +1335,10 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         # Keep more factors when the model contributes reasoning; heuristic-only
         # predictions stay at the original 3.
         factors = factors[:5] if ml_score is not None else factors[:3]
+        if driver.get("no_qualifying_time"):
+            # Back-filled from the entry list — flag it so the synthetic
+            # back-of-grid slot isn't mistaken for a real qualifying result.
+            factors = ["No qualifying time set — placed at back of grid"] + factors[:4]
 
         scored = {
             "driver_code": code,
@@ -1358,6 +1393,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         "round": round_num,
         "grand_prix": gp_name,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "logic_version": PREDICTION_LOGIC_VERSION,
         "data_sources": sorted(set(data_sources)),
         "accuracy": get_accuracy_stats(),
         "predictions": predictions,

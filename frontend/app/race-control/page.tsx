@@ -30,9 +30,27 @@ interface RaceEvent {
 interface StrategyContext {
   phase: string;
   primary_call: { title: string; summary: string; confidence: string };
+  data_source?: { mode: "telemetry" | "heuristic"; edition_year: number | null; sample_size: number | null };
   decision_gates: Array<{ gate: string; trigger: string; owner: string; decision: string }>;
   stint_plan: Array<{ stint: string; compound: string; window: string; target: string }>;
-  pit_model: { pit_loss_seconds: number; undercut_delta: number; overcut_delta: number; traffic_threshold: string };
+  pit_model: {
+    pit_loss_seconds: number;
+    undercut_delta: number;
+    overcut_delta: number;
+    undercut_modeled?: boolean;
+    overcut_modeled?: boolean;
+    traffic_threshold: string;
+    traffic_modeled?: boolean;
+  };
+  stint_windows?: {
+    total_laps: number;
+    opening_compound: string;
+    finishing_compound: string;
+    offset_lap: number;
+    primary_lap: number;
+    late_lap: number;
+    modeled?: boolean;
+  };
   competitors: Array<{ rank: number; team: string; points: number; gap_to_leader: number; threat: string; operating_read: string }>;
   assumptions: string[];
 }
@@ -66,21 +84,8 @@ const formatTime = (value?: string) => {
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "browser local time";
 
-const HISTORICAL_WEATHER: Record<string, { rain_risk: number; track_temp_c: number; wind_kph: number }> = {
-  street: { rain_risk: 32, track_temp_c: 30, wind_kph: 14 },
-  high_speed: { rain_risk: 14, track_temp_c: 44, wind_kph: 11 },
-  mixed: { rain_risk: 20, track_temp_c: 37, wind_kph: 13 },
-};
-
-function getHistoricalWeather(circuitType?: string | null) {
-  if (!circuitType) return HISTORICAL_WEATHER.mixed;
-  const key = circuitType.toLowerCase().replace(/[\s-]+/g, "_");
-  return HISTORICAL_WEATHER[key] ?? HISTORICAL_WEATHER.mixed;
-}
-
-const formatWeatherCardValue = (value: number, fallback?: boolean) => {
-  return fallback ? `~${Math.round(value)}%` : `${Math.round(value)}%`;
-};
+const formatWeatherMetric = (value: number | null | undefined, unit: string) =>
+  typeof value === "number" ? `${Math.round(value)}${unit}` : "—";
 
 const formatCircuitDetail = (race?: RaceEvent | null) => {
   if (!race?.circuit) return race?.location ?? "Circuit feed unavailable";
@@ -100,11 +105,8 @@ export default function RaceControlHome() {
   const driverLeader = data?.championship?.drivers?.[0];
   const constructorLeader = data?.championship?.constructors?.[0];
   const podium = data?.predicted_podium ?? [];
-  const weatherLive = typeof data?.weather?.rain_risk === "number";
-  const histWeather = getHistoricalWeather(race?.circuit?.circuit_type);
-  const effectiveWeather = weatherLive
-    ? { rain_risk: data!.weather!.rain_risk as number, track_temp_c: data!.weather!.track_temp_c as number, wind_kph: data!.weather!.wind_kph as number }
-    : histWeather;
+  const weather = data?.weather;
+  const weatherLive = typeof weather?.rain_risk === "number";
 
   if (isLoading) {
     return (
@@ -133,20 +135,21 @@ export default function RaceControlHome() {
       <MetricRow>
         <MetricCard label="Weekend state" value={context?.phase ?? data?.focus ?? "Pre-race"} sub={race ? `${race.status} · ${race.location}` : "Awaiting schedule"} icon={Target} />
         <MetricCard label="Circuit profile" value={race?.circuit?.circuit_name ?? race?.location ?? "No circuit"} sub={formatCircuitDetail(race)} icon={CalendarClock} color="#FF8000" />
-        <MetricCard label="Pit lane delta" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} sub={context ? `Undercut ${context.pit_model.undercut_delta}s · overcut ${context.pit_model.overcut_delta}s` : "Baseline model unavailable"} icon={Timer} color="#3671C6" />
+        <MetricCard label="Pit lane delta" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} sub={context ? `Undercut ${context.pit_model.undercut_delta}s · overcut ${context.pit_model.overcut_delta}s${context.pit_model.undercut_modeled ? " · modeled" : ""}` : "Baseline model unavailable"} icon={Timer} color="#3671C6" />
         <MetricCard
           label="Rain risk"
-          value={formatWeatherCardValue(effectiveWeather.rain_risk, !weatherLive)}
-          sub={weatherLive ? (data?.weather?.confidence ?? "Live forecast") : `Historical avg · ${race?.circuit?.circuit_type ?? "mixed"} circuit`}
+          value={formatWeatherMetric(weather?.rain_risk, "%")}
+          sub={weather?.confidence ?? (weatherLive ? "Live forecast" : "Live feed offline")}
           icon={CloudRain}
           color="#BE3AFF"
         />
       </MetricRow>
 
       <div className="space-y-5">
-        <Panel className="p-6" accent="#00FF78">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-            <div className="min-w-0 flex-1">
+        <Panel className="p-6">
+          <div className="-mx-6 -mt-6 mb-6 h-[2px] bg-[#00FF78]" />
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
+            <div className="flex min-w-0 flex-1 flex-col">
               <div className="mb-5 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Baseline strategy</p>
@@ -160,10 +163,36 @@ export default function RaceControlHome() {
                 {context?.primary_call.summary ?? "Strategy context will populate when the next race and prediction snapshot are available."}
               </p>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row [&>*]:flex-1">
-                <AssumptionStat label="Undercut" value={context ? `${context.pit_model.undercut_delta}s` : "No model"} />
-                <AssumptionStat label="Overcut" value={context ? `${context.pit_model.overcut_delta}s` : "No model"} />
-                <AssumptionStat label="Traffic" value={context?.pit_model.traffic_threshold ?? "No model"} />
+              {context?.data_source && (
+                <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${context.data_source.mode === "telemetry" ? "bg-[#00FF78]" : "bg-[#FFF200]"}`}
+                  />
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    {context.data_source.mode === "telemetry"
+                      ? `Pit loss & tyre windows from ${context.data_source.edition_year} telemetry · ${context.data_source.sample_size} cars · undercut/overcut modeled`
+                      : "Planning heuristics · no completed edition available for telemetry"}
+                  </p>
+                </div>
+              )}
+
+              {context?.stint_windows && (
+                <div className="mt-6 flex flex-1 flex-col justify-center">
+                  <StintTimeline windows={context.stint_windows} />
+                </div>
+              )}
+
+              <div className="mt-6 pt-6 border-t border-white/8">
+                <div className="mb-3 flex items-center gap-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500" style={rcFont}>Pit model</p>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <AssumptionStat label="Pit loss" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} />
+                  <AssumptionStat label="Undercut" value={context ? `${context.pit_model.undercut_delta}s` : "No model"} note={context?.pit_model.undercut_modeled ? "modeled" : undefined} />
+                  <AssumptionStat label="Overcut" value={context ? `${context.pit_model.overcut_delta}s` : "No model"} note={context?.pit_model.overcut_modeled ? "modeled" : undefined} />
+                  <AssumptionStat label="Traffic" value={context?.pit_model.traffic_threshold ?? "No model"} note={context?.pit_model.traffic_modeled ? "modeled" : undefined} />
+                </div>
               </div>
             </div>
 
@@ -235,13 +264,13 @@ export default function RaceControlHome() {
             {!weatherLive && (
               <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FFF200] shrink-0" />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Historical averages · live feed offline · values marked ~</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{weather?.confidence ?? "Live forecast feed offline"}</p>
               </div>
             )}
             <div className="mb-5 flex flex-col gap-3 sm:flex-row [&>*]:flex-1">
-              <AssumptionStat label="Rain" value={formatWeatherCardValue(effectiveWeather.rain_risk, !weatherLive)} />
-              <AssumptionStat label="Track" value={!weatherLive ? `~${Math.round(effectiveWeather.track_temp_c)}°C` : `${Math.round(effectiveWeather.track_temp_c)}°C`} />
-              <AssumptionStat label="Wind" value={!weatherLive ? `~${Math.round(effectiveWeather.wind_kph)} kph` : `${Math.round(effectiveWeather.wind_kph)} kph`} />
+              <AssumptionStat label="Rain" value={formatWeatherMetric(weather?.rain_risk, "%")} />
+              <AssumptionStat label="Track" value={formatWeatherMetric(weather?.track_temp_c, "°C")} />
+              <AssumptionStat label="Wind" value={formatWeatherMetric(weather?.wind_kph, " kph")} />
             </div>
             <div className="space-y-3">
               {(data?.risk_register ?? []).slice(0, 3).map((risk) => (
@@ -367,11 +396,79 @@ export default function RaceControlHome() {
   );
 }
 
-function AssumptionStat({ label, value }: { label: string; value: string | number }) {
+function AssumptionStat({ label, value, note }: { label: string; value: string | number; note?: string }) {
   return (
     <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">{label}</p>
+        {note && (
+          <span className="rounded-sm bg-[#FFF200]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[#FFF200]">
+            {note}
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-lg font-black text-white" style={rcFont}>{value}</p>
+    </div>
+  );
+}
+
+const COMPOUND_COLORS: Record<string, string> = {
+  SOFT: "#FF3B3B",
+  MEDIUM: "#FFF200",
+  HARD: "#EBEBEB",
+  INTERMEDIATE: "#43B02A",
+  WET: "#3671C6",
+};
+
+const compoundColor = (compound: string): string =>
+  COMPOUND_COLORS[compound.toUpperCase()] ?? "#8A93A6";
+
+function StintTimeline({ windows }: { windows: NonNullable<StrategyContext["stint_windows"]> }) {
+  const { total_laps, opening_compound, finishing_compound, offset_lap, primary_lap, late_lap, modeled } = windows;
+  const laps = Math.max(total_laps, 1);
+  const pct = (lap: number) => Math.min(100, Math.max(0, (lap / laps) * 100));
+  const primaryPct = pct(primary_lap);
+  const offsetPct = pct(offset_lap);
+  const latePct = pct(late_lap);
+  const openingColor = compoundColor(opening_compound);
+  const finishingColor = compoundColor(finishing_compound);
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500" style={rcFont}>Stint windows</p>
+        {modeled && (
+          <span className="rounded-sm bg-[#FFF200]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[#FFF200]">modeled</span>
+        )}
+        <span className="h-px flex-1 bg-white/10" />
+      </div>
+
+      {/* median first-stop flag */}
+      <div className="relative mb-1.5 h-5">
+        <div className="absolute -translate-x-1/2 whitespace-nowrap text-center" style={{ left: `${primaryPct}%` }}>
+          <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">L{primary_lap}</span>
+        </div>
+      </div>
+
+      {/* compound bar with first-stop window band */}
+      <div className="relative h-12 w-full overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
+        <div className="absolute inset-y-0 left-0" style={{ width: `${primaryPct}%`, background: `${openingColor}1F` }} />
+        <div className="absolute inset-y-0 right-0" style={{ left: `${primaryPct}%`, background: `${finishingColor}1F` }} />
+        <div
+          className="absolute inset-y-0 border-x border-dashed border-white/25 bg-white/[0.06]"
+          style={{ left: `${offsetPct}%`, width: `${Math.max(latePct - offsetPct, 0)}%` }}
+        />
+        <div className="absolute inset-y-0 w-[2px] bg-white/80" style={{ left: `${primaryPct}%` }} />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 px-3 text-[11px] font-bold uppercase tracking-wide" style={{ color: openingColor }}>{opening_compound}</span>
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 px-3 text-[11px] font-bold uppercase tracking-wide" style={{ color: finishingColor }}>{finishing_compound}</span>
+      </div>
+
+      {/* lap axis */}
+      <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-neutral-500">
+        <span>L1</span>
+        <span className="text-neutral-400">First-stop window L{offset_lap}–L{late_lap}</span>
+        <span>L{laps}</span>
+      </div>
     </div>
   );
 }

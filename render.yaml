@@ -12,14 +12,16 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     # Fast build:
-    #   1) uv — a much faster drop-in for pip.
-    #   2) CPU-only torch first (from the PyTorch CPU index) so we don't pull the
-    #      ~2GB CUDA build via sentence-transformers.
-    #   3) lean runtime deps only. Rulebook/PDF ingest deps live in
+    #   1) CPU-only torch first (from the PyTorch CPU index) so we don't pull the
+    #      ~2GB CUDA build via sentence-transformers — the biggest build-time win.
+    #   2) lean runtime deps only. Rulebook/PDF ingest deps live in
     #      requirements-ingest.txt (not installed here); rulebook vectors live in
     #      pgvector, populated once via `python -m app.rag.ingest` — nothing is
     #      built at deploy time.
-    buildCommand: pip install uv && uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu && uv pip install --system -r requirements.txt
+    # NOTE: plain pip (not uv). `uv pip install --system` on Render installed the
+    # console scripts off the runtime PATH, so `uvicorn` wasn't found at start
+    # (exit 127). pip installs into Render's active env, so the CLI resolves.
+    buildCommand: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     # Values for `sync: false` vars are set in the Render dashboard and preserved
     # across Blueprint syncs. Declaring them here so adoption never drops them.

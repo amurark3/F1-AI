@@ -1,0 +1,45 @@
+name: Keep backend warm
+
+# Render's free tier spins the backend down after ~15 min of inactivity, and the
+# next request pays a ~50s cold-start. This job pings the lightweight /api/health
+# endpoint every 13 minutes so the service never goes idle long enough to sleep.
+#
+# The backend URL is read from the BACKEND_URL repo variable (Settings → Secrets
+# and variables → Actions → Variables) and falls back to the default Render host
+# derived from the service name in render.yaml. Set the variable if your deployed
+# URL differs.
+#
+# Note: GitHub-hosted cron can lag several minutes under load and auto-pauses
+# after 60 days of no repo commits. For a hard guarantee, also point a free
+# UptimeRobot / cron-job.org monitor at the same /api/health URL.
+on:
+  schedule:
+    - cron: "*/13 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://f1-ai-backend.onrender.com' }}
+        run: |
+          echo "Pinging ${BACKEND_URL}/api/health"
+          # Retry a few times: the very first hit may itself be waking a cold
+          # server, so we allow it up to ~90s across attempts before failing.
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BACKEND_URL}/api/health" || echo "000")
+            echo "Attempt ${attempt}: HTTP ${code}"
+            if [ "${code}" = "200" ]; then
+              echo "Backend is awake."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Backend did not return 200 after retries."
+          exit 1

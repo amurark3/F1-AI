@@ -5,9 +5,8 @@ name: Keep backend warm
 # endpoint every 13 minutes so the service never goes idle long enough to sleep.
 #
 # The backend URL is read from the BACKEND_URL repo variable (Settings → Secrets
-# and variables → Actions → Variables) and falls back to the default Render host
-# derived from the service name in render.yaml. Set the variable if your deployed
-# URL differs.
+# and variables → Actions → Variables) and falls back to the production Render
+# host (https://f1-ai.onrender.com). Set the variable if your deployed URL differs.
 #
 # Note: GitHub-hosted cron can lag several minutes under load and auto-pauses
 # after 60 days of no repo commits. For a hard guarantee, also point a free
@@ -27,7 +26,7 @@ jobs:
     steps:
       - name: Ping /api/health
         env:
-          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://f1-ai-backend.onrender.com' }}
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://f1-ai.onrender.com' }}
         run: |
           echo "Pinging ${BACKEND_URL}/api/health"
           # Retry a few times: the very first hit may itself be waking a cold

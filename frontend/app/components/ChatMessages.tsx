@@ -21,12 +21,12 @@ function TypingIndicator({ toolStatus }: { toolStatus: string | null }) {
       transition={{ type: "spring", damping: 20, stiffness: 200 }}
       className="flex w-full justify-start"
     >
-      <div className="rounded-2xl p-4 glass">
+      <div className="rounded-lg border border-[#1E2633] bg-[#0D111B] p-4">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-5 w-5 text-red-400 animate-spin" />
-          <span className="text-sm text-gray-400">
+          <Loader2 className="h-5 w-5 text-[#00FF78] animate-spin" />
+          <span className="text-sm text-neutral-400">
             {toolStatus ? (
-              <>Running <span className="bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent font-medium">{toolStatus}</span><span className="animate-pulse">...</span></>
+              <>Running <span className="font-mono font-medium text-[#00FF78]">{toolStatus}</span><span className="animate-pulse">...</span></>
             ) : (
               <>Analyzing<span className="animate-pulse">...</span></>
             )}
@@ -48,10 +48,10 @@ function MessageBubble({ message }: { message: Message }) {
       className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] rounded-2xl p-4 ${
+        className={`max-w-[85%] rounded-lg p-4 ${
           isUser
-            ? 'bg-gradient-to-br from-red-600 to-orange-500 text-white shadow-lg shadow-red-600/20'
-            : 'glass'
+            ? 'bg-[#00FF78] text-black'
+            : 'border border-[#1E2633] bg-[#0D111B] text-neutral-200'
         }`}
       >
         <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
@@ -86,7 +86,7 @@ export default function ChatMessages({ messages, isLoading, toolStatus, messages
         >
           <button
             onClick={onRegenerate}
-            className="flex items-center gap-2 text-xs font-medium text-neutral-500 hover:text-white px-3 py-1.5 rounded-xl hover:bg-white/5 transition-all duration-200"
+            className="flex items-center gap-2 text-xs font-medium text-neutral-500 hover:text-white px-3 py-1.5 rounded-md border border-[#1E2633] hover:border-[#00FF78]/30 transition-colors duration-200"
           >
             <RefreshCw className="h-3 w-3" />
             Regenerate response

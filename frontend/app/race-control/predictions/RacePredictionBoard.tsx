@@ -277,7 +277,10 @@ function SeasonAccuracyStrip({
   data?: PredictionsResponse;
   onSelectRound: (round: number) => void;
 }) {
-  const visible = schedule.slice(0, 12);
+  // Show the whole calendar, not a fixed slice — the "N races" count in the
+  // header must match the number of dots. The row scrolls horizontally when the
+  // season is longer than the panel (e.g. a full 22-race calendar).
+  const visible = schedule;
   const completed = schedule.filter((race) => race.status === "completed").length;
   const total = schedule.length || 0;
   const scored = data?.accuracy?.races_evaluated ?? 0;
@@ -290,7 +293,7 @@ function SeasonAccuracyStrip({
         right={<span className="font-mono text-[11px] text-[#7F8797]">{total} races / {completed} complete / {scored} of latest {window} scored</span>}
       />
       <div className="overflow-x-auto px-4 py-4">
-        <div className="flex min-w-[920px] items-start justify-between gap-4">
+        <div className="flex w-max items-start gap-5">
           {visible.map((race) => {
             const active = race.round === selectedRound;
             const completedRace = race.status === "completed";

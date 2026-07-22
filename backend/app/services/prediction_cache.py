@@ -10,6 +10,7 @@ import fastf1
 import pandas as pd
 import structlog
 
+from app.data.predictions import PREDICTION_LOGIC_VERSION
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
 
 logger = structlog.get_logger()
@@ -91,8 +92,29 @@ class PredictionSnapshotCache:
         if not entry or not self._has_prediction(entry):
             return None
 
+        if self._is_stale(entry):
+            # Snapshot was produced by superseded prediction logic. Treat it as a
+            # miss so callers recompute; never surface outdated predictions.
+            logger.info(
+                "prediction_cache.stale",
+                year=year,
+                round=round_num,
+                snapshot_version=self._snapshot_logic_version(entry),
+                current_version=PREDICTION_LOGIC_VERSION,
+            )
+            return None
+
         logger.info("prediction_cache.hit", year=year, round=round_num)
         return self._with_metadata(entry, status="hit")
+
+    def _snapshot_logic_version(self, entry: dict[str, Any]) -> int:
+        snapshot = self._active_snapshot(self._normalise_entry(entry))
+        result = (snapshot or {}).get("result") or {}
+        # Snapshots stored before logic-versioning existed default to 0 (stale).
+        return int(result.get("logic_version") or 0)
+
+    def _is_stale(self, entry: dict[str, Any]) -> bool:
+        return self._snapshot_logic_version(entry) != PREDICTION_LOGIC_VERSION
 
     def set(self, year: int, round_num: int, result: dict, *, reason: str = "manual_compute") -> dict:
         self._ensure_loaded()

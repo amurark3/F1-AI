@@ -55,18 +55,16 @@ Defined in [`render.yaml`](render.yaml):
 
 ```bash
 # Build
-pip install uv && \
-uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu && \
-uv pip install --system -r requirements.txt
+pip install torch --index-url https://download.pytorch.org/whl/cpu && \
+pip install -r requirements.txt
 
 # Start
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
 Why this build is fast:
-- **`uv`** — a much faster drop-in for pip.
 - **CPU-only torch** — installed first from the PyTorch CPU index so pip doesn't
-  pull the ~2 GB CUDA build via `sentence-transformers`.
+  pull the ~2 GB CUDA build via `sentence-transformers` (the biggest win).
 - **Lean runtime deps** — the PDF/RAG-ingest packages live in
   `requirements-ingest.txt`, not in `requirements.txt`, so the web build skips them.
 - **No build-time vector DB** — the rulebook lives in pgvector, so there is no
@@ -187,6 +185,9 @@ needs a database (local or Supabase) to answer.
   Heavy libs (torch) are now imported lazily so boot is ~0.8 s; if this recurs,
   it's memory pressure on the free tier — upgrade the instance.
 - **Build fails on `ingest.py`** → the dashboard Build Command still has
-  `python app/rag/ingest.py`; remove it (see §3) or connect the Blueprint (§4).
+  `python app/rag/ingest.py`; remove it (see §3).
+- **`uvicorn: command not found` / exit 127 at start** → the build used
+  `uv pip install --system`, which puts console scripts off Render's runtime
+  PATH. Use plain `pip` in the Build Command (§3).
 - **Rulebook returns "unavailable"** → `DATABASE_URL` unset, or the corpus was
   never ingested (§6).

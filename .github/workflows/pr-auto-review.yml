@@ -1,0 +1,150 @@
+name: PR auto review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-auto-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend_lint:
+    name: Frontend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint
+
+  frontend_build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        run: npm run build
+
+  backend_syntax:
+    name: Backend syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Compile Python sources
+        run: python -m compileall app main.py mcp_server.py
+
+  review_summary:
+    name: Review summary comment
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [frontend_lint, frontend_build, backend_syntax]
+    steps:
+      - name: Publish PR review summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = "<!-- pr-auto-review-summary -->";
+            const statuses = {
+              frontendLint: "${{ needs.frontend_lint.result }}",
+              frontendBuild: "${{ needs.frontend_build.result }}",
+              backendSyntax: "${{ needs.backend_syntax.result }}",
+            };
+
+            const toBadge = (result) => {
+              if (result === "success") return "✅ passed";
+              if (result === "failure") return "❌ failed";
+              if (result === "cancelled") return "⚠️ cancelled";
+              return "⏭️ skipped";
+            };
+
+            const failures = [];
+            if (statuses.frontendLint !== "success") {
+              failures.push("- **Frontend lint** failed. Suggestion: run `npm run lint` in `/frontend` and fix the reported ESLint issues.");
+            }
+            if (statuses.frontendBuild !== "success") {
+              failures.push("- **Frontend build** failed. Suggestion: run `npm run build` in `/frontend` and resolve build/type errors before pushing.");
+            }
+            if (statuses.backendSyntax !== "success") {
+              failures.push("- **Backend syntax check** failed. Suggestion: run `python -m compileall app main.py mcp_server.py` in `/backend` and fix invalid Python files.");
+            }
+
+            const improvementTips = [
+              "- Add or update tests for changed behavior so future PRs catch regressions early.",
+              "- Keep PRs focused by splitting unrelated changes into separate pull requests.",
+              "- Include a short validation note in the PR description (what was run and what passed).",
+            ];
+
+            const hasFailures = failures.length > 0;
+            const title = hasFailures
+              ? "## 🤖 Automated PR review found issues"
+              : "## 🤖 Automated PR review passed";
+
+            const body = [
+              marker,
+              title,
+              "",
+              "### Check results",
+              `- Frontend lint: ${toBadge(statuses.frontendLint)}`,
+              `- Frontend build: ${toBadge(statuses.frontendBuild)}`,
+              `- Backend syntax check: ${toBadge(statuses.backendSyntax)}`,
+              "",
+              hasFailures ? "### Issues and suggested fixes" : "### Suggested improvements",
+              ...(hasFailures ? failures : improvementTips),
+              "",
+              `[View full workflow logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`,
+            ].join("\n");
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

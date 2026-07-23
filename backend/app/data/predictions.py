@@ -573,6 +573,16 @@ def _load_ml_model() -> dict[str, Any] | None:
     return None
 
 
+def warm_model_cache() -> bool:
+    """Force the finish-position model into memory ahead of the first request.
+
+    Public entry point for the startup warm-up in ``app.services.readiness`` so it
+    does not have to reach into the private loader. Returns ``True`` when a usable
+    model is resident.
+    """
+    return _load_ml_model() is not None
+
+
 def _ml_finish_score(features: dict[str, float]) -> float | None:
     payload = _load_ml_model()
     if not payload:

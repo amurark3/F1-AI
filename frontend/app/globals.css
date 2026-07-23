@@ -45,6 +45,9 @@
   --animate-pit-blink:    pit-blink 1.2s steps(1) infinite;
   --animate-count-in:     count-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-flag:         flag-wave 3s ease-in-out infinite;
+  --animate-light-on:     light-on 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-lights-out:   lights-out 0.35s ease-out both;
+  --animate-car-launch:   car-launch 1.1s cubic-bezier(0.5, 0, 0.6, 1) infinite;
 }
 
 /* ================================================
@@ -116,6 +119,27 @@ body {
 /* Points bar grow in */
 @keyframes bar-grow {
   from { width: 0; }
+}
+
+/* Start-light pod illuminating (warm-up stage reached) */
+@keyframes light-on {
+  from { opacity: 0.25; transform: scale(0.8); }
+  60%  { opacity: 1;    transform: scale(1.12); }
+  to   { opacity: 1;    transform: scale(1); }
+}
+
+/* Lights out — the gantry goes dark and the race starts */
+@keyframes lights-out {
+  from { opacity: 1;    transform: scale(1); }
+  to   { opacity: 0.15; transform: scale(0.9); }
+}
+
+/* Car pulling away down the pit straight */
+@keyframes car-launch {
+  0%   { transform: translateX(0);    opacity: 0; }
+  12%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(190%); opacity: 0; }
 }
 
 /* ================================================

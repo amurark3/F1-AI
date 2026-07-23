@@ -52,7 +52,7 @@ export default function TeamsPage() {
   const driverLeader = drivers[0];
   const pageLoading = isLoading && teams.length === 0;
   const generatedAt = data?.generated_at
-    ? new Intl.DateTimeFormat("en-US", {
+    ? new Intl.DateTimeFormat(undefined, {
       month: "short",
       day: "numeric",
       hour: "2-digit",

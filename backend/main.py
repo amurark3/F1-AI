@@ -27,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.logging_config import setup_logging
 from app.api import routes
+from app.services.readiness import run_warmup
 from app.config import (
     PREFETCH_STARTUP_DELAY,
     PREFETCH_RACE_TIMEOUT_SECONDS,
@@ -115,16 +116,27 @@ async def _prefetch_race_details():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: starts background prefetch on boot, cancels on shutdown."""
+    """Application lifespan: starts background tasks on boot, cancels on shutdown.
+
+    Two tasks run concurrently with request serving:
+
+    * ``run_warmup`` pays the deferred import/model/database costs immediately, so
+      the first visitor after a cold start is not the one who pays them. Progress
+      is reported via ``GET /api/ready``.
+    * ``_prefetch_race_details`` backfills completed-race detail on a long loop.
+      It waits ``PREFETCH_STARTUP_DELAY`` first, so warm-up gets the machine to
+      itself rather than competing with it for the free tier's single worker.
+    """
     setup_logging()
     logger.info("server.starting")
-    task = asyncio.create_task(_prefetch_race_details())
+    tasks = [
+        asyncio.create_task(run_warmup()),
+        asyncio.create_task(_prefetch_race_details()),
+    ]
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 app = FastAPI(

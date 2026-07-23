@@ -74,12 +74,12 @@ const year = new Date().getFullYear();
 
 const formatDate = (value?: string) => {
   if (!value) return "No date";
-  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(new Date(value));
 };
 
 const formatTime = (value?: string) => {
   if (!value) return "No time";
-  return new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(value));
 };
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "browser local time";

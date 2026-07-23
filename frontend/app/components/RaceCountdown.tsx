@@ -11,7 +11,20 @@ interface RaceEvent {
   name: string;
   location: string;
   date: string | null;
+  sessions?: Record<string, string>;
   status: string;
+}
+
+/**
+ * When the race actually starts.
+ *
+ * The schedule's `date` field is the event's calendar date at midnight UTC, not
+ * a session time — counting down to it lands hours early (Hungary 2026: midnight
+ * vs the 13:00Z start). The Race session carries the real lights-out time; `date`
+ * is only a fallback for events whose sessions have not been published yet.
+ */
+function raceStartTime(event: RaceEvent): string | null {
+  return event.sessions?.Race ?? event.date;
 }
 
 interface Countdown {
@@ -47,15 +60,17 @@ export default function RaceCountdown() {
 
   const [countdown, setCountdown] = useState<Countdown | null>(null);
 
+  const startTime = nextRace ? raceStartTime(nextRace) : null;
+
   useEffect(() => {
-    if (!nextRace?.date) return;
-    const target = new Date(nextRace.date);
+    if (!startTime) return;
+    const target = new Date(startTime);
 
     const tick = () => setCountdown(calcCountdown(target));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [nextRace?.date]);
+  }, [startTime]);
 
   if (!nextRace || !countdown) return null;
 

@@ -157,21 +157,21 @@ function formatDate(value?: string) {
   if (!value) return "date TBC";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "date TBC";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function formatTime(value?: string) {
   if (!value) return "time TBC";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "time TBC";
-  return new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(date);
 }
 
 function formatSnapshotTime(value?: string | null) {
   if (!value) return "not stored";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "not stored";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function countdownTo(value?: string) {

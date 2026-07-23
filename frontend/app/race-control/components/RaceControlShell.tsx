@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+import SiteFooter from "@/app/components/SiteFooter";
 
 const NAV_GROUPS = [
   {
@@ -120,8 +121,12 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
       <div className="flex h-screen w-screen min-h-0">
         {/* Sidebar */}
         <aside className="hidden h-screen min-h-0 w-[232px] shrink-0 flex-col border-r border-[#1E2633] bg-[#080B11] lg:flex">
-          {/* Logo */}
-          <div className="h-[60px] shrink-0 px-4 flex items-center gap-3 border-b border-[#1E2633]">
+          {/* Logo — the way back out of the workspace to the landing page */}
+          <Link
+            href="/"
+            aria-label="F1 AI home"
+            className="h-[60px] shrink-0 px-4 flex items-center gap-3 border-b border-[#1E2633] transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+          >
             <div className="h-8 w-8 rounded-md border border-[#E10600]/35 bg-[#E10600]/15 flex items-center justify-center">
               <Gauge className="h-4 w-4 text-[#FF4655]" />
             </div>
@@ -131,7 +136,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
                 Race Control
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Race context chip */}
           {data?.race && (
@@ -204,7 +209,12 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
           aria-label="Race Control navigation"
         >
           <div className="h-[60px] shrink-0 border-b border-[#1E2633] px-4 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/"
+              onClick={() => setNavOpen(false)}
+              aria-label="F1 AI home"
+              className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#E10600]/35 bg-[#E10600]/15">
                 <Gauge className="h-4 w-4 text-[#FF4655]" />
               </div>
@@ -214,7 +224,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
                   Race Control
                 </p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={() => setNavOpen(false)}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#1E2633] text-neutral-400 hover:bg-white/[0.04] hover:text-white"
@@ -282,7 +292,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
                 >
                   <Menu className="h-5 w-5" />
                 </button>
-                <Link href="/race-control" className="flex min-w-0 items-center gap-2">
+                <Link href="/" aria-label="F1 AI home" className="flex min-w-0 items-center gap-2">
                   <Gauge className="h-4.5 w-4.5 shrink-0 text-[#FF4655]" />
                   <span className="truncate text-[15px] font-semibold uppercase leading-none" style={rcHeaderFont}>
                     Race Control
@@ -344,6 +354,8 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
             <div className="w-full max-w-none px-4 pt-7 pb-8 sm:px-6 sm:pt-8 sm:pb-10 [&>*]:w-full">
               {children}
             </div>
+            {/* Lives inside the scroll container — the shell itself is fixed to the viewport. */}
+            <SiteFooter compact />
           </div>
         </section>
       </div>

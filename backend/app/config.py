@@ -59,6 +59,13 @@ PREFETCH_INTER_RACE_DELAY = int(os.getenv("PREFETCH_INTER_RACE_DELAY", "5"))
 PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
 
 # ---------------------------------------------------------------------------
+# Startup warm-up / readiness settings
+# ---------------------------------------------------------------------------
+# Ceiling for a single warm-up step (seconds). Generous because the first step
+# may have to re-download the f1db database onto Render's ephemeral disk.
+WARMUP_STEP_TIMEOUT_SECONDS = int(os.getenv("WARMUP_STEP_TIMEOUT_SECONDS", "120"))
+
+# ---------------------------------------------------------------------------
 # ChromaDB / RAG settings
 # ---------------------------------------------------------------------------
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "data/chroma")

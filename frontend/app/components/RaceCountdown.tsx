@@ -1,10 +1,11 @@
 "use client";
 
+import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
-import { motion } from 'framer-motion';
-import { fetcher } from '../utils/fetcher';
+
 import { API_BASE } from '../constants/api';
+import { fetcher } from '../utils/fetcher';
 
 interface RaceEvent {
   round: number;

@@ -1,8 +1,9 @@
 "use client";
 
-import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Chat } from '../hooks/useLocalChats';
+import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+
+import type { Chat } from '../hooks/useLocalChats';
 
 interface ChatSidebarProps {
   chats: Chat[];
@@ -93,37 +94,44 @@ export default function ChatSidebar({
               <div
                 key={chat.id}
                 className={`
-                  group relative mx-2 mb-1 rounded-md cursor-pointer transition-colors duration-200
+                  group relative mx-2 mb-1 rounded-md transition-colors duration-200
                   ${activeChatId === chat.id
                     ? 'bg-[#00FF78]/10 text-white border border-[#00FF78]/25'
                     : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200 border border-transparent'
                   }
                 `}
-                onClick={() => {
-                  onSelectChat(chat.id);
-                  onClose();
-                }}
-                title={collapsed ? chat.title : undefined}
               >
-                {collapsed ? (
-                  <div className="flex items-center justify-center p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectChat(chat.id);
+                    onClose();
+                  }}
+                  title={collapsed ? chat.title : undefined}
+                  aria-current={activeChatId === chat.id ? 'true' : undefined}
+                  className={`w-full cursor-pointer flex items-center ${
+                    collapsed ? 'justify-center p-2' : 'px-3 py-2.5 pr-9 text-left'
+                  }`}
+                >
+                  {collapsed ? (
                     <MessageSquare className={`w-4 h-4 ${activeChatId === chat.id ? 'opacity-100' : 'opacity-50'}`} />
-                  </div>
-                ) : (
-                  <div className="flex items-center px-3 py-2.5">
-                    <MessageSquare className="w-4 h-4 shrink-0 mr-2.5 opacity-50" />
-                    <span className="text-sm truncate flex-1">{chat.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteChat(chat.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[#E10600]/15 transition-all shrink-0 ml-1"
-                      title="Delete chat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-neutral-500 hover:text-[#E10600]" />
-                    </button>
-                  </div>
+                  ) : (
+                    <>
+                      <MessageSquare className="w-4 h-4 shrink-0 mr-2.5 opacity-50" />
+                      <span className="text-sm truncate flex-1">{chat.title}</span>
+                    </>
+                  )}
+                </button>
+                {!collapsed && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteChat(chat.id)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded-md hover:bg-[#E10600]/15 transition-all"
+                    title="Delete chat"
+                    aria-label={`Delete chat: ${chat.title}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-neutral-500 hover:text-[#E10600]" />
+                  </button>
                 )}
               </div>
             ))

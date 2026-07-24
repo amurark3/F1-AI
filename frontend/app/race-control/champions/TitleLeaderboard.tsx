@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import { Panel, rcFont } from "@/app/race-control/components/RaceControlPrimitives";
 
 interface TitleEntry {

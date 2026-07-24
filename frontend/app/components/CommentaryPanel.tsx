@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { CommentaryEntry } from "../hooks/useLiveTiming";
+
+import type { CommentaryEntry } from "../hooks/useLiveTiming";
 
 interface Props {
   entries: CommentaryEntry[];

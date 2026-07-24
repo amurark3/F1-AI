@@ -1,12 +1,15 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { AlertTriangle } from "lucide-react";
-import { type DriverPrediction } from "@/app/components/PredictionDriverCard";
+
+import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+
 import { PageLoader } from "../components/RaceControlPrimitives";
+
 import { RacePredictionBoard } from "./RacePredictionBoard";
 
 interface RaceEvent {
@@ -124,16 +127,21 @@ async function postPredictionCompute(url: string) {
   return response.json() as Promise<PredictionsResponse>;
 }
 
+/** True when the schedule endpoint returned an `{ error }` payload rather than an array. */
+function hasScheduleErrorPayload(response: RaceEvent[] | { error: string } | undefined): boolean {
+  return !Array.isArray(response) && Boolean(response?.error);
+}
+
 export default function RaceControlPredictionsPage() {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [computeError, setComputeError] = useState<string | null>(null);
   const [computeReason, setComputeReason] = useState<"manual_compute" | "qualifying_recompute" | null>(null);
 
-  const { data: scheduleResponse, error: scheduleError, isLoading: scheduleLoading, mutate: reloadSchedule } = useSWR<RaceEvent[] | { error: string }>(
+  const { data: scheduleResponse, error: scheduleError, isLoading: scheduleLoading, mutate: reloadSchedule } = useSWR<RaceEvent[] | { error: string }, Error>(
     `${API_BASE}/api/schedule/${year}`, fetcher, { revalidateOnFocus: false, dedupingInterval: 300000 }
   );
 
-  const { data: driversData, error: driversError, isLoading: driversLoading, mutate: reloadDrivers } = useSWR<DriversResponse>(
+  const { data: driversData, error: driversError, isLoading: driversLoading, mutate: reloadDrivers } = useSWR<DriversResponse, Error>(
     `${API_BASE}/api/race-control/drivers/${year}`, fetcher, { revalidateOnFocus: false, dedupingInterval: 180000 }
   );
 
@@ -153,7 +161,7 @@ export default function RaceControlPredictionsPage() {
     error: predictionError,
     isLoading: predictionLoading,
     mutate: mutatePrediction,
-  } = useSWR<PredictionsResponse>(
+  } = useSWR<PredictionsResponse, Error>(
     effectiveRound ? `${API_BASE}/api/predictions/${year}/${effectiveRound}/snapshot` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
@@ -167,6 +175,7 @@ export default function RaceControlPredictionsPage() {
   const drivers = driversData?.drivers ?? [];
   const pageLoading = (scheduleLoading && schedule.length === 0) || (driversLoading && drivers.length === 0);
   const isComputing = computeReason !== null;
+  const scheduleHasError = Boolean(scheduleError) || hasScheduleErrorPayload(scheduleResponse);
 
   const computePrediction = async (reason: "manual_compute" | "qualifying_recompute") => {
     if (!effectiveRound || isComputing) return;
@@ -201,7 +210,7 @@ export default function RaceControlPredictionsPage() {
 
       <RacePredictionBoard
         schedule={schedule}
-        scheduleError={Boolean(scheduleError) || Boolean(!Array.isArray(scheduleResponse) && (scheduleResponse as { error: string })?.error)}
+        scheduleError={scheduleHasError}
         scheduleLoading={scheduleLoading}
         selectedRound={effectiveRound}
         selectedRace={selectedRace ?? null}

@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Activity, RadioTower, Satellite } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
 import CommentaryPanel from "@/app/components/CommentaryPanel";
 import LiveTimingTower from "@/app/components/LiveTimingTower";
 import RaceCountdown from "@/app/components/RaceCountdown";
 import { API_BASE } from "@/app/constants/api";
 import { useLiveTiming } from "@/app/hooks/useLiveTiming";
+
 import { MetricCard, MetricRow, PageLoader, Panel, SectionHeader, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
 
 interface LiveRound {
   year: number;
   round: number;
   name: string;
+}
+
+/** Label for the timing-feed metric based on connection and session presence. */
+function resolveTimingFeedState(isConnected: boolean, hasRound: boolean): string {
+  if (isConnected) return "Connected";
+  return hasRound ? "Linking" : "Idle";
 }
 
 export default function RaceControlLivePage() {
@@ -51,6 +59,8 @@ export default function RaceControlLivePage() {
     liveRound?.round ?? 0,
   );
 
+  const timingFeedState = resolveTimingFeedState(isConnected, Boolean(liveRound));
+
   if (loading) {
     return (
       <div>
@@ -77,7 +87,7 @@ export default function RaceControlLivePage() {
 
       <MetricRow>
         <MetricCard label="Session state" value={liveRound ? "Live" : "Standby"} sub={liveRound ? liveRound.name : "No active session"} icon={RadioTower} color={liveRound ? "#E10600" : "#3671C6"} />
-        <MetricCard label="Timing feed" value={isConnected ? "Connected" : liveRound ? "Linking" : "Idle"} sub={`Season ${year} live lookup`} icon={Satellite} />
+        <MetricCard label="Timing feed" value={timingFeedState} sub={`Season ${year} live lookup`} icon={Satellite} />
       </MetricRow>
 
       {!liveRound ? (

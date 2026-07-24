@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Loader2, Trophy, Timer, Zap } from 'lucide-react';
-import { fetcherWithTimeout } from '../utils/fetcher';
-import { API_BASE } from '../constants/api';
-import TrackInsights from './TrackInsights';
-import PodiumDisplay from './PodiumDisplay';
-import RaceResults from './RaceResults';
-import QualifyingResults from './QualifyingResults';
-import { getFlag } from './RaceCalendar';
+import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 
-interface Session { [key: string]: string; }
+import { API_BASE } from '../constants/api';
+import { fetcherWithTimeout } from '../utils/fetcher';
+
+import PodiumDisplay, { type PodiumEntry } from './PodiumDisplay';
+import QualifyingResults, { type QualifyingEntry } from './QualifyingResults';
+import { getFlag } from './RaceCalendar';
+import RaceResults, { type RaceResult } from './RaceResults';
+import TrackInsights from './TrackInsights';
+
+type Session = Record<string, string>;
 interface CircuitInfo {
   circuit_name: string; track_length_km: number; laps: number;
   lap_record: { time: string; driver: string; year: number };
@@ -22,6 +24,19 @@ interface RaceEvent {
   round: number; name: string; location: string;
   date: string | null; sessions: Session;
   status: string; circuit: CircuitInfo | null; is_sprint?: boolean;
+}
+
+type ResultTab = 'race' | 'qualifying' | 'sprint' | 'sprint_quali';
+
+/** Race detail payload returned by `/api/race/:year/:round`. */
+interface RaceDetail {
+  circuit: CircuitInfo | null;
+  podium: PodiumEntry[] | null;
+  race_results: RaceResult[] | null;
+  sprint_results: RaceResult[] | null;
+  qualifying: Record<string, QualifyingEntry[]> | null;
+  sprint_qualifying: Record<string, QualifyingEntry[]> | null;
+  is_sprint?: boolean;
 }
 
 interface RaceCardProps {
@@ -36,8 +51,25 @@ interface RaceCardProps {
 
 const parseDate = (s: string | null | undefined): Date | null => {
   if (!s) return null;
-  return new Date(/Z$|[+-]\d{2}:\d{2}$/.test(s) ? s : s + 'Z');
+  return new Date(/Z$|[+-]\d{2}:\d{2}$/.test(s) ? s : `${s  }Z`);
 };
+
+/** Left-border accent colour for a race row, by status. */
+function accentForStatus({ isInProgress, isNext, isCompleted }: {
+  isInProgress: boolean;
+  isNext: boolean;
+  isCompleted: boolean;
+}): string {
+  if (isInProgress || isNext) return '#E10600';
+  if (isCompleted) return 'transparent';
+  return 'rgba(255,255,255,0.08)';
+}
+
+/** Session-name styling: struck-through when done, accented for the race. */
+function sessionLabelClass(done: boolean, isRace: boolean): string {
+  if (done) return 'text-neutral-700 line-through';
+  return isRace ? '' : 'text-neutral-400';
+}
 
 const formatTime = (s: string | undefined, tz: string) => {
   const d = parseDate(s);
@@ -101,7 +133,7 @@ function StatusBadge({ status, isNext }: { status: string; isNext: boolean }) {
 }
 
 export default function RaceCard({ race, year, timezone, isNext, expanded, onToggle, isLastRow }: RaceCardProps) {
-  const [resultTab, setResultTab] = useState<'race' | 'qualifying' | 'sprint' | 'sprint_quali'>('race');
+  const [resultTab, setResultTab] = useState<ResultTab>('race');
 
   // Only fetch details once the row has been expanded at least once and race is done
   const [hasExpanded, setHasExpanded] = useState(false);
@@ -111,7 +143,7 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
   const isUpcoming    = race.status === 'upcoming';
 
   const shouldFetch = hasExpanded && isCompleted;
-  const { data: detail, isLoading: detailLoading, error: detailError, mutate: retryDetail } = useSWR(
+  const { data: detail, isLoading: detailLoading, error: detailError, mutate: retryDetail } = useSWR<RaceDetail, Error>(
     shouldFetch ? `${API_BASE}/api/race/${year}/${race.round}` : null,
     fetcherWithTimeout,
     { revalidateOnFocus: false, dedupingInterval: 300000, shouldRetryOnError: false }
@@ -127,7 +159,7 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
   const [countdown, setCountdown] = useState('');
   useEffect(() => {
     if (!isUpcoming) return;
-    const target = parseDate(race.sessions['Race'] || race.date);
+    const target = parseDate(race.sessions.Race || race.date);
     if (!target) return;
     const tick = () => {
       const diff = target.getTime() - Date.now();
@@ -147,11 +179,7 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
   const isCompleted_dim = isCompleted && !isNext;
 
   /* ── Left accent colour based on status ─────────────────── */
-  const accentColor = isInProgress || isNext
-    ? '#E10600'
-    : isCompleted
-    ? 'transparent'
-    : 'rgba(255,255,255,0.08)';
+  const accentColor = accentForStatus({ isInProgress, isNext, isCompleted });
 
   return (
     <div
@@ -252,42 +280,7 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
                 {/* Sessions */}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-600 mb-2"
-                    style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
-                    Schedule
-                  </p>
-                  <div className="space-y-1.5">
-                    {Object.entries(race.sessions).map(([name, time]) => {
-                      const d   = parseDate(time);
-                      const now = new Date();
-                      const done = d ? d < now : false;
-                      const isRace = name === 'Race';
-                      return (
-                        <div key={name} className="flex items-center justify-between gap-2">
-                          <span
-                            className={`text-[11px] font-black uppercase w-14 shrink-0 ${
-                              done ? 'text-neutral-700 line-through' : isRace ? '' : 'text-neutral-400'
-                            }`}
-                            style={isRace && !done ? { color: '#E10600', fontFamily: 'var(--font-barlow, var(--font-geist-sans))' } : { fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
-                          >
-                            {shortName(name)}
-                          </span>
-                          <span className={`text-[10px] ${done ? 'text-neutral-700' : 'text-neutral-500'}`}>
-                            {formatSessionDay(time, timezone)}
-                          </span>
-                          <span
-                            className={`font-mono text-[11px] px-1.5 py-0.5 rounded tabular-nums ${
-                              done ? 'text-neutral-700' : 'text-white bg-white/5'
-                            }`}
-                          >
-                            {formatTime(time, timezone)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <SessionScheduleList sessions={race.sessions} timezone={timezone} />
 
                 {/* Circuit info */}
                 {circuitInfo && <TrackInsights circuit={circuitInfo} />}
@@ -320,73 +313,152 @@ export default function RaceCard({ race, year, timezone, isNext, expanded, onTog
 
               {/* Completed race results */}
               {isCompleted && (
-                <>
-                  {detailLoading && !detailError && (
-                    <div className="flex items-center gap-3 py-4">
-                      <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#E10600' }} />
-                      <p className="text-xs text-neutral-500">Loading race data…</p>
-                    </div>
-                  )}
-                  {detailError && (
-                    <div className="py-4 text-center space-y-2">
-                      <p className="text-sm text-neutral-500">Failed to load race data.</p>
-                      <button
-                        onClick={() => retryDetail()}
-                        className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-lg text-white"
-                        style={{ background: '#E10600', fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  )}
-                  {detail?.podium && (
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-600 mb-3"
-                        style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
-                        Podium
-                      </p>
-                      <PodiumDisplay podium={detail.podium} />
-                    </div>
-                  )}
-                  {detail && !detailLoading && (detail.race_results || detail.qualifying) && (
-                    <div className="space-y-3">
-                      {/* Results tabs */}
-                      <div className="flex gap-0.5 glass rounded-lg p-0.5 w-fit">
-                        {[
-                          { key: 'race',         label: 'Race',  icon: <Trophy className="h-3 w-3" />, show: true },
-                          { key: 'qualifying',   label: 'Quali', icon: <Timer  className="h-3 w-3" />, show: true },
-                          { key: 'sprint',       label: 'Sprint',icon: <Zap    className="h-3 w-3" />, show: !!detail.is_sprint },
-                          { key: 'sprint_quali', label: 'SQ',    icon: <Zap    className="h-3 w-3" />, show: !!detail.is_sprint },
-                        ].filter(t => t.show).map(t => (
-                          <button
-                            key={t.key}
-                            onClick={() => setResultTab(t.key as typeof resultTab)}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all duration-200 ${
-                              resultTab === t.key
-                                ? 'text-white'
-                                : 'text-neutral-600 hover:text-neutral-400'
-                            }`}
-                            style={{
-                              background: resultTab === t.key ? '#E10600' : 'transparent',
-                              fontFamily: 'var(--font-barlow, var(--font-geist-sans))',
-                            }}
-                          >
-                            {t.icon}{t.label}
-                          </button>
-                        ))}
-                      </div>
-                      {resultTab === 'race'         && <RaceResults        results={detail.race_results} />}
-                      {resultTab === 'qualifying'   && <QualifyingResults  qualifying={detail.qualifying} />}
-                      {resultTab === 'sprint'       && <RaceResults        results={detail.sprint_results} />}
-                      {resultTab === 'sprint_quali' && <QualifyingResults  qualifying={detail.sprint_qualifying} />}
-                    </div>
-                  )}
-                </>
+                <CompletedRaceResults
+                  detail={detail}
+                  detailLoading={detailLoading}
+                  detailError={Boolean(detailError)}
+                  onRetry={() => void retryDetail()}
+                  resultTab={resultTab}
+                  onSelectTab={setResultTab}
+                />
               )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function SessionScheduleList({ sessions, timezone }: { sessions: Session; timezone: string }) {
+  const now = new Date();
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-600 mb-2"
+        style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
+        Schedule
+      </p>
+      <div className="space-y-1.5">
+        {Object.entries(sessions).map(([name, time]) => {
+          const parsed = parseDate(time);
+          const done = parsed ? parsed < now : false;
+          const isRace = name === 'Race';
+          return (
+            <div key={name} className="flex items-center justify-between gap-2">
+              <span
+                className={`text-[11px] font-black uppercase w-14 shrink-0 ${sessionLabelClass(done, isRace)}`}
+                style={isRace && !done ? { color: '#E10600', fontFamily: 'var(--font-barlow, var(--font-geist-sans))' } : { fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+              >
+                {shortName(name)}
+              </span>
+              <span className={`text-[10px] ${done ? 'text-neutral-700' : 'text-neutral-500'}`}>
+                {formatSessionDay(time, timezone)}
+              </span>
+              <span
+                className={`font-mono text-[11px] px-1.5 py-0.5 rounded tabular-nums ${
+                  done ? 'text-neutral-700' : 'text-white bg-white/5'
+                }`}
+              >
+                {formatTime(time, timezone)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ResultTabButton({ tab, active, onSelect }: {
+  tab: { key: ResultTab; label: string; icon: React.ReactNode };
+  active: boolean;
+  onSelect: (key: ResultTab) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(tab.key)}
+      className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all duration-200 ${
+        active ? 'text-white' : 'text-neutral-600 hover:text-neutral-400'
+      }`}
+      style={{
+        background: active ? '#E10600' : 'transparent',
+        fontFamily: 'var(--font-barlow, var(--font-geist-sans))',
+      }}
+    >
+      {tab.icon}{tab.label}
+    </button>
+  );
+}
+
+function ResultTabsPanel({ detail, resultTab, onSelectTab }: {
+  detail: RaceDetail;
+  resultTab: ResultTab;
+  onSelectTab: (tab: ResultTab) => void;
+}) {
+  const tabs: Array<{ key: ResultTab; label: string; icon: React.ReactNode; show: boolean }> = [
+    { key: 'race',         label: 'Race',  icon: <Trophy className="h-3 w-3" />, show: true },
+    { key: 'qualifying',   label: 'Quali', icon: <Timer  className="h-3 w-3" />, show: true },
+    { key: 'sprint',       label: 'Sprint',icon: <Zap    className="h-3 w-3" />, show: Boolean(detail.is_sprint) },
+    { key: 'sprint_quali', label: 'SQ',    icon: <Zap    className="h-3 w-3" />, show: Boolean(detail.is_sprint) },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-0.5 glass rounded-lg p-0.5 w-fit">
+        {tabs.filter(t => t.show).map(t => (
+          <ResultTabButton key={t.key} tab={t} active={resultTab === t.key} onSelect={onSelectTab} />
+        ))}
+      </div>
+      {resultTab === 'race'         && <RaceResults        results={detail.race_results} />}
+      {resultTab === 'qualifying'   && <QualifyingResults  qualifying={detail.qualifying} />}
+      {resultTab === 'sprint'       && <RaceResults        results={detail.sprint_results} />}
+      {resultTab === 'sprint_quali' && <QualifyingResults  qualifying={detail.sprint_qualifying} />}
+    </div>
+  );
+}
+
+function CompletedRaceResults({ detail, detailLoading, detailError, onRetry, resultTab, onSelectTab }: {
+  detail?: RaceDetail;
+  detailLoading: boolean;
+  detailError: boolean;
+  onRetry: () => void;
+  resultTab: ResultTab;
+  onSelectTab: (tab: ResultTab) => void;
+}) {
+  const showResults = detail && !detailLoading && (detail.race_results || detail.qualifying);
+
+  return (
+    <>
+      {detailLoading && !detailError && (
+        <div className="flex items-center gap-3 py-4">
+          <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#E10600' }} />
+          <p className="text-xs text-neutral-500">Loading race data…</p>
+        </div>
+      )}
+      {detailError && (
+        <div className="py-4 text-center space-y-2">
+          <p className="text-sm text-neutral-500">Failed to load race data.</p>
+          <button
+            onClick={onRetry}
+            className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-lg text-white"
+            style={{ background: '#E10600', fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {detail?.podium && (
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-600 mb-3"
+            style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}>
+            Podium
+          </p>
+          <PodiumDisplay podium={detail.podium} />
+        </div>
+      )}
+      {showResults && detail && (
+        <ResultTabsPanel detail={detail} resultTab={resultTab} onSelectTab={onSelectTab} />
+      )}
+    </>
   );
 }

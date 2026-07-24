@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { LivePosition, SessionStatus } from "../hooks/useLiveTiming";
+
+import type { LivePosition, SessionStatus } from "../hooks/useLiveTiming";
 
 interface Props {
   positions: LivePosition[];

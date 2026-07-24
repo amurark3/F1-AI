@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import useSWR from "swr";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,8 +11,12 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import Link from "next/link";
+import useSWR from "swr";
+
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+
 import { MetricCard, MetricRow, PageLoader, Panel, SectionHeader, StatusPill, rcFont } from "./components/RaceControlPrimitives";
 
 interface RaceEvent {
@@ -92,6 +94,54 @@ const formatCircuitDetail = (race?: RaceEvent | null) => {
   return `${race.circuit.laps} laps · ${race.circuit.circuit_type}`;
 };
 
+const THREAT_COLORS: Record<string, string> = {
+  Primary: "#E10600",
+  High: "#FFF200",
+};
+const threatColor = (threat: string): string => THREAT_COLORS[threat] ?? "#3671C6";
+
+function CommandCenterLoading() {
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Race Weekend Command Center"
+        title="Command Center"
+        description="Loading race context, championship pressure, strategy assumptions, and decision gates."
+      />
+      <PageLoader
+        title="Preparing command center"
+        detail="Loading the race weekend picture, strategy assumptions, competitor threat matrix, and prediction snapshot."
+      />
+    </div>
+  );
+}
+
+interface CommandMetricsProps {
+  race: RaceEvent | null | undefined;
+  context: StrategyContext | undefined;
+  weather: Overview["weather"];
+  focus: string | undefined;
+}
+
+function CommandMetrics({ race, context, weather, focus }: CommandMetricsProps) {
+  const weatherLive = typeof weather?.rain_risk === "number";
+  const weekendSub = race ? `${race.status} · ${race.location}` : "Awaiting schedule";
+  const pitValue = context ? `${context.pit_model.pit_loss_seconds}s` : "No model";
+  const pitSub = context
+    ? `Undercut ${context.pit_model.undercut_delta}s · overcut ${context.pit_model.overcut_delta}s${context.pit_model.undercut_modeled ? " · modeled" : ""}`
+    : "Baseline model unavailable";
+  const rainSub = weather?.confidence ?? (weatherLive ? "Live forecast" : "Live feed offline");
+
+  return (
+    <MetricRow>
+      <MetricCard label="Weekend state" value={context?.phase ?? focus ?? "Pre-race"} sub={weekendSub} icon={Target} />
+      <MetricCard label="Circuit profile" value={race?.circuit?.circuit_name ?? race?.location ?? "No circuit"} sub={formatCircuitDetail(race)} icon={CalendarClock} color="#FF8000" />
+      <MetricCard label="Pit lane delta" value={pitValue} sub={pitSub} icon={Timer} color="#3671C6" />
+      <MetricCard label="Rain risk" value={formatWeatherMetric(weather?.rain_risk, "%")} sub={rainSub} icon={CloudRain} color="#BE3AFF" />
+    </MetricRow>
+  );
+}
+
 export default function RaceControlHome() {
   const { data, isLoading } = useSWR<Overview>(
     `${API_BASE}/api/race-control/overview/${year}`,
@@ -108,21 +158,7 @@ export default function RaceControlHome() {
   const weather = data?.weather;
   const weatherLive = typeof weather?.rain_risk === "number";
 
-  if (isLoading) {
-    return (
-      <div>
-        <SectionHeader
-          eyebrow="Race Weekend Command Center"
-          title="Command Center"
-          description="Loading race context, championship pressure, strategy assumptions, and decision gates."
-        />
-        <PageLoader
-          title="Preparing command center"
-          detail="Loading the race weekend picture, strategy assumptions, competitor threat matrix, and prediction snapshot."
-        />
-      </div>
-    );
-  }
+  if (isLoading) return <CommandCenterLoading />;
 
   return (
     <div>
@@ -132,267 +168,313 @@ export default function RaceControlHome() {
         description="Pre-race operating view for session timing, baseline strategy, competitor threats, and open assumptions."
       />
 
-      <MetricRow>
-        <MetricCard label="Weekend state" value={context?.phase ?? data?.focus ?? "Pre-race"} sub={race ? `${race.status} · ${race.location}` : "Awaiting schedule"} icon={Target} />
-        <MetricCard label="Circuit profile" value={race?.circuit?.circuit_name ?? race?.location ?? "No circuit"} sub={formatCircuitDetail(race)} icon={CalendarClock} color="#FF8000" />
-        <MetricCard label="Pit lane delta" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} sub={context ? `Undercut ${context.pit_model.undercut_delta}s · overcut ${context.pit_model.overcut_delta}s${context.pit_model.undercut_modeled ? " · modeled" : ""}` : "Baseline model unavailable"} icon={Timer} color="#3671C6" />
-        <MetricCard
-          label="Rain risk"
-          value={formatWeatherMetric(weather?.rain_risk, "%")}
-          sub={weather?.confidence ?? (weatherLive ? "Live forecast" : "Live feed offline")}
-          icon={CloudRain}
-          color="#BE3AFF"
-        />
-      </MetricRow>
+      <CommandMetrics race={race} context={context} weather={weather} focus={data?.focus} />
 
       <div className="space-y-5">
-        <Panel className="p-6">
-          <div className="-mx-6 -mt-6 mb-6 h-[2px] bg-[#00FF78]" />
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Baseline strategy</p>
-                  <h2 className="mt-1 text-2xl font-semibold text-white" style={rcFont}>{context?.primary_call.title ?? "Base race plan"}</h2>
-                </div>
-                <StatusPill color={context?.primary_call.confidence === "medium" ? "#FFF200" : "#3671C6"}>
-                  {context?.primary_call.confidence ?? "draft"}
-                </StatusPill>
-              </div>
-              <p className="max-w-4xl text-base leading-relaxed text-neutral-300">
-                {context?.primary_call.summary ?? "Strategy context will populate when the next race and prediction snapshot are available."}
-              </p>
-
-              {context?.data_source && (
-                <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${context.data_source.mode === "telemetry" ? "bg-[#00FF78]" : "bg-[#FFF200]"}`}
-                  />
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-                    {context.data_source.mode === "telemetry"
-                      ? `Pit loss & tyre windows from ${context.data_source.edition_year} telemetry · ${context.data_source.sample_size} cars · undercut/overcut modeled`
-                      : "Planning heuristics · no completed edition available for telemetry"}
-                  </p>
-                </div>
-              )}
-
-              {context?.stint_windows && (
-                <div className="mt-6 flex flex-1 flex-col justify-center">
-                  <StintTimeline windows={context.stint_windows} />
-                </div>
-              )}
-
-              <div className="mt-6 pt-6 border-t border-white/8">
-                <div className="mb-3 flex items-center gap-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500" style={rcFont}>Pit model</p>
-                  <span className="h-px flex-1 bg-white/10" />
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <AssumptionStat label="Pit loss" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} />
-                  <AssumptionStat label="Undercut" value={context ? `${context.pit_model.undercut_delta}s` : "No model"} note={context?.pit_model.undercut_modeled ? "modeled" : undefined} />
-                  <AssumptionStat label="Overcut" value={context ? `${context.pit_model.overcut_delta}s` : "No model"} note={context?.pit_model.overcut_modeled ? "modeled" : undefined} />
-                  <AssumptionStat label="Traffic" value={context?.pit_model.traffic_threshold ?? "No model"} note={context?.pit_model.traffic_modeled ? "modeled" : undefined} />
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-5 xl:w-[460px] xl:shrink-0">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Race weekend clock</p>
-                  <p className="mt-1 text-[11px] text-neutral-500">UTC race calendar, shown in {localTimeZone()}.</p>
-                </div>
-                <StatusPill>{race?.status ?? "No event"}</StatusPill>
-              </div>
-              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap [&>*]:min-w-[140px] [&>*]:flex-1">
-                {sessions.length > 0 ? sessions.map(([name, time]) => (
-                  <div key={name} className="rounded border border-white/8 bg-white/[0.03] p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{name}</p>
-                    <p className="mt-2 text-sm font-bold text-white">{formatDate(time)}</p>
-                    <p className="mt-1 font-mono text-xs text-neutral-500">{formatTime(time)}</p>
-                  </div>
-                )) : (
-                  <p className="text-sm text-neutral-500">Session timeline will populate once schedule data is available.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </Panel>
+        <BaselineStrategyPanel context={context} race={race} sessions={sessions} />
 
         <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <Panel className="p-5">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Prediction snapshot</p>
-                <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Projected Podium</h2>
-              </div>
-              <Trophy className="h-5 w-5 text-[#E10600]" />
-            </div>
-            <div className="space-y-2">
-              {podium.length > 0 ? podium.map((driver, index) => {
-                const confidence = Math.round((driver.confidence_low + driver.confidence_high) / 2);
-                return (
-                  <div key={driver.driver_code} className="flex items-center gap-3 rounded-lg bg-white/[0.035] border border-white/8 px-3 py-2.5">
-                    <span className="w-8 text-sm font-semibold text-neutral-400" style={rcFont}>P{index + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-bold text-white">{driver.driver_name}</p>
-                      <p className="truncate text-xs text-neutral-500">{driver.team}</p>
-                    </div>
-                    <span className="text-sm font-mono text-[#00FF78]">{confidence}%</span>
-                  </div>
-                );
-              }) : (
-                <p className="text-sm text-neutral-500">Prediction snapshot will populate when model inputs are available.</p>
-              )}
-            </div>
-            <div className="mt-5 border-t border-white/10 pt-4">
-              <Link
-                href="/race-control/predictions"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-3 text-sm font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
-              >
-                Open predictions
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </Panel>
-
-          <Panel className="p-5">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white" style={rcFont}>Weather & Risk</h2>
-              <AlertTriangle className="h-5 w-5 text-[#FFF200]" />
-            </div>
-            {!weatherLive && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#FFF200] shrink-0" />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{weather?.confidence ?? "Live forecast feed offline"}</p>
-              </div>
-            )}
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row [&>*]:flex-1">
-              <AssumptionStat label="Rain" value={formatWeatherMetric(weather?.rain_risk, "%")} />
-              <AssumptionStat label="Track" value={formatWeatherMetric(weather?.track_temp_c, "°C")} />
-              <AssumptionStat label="Wind" value={formatWeatherMetric(weather?.wind_kph, " kph")} />
-            </div>
-            <div className="space-y-3">
-              {(data?.risk_register ?? []).slice(0, 3).map((risk) => (
-                <div key={risk.title} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                  <p className="text-sm font-bold text-white">{risk.title}</p>
-                  <p className="mt-1 text-xs text-neutral-500 leading-relaxed">{risk.detail}</p>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="p-5">
-            <h2 className="mb-5 text-xl font-semibold text-white" style={rcFont}>Championship Control</h2>
-            <div className="flex flex-col gap-3">
-              <LeaderCard label="Drivers" name={driverLeader?.driver ?? "No standings"} points={driverLeader?.points ?? 0} />
-              <LeaderCard label="Constructors" name={constructorLeader?.team ?? "No standings"} points={constructorLeader?.points ?? 0} />
-            </div>
-          </Panel>
+          <ProjectedPodiumPanel podium={podium} />
+          <WeatherRiskPanel weather={weather} weatherLive={weatherLive} risks={data?.risk_register ?? []} />
+          <ChampionshipControlPanel driverLeader={driverLeader} constructorLeader={constructorLeader} />
         </div>
 
         <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <Panel className="p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Decision gates</p>
-                <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Call Sheet</h2>
-              </div>
-              <Gauge className="h-5 w-5 text-[#00FF78]" />
-            </div>
-            <div className="space-y-3">
-              {(context?.decision_gates ?? []).map((gate) => (
-                <div key={gate.gate} className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 md:flex-row">
-                  <div className="md:w-[150px] md:shrink-0">
-                    <p className="text-sm font-bold text-white">{gate.gate}</p>
-                    <p className="mt-1 text-xs text-[#00FF78]">{gate.trigger}</p>
-                    <p className="text-xs text-neutral-500">{gate.owner}</p>
-                  </div>
-                  <p className="text-sm leading-relaxed text-neutral-300">{gate.decision}</p>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Stint plan</p>
-                <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Base Race Branch</h2>
-              </div>
-              <Timer className="h-5 w-5 text-[#FF8000]" />
-            </div>
-            <div className="overflow-x-auto rounded-lg border border-white/10">
-              <table className="min-w-[720px] w-full text-left text-sm">
-                <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
-                  <tr>
-                    <th className="px-3 py-2">Stint</th>
-                    <th className="px-3 py-2">Tyre</th>
-                    <th className="px-3 py-2">Window</th>
-                    <th className="px-3 py-2">Target</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/8">
-                  {(context?.stint_plan ?? []).map((stint) => (
-                    <tr key={stint.stint} className="bg-white/[0.02]">
-                      <td className="px-3 py-3 font-bold text-white">{stint.stint}</td>
-                      <td className="px-3 py-3 text-neutral-300">{stint.compound}</td>
-                      <td className="px-3 py-3 font-mono text-[#00FF78]">{stint.window}</td>
-                      <td className="px-3 py-3 text-neutral-400">{stint.target}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+          <CallSheetPanel gates={context?.decision_gates ?? []} />
+          <StintPlanPanel stints={context?.stint_plan ?? []} />
         </div>
 
-        <Panel className="p-6">
-          <div className="mb-5 flex items-center justify-between">
+        <CompetitorMatrixPanel competitors={context?.competitors ?? []} />
+        <DataAssumptionsPanel assumptions={context?.assumptions ?? []} />
+      </div>
+    </div>
+  );
+}
+
+function BaselineStrategyPanel({ context, race, sessions }: {
+  context: StrategyContext | undefined;
+  race: RaceEvent | null | undefined;
+  sessions: Array<[string, string]>;
+}) {
+  return (
+    <Panel className="p-6">
+      <div className="-mx-6 -mt-6 mb-6 h-[2px] bg-[#00FF78]" />
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Competitor matrix</p>
-              <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Constructor Threats</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Baseline strategy</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white" style={rcFont}>{context?.primary_call.title ?? "Base race plan"}</h2>
             </div>
-            <Users className="h-5 w-5 text-[#3671C6]" />
+            <StatusPill color={context?.primary_call.confidence === "medium" ? "#FFF200" : "#3671C6"}>
+              {context?.primary_call.confidence ?? "draft"}
+            </StatusPill>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-white/10">
-            <table className="min-w-[860px] w-full text-left text-sm">
-              <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
-                <tr>
-                  <th className="px-3 py-2">Team</th>
-                  <th className="px-3 py-2">Pts</th>
-                  <th className="px-3 py-2">Gap</th>
-                  <th className="px-3 py-2">Threat</th>
-                  <th className="px-3 py-2">Operating Read</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/8">
-                {(context?.competitors ?? []).map((team) => (
-                  <tr key={team.team} className="bg-white/[0.02]">
-                    <td className="px-3 py-3 font-bold text-white">P{team.rank} · {team.team}</td>
-                    <td className="px-3 py-3 font-mono text-neutral-300">{team.points}</td>
-                    <td className="px-3 py-3 font-mono text-neutral-400">{team.gap_to_leader}</td>
-                    <td className="px-3 py-3"><StatusPill color={team.threat === "Primary" ? "#E10600" : team.threat === "High" ? "#FFF200" : "#3671C6"}>{team.threat}</StatusPill></td>
-                    <td className="px-3 py-3 text-neutral-400">{team.operating_read}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
+          <p className="max-w-4xl text-base leading-relaxed text-neutral-300">
+            {context?.primary_call.summary ?? "Strategy context will populate when the next race and prediction snapshot are available."}
+          </p>
 
-        <Panel className="p-5">
-          <h2 className="mb-4 text-xl font-semibold text-white" style={rcFont}>Data Assumptions</h2>
-          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap [&>*]:min-w-[260px] [&>*]:flex-1">
-            {(context?.assumptions ?? []).map((assumption) => (
-              <div key={assumption} className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-neutral-400">
-                {assumption}
+          {context?.data_source && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${context.data_source.mode === "telemetry" ? "bg-[#00FF78]" : "bg-[#FFF200]"}`}
+              />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                {context.data_source.mode === "telemetry"
+                  ? `Pit loss & tyre windows from ${context.data_source.edition_year} telemetry · ${context.data_source.sample_size} cars · undercut/overcut modeled`
+                  : "Planning heuristics · no completed edition available for telemetry"}
+              </p>
+            </div>
+          )}
+
+          {context?.stint_windows && (
+            <div className="mt-6 flex flex-1 flex-col justify-center">
+              <StintTimeline windows={context.stint_windows} />
+            </div>
+          )}
+
+          <div className="mt-6 pt-6 border-t border-white/8">
+            <div className="mb-3 flex items-center gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500" style={rcFont}>Pit model</p>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <AssumptionStat label="Pit loss" value={context ? `${context.pit_model.pit_loss_seconds}s` : "No model"} />
+              <AssumptionStat label="Undercut" value={context ? `${context.pit_model.undercut_delta}s` : "No model"} note={context?.pit_model.undercut_modeled ? "modeled" : undefined} />
+              <AssumptionStat label="Overcut" value={context ? `${context.pit_model.overcut_delta}s` : "No model"} note={context?.pit_model.overcut_modeled ? "modeled" : undefined} />
+              <AssumptionStat label="Traffic" value={context?.pit_model.traffic_threshold ?? "No model"} note={context?.pit_model.traffic_modeled ? "modeled" : undefined} />
+            </div>
+          </div>
+        </div>
+
+        <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-5 xl:w-[460px] xl:shrink-0">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Race weekend clock</p>
+              <p className="mt-1 text-[11px] text-neutral-500">UTC race calendar, shown in {localTimeZone()}.</p>
+            </div>
+            <StatusPill>{race?.status ?? "No event"}</StatusPill>
+          </div>
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap [&>*]:min-w-[140px] [&>*]:flex-1">
+            {sessions.length === 0 && (
+              <p className="text-sm text-neutral-500">Session timeline will populate once schedule data is available.</p>
+            )}
+            {sessions.map(([name, time]) => (
+              <div key={name} className="rounded border border-white/8 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{name}</p>
+                <p className="mt-2 text-sm font-bold text-white">{formatDate(time)}</p>
+                <p className="mt-1 font-mono text-xs text-neutral-500">{formatTime(time)}</p>
               </div>
             ))}
           </div>
-        </Panel>
+        </div>
       </div>
-    </div>
+    </Panel>
+  );
+}
+
+function ProjectedPodiumPanel({ podium }: { podium: NonNullable<Overview["predicted_podium"]> }) {
+  return (
+    <Panel className="p-5">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Prediction snapshot</p>
+          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Projected Podium</h2>
+        </div>
+        <Trophy className="h-5 w-5 text-[#E10600]" />
+      </div>
+      <div className="space-y-2">
+        {podium.length === 0 && (
+          <p className="text-sm text-neutral-500">Prediction snapshot will populate when model inputs are available.</p>
+        )}
+        {podium.map((driver, index) => {
+          const confidence = Math.round((driver.confidence_low + driver.confidence_high) / 2);
+          return (
+            <div key={driver.driver_code} className="flex items-center gap-3 rounded-lg bg-white/[0.035] border border-white/8 px-3 py-2.5">
+              <span className="w-8 text-sm font-semibold text-neutral-400" style={rcFont}>P{index + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-bold text-white">{driver.driver_name}</p>
+                <p className="truncate text-xs text-neutral-500">{driver.team}</p>
+              </div>
+              <span className="text-sm font-mono text-[#00FF78]">{confidence}%</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-5 border-t border-white/10 pt-4">
+        <Link
+          href="/race-control/predictions"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-3 text-sm font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
+        >
+          Open predictions
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </Panel>
+  );
+}
+
+function WeatherRiskPanel({ weather, weatherLive, risks }: {
+  weather: Overview["weather"];
+  weatherLive: boolean;
+  risks: NonNullable<Overview["risk_register"]>;
+}) {
+  return (
+    <Panel className="p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white" style={rcFont}>Weather & Risk</h2>
+        <AlertTriangle className="h-5 w-5 text-[#FFF200]" />
+      </div>
+      {!weatherLive && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#FFF200] shrink-0" />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{weather?.confidence ?? "Live forecast feed offline"}</p>
+        </div>
+      )}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row [&>*]:flex-1">
+        <AssumptionStat label="Rain" value={formatWeatherMetric(weather?.rain_risk, "%")} />
+        <AssumptionStat label="Track" value={formatWeatherMetric(weather?.track_temp_c, "°C")} />
+        <AssumptionStat label="Wind" value={formatWeatherMetric(weather?.wind_kph, " kph")} />
+      </div>
+      <div className="space-y-3">
+        {risks.slice(0, 3).map((risk) => (
+          <div key={risk.title} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+            <p className="text-sm font-bold text-white">{risk.title}</p>
+            <p className="mt-1 text-xs text-neutral-500 leading-relaxed">{risk.detail}</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ChampionshipControlPanel({ driverLeader, constructorLeader }: {
+  driverLeader: NonNullable<Overview["championship"]>["drivers"][number] | undefined;
+  constructorLeader: NonNullable<Overview["championship"]>["constructors"][number] | undefined;
+}) {
+  return (
+    <Panel className="p-5">
+      <h2 className="mb-5 text-xl font-semibold text-white" style={rcFont}>Championship Control</h2>
+      <div className="flex flex-col gap-3">
+        <LeaderCard label="Drivers" name={driverLeader?.driver ?? "No standings"} points={driverLeader?.points ?? 0} />
+        <LeaderCard label="Constructors" name={constructorLeader?.team ?? "No standings"} points={constructorLeader?.points ?? 0} />
+      </div>
+    </Panel>
+  );
+}
+
+function CallSheetPanel({ gates }: { gates: StrategyContext["decision_gates"] }) {
+  return (
+    <Panel className="p-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Decision gates</p>
+          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Call Sheet</h2>
+        </div>
+        <Gauge className="h-5 w-5 text-[#00FF78]" />
+      </div>
+      <div className="space-y-3">
+        {gates.map((gate) => (
+          <div key={gate.gate} className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 md:flex-row">
+            <div className="md:w-[150px] md:shrink-0">
+              <p className="text-sm font-bold text-white">{gate.gate}</p>
+              <p className="mt-1 text-xs text-[#00FF78]">{gate.trigger}</p>
+              <p className="text-xs text-neutral-500">{gate.owner}</p>
+            </div>
+            <p className="text-sm leading-relaxed text-neutral-300">{gate.decision}</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function StintPlanPanel({ stints }: { stints: StrategyContext["stint_plan"] }) {
+  return (
+    <Panel className="p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Stint plan</p>
+          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Base Race Branch</h2>
+        </div>
+        <Timer className="h-5 w-5 text-[#FF8000]" />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-white/10">
+        <table className="min-w-[720px] w-full text-left text-sm">
+          <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
+            <tr>
+              <th className="px-3 py-2">Stint</th>
+              <th className="px-3 py-2">Tyre</th>
+              <th className="px-3 py-2">Window</th>
+              <th className="px-3 py-2">Target</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/8">
+            {stints.map((stint) => (
+              <tr key={stint.stint} className="bg-white/[0.02]">
+                <td className="px-3 py-3 font-bold text-white">{stint.stint}</td>
+                <td className="px-3 py-3 text-neutral-300">{stint.compound}</td>
+                <td className="px-3 py-3 font-mono text-[#00FF78]">{stint.window}</td>
+                <td className="px-3 py-3 text-neutral-400">{stint.target}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function CompetitorMatrixPanel({ competitors }: { competitors: StrategyContext["competitors"] }) {
+  return (
+    <Panel className="p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>Competitor matrix</p>
+          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>Constructor Threats</h2>
+        </div>
+        <Users className="h-5 w-5 text-[#3671C6]" />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-white/10">
+        <table className="min-w-[860px] w-full text-left text-sm">
+          <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
+            <tr>
+              <th className="px-3 py-2">Team</th>
+              <th className="px-3 py-2">Pts</th>
+              <th className="px-3 py-2">Gap</th>
+              <th className="px-3 py-2">Threat</th>
+              <th className="px-3 py-2">Operating Read</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/8">
+            {competitors.map((team) => (
+              <tr key={team.team} className="bg-white/[0.02]">
+                <td className="px-3 py-3 font-bold text-white">P{team.rank} · {team.team}</td>
+                <td className="px-3 py-3 font-mono text-neutral-300">{team.points}</td>
+                <td className="px-3 py-3 font-mono text-neutral-400">{team.gap_to_leader}</td>
+                <td className="px-3 py-3"><StatusPill color={threatColor(team.threat)}>{team.threat}</StatusPill></td>
+                <td className="px-3 py-3 text-neutral-400">{team.operating_read}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function DataAssumptionsPanel({ assumptions }: { assumptions: string[] }) {
+  return (
+    <Panel className="p-5">
+      <h2 className="mb-4 text-xl font-semibold text-white" style={rcFont}>Data Assumptions</h2>
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap [&>*]:min-w-[260px] [&>*]:flex-1">
+        {assumptions.map((assumption) => (
+          <div key={assumption} className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-neutral-400">
+            {assumption}
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

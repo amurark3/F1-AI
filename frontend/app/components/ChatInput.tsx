@@ -1,9 +1,12 @@
 "use client";
 
-import { type RefObject } from 'react';
-import { Loader2, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Loader2, Mic, MicOff } from 'lucide-react';
+
 import { useVoice } from '@/app/hooks/useVoice';
+
+import type { RefObject } from 'react';
+
 
 interface ChatInputProps {
   input: string;

@@ -1,11 +1,11 @@
 "use client";
 
+import { Trophy, Users, Flag, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, Users, Flag, ChevronRight } from "lucide-react";
-import { API_BASE } from "@/app/constants/api";
-import { fetcher } from "@/app/utils/fetcher";
+
 import { getTeamColor } from "@/app/components/PredictionDriverCard";
+import { API_BASE } from "@/app/constants/api";
 import {
   InlineNotice,
   MetricCard,
@@ -16,6 +16,8 @@ import {
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
+import { fetcher } from "@/app/utils/fetcher";
+
 import { TitleLeaderboard } from "./TitleLeaderboard";
 
 interface DriverChampion {
@@ -59,7 +61,7 @@ interface StatsResponse {
 }
 
 export default function ChampionsPage() {
-  const { data, error, isLoading } = useSWR<ChampionsResponse>(
+  const { data, error, isLoading } = useSWR<ChampionsResponse, Error>(
     `${API_BASE}/api/champions`,
     fetcher,
   );
@@ -84,8 +86,6 @@ export default function ChampionsPage() {
   }
 
   const seasons = data.seasons;
-  const topDriver = stats?.most_driver_titles?.[0];
-  const topConstructor = stats?.most_constructor_titles?.[0];
 
   return (
     <div className="w-full">
@@ -95,30 +95,7 @@ export default function ChampionsPage() {
         description="Every Formula 1 World Champion since the championship began in 1950 — drivers, constructors, and the races that decided them."
       />
 
-      <MetricRow>
-        <MetricCard label="Seasons" value={String(seasons.length)} icon={Flag} color="#E10600" sub="1950 to present" />
-        <MetricCard
-          label="Most Driver Titles"
-          value={topDriver ? String(topDriver.titles) : "—"}
-          sub={topDriver?.name}
-          icon={Trophy}
-          color="#FFD700"
-        />
-        <MetricCard
-          label="Most Constructor Titles"
-          value={topConstructor ? String(topConstructor.titles) : "—"}
-          sub={topConstructor?.name}
-          icon={Users}
-          color="#00D2FF"
-        />
-        <MetricCard
-          label="Current Leader"
-          value={seasons[0]?.driver_champion?.code ?? "—"}
-          sub={seasons[0]?.is_in_progress ? `${seasons[0].season} — in progress` : `${seasons[0]?.season} champion`}
-          icon={Trophy}
-          color="#00FF78"
-        />
-      </MetricRow>
+      <ChampionsMetrics seasons={seasons} stats={stats} />
 
       {(stats?.most_driver_titles?.length || stats?.most_constructor_titles?.length) && (
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
@@ -136,6 +113,42 @@ export default function ChampionsPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats?: StatsResponse }) {
+  const topDriver = stats?.most_driver_titles?.[0];
+  const topConstructor = stats?.most_constructor_titles?.[0];
+  const current = seasons[0];
+  const currentSub = current?.is_in_progress
+    ? `${current.season} — in progress`
+    : `${current?.season} champion`;
+
+  return (
+    <MetricRow>
+      <MetricCard label="Seasons" value={String(seasons.length)} icon={Flag} color="#E10600" sub="1950 to present" />
+      <MetricCard
+        label="Most Driver Titles"
+        value={topDriver ? String(topDriver.titles) : "—"}
+        sub={topDriver?.name}
+        icon={Trophy}
+        color="#FFD700"
+      />
+      <MetricCard
+        label="Most Constructor Titles"
+        value={topConstructor ? String(topConstructor.titles) : "—"}
+        sub={topConstructor?.name}
+        icon={Users}
+        color="#00D2FF"
+      />
+      <MetricCard
+        label="Current Leader"
+        value={current?.driver_champion?.code ?? "—"}
+        sub={currentSub}
+        icon={Trophy}
+        color="#00FF78"
+      />
+    </MetricRow>
   );
 }
 

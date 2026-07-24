@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 
-interface QualifyingEntry {
+export interface QualifyingEntry {
   position: number;
   driver: string;
   full_name: string;
@@ -16,6 +16,21 @@ interface QualifyingResultsProps {
 }
 
 const TABS = ["Q3", "Q2", "Q1"] as const;
+
+const PODIUM_CUTOFF = 3;
+
+/** Tab button styling for the active / selectable / disabled states. */
+function tabClass(isActive: boolean, available: boolean): string {
+  if (isActive) return "bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-600/25";
+  if (available) return "text-neutral-500 hover:text-white hover:bg-white/5";
+  return "text-neutral-700 cursor-not-allowed";
+}
+
+/** Position-number styling: pole gradient, podium white, or muted. */
+function positionClass(isPole: boolean, index: number): string {
+  if (isPole) return "bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent";
+  return index < PODIUM_CUTOFF ? "text-white" : "text-neutral-500";
+}
 
 export default function QualifyingResults({ qualifying }: QualifyingResultsProps) {
   const [activeTab, setActiveTab] = useState<string>("Q3");
@@ -34,19 +49,13 @@ export default function QualifyingResults({ qualifying }: QualifyingResultsProps
       {/* Tab bar */}
       <div className="flex gap-1 glass rounded-xl p-1">
         {TABS.map((tab) => {
-          const available = qualifying[tab]?.length;
+          const available = Boolean(qualifying[tab]?.length);
           return (
             <button
               key={tab}
               onClick={() => available && setActiveTab(tab)}
               disabled={!available}
-              className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 ${
-                currentTab === tab
-                  ? "bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-600/25"
-                  : available
-                    ? "text-neutral-500 hover:text-white hover:bg-white/5"
-                    : "text-neutral-700 cursor-not-allowed"
-              }`}
+              className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 ${tabClass(currentTab === tab, available)}`}
             >
               {tab}
             </button>
@@ -76,7 +85,7 @@ export default function QualifyingResults({ qualifying }: QualifyingResultsProps
                 isPole ? "glass border-red-500/30" : "hover:bg-white/3"
               }`}
             >
-              <span className={`font-black ${isPole ? "bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent" : i < 3 ? "text-white" : "text-neutral-500"}`}>
+              <span className={`font-black ${positionClass(isPole, i)}`}>
                 {e.position}
               </span>
               <span className="font-mono text-neutral-500">{e.driver}</span>

@@ -1,10 +1,12 @@
 "use client";
 
+import { AlertTriangle, BarChart3, Database, Radar, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import useSWR from "swr";
-import { AlertTriangle, BarChart3, Database, Radar, ShieldCheck } from "lucide-react";
+
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+
 import { InlineNotice, MetricCard, MetricRow, PageLoader, Panel, SectionHeader, SectionLoader, StatusPill, rcFont } from "../components/RaceControlPrimitives";
 
 interface Intel {
@@ -26,7 +28,7 @@ interface TeamsResponse {
 export default function IntelPage() {
   const year = new Date().getFullYear();
   const [team, setTeam] = useState("");
-  const { data: teamsData, error: teamsError, isLoading: teamsLoading, mutate: reloadTeams } = useSWR<TeamsResponse>(
+  const { data: teamsData, error: teamsError, isLoading: teamsLoading, mutate: reloadTeams } = useSWR<TeamsResponse, Error>(
     `${API_BASE}/api/race-control/teams/${year}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 180000 }
@@ -34,7 +36,7 @@ export default function IntelPage() {
   const teams = teamsData?.teams ?? [];
   const selectedTeam = team || teams[0]?.slug || "";
 
-  const { data, error, isLoading, mutate } = useSWR<Intel>(
+  const { data, error, isLoading, mutate } = useSWR<Intel, Error>(
     selectedTeam ? `${API_BASE}/api/race-control/intel/${selectedTeam}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 180000 }

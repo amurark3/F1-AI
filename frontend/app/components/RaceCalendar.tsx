@@ -1,16 +1,16 @@
 "use client";
 
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import useSWR from 'swr';
-import { ChevronDown } from 'lucide-react';
+
+import { API_BASE } from '../constants/api';
 import F1_TIMEZONES from '../constants/timeZone';
 import { fetcher } from '../utils/fetcher';
-import { API_BASE } from '../constants/api';
+
 import RaceCard from './RaceCard';
 
-interface Session {
-  [key: string]: string;
-}
+type Session = Record<string, string>;
 
 interface CircuitInfo {
   circuit_name: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+
 import { useServerStatus } from '../hooks/useServerStatus';
 
 const rcMono = { fontFamily: 'var(--font-geist-mono, var(--font-geist-sans, monospace))' };

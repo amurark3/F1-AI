@@ -1,11 +1,14 @@
 "use client";
 
 import { PanelLeftOpen } from 'lucide-react';
+
+import { useChat } from '../hooks/useChat';
+
+import ChatInput from './ChatInput';
+import ChatMessages from './ChatMessages';
 import ChatSidebar from './ChatSidebar';
 import ChatWelcome from './ChatWelcome';
-import ChatMessages from './ChatMessages';
-import ChatInput from './ChatInput';
-import { useChat } from '../hooks/useChat';
+
 
 export default function ChatScreen() {
   const {

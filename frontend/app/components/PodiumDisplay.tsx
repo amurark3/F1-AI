@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 
-interface PodiumEntry {
+export interface PodiumEntry {
   position: number;
   driver: string;
   full_name: string;

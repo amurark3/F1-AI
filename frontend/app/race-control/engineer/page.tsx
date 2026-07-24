@@ -1,10 +1,12 @@
 "use client";
 
 import { Bot, PanelLeftOpen, Plus, Radio, Sparkles } from "lucide-react";
+
 import ChatInput from "@/app/components/ChatInput";
 import ChatMessages from "@/app/components/ChatMessages";
 import ChatSidebar from "@/app/components/ChatSidebar";
 import { useChat } from "@/app/hooks/useChat";
+
 import { StatusPill, rcFont } from "../components/RaceControlPrimitives";
 
 const PROMPTS = [

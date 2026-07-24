@@ -1,9 +1,11 @@
 "use client";
 
+import { BookOpenCheck } from "lucide-react";
 import { useState } from "react";
 import useSWRMutation from "swr/mutation";
-import { BookOpenCheck } from "lucide-react";
+
 import { API_BASE } from "@/app/constants/api";
+
 import { InlineNotice, Panel, SectionHeader, SectionLoader, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
 
 interface SearchArgs {
@@ -37,13 +39,21 @@ const QUICK_QUESTIONS = [
   "What 2026 technical changes affect strategy?",
 ];
 
+/** Badge label for the answer source: fallback, live citation, or idle. */
+function sourceStatusLabel(result: RulebookResult | undefined): string {
+  if (result?.source === "fallback") return "Limited";
+  return result ? "Cited" : "Ready";
+}
+
 export default function RulebookPage() {
   const [query, setQuery] = useState("What can we change under parc ferme?");
   const [category, setCategory] = useState("Sporting");
-  const { trigger, data, error, isMutating } = useSWRMutation(
-    `${API_BASE}/api/race-control/rulebook/search`,
-    searchRulebook
-  );
+  const { trigger, data, error, isMutating } = useSWRMutation<
+    RulebookResult,
+    Error,
+    string,
+    SearchArgs
+  >(`${API_BASE}/api/race-control/rulebook/search`, searchRulebook);
   const runSearch = () => trigger({ query, category });
 
   return (
@@ -111,7 +121,7 @@ export default function RulebookPage() {
               <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400 mb-2" style={rcFont}>Operational Answer</p>
               <h2 className="text-2xl font-black italic uppercase text-white leading-none" style={rcFont}>{data?.category ?? category} Regulations</h2>
             </div>
-            <StatusPill color={data?.source === "fallback" ? "#FFF200" : "#00FF78"}>{data?.source === "fallback" ? "Limited" : data ? "Cited" : "Ready"}</StatusPill>
+            <StatusPill color={data?.source === "fallback" ? "#FFF200" : "#00FF78"}>{sourceStatusLabel(data)}</StatusPill>
           </div>
           {error && (
             <div className="mb-5">
@@ -145,7 +155,7 @@ export default function RulebookPage() {
                 <p className="text-sm text-neutral-400 leading-relaxed">{citation.snippet}</p>
               </div>
             ))}
-            {data && data.citations.length === 0 && (
+            {data?.citations.length === 0 && (
               <InlineNotice title="No Citations" tone="warning">
                 Try broadening the category filter or using a shorter regulation topic.
               </InlineNotice>

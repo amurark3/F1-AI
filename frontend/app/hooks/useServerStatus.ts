@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from 'react';
+
 import { API_BASE } from '../constants/api';
 
 export type ServerStatus = 'unknown' | 'warming' | 'ready' | 'unreachable';
@@ -122,10 +123,10 @@ function startProbing(): void {
       stage: readiness?.stage ?? null,
       isWarming: true,
     });
-    setTimeout(poll, PROBE_INTERVAL_MS);
+    setTimeout(() => void poll(), PROBE_INTERVAL_MS);
   };
 
-  poll();
+  void poll();
 }
 
 /**

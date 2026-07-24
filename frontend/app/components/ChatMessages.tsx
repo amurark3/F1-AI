@@ -1,9 +1,11 @@
 "use client";
 
-import { type RefObject } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { type Message } from '../hooks/useLocalChats';
+import { Loader2, RefreshCw } from 'lucide-react';
+
+import type { Message } from '../hooks/useLocalChats';
+import type { RefObject } from 'react';
+
 
 interface ChatMessagesProps {
   messages: Message[];

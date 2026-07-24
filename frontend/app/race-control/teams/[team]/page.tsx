@@ -1,11 +1,13 @@
 "use client";
 
+import { ArrowLeft, BarChart3, Gauge, ShieldAlert, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { ArrowLeft, BarChart3, Gauge, ShieldAlert, Trophy, Users } from "lucide-react";
+
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+
 import { MetricCard, MetricRow, PageLoader, Panel, SectionHeader, StatusPill, WorkspaceSplit, rcFont } from "../../components/RaceControlPrimitives";
 
 interface TeamDetail {

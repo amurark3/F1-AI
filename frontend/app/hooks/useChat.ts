@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useLocalChats, type Message } from './useLocalChats';
+
 import { API_BASE } from '../constants/api';
+import { getErrorMessage } from '../utils/errors';
+
+import { useLocalChats, type Message } from './useLocalChats';
 
 const USER_ID_KEY = 'f1ai_user_id';
 
@@ -122,7 +125,7 @@ export function useChat() {
 
         // Parse tool status indicators from the stream.
         // Format: [TOOL_START]Tool Name[/TOOL_START] and [TOOL_END]Tool Name[/TOOL_END]
-        const remaining = chunk.replace(/\[TOOL_START\](.*?)\[\/TOOL_START\]/g, (_, name) => {
+        const remaining = chunk.replace(/\[TOOL_START\](.*?)\[\/TOOL_START\]/g, (_, name: string) => {
           setToolStatus(name);
           return '';
         }).replace(/\[TOOL_END\](.*?)\[\/TOOL_END\]/g, () => {
@@ -143,7 +146,7 @@ export function useChat() {
       updateLastMessage(chatId, assistantContent);
     } catch (error) {
       console.error('Chat error:', error);
-      const errMsg = `**Connection Error:** Could not reach the backend. Make sure the server is running.\n\n_${error}_`;
+      const errMsg = `**Connection Error:** Could not reach the backend. Make sure the server is running.\n\n_${getErrorMessage(error)}_`;
       setMessages((prev) => [...prev, { role: 'assistant', content: errMsg }]);
       addMessage(chatId, { role: 'assistant', content: errMsg });
     } finally {

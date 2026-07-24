@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import useSWR from "swr";
 import {
   BarChart3,
   Bot,
@@ -19,9 +15,14 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import useSWR from "swr";
+
+import SiteFooter from "@/app/components/SiteFooter";
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
-import SiteFooter from "@/app/components/SiteFooter";
 
 const NAV_GROUPS = [
   {
@@ -59,6 +60,24 @@ interface SessionOverview {
   live_status?: { connected: boolean; label: string };
 }
 
+const RACE_STATUS_COLORS: Record<string, string> = {
+  in_progress: "#00FF78",
+  upcoming: "#3671C6",
+};
+const RACE_STATUS_FALLBACK = "#737373";
+
+/** Status dot colour for the current-event indicator. */
+function raceStatusColor(status: string): string {
+  return RACE_STATUS_COLORS[status] ?? RACE_STATUS_FALLBACK;
+}
+
+/** Formats a positive millisecond span as the coarsest useful countdown. */
+function formatCountdown(h: number, m: number, s: number): string {
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
 function useNextSession(sessions?: Record<string, string>) {
   const [display, setDisplay] = useState<{ label: string; countdown: string } | null>(null);
 
@@ -81,7 +100,7 @@ function useNextSession(sessions?: Record<string, string>) {
       const s = Math.floor((diff % 60000) / 1000);
       setDisplay({
         label: next.label,
-        countdown: h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`,
+        countdown: formatCountdown(h, m, s),
       });
     };
 
@@ -146,7 +165,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
               <div className="mt-1.5 flex items-center gap-1.5">
                 <span
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: data.race.status === "in_progress" ? "#00FF78" : data.race.status === "upcoming" ? "#3671C6" : "#737373" }}
+                  style={{ background: raceStatusColor(data.race.status) }}
                 />
                 <p className="text-[10px] text-neutral-500 capitalize">{data.race.status.replace("_", " ")}</p>
               </div>
@@ -241,7 +260,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
               <div className="mt-1.5 flex items-center gap-1.5">
                 <span
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: data.race.status === "in_progress" ? "#00FF78" : data.race.status === "upcoming" ? "#3671C6" : "#737373" }}
+                  style={{ background: raceStatusColor(data.race.status) }}
                 />
                 <p className="text-[10px] capitalize text-neutral-500">{data.race.status.replace("_", " ")}</p>
               </div>

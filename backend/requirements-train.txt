@@ -5,10 +5,12 @@
 # This lean set keeps the scheduled retraining CI fast.
 #
 # Install with: pip install -r requirements-train.txt
-pandas
-numpy
-scikit-learn
-scipy
-joblib
-requests
-structlog
+#
+# Versions are PINNED (==) for reproducible builds — see requirements.txt header.
+pandas==2.3.3
+numpy==2.2.6
+scikit-learn==1.7.2
+scipy==1.15.3
+joblib==1.5.3
+requests==2.34.2
+structlog==26.1.0

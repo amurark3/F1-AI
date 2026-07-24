@@ -1,12 +1,12 @@
 "use client";
 
-import { use } from "react";
-import Link from "next/link";
-import useSWR from "swr";
 import { ArrowLeft, Trophy, Users, Flag } from "lucide-react";
-import { API_BASE } from "@/app/constants/api";
-import { fetcher } from "@/app/utils/fetcher";
+import Link from "next/link";
+import { use } from "react";
+import useSWR from "swr";
+
 import { getTeamColor } from "@/app/components/PredictionDriverCard";
+import { API_BASE } from "@/app/constants/api";
 import {
   InlineNotice,
   MetricCard,
@@ -17,6 +17,7 @@ import {
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
+import { fetcher } from "@/app/utils/fetcher";
 
 interface DriverChampion {
   name: string;
@@ -54,7 +55,7 @@ interface SeasonDetail {
 
 export default function SeasonDetailPage({ params }: { params: Promise<{ year: string }> }) {
   const { year } = use(params);
-  const { data, error, isLoading } = useSWR<SeasonDetail>(
+  const { data, error, isLoading } = useSWR<SeasonDetail, Error>(
     `${API_BASE}/api/champions/${year}`,
     fetcher,
   );

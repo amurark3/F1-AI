@@ -137,7 +137,7 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
             className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-500 leading-tight"
             style={{ maxWidth: 190 }}
           >
-            {f.length > 28 ? f.slice(0, 26) + '…' : f}
+            {f.length > 28 ? `${f.slice(0, 26)  }…` : f}
           </span>
         ))}
       </div>

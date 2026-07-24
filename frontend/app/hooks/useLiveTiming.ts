@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+
 import { API_BASE } from "../constants/api";
 
 export interface LivePosition {
@@ -23,6 +24,16 @@ export interface SessionStatus {
   lap?: number;
   total_laps?: number;
 }
+
+/** Messages pushed over the live-timing WebSocket. */
+type LiveMessage =
+  | { type: "positions"; data: LivePosition[] }
+  | { type: "session_status"; data: SessionStatus }
+  | { type: "commentary"; data: CommentaryEntry }
+  | { type: "ping" };
+
+/** Max commentary entries retained in memory. */
+const MAX_COMMENTARY = 100;
 
 export function useLiveTiming(year: number, round: number) {
   const [positions, setPositions] = useState<LivePosition[]>([]);
@@ -55,7 +66,7 @@ export function useLiveTiming(year: number, round: number) {
 
     ws.onmessage = (event: MessageEvent) => {
       try {
-        const msg = JSON.parse(event.data as string);
+        const msg = JSON.parse(event.data as string) as LiveMessage;
         switch (msg.type) {
           case "positions":
             setPositions(msg.data);
@@ -64,7 +75,7 @@ export function useLiveTiming(year: number, round: number) {
             setSessionStatus(msg.data);
             break;
           case "commentary":
-            setCommentary((prev) => [msg.data, ...prev].slice(0, 100));
+            setCommentary((prev) => [msg.data, ...prev].slice(0, MAX_COMMENTARY));
             break;
           case "ping":
             // ignore heartbeat

@@ -1,0 +1,70 @@
+name: Dependency audit
+
+# Scans dependencies for known vulnerabilities (CVE/GHSA) on every PR, on pushes
+# to main, and weekly (to catch advisories published after a PR merged).
+# Complements Dependabot: Dependabot bumps versions, this fails the build when a
+# vulnerable dependency slips in.
+on:
+  pull_request:
+    paths:
+      - "frontend/package-lock.json"
+      - "frontend/package.json"
+      - "backend/requirements*.txt"
+      - ".github/workflows/dependency-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/package-lock.json"
+      - "frontend/package.json"
+      - "backend/requirements*.txt"
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC — catch newly disclosed advisories
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm_audit:
+    name: Frontend npm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # Fail only on high/critical so low-severity advisories with no fix don't
+      # block delivery. Tighten to `low` once the tree is clean.
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+
+  pip_audit:
+    name: Backend pip-audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      # Resolves the full pinned dependency tree (including transitive deps) for
+      # each manifest and checks every package against the PyPI advisory DB.
+      # requirements-ingest.txt already pulls in requirements.txt via `-r`.
+      - name: pip-audit
+        run: |
+          pip-audit --progress-spinner off \
+            -r requirements-ingest.txt \
+            -r requirements-train.txt

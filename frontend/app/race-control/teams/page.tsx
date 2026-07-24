@@ -1,12 +1,14 @@
 "use client";
 
-import useSWR from "swr";
 import { Activity, RefreshCw, Shield, Trophy, Users } from "lucide-react";
+import useSWR from "swr";
+
 import { getTeamColor } from "@/app/components/PredictionDriverCard";
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
-import { InlineNotice, MetricCard, MetricRow, PageLoader, Panel, SectionHeader, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
+
 import { ChampionshipBarChart, DriverChampionshipChart } from "../components/Charts";
+import { InlineNotice, MetricCard, MetricRow, PageLoader, Panel, SectionHeader, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
 
 interface DriverStanding {
   code?: string;
@@ -41,7 +43,7 @@ interface TeamsResponse {
 
 export default function TeamsPage() {
   const year = new Date().getFullYear();
-  const { data, error, isLoading, mutate: reloadTeams } = useSWR<TeamsResponse>(
+  const { data, error, isLoading, mutate: reloadTeams } = useSWR<TeamsResponse, Error>(
     `${API_BASE}/api/race-control/teams/${year}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 180000 }

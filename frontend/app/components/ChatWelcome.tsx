@@ -1,8 +1,9 @@
 "use client";
 
-import type { CSSProperties, ComponentType } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, CalendarClock, FileSearch, Gauge, History, Trophy } from 'lucide-react';
+
+import type { CSSProperties, ComponentType } from 'react';
 
 interface Prompt {
   color: string;

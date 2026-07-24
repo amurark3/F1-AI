@@ -1,10 +1,12 @@
 "use client";
 
+import { AlertTriangle, ClipboardList, Flag, Trophy, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { AlertTriangle, ClipboardList, Flag, Trophy, Users } from "lucide-react";
+
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
+
 import { InlineNotice, MetricCard, MetricRow, PageLoader, Panel, SectionHeader, SectionLoader, SkeletonPanel, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
 
 interface RaceEvent {
@@ -39,7 +41,7 @@ export default function DebriefsPage() {
     error: scheduleError,
     isLoading: scheduleLoading,
     mutate: reloadSchedule,
-  } = useSWR<RaceEvent[] | { error: string }>(
+  } = useSWR<RaceEvent[] | { error: string }, Error>(
     `${API_BASE}/api/schedule/${year}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300000 }
@@ -55,14 +57,12 @@ export default function DebriefsPage() {
     error: debriefError,
     isLoading: debriefLoading,
     mutate,
-  } = useSWR<Debrief>(
+  } = useSWR<Debrief, Error>(
     effectiveRound ? `${API_BASE}/api/race-control/debrief/${year}/${effectiveRound}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 120000 }
   );
 
-  const hasDebrief = Boolean(data && !data.error && (data.podium?.length || data.strategy_winners?.length || data.headline));
-  const constructorLeader = data?.constructor_impact?.[0];
   const pageLoading = scheduleLoading && races.length === 0;
 
   if (pageLoading) {
@@ -131,161 +131,207 @@ export default function DebriefsPage() {
       {debriefLoading && <DebriefSkeleton />}
 
       {!debriefLoading && (debriefError || data?.error) && (
-        <Panel className="p-8">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="mt-1 h-6 w-6 text-[#E10600]" />
-            <div>
-              <h2 className="text-2xl font-black italic uppercase text-white" style={rcFont}>Debrief Unavailable</h2>
-              <p className="mt-2 text-base text-neutral-400">
-                {data?.error ?? "The classification could not be loaded for this Grand Prix."}
-              </p>
-              <button onClick={() => void mutate()} className="mt-5 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-neutral-200 hover:text-white">
-                Retry Debrief
-              </button>
-            </div>
-          </div>
-        </Panel>
+        <DebriefErrorPanel message={data?.error} onRetry={() => void mutate()} />
       )}
 
       {!debriefLoading && !debriefError && !data?.error && (
-        <>
-          <MetricRow>
-            <MetricCard label="Race" value={data?.race ?? selectedRace?.name ?? "Select Race"} sub={data?.location ?? selectedRace?.location ?? "Classification"} icon={Flag} color="#E10600" />
-            <MetricCard label="Top constructor" value={constructorLeader?.team ?? "No points"} sub={constructorLeader ? `${constructorLeader.points} pts · ${constructorLeader.classified_cars} classified cars` : "Constructor impact"} icon={Trophy} />
-            <MetricCard label="Review flags" value={String((data?.strategy_winners?.length ?? 0) + (data?.reliability_watch?.length ?? 0))} sub="Movers plus non-standard statuses" icon={Users} color="#FF8000" />
-          </MetricRow>
-
-          <WorkspaceSplit className="xl:[&>*:first-child]:basis-[52%] xl:[&>*:last-child]:flex-1">
-            <Panel className="p-5" accent="#00FF78">
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400 mb-2" style={rcFont}>Executive Summary</p>
-                  <h2 className="text-3xl font-black italic uppercase text-white leading-none" style={rcFont}>{data?.race ?? "Race Debrief"}</h2>
-                </div>
-                {hasDebrief && <StatusPill>Classification</StatusPill>}
-              </div>
-              <p className="text-base text-neutral-300 leading-relaxed">
-                {data?.headline ?? "Select a completed Grand Prix to generate the debrief."}
-              </p>
-
-              <div className="mt-6">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-neutral-400">Key Takeaways</h3>
-                  {data?.insight_source && <span className="text-xs text-neutral-500">Classification-derived</span>}
-                </div>
-                <div className="space-y-2">
-                  {(data?.takeaways ?? []).length > 0 ? data?.takeaways?.map((item) => (
-                    <div key={item} className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-neutral-300">
-                      {item}
-                    </div>
-                  )) : (
-                    <p className="text-sm text-neutral-500">Takeaways appear once the race classification is available.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-neutral-400">Race-Control Notes</h3>
-                <div className="space-y-2">
-                  {(data?.race_control_notes ?? []).length > 0 ? data?.race_control_notes?.map((note) => (
-                    <div key={note.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-neutral-500">{note.label}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-neutral-300">{note.detail}</p>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-neutral-500">Race-control notes appear once classification data is available.</p>
-                  )}
-                </div>
-              </div>
-            </Panel>
-
-            <div className="space-y-5">
-              <Panel className="p-5">
-                <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Podium Cause</h2>
-                <div className="space-y-2">
-                  {(data?.podium_cause ?? []).length > 0 ? data?.podium_cause?.map((row) => (
-                    <div key={row.driver} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-                      <span className="w-8 text-sm font-black text-neutral-400" style={rcFont}>P{row.position}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{row.full_name || row.driver}</p>
-                        <p className="text-xs text-neutral-500 truncate">{row.team} · {row.call}</p>
-                      </div>
-                      <span className="font-mono text-xs text-neutral-400">{row.grid ? `G${row.grid}` : `${row.points} pts`}</span>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-neutral-500">Podium data is not available yet.</p>
-                  )}
-                </div>
-              </Panel>
-
-              <Panel className="p-5">
-                <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Strategy Winners</h2>
-                <div className="space-y-2">
-                  {(data?.strategy_winners ?? []).length > 0 ? data?.strategy_winners?.map((row) => (
-                    <div key={`${row.driver}-${row.position}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-                      <ClipboardList className="h-4 w-4 text-neutral-500" />
-                      <span className="flex-1 text-sm font-bold text-neutral-300 truncate">{row.full_name || row.driver}</span>
-                      <span className="text-xs font-mono text-[#00FF78]">G{row.grid} to P{row.position}</span>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-neutral-500">Grid-gain data is not available yet.</p>
-                  )}
-                </div>
-              </Panel>
-            </div>
-          </WorkspaceSplit>
-
-          <WorkspaceSplit className="mt-6 xl:[&>*]:flex-1">
-            <Panel className="p-5">
-              <h2 className="mb-4 text-xl font-black italic uppercase text-white" style={rcFont}>Top Classification</h2>
-              <div className="overflow-x-auto rounded-lg border border-white/10">
-                <table className="min-w-[720px] w-full text-left text-sm">
-                  <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
-                    <tr>
-                      <th className="px-3 py-2">Pos</th>
-                      <th className="px-3 py-2">Driver</th>
-                      <th className="px-3 py-2">Team</th>
-                      <th className="px-3 py-2">Grid</th>
-                      <th className="px-3 py-2">Pts</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/8">
-                    {(data?.classification ?? []).slice(0, 10).map((row) => (
-                      <tr key={`${row.position}-${row.driver}`} className="bg-white/[0.02]">
-                        <td className="px-3 py-3 font-mono text-neutral-300">P{row.position}</td>
-                        <td className="px-3 py-3 font-bold text-white">{row.full_name || row.driver}</td>
-                        <td className="px-3 py-3 text-neutral-400">{row.team}</td>
-                        <td className="px-3 py-3 font-mono text-neutral-400">{row.grid ? `G${row.grid}` : "-"}</td>
-                        <td className="px-3 py-3 font-mono text-[#00FF78]">{row.points}</td>
-                        <td className="px-3 py-3 text-neutral-400">{row.status || "Finished"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-
-            <Panel className="p-5">
-              <h2 className="mb-4 text-xl font-black italic uppercase text-white" style={rcFont}>Constructor Impact</h2>
-              <div className="space-y-2">
-                {(data?.constructor_impact ?? []).length > 0 ? data?.constructor_impact?.map((team) => (
-                  <div key={team.team} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-white">{team.team}</p>
-                      <p className="text-xs text-neutral-500">{team.classified_cars} classified car{team.classified_cars === 1 ? "" : "s"}</p>
-                    </div>
-                    <p className="font-mono text-sm text-[#00FF78]">{team.points} pts</p>
-                  </div>
-                )) : (
-                  <p className="text-sm text-neutral-500">Constructor impact appears once points are available.</p>
-                )}
-              </div>
-            </Panel>
-          </WorkspaceSplit>
-        </>
+        <DebriefReport data={data} selectedRace={selectedRace} />
       )}
     </div>
+  );
+}
+
+/** Empty-state fallback used by every list section in the report. */
+function EmptyNote({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-neutral-500">{children}</p>;
+}
+
+function DebriefErrorPanel({ message, onRetry }: { message?: string; onRetry: () => void }) {
+  return (
+    <Panel className="p-8">
+      <div className="flex items-start gap-4">
+        <AlertTriangle className="mt-1 h-6 w-6 text-[#E10600]" />
+        <div>
+          <h2 className="text-2xl font-black italic uppercase text-white" style={rcFont}>Debrief Unavailable</h2>
+          <p className="mt-2 text-base text-neutral-400">
+            {message ?? "The classification could not be loaded for this Grand Prix."}
+          </p>
+          <button onClick={onRetry} className="mt-5 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-neutral-200 hover:text-white">
+            Retry Debrief
+          </button>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function DebriefSummaryPanel({ data }: { data?: Debrief }) {
+  const hasDebrief = Boolean(data && !data.error && (data.podium?.length || data.strategy_winners?.length || data.headline));
+  const takeaways = data?.takeaways ?? [];
+  const notes = data?.race_control_notes ?? [];
+
+  return (
+    <Panel className="p-5" accent="#00FF78">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400 mb-2" style={rcFont}>Executive Summary</p>
+          <h2 className="text-3xl font-black italic uppercase text-white leading-none" style={rcFont}>{data?.race ?? "Race Debrief"}</h2>
+        </div>
+        {hasDebrief && <StatusPill>Classification</StatusPill>}
+      </div>
+      <p className="text-base text-neutral-300 leading-relaxed">
+        {data?.headline ?? "Select a completed Grand Prix to generate the debrief."}
+      </p>
+
+      <div className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-black uppercase tracking-wider text-neutral-400">Key Takeaways</h3>
+          {data?.insight_source && <span className="text-xs text-neutral-500">Classification-derived</span>}
+        </div>
+        <div className="space-y-2">
+          {takeaways.length === 0 && <EmptyNote>Takeaways appear once the race classification is available.</EmptyNote>}
+          {takeaways.map((item) => (
+            <div key={item} className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-neutral-300">
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-neutral-400">Race-Control Notes</h3>
+        <div className="space-y-2">
+          {notes.length === 0 && <EmptyNote>Race-control notes appear once classification data is available.</EmptyNote>}
+          {notes.map((note) => (
+            <div key={note.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-neutral-500">{note.label}</p>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-300">{note.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function PodiumCausePanel({ rows }: { rows: NonNullable<Debrief["podium_cause"]> }) {
+  return (
+    <Panel className="p-5">
+      <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Podium Cause</h2>
+      <div className="space-y-2">
+        {rows.length === 0 && <EmptyNote>Podium data is not available yet.</EmptyNote>}
+        {rows.map((row) => (
+          <div key={row.driver} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+            <span className="w-8 text-sm font-black text-neutral-400" style={rcFont}>P{row.position}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{row.full_name || row.driver}</p>
+              <p className="text-xs text-neutral-500 truncate">{row.team} · {row.call}</p>
+            </div>
+            <span className="font-mono text-xs text-neutral-400">{row.grid ? `G${row.grid}` : `${row.points} pts`}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function StrategyWinnersPanel({ rows }: { rows: NonNullable<Debrief["strategy_winners"]> }) {
+  return (
+    <Panel className="p-5">
+      <h2 className="text-xl font-black italic uppercase text-white mb-4" style={rcFont}>Strategy Winners</h2>
+      <div className="space-y-2">
+        {rows.length === 0 && <EmptyNote>Grid-gain data is not available yet.</EmptyNote>}
+        {rows.map((row) => (
+          <div key={`${row.driver}-${row.position}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+            <ClipboardList className="h-4 w-4 text-neutral-500" />
+            <span className="flex-1 text-sm font-bold text-neutral-300 truncate">{row.full_name || row.driver}</span>
+            <span className="text-xs font-mono text-[#00FF78]">G{row.grid} to P{row.position}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ClassificationTable({ rows }: { rows: NonNullable<Debrief["classification"]> }) {
+  return (
+    <Panel className="p-5">
+      <h2 className="mb-4 text-xl font-black italic uppercase text-white" style={rcFont}>Top Classification</h2>
+      <div className="overflow-x-auto rounded-lg border border-white/10">
+        <table className="min-w-[720px] w-full text-left text-sm">
+          <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-neutral-500">
+            <tr>
+              <th className="px-3 py-2">Pos</th>
+              <th className="px-3 py-2">Driver</th>
+              <th className="px-3 py-2">Team</th>
+              <th className="px-3 py-2">Grid</th>
+              <th className="px-3 py-2">Pts</th>
+              <th className="px-3 py-2">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/8">
+            {rows.slice(0, 10).map((row) => (
+              <tr key={`${row.position}-${row.driver}`} className="bg-white/[0.02]">
+                <td className="px-3 py-3 font-mono text-neutral-300">P{row.position}</td>
+                <td className="px-3 py-3 font-bold text-white">{row.full_name || row.driver}</td>
+                <td className="px-3 py-3 text-neutral-400">{row.team}</td>
+                <td className="px-3 py-3 font-mono text-neutral-400">{row.grid ? `G${row.grid}` : "-"}</td>
+                <td className="px-3 py-3 font-mono text-[#00FF78]">{row.points}</td>
+                <td className="px-3 py-3 text-neutral-400">{row.status || "Finished"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function ConstructorImpactPanel({ rows }: { rows: NonNullable<Debrief["constructor_impact"]> }) {
+  return (
+    <Panel className="p-5">
+      <h2 className="mb-4 text-xl font-black italic uppercase text-white" style={rcFont}>Constructor Impact</h2>
+      <div className="space-y-2">
+        {rows.length === 0 && <EmptyNote>Constructor impact appears once points are available.</EmptyNote>}
+        {rows.map((team) => (
+          <div key={team.team} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-white">{team.team}</p>
+              <p className="text-xs text-neutral-500">{team.classified_cars} classified car{team.classified_cars === 1 ? "" : "s"}</p>
+            </div>
+            <p className="font-mono text-sm text-[#00FF78]">{team.points} pts</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function DebriefReport({ data, selectedRace }: { data?: Debrief; selectedRace: RaceEvent | null }) {
+  const constructorLeader = data?.constructor_impact?.[0];
+  const reviewFlags = (data?.strategy_winners?.length ?? 0) + (data?.reliability_watch?.length ?? 0);
+
+  return (
+    <>
+      <MetricRow>
+        <MetricCard label="Race" value={data?.race ?? selectedRace?.name ?? "Select Race"} sub={data?.location ?? selectedRace?.location ?? "Classification"} icon={Flag} color="#E10600" />
+        <MetricCard label="Top constructor" value={constructorLeader?.team ?? "No points"} sub={constructorLeader ? `${constructorLeader.points} pts · ${constructorLeader.classified_cars} classified cars` : "Constructor impact"} icon={Trophy} />
+        <MetricCard label="Review flags" value={String(reviewFlags)} sub="Movers plus non-standard statuses" icon={Users} color="#FF8000" />
+      </MetricRow>
+
+      <WorkspaceSplit className="xl:[&>*:first-child]:basis-[52%] xl:[&>*:last-child]:flex-1">
+        <DebriefSummaryPanel data={data} />
+        <div className="space-y-5">
+          <PodiumCausePanel rows={data?.podium_cause ?? []} />
+          <StrategyWinnersPanel rows={data?.strategy_winners ?? []} />
+        </div>
+      </WorkspaceSplit>
+
+      <WorkspaceSplit className="mt-6 xl:[&>*]:flex-1">
+        <ClassificationTable rows={data?.classification ?? []} />
+        <ConstructorImpactPanel rows={data?.constructor_impact ?? []} />
+      </WorkspaceSplit>
+    </>
   );
 }
 

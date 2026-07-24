@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
@@ -14,6 +12,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
+
 import { rcFont } from "./RaceControlPrimitives";
 
 const CHART_COLORS = {
@@ -43,7 +42,14 @@ interface ChampionshipEntry {
   position: number;
 }
 
-function ChampionshipTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChampionshipEntry; value: number }> }) {
+/** Shared shape behind both the constructor and driver standings tooltips. */
+interface PointsStandingEntry {
+  name: string;
+  points: number;
+  position: number;
+}
+
+function PointsStandingTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PointsStandingEntry }> }) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (
@@ -78,7 +84,7 @@ export function ChampionshipBarChart({ data, height = 320 }: { data: Championshi
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<ChampionshipTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Tooltip content={<PointsStandingTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Bar dataKey="points" radius={[0, 4, 4, 0]} maxBarSize={20}>
           {sorted.map((entry) => (
             <Cell key={entry.name} fill={entry.color} fillOpacity={0.9} />
@@ -107,17 +113,6 @@ interface DriverChampionshipEntry {
   position: number;
 }
 
-function DriverTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DriverChampionshipEntry; value: number }> }) {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>{entry.name}</p>
-      <p className="mt-0.5 font-mono text-neutral-300">{entry.points} pts · P{entry.position}</p>
-    </ChartTooltipContainer>
-  );
-}
-
 export function DriverChampionshipChart({ data, height = 280 }: { data: DriverChampionshipEntry[]; height?: number }) {
   const top10 = [...data].sort((a, b) => a.position - b.position).slice(0, 10);
 
@@ -137,7 +132,7 @@ export function DriverChampionshipChart({ data, height = 280 }: { data: DriverCh
           tickLine={false}
           width={36}
         />
-        <Tooltip content={<DriverTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Tooltip content={<PointsStandingTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Bar dataKey="points" radius={[3, 3, 0, 0]} maxBarSize={28}>
           {top10.map((entry) => (
             <Cell key={entry.code} fill={entry.color} fillOpacity={0.9} />

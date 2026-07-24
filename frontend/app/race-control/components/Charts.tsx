@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
@@ -14,6 +12,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
+
 import { rcFont } from "./RaceControlPrimitives";
 
 const CHART_COLORS = {
@@ -43,13 +42,30 @@ interface ChampionshipEntry {
   position: number;
 }
 
-function ChampionshipTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChampionshipEntry; value: number }> }) {
+/** Shared shape behind both the constructor and driver standings tooltips. */
+interface PointsStandingEntry {
+  name: string;
+  points: number;
+  position: number;
+}
+
+function PointsStandingTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: PointsStandingEntry }>;
+}) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (
     <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>{entry.name}</p>
-      <p className="mt-0.5 font-mono text-neutral-300">{entry.points} pts · P{entry.position}</p>
+      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
+        {entry.name}
+      </p>
+      <p className="mt-0.5 font-mono text-neutral-300">
+        {entry.points} pts · P{entry.position}
+      </p>
     </ChartTooltipContainer>
   );
 }
@@ -78,19 +94,13 @@ export function ChampionshipBarChart({ data, height = 320 }: { data: Championshi
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<ChampionshipTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Tooltip content={<PointsStandingTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Bar dataKey="points" radius={[0, 4, 4, 0]} maxBarSize={20}>
           {sorted.map((entry) => (
             <Cell key={entry.name} fill={entry.color} fillOpacity={0.9} />
           ))}
         </Bar>
-        {leader && (
-          <ReferenceLine
-            x={leader.points}
-            stroke="rgba(255,255,255,0.15)"
-            strokeDasharray="4 4"
-          />
-        )}
+        {leader && <ReferenceLine x={leader.points} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -107,17 +117,6 @@ interface DriverChampionshipEntry {
   position: number;
 }
 
-function DriverTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DriverChampionshipEntry; value: number }> }) {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>{entry.name}</p>
-      <p className="mt-0.5 font-mono text-neutral-300">{entry.points} pts · P{entry.position}</p>
-    </ChartTooltipContainer>
-  );
-}
-
 export function DriverChampionshipChart({ data, height = 280 }: { data: DriverChampionshipEntry[]; height?: number }) {
   const top10 = [...data].sort((a, b) => a.position - b.position).slice(0, 10);
 
@@ -131,13 +130,8 @@ export function DriverChampionshipChart({ data, height = 280 }: { data: DriverCh
           axisLine={false}
           tickLine={false}
         />
-        <YAxis
-          tick={{ fill: CHART_COLORS.axis, fontSize: 10 }}
-          axisLine={false}
-          tickLine={false}
-          width={36}
-        />
-        <Tooltip content={<DriverTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 10 }} axisLine={false} tickLine={false} width={36} />
+        <Tooltip content={<PointsStandingTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Bar dataKey="points" radius={[3, 3, 0, 0]} maxBarSize={28}>
           {top10.map((entry) => (
             <Cell key={entry.code} fill={entry.color} fillOpacity={0.9} />
@@ -164,8 +158,12 @@ function ConfidenceTooltip({ active, payload }: { active?: boolean; payload?: Ar
   const entry = payload[0].payload;
   return (
     <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>{entry.code}</p>
-      <p className="mt-0.5 font-mono text-neutral-300">{entry.mid}% · range {entry.low}–{entry.high}%</p>
+      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
+        {entry.code}
+      </p>
+      <p className="mt-0.5 font-mono text-neutral-300">
+        {entry.mid}% · range {entry.low}–{entry.high}%
+      </p>
     </ChartTooltipContainer>
   );
 }
@@ -211,11 +209,21 @@ interface ProjectionEntry {
   code?: string;
 }
 
-function ProjectionTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+function ProjectionTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <ChartTooltipContainer>
-      <p className="mb-1 font-black uppercase tracking-wider text-white" style={rcFont}>{label}</p>
+      <p className="mb-1 font-black uppercase tracking-wider text-white" style={rcFont}>
+        {label}
+      </p>
       {payload.map((p) => (
         <p key={p.name} className="font-mono text-sm" style={{ color: p.color }}>
           {p.name}: {p.value} pts
@@ -238,16 +246,11 @@ export function SeasonProjectionChart({ data, height = 300 }: { data: Projection
           axisLine={false}
           tickLine={false}
         />
-        <YAxis
-          tick={{ fill: CHART_COLORS.axis, fontSize: 10 }}
-          axisLine={false}
-          tickLine={false}
-          width={40}
-        />
+        <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
         <Tooltip content={<ProjectionTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Legend
           wrapperStyle={{ fontSize: 11, color: "#737373", paddingTop: 8 }}
-          formatter={(value) => value === "current" ? "Current pts" : "Projected pts"}
+          formatter={(value) => (value === "current" ? "Current pts" : "Projected pts")}
         />
         <Bar dataKey="current" fill="rgba(255,255,255,0.15)" radius={[2, 2, 0, 0]} maxBarSize={16} name="current" />
         <Bar dataKey="projected" radius={[2, 2, 0, 0]} maxBarSize={16} name="projected">
@@ -280,7 +283,9 @@ function AttributionTooltip({ active, payload }: { active?: boolean; payload?: A
   const helps = entry.contribution < 0;
   return (
     <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>{entry.label}</p>
+      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
+        {entry.label}
+      </p>
       <p className="mt-0.5 font-mono text-sm" style={{ color: helps ? ATTRIBUTION_HELP : ATTRIBUTION_HURT }}>
         {helps ? "improves" : "worsens"} projection by {Math.abs(entry.contribution).toFixed(2)} places
       </p>
@@ -307,7 +312,11 @@ export function ModelAttributionBars({ data, height = 200 }: { data: Attribution
         <ReferenceLine x={0} stroke={CHART_COLORS.axis} />
         <Bar dataKey="contribution" radius={[2, 2, 2, 2]} maxBarSize={16}>
           {data.map((entry) => (
-            <Cell key={entry.label} fill={entry.contribution < 0 ? ATTRIBUTION_HELP : ATTRIBUTION_HURT} fillOpacity={0.85} />
+            <Cell
+              key={entry.label}
+              fill={entry.contribution < 0 ? ATTRIBUTION_HELP : ATTRIBUTION_HURT}
+              fillOpacity={0.85}
+            />
           ))}
         </Bar>
       </BarChart>

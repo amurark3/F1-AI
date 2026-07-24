@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 interface RaceEvent {
   round: number;
@@ -14,6 +14,13 @@ interface RaceJumpNavProps {
   activeRound: number | null;
   onJump: (round: number) => void;
 }
+
+const STATUS_MARKERS: Record<string, string> = {
+  completed: " ✓",
+  in_progress: " ●",
+};
+
+const statusMarker = (status: string): string => STATUS_MARKERS[status] ?? "";
 
 export default function RaceJumpNav({ schedule, activeRound, onJump }: RaceJumpNavProps) {
   if (!schedule || schedule.length === 0) return null;
@@ -34,7 +41,7 @@ export default function RaceJumpNav({ schedule, activeRound, onJump }: RaceJumpN
           {schedule.map((r) => (
             <option key={r.round} value={r.round}>
               R{r.round} — {r.name.replace("Grand Prix", "GP")}
-              {r.status === "completed" ? " ✓" : r.status === "in_progress" ? " ●" : ""}
+              {statusMarker(r.status)}
             </option>
           ))}
         </select>

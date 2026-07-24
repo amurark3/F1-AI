@@ -3,11 +3,17 @@
 # requirements.txt makes the Render build leaner/faster. Install with:
 #     pip install -r requirements-ingest.txt
 # (pulls in the base runtime deps too, so embeddings/pgvector are available).
+#
+# Versions are PINNED (==) for reproducible builds — see requirements.txt header.
 
 -r requirements.txt
 
 # PDF loading + chunking for the FIA regulation corpus
-langchain
-langchain-community
-langchain-text-splitters
-pypdf
+langchain==1.3.14
+langchain-community==0.4.2
+langchain-text-splitters==1.1.2
+pypdf==6.14.2
+
+# Transitive pin: langchain -> langgraph -> langgraph-checkpoint pulls msgpack.
+# <=1.2.0 is affected by GHSA-6v7p-g79w-8964 (heap overflow); 1.2.1 is the fix.
+msgpack==1.2.1

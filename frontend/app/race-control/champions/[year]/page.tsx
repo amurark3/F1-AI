@@ -1,12 +1,12 @@
 "use client";
 
-import { use } from "react";
-import Link from "next/link";
-import useSWR from "swr";
 import { ArrowLeft, Trophy, Users, Flag } from "lucide-react";
-import { API_BASE } from "@/app/constants/api";
-import { fetcher } from "@/app/utils/fetcher";
+import Link from "next/link";
+import { use } from "react";
+import useSWR from "swr";
+
 import { getTeamColor } from "@/app/components/PredictionDriverCard";
+import { API_BASE } from "@/app/constants/api";
 import {
   InlineNotice,
   MetricCard,
@@ -17,6 +17,7 @@ import {
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
+import { fetcher } from "@/app/utils/fetcher";
 
 interface DriverChampion {
   name: string;
@@ -54,10 +55,7 @@ interface SeasonDetail {
 
 export default function SeasonDetailPage({ params }: { params: Promise<{ year: string }> }) {
   const { year } = use(params);
-  const { data, error, isLoading } = useSWR<SeasonDetail>(
-    `${API_BASE}/api/champions/${year}`,
-    fetcher,
-  );
+  const { data, error, isLoading } = useSWR<SeasonDetail, Error>(`${API_BASE}/api/champions/${year}`, fetcher);
 
   if (isLoading) {
     return (
@@ -89,34 +87,16 @@ export default function SeasonDetailPage({ params }: { params: Promise<{ year: s
         eyebrow={data.is_in_progress ? "Season in progress" : "Champions"}
         title={`${data.season} Season`}
         description={
-          data.is_in_progress
-            ? "The title is not yet decided — current championship leaders are shown."
-            : undefined
+          data.is_in_progress ? "The title is not yet decided — current championship leaders are shown." : undefined
         }
       />
 
-      <MetricRow>
-        <MetricCard
-          label={data.is_in_progress ? "Championship Leader" : "World Champion"}
-          value={driver?.code ?? "—"}
-          sub={driver?.name}
-          icon={Trophy}
-          color={teamColor}
-        />
-        <MetricCard label="Points" value={driver ? String(driver.points) : "—"} sub={driver?.team ?? undefined} icon={Flag} color="#00FF78" />
-        <MetricCard label="Wins" value={driver ? String(driver.wins) : "—"} sub={`of ${winners.length} races`} icon={Trophy} color="#FFD700" />
-        <MetricCard
-          label="Constructors' Champion"
-          value={data.constructor_champion ? "" : "—"}
-          sub={data.constructor_champion?.name ?? "Title introduced in 1958"}
-          icon={Users}
-          color="#00D2FF"
-        />
-      </MetricRow>
+      <SeasonChampionMetrics data={data} driver={driver} teamColor={teamColor} raceCount={winners.length} />
 
       {data.runner_up && (
         <p className="mb-6 text-sm text-[#8E96A8]">
-          Runner-up: <span className="font-semibold text-white">{data.runner_up.name}</span> ({data.runner_up.points} pts)
+          Runner-up: <span className="font-semibold text-white">{data.runner_up.name}</span> ({data.runner_up.points}{" "}
+          pts)
         </p>
       )}
 
@@ -127,29 +107,82 @@ export default function SeasonDetailPage({ params }: { params: Promise<{ year: s
         {data.is_in_progress && <StatusPill color="#FFF200">In Progress</StatusPill>}
       </div>
 
-      {winners.length === 0 ? (
-        <InlineNotice title="No races yet" tone="info">
-          No completed races recorded for this season.
-        </InlineNotice>
-      ) : (
-        <Panel className="divide-y divide-[#1E2633]">
-          {winners.map((race) => {
-            const color = getTeamColor(race.team ?? "");
-            return (
-              <div key={race.round} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="w-8 shrink-0 font-mono text-sm font-bold text-[#6F7789]">R{race.round}</span>
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{race.winner}</p>
-                  <p className="truncate text-xs text-[#8E96A8]">{race.race_name}</p>
-                </div>
-                <span className="hidden shrink-0 text-xs text-[#6F7789] sm:block">{race.team}</span>
-              </div>
-            );
-          })}
-        </Panel>
-      )}
+      <RaceWinnersList winners={winners} />
     </div>
+  );
+}
+
+function SeasonChampionMetrics({
+  data,
+  driver,
+  teamColor,
+  raceCount,
+}: {
+  data: SeasonDetail;
+  driver: DriverChampion | null;
+  teamColor: string;
+  raceCount: number;
+}) {
+  return (
+    <MetricRow>
+      <MetricCard
+        label={data.is_in_progress ? "Championship Leader" : "World Champion"}
+        value={driver?.code ?? "—"}
+        sub={driver?.name}
+        icon={Trophy}
+        color={teamColor}
+      />
+      <MetricCard
+        label="Points"
+        value={driver ? String(driver.points) : "—"}
+        sub={driver?.team ?? undefined}
+        icon={Flag}
+        color="#00FF78"
+      />
+      <MetricCard
+        label="Wins"
+        value={driver ? String(driver.wins) : "—"}
+        sub={`of ${raceCount} races`}
+        icon={Trophy}
+        color="#FFD700"
+      />
+      <MetricCard
+        label="Constructors' Champion"
+        value={data.constructor_champion ? "" : "—"}
+        sub={data.constructor_champion?.name ?? "Title introduced in 1958"}
+        icon={Users}
+        color="#00D2FF"
+      />
+    </MetricRow>
+  );
+}
+
+function RaceWinnersList({ winners }: { winners: RaceWinner[] }) {
+  if (winners.length === 0) {
+    return (
+      <InlineNotice title="No races yet" tone="info">
+        No completed races recorded for this season.
+      </InlineNotice>
+    );
+  }
+
+  return (
+    <Panel className="divide-y divide-[#1E2633]">
+      {winners.map((race) => {
+        const color = getTeamColor(race.team ?? "");
+        return (
+          <div key={race.round} className="flex items-center gap-3 px-4 py-2.5">
+            <span className="w-8 shrink-0 font-mono text-sm font-bold text-[#6F7789]">R{race.round}</span>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">{race.winner}</p>
+              <p className="truncate text-xs text-[#8E96A8]">{race.race_name}</p>
+            </div>
+            <span className="hidden shrink-0 text-xs text-[#6F7789] sm:block">{race.team}</span>
+          </div>
+        );
+      })}
+    </Panel>
   );
 }
 

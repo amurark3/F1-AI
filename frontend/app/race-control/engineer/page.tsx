@@ -1,10 +1,12 @@
 "use client";
 
 import { Bot, PanelLeftOpen, Plus, Radio, Sparkles } from "lucide-react";
+
 import ChatInput from "@/app/components/ChatInput";
 import ChatMessages from "@/app/components/ChatMessages";
 import ChatSidebar from "@/app/components/ChatSidebar";
 import { useChat } from "@/app/hooks/useChat";
+
 import { StatusPill, rcFont } from "../components/RaceControlPrimitives";
 
 const PROMPTS = [
@@ -97,40 +99,7 @@ export default function EngineerPage() {
                 onRegenerate={regenerate}
               />
             ) : (
-              <div className="flex min-h-full flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-md border border-[#00FF78]/25 bg-[#00FF78]/10">
-                  <Radio className="h-7 w-7 text-[#00FF78]" />
-                </div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-500" style={rcFont}>Engineer Console</p>
-                <h2 className="mt-2 max-w-3xl text-3xl font-black uppercase leading-tight text-white sm:text-4xl" style={rcFont}>
-                  Ask for a decision-ready race answer
-                </h2>
-                <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-400">
-                  Strategy briefs, driver deltas, regulation calls, prediction reads, race results, and live-session context stay in this thread.
-                </p>
-
-                <button
-                  onClick={handleNewChat}
-                  className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#00FF78] px-5 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Chat
-                </button>
-
-                <div className="mt-8 grid w-full max-w-5xl gap-3 md:grid-cols-2">
-                  {PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => void sendMessage(prompt)}
-                      disabled={isLoading}
-                      className="min-h-20 rounded-md border border-[#1E2633] bg-[#0D111B] px-4 py-3 text-left text-sm leading-relaxed text-neutral-300 transition-colors hover:border-[#00FF78]/30 hover:text-white disabled:opacity-50"
-                    >
-                      <Sparkles className="mb-2 h-4 w-4 text-[#00FF78]" />
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <EngineerEmptyState onNewChat={handleNewChat} onSendMessage={sendMessage} isLoading={isLoading} />
             )}
           </div>
 
@@ -142,6 +111,54 @@ export default function EngineerPage() {
             onSubmit={handleSubmit}
           />
         </section>
+      </div>
+    </div>
+  );
+}
+
+interface EngineerEmptyStateProps {
+  onNewChat: () => void;
+  onSendMessage: (prompt: string) => Promise<void> | void;
+  isLoading: boolean;
+}
+
+function EngineerEmptyState({ onNewChat, onSendMessage, isLoading }: EngineerEmptyStateProps) {
+  return (
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
+      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-md border border-[#00FF78]/25 bg-[#00FF78]/10">
+        <Radio className="h-7 w-7 text-[#00FF78]" />
+      </div>
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-500" style={rcFont}>
+        Engineer Console
+      </p>
+      <h2 className="mt-2 max-w-3xl text-3xl font-black uppercase leading-tight text-white sm:text-4xl" style={rcFont}>
+        Ask for a decision-ready race answer
+      </h2>
+      <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-400">
+        Strategy briefs, driver deltas, regulation calls, prediction reads, race results, and live-session context stay
+        in this thread.
+      </p>
+
+      <button
+        onClick={onNewChat}
+        className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#00FF78] px-5 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-white"
+      >
+        <Plus className="h-4 w-4" />
+        New Chat
+      </button>
+
+      <div className="mt-8 grid w-full max-w-5xl gap-3 md:grid-cols-2">
+        {PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            onClick={() => void onSendMessage(prompt)}
+            disabled={isLoading}
+            className="min-h-20 rounded-md border border-[#1E2633] bg-[#0D111B] px-4 py-3 text-left text-sm leading-relaxed text-neutral-300 transition-colors hover:border-[#00FF78]/30 hover:text-white disabled:opacity-50"
+          >
+            <Sparkles className="mb-2 h-4 w-4 text-[#00FF78]" />
+            {prompt}
+          </button>
+        ))}
       </div>
     </div>
   );

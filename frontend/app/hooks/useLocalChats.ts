@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useSyncExternalStore } from "react";
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -12,83 +12,126 @@ export interface Chat {
   messages: Message[];
 }
 
-const STORAGE_KEY = 'f1ai_chats';
+const STORAGE_KEY = "f1ai_chats";
+const MAX_TITLE_LENGTH = 50;
 
-function readChats(): Chat[] {
-  if (typeof window === 'undefined') return [];
+/** Stable empty reference — required so `getSnapshot` never returns a new array. */
+const NO_CHATS: Chat[] = [];
+
+const listeners = new Set<() => void>();
+
+/** Cached parse of the raw localStorage string, keyed by that string. */
+let cachedRaw: string | null = null;
+let cachedChats: Chat[] = NO_CHATS;
+
+function parseChats(raw: string | null): Chat[] {
+  if (!raw) return NO_CHATS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Chat[]) : NO_CHATS;
   } catch {
-    return [];
+    return NO_CHATS;
   }
 }
 
-function writeChats(chats: Chat[]) {
+/**
+ * `useSyncExternalStore` requires a referentially stable snapshot, so the
+ * parsed value is memoised against the raw string it came from.
+ */
+function getSnapshot(): Chat[] {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw !== cachedRaw) {
+    cachedRaw = raw;
+    cachedChats = parseChats(raw);
+  }
+  return cachedChats;
+}
+
+/** The server has no localStorage; React also uses this for the hydration render. */
+function getServerSnapshot(): Chat[] {
+  return NO_CHATS;
+}
+
+function subscribe(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function readChats(): Chat[] {
+  if (typeof window === "undefined") return NO_CHATS;
+  return getSnapshot();
+}
+
+function writeChats(chats: Chat[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+  for (const listener of listeners) listener();
+}
+
+function titleFor(chat: Chat, msg: Message): string {
+  if (chat.title !== "New Chat" || msg.role !== "user") return chat.title;
+  const head = msg.content.slice(0, MAX_TITLE_LENGTH);
+  return msg.content.length > MAX_TITLE_LENGTH ? `${head}...` : head;
 }
 
 export function useLocalChats() {
-  // Start empty so the server render (no localStorage) matches the client's
-  // first render, then hydrate persisted chats after mount to avoid a
-  // hydration mismatch.
-  const [chats, setChats] = useState<Chat[]>([]);
-
-  useEffect(() => {
-    setChats(readChats());
-  }, []);
-
-  const persist = useCallback((next: Chat[]) => {
-    setChats(next);
-    writeChats(next);
-  }, []);
+  const chats = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const createChat = useCallback((): Chat => {
     const chat: Chat = {
       id: crypto.randomUUID(),
-      title: 'New Chat',
+      title: "New Chat",
       updatedAt: Date.now(),
       messages: [],
     };
-    const next = [chat, ...readChats()];
-    persist(next);
+    writeChats([chat, ...readChats()]);
     return chat;
-  }, [persist]);
+  }, []);
 
   const deleteChat = useCallback((id: string) => {
-    persist(readChats().filter((c) => c.id !== id));
-  }, [persist]);
+    writeChats(readChats().filter((c) => c.id !== id));
+  }, []);
 
   const updateChat = useCallback((id: string, updater: (c: Chat) => Chat) => {
     const all = readChats();
     const idx = all.findIndex((c) => c.id === id);
     if (idx === -1) return;
-    all[idx] = updater(all[idx]);
-    all[idx].updatedAt = Date.now();
-    // Move updated chat to top.
-    const [updated] = all.splice(idx, 1);
-    persist([updated, ...all]);
-  }, [persist]);
+    const updated: Chat = { ...updater(all[idx]), updatedAt: Date.now() };
+    // Move the updated chat to the top of the list.
+    writeChats([updated, ...all.filter((_, i) => i !== idx)]);
+  }, []);
 
-  const addMessage = useCallback((chatId: string, msg: Message) => {
-    updateChat(chatId, (c) => ({
-      ...c,
-      messages: [...c.messages, msg],
-      // Auto-title from first user message.
-      title: c.title === 'New Chat' && msg.role === 'user'
-        ? msg.content.slice(0, 50) + (msg.content.length > 50 ? '...' : '')
-        : c.title,
-    }));
-  }, [updateChat]);
+  const addMessage = useCallback(
+    (chatId: string, msg: Message) => {
+      updateChat(chatId, (c) => ({
+        ...c,
+        messages: [...c.messages, msg],
+        title: titleFor(c, msg),
+      }));
+    },
+    [updateChat],
+  );
 
   const updateLastMessage = useCallback((chatId: string, content: string) => {
     const all = readChats();
     const chat = all.find((c) => c.id === chatId);
     if (!chat || chat.messages.length === 0) return;
-    chat.messages[chat.messages.length - 1].content = content;
-    chat.updatedAt = Date.now();
-    writeChats(all);
-    setChats([...all]);
+    const lastIdx = chat.messages.length - 1;
+    // Streaming updates keep list order stable, so this does not re-sort.
+    writeChats(
+      all.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              messages: c.messages.map((m, i) => (i === lastIdx ? { ...m, content } : m)),
+              updatedAt: Date.now(),
+            }
+          : c,
+      ),
+    );
   }, []);
 
   return {

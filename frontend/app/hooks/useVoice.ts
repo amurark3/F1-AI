@@ -105,19 +105,22 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     setListening(false);
   }, []);
 
-  const speak = useCallback((text: string) => {
-    if (!hasSynthesis) return;
-    const clean = cleanForSpeech(text);
-    if (!clean) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 1.06; // slightly brisk, like radio
-    utterance.pitch = 1.0;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [hasSynthesis]);
+  const speak = useCallback(
+    (text: string) => {
+      if (!hasSynthesis) return;
+      const clean = cleanForSpeech(text);
+      if (!clean) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.rate = 1.06; // slightly brisk, like radio
+      utterance.pitch = 1.0;
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    },
+    [hasSynthesis],
+  );
 
   const cancelSpeech = useCallback(() => {
     if (hasSynthesis) window.speechSynthesis.cancel();

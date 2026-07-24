@@ -26,12 +26,7 @@ const TONE_COLORS = {
 
 const F1 = { fontFamily: "var(--font-barlow, var(--font-geist-sans))" };
 
-export default function OperationalHeader({
-  eyebrow,
-  title,
-  description,
-  metrics = [],
-}: OperationalHeaderProps) {
+export default function OperationalHeader({ eyebrow, title, description, metrics = [] }: OperationalHeaderProps) {
   return (
     <header className="mb-5 sm:mb-6">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
@@ -43,12 +38,13 @@ export default function OperationalHeader({
             <span className="h-[6px] w-[6px] rounded-full" style={{ background: "#E10600" }} />
             {eyebrow}
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tight text-white leading-none" style={F1}>
+          <h1
+            className="text-3xl sm:text-5xl font-black italic uppercase tracking-tight text-white leading-none"
+            style={F1}
+          >
             {title}
           </h1>
-          <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
-            {description}
-          </p>
+          <p className="text-sm text-neutral-500 mt-3 leading-relaxed">{description}</p>
         </div>
 
         {metrics.length > 0 && (
@@ -58,9 +54,7 @@ export default function OperationalHeader({
               return (
                 <div key={label} className="glass rounded-xl px-3 py-3 min-w-0">
                   <Icon className="h-4 w-4 mb-2" style={{ color }} />
-                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-neutral-600 truncate">
-                    {label}
-                  </p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-neutral-600 truncate">{label}</p>
                   <p className="text-xs sm:text-sm font-black uppercase text-white truncate" style={F1}>
                     {value}
                   </p>

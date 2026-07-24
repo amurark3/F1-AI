@@ -1,160 +1,69 @@
 "use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-const NAV_ITEMS = [
-  { href: '/',            label: 'Workspaces' },
-  { href: '/race-control',label: 'Race Control' },
-  { href: '/consumer',    label: 'Consumer' },
-  { href: '/calendar',   label: 'Calendar' },
-  { href: '/standings',  label: 'Standings' },
-  { href: '/champions',  label: 'Champions' },
-  { href: '/predictions',label: 'Predictions' },
-  { href: '/live',       label: 'Live',      live: true },
-];
+import SiteFooter from "./SiteFooter";
 
+/**
+ * Chrome for everything outside the Race Control workspace — in practice just the
+ * landing page, since every other top-level route redirects into /race-control.
+ *
+ * There is deliberately no tab bar here. The app's real navigation is the Race
+ * Control sidebar; the old top tabs duplicated it through redirect stubs that had
+ * drifted out of date (Calendar pointed at the command center, not a calendar).
+ * The logo returns home and the CTA enters the app — that is the whole surface.
+ */
 export default function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (pathname?.startsWith('/race-control')) {
+  // Race Control ships its own full-height shell with a sidebar.
+  if (pathname?.startsWith("/race-control")) {
     return <>{children}</>;
   }
 
   return (
-    <main className="min-h-screen" style={{ background: '#080808' }}>
-      {/* ── Top speed stripe ─────────────────────── */}
+    <main className="flex min-h-screen flex-col" style={{ background: "#07090D" }}>
+      {/* Top speed stripe */}
       <div
-        className="h-[3px] relative overflow-hidden"
-        style={{ background: 'linear-gradient(90deg, #E10600 0%, #FF4422 50%, #E10600 100%)' }}
+        className="relative h-[3px] overflow-hidden"
+        style={{ background: "linear-gradient(90deg, #E10600 0%, #FF4422 50%, #E10600 100%)" }}
       >
-        {/* animated shimmer */}
         <div
-          className="absolute inset-y-0 w-1/3 animate-streak"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)' }}
+          className="absolute inset-y-0 w-1/3 animate-streak motion-reduce:hidden"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)" }}
         />
       </div>
 
-      {/* ── Header ──────────────────────────────────── */}
-      <header className="glass-strong border-b border-white/5 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-14">
-
-          {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0 mr-6 sm:mr-10 group">
+      <header className="glass-strong sticky top-0 z-50 border-b border-white/5">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex shrink-0 items-center" aria-label="F1 AI home">
             <span
-              className="text-[22px] font-black italic tracking-tighter uppercase leading-none select-none"
-              style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+              className="select-none text-[22px] font-black italic uppercase leading-none tracking-tighter"
+              style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
             >
               <span className="text-white">F1</span>
-              <span className="ml-1" style={{ color: '#E10600' }}>AI</span>
+              <span className="ml-1" style={{ color: "#E10600" }}>
+                AI
+              </span>
             </span>
-            {/* underline speeds in on hover */}
-            <span
-              className="absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300"
-              style={{ background: '#E10600' }}
-            />
           </Link>
 
-          {/* ── Desktop tabs ──────────────────────── */}
-          <nav className="hidden sm:flex items-stretch h-14 flex-1 relative">
-            {NAV_ITEMS.map(({ href, label, live }) => {
-              const active = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`
-                    relative flex items-center gap-1.5 px-4 md:px-5
-                    text-[11px] font-black uppercase tracking-widest
-                    transition-colors duration-200 border-b-2
-                    ${active
-                      ? 'text-white border-[#E10600]'
-                      : 'text-neutral-500 border-transparent hover:text-neutral-200 hover:border-white/20'
-                    }
-                  `}
-                  style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
-                >
-                  {label}
-                  {live && (
-                    <span
-                      className="h-[7px] w-[7px] rounded-full animate-glow-pulse"
-                      style={{ background: '#E10600' }}
-                    />
-                  )}
-                  {/* animated underline indicator */}
-                  {active && (
-                    <motion.span
-                      layoutId="nav-indicator"
-                      className="absolute bottom-[-1px] left-0 right-0 h-[2px]"
-                      style={{ background: '#E10600' }}
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* ── Mobile hamburger ──────────────────── */}
-          <button
-            onClick={() => setMobileOpen(v => !v)}
-            className="sm:hidden ml-auto p-2 -mr-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/8 transition-all"
-            aria-label="Toggle menu"
+          <Link
+            href="/race-control"
+            className="inline-flex items-center gap-2 rounded-md border border-[#1E2633] px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+            Race Control
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
-
-        {/* ── Mobile dropdown ───────────────────── */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="sm:hidden overflow-hidden border-t border-white/5"
-            >
-              <div className="glass-strong px-4 pb-3 pt-1 space-y-0.5">
-                {NAV_ITEMS.map(({ href, label, live }) => {
-                  const active = pathname === href;
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`
-                        flex items-center justify-between px-3 py-3 rounded-lg
-                        text-xs font-black uppercase tracking-widest
-                        transition-all duration-150 border-l-2
-                        ${active
-                          ? 'text-white border-[#E10600] bg-white/4'
-                          : 'text-neutral-500 border-transparent hover:text-white hover:bg-white/3'
-                        }
-                      `}
-                      style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
-                    >
-                      {label}
-                      {live && (
-                        <span
-                          className="h-[7px] w-[7px] rounded-full animate-glow-pulse"
-                          style={{ background: '#E10600' }}
-                        />
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </header>
 
-      {children}
+      <div className="flex-1">{children}</div>
+
+      <SiteFooter />
     </main>
   );
 }

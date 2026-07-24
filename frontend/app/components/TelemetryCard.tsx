@@ -18,7 +18,12 @@ const TelemetryCard = ({ data }: Props) => {
     const isFaster = delta < 0;
     const color = isFaster ? "text-green-400" : "text-red-400";
     const sign = delta > 0 ? "+" : "";
-    return <span className={`font-mono font-bold ${color}`}>{sign}{delta.toFixed(3)}s</span>;
+    return (
+      <span className={`font-mono font-bold ${color}`}>
+        {sign}
+        {delta.toFixed(3)}s
+      </span>
+    );
   };
 
   return (
@@ -54,7 +59,7 @@ const TelemetryCard = ({ data }: Props) => {
           {renderDelta(data.s3)}
         </div>
       </div>
-      
+
       <div className="mt-3 text-xs text-center text-gray-500">
         *Negative values (Green) mean {data.driver1} was faster.
       </div>

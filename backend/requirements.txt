@@ -1,39 +1,46 @@
+# Runtime dependencies for the deployed web service.
+#
+# Versions are PINNED (==) for reproducible builds and so Dependabot/pip-audit
+# have an exact target to scan and bump. To upgrade, bump the pin here (or let
+# Dependabot open the PR) — do not switch back to unpinned ranges.
+# See ../.github/dependabot.yml and ../.github/workflows/dependency-audit.yml.
+
 # Web framework
-fastapi
-uvicorn[standard]
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
 
 # LLM / AI orchestration (runtime only). PDF/document-loader deps used solely by
 # the offline rulebook ingest live in requirements-ingest.txt so the web build
 # stays lean.
-langchain-core
-langchain-groq
+langchain-core==1.5.1
+langchain-groq==1.1.3
 
 # Embeddings model (downloaded on first use) — powers rulebook + memory vectors.
 # Rulebook vectors are stored in Postgres/pgvector (see app/rag/pgvector_store.py),
 # so no separate vector-DB package is needed.
-sentence-transformers
+sentence-transformers==5.6.1
 
 # F1 data
-fastf1
+fastf1==3.8.3
 
 # Web search
-tavily-python
+tavily-python==0.7.26
 
 # MCP server (optional — for Claude Desktop integration)
-fastmcp
+fastmcp==3.4.4
 
 
 # Structured logging
-structlog
+structlog==26.1.0
 
 # Durable document store (Supabase / Postgres) — optional, JSON fallback if unset
-psycopg[binary]
+psycopg[binary]==3.3.4
 
 # Utilities
-pydantic
-requests
-httpx
-python-dotenv
-pandas
-scikit-learn
-joblib
+pydantic==2.13.4
+requests==2.34.2
+httpx==0.28.1
+python-dotenv==1.2.2
+pandas==2.3.3
+scikit-learn==1.7.2
+joblib==1.5.3

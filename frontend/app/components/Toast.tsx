@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface ToastState {
   message: string;
@@ -22,9 +22,12 @@ export const useToast = () => {
     setToast(null);
   }, []);
 
-  useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   return { toast, showToast, dismissToast };
 };
@@ -40,7 +43,10 @@ export const Toast = ({ message, onRetry, onDismiss }: ToastProps) => (
     <span className="text-sm text-white leading-snug flex-1">{message}</span>
     {onRetry && (
       <button
-        onClick={() => { onRetry(); onDismiss(); }}
+        onClick={() => {
+          onRetry();
+          onDismiss();
+        }}
         className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors shrink-0"
       >
         Retry

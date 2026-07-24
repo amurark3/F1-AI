@@ -1,8 +1,8 @@
 "use client";
 
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
-interface PodiumEntry {
+export interface PodiumEntry {
   position: number;
   driver: string;
   full_name: string;
@@ -15,13 +15,13 @@ interface PodiumDisplayProps {
 
 const TEAM_COLORS: Record<string, string> = {
   "Red Bull Racing": "#3671C6",
-  "Mercedes": "#27F4D2",
-  "Ferrari": "#E8002D",
-  "McLaren": "#FF8000",
+  Mercedes: "#27F4D2",
+  Ferrari: "#E8002D",
+  McLaren: "#FF8000",
   "Aston Martin": "#229971",
-  "Alpine": "#FF87BC",
-  "Williams": "#64C4FF",
-  "RB": "#6692FF",
+  Alpine: "#FF87BC",
+  Williams: "#64C4FF",
+  RB: "#6692FF",
   "Haas F1 Team": "#B6BABD",
   "Kick Sauber": "#52E252",
 };
@@ -58,10 +58,7 @@ export default function PodiumDisplay({ podium }: PodiumDisplayProps) {
           className="flex flex-col items-center flex-1 max-w-[140px]"
         >
           <p className="text-[10px] font-bold tracking-widest text-neutral-500 mb-1">{label}</p>
-          <p
-            className="text-lg sm:text-xl font-black"
-            style={{ color: getTeamColor(entry.team) }}
-          >
+          <p className="text-lg sm:text-xl font-black" style={{ color: getTeamColor(entry.team) }}>
             {entry.driver}
           </p>
           <p className="text-[10px] text-neutral-500 truncate max-w-full mb-2">{entry.team}</p>
@@ -72,9 +69,7 @@ export default function PodiumDisplay({ podium }: PodiumDisplayProps) {
               borderTop: `2px solid ${getTeamColor(entry.team)}66`,
             }}
           >
-            <span className="text-2xl sm:text-3xl font-black text-white/20">
-              {entry.position}
-            </span>
+            <span className="text-2xl sm:text-3xl font-black text-white/20">{entry.position}</span>
           </div>
         </motion.div>
       ))}

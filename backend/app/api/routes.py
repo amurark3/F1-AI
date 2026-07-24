@@ -8,7 +8,8 @@ Defines all HTTP endpoints for the F1 AI backend:
   GET  /api/race/{year}/{round_num}    — Enriched race detail (circuit, results, qualifying)
   GET  /api/standings/drivers/{year}   — World Drivers' Championship standings
   GET  /api/standings/constructors/{year} — World Constructors' Championship standings
-  GET  /api/health                     — Liveness probe
+  GET  /api/health                     — Liveness probe (is the process up?)
+  GET  /api/ready                      — Readiness probe (has warm-up finished?)
 
 The chat endpoint implements an agentic loop:
   1. Build message history with system prompt.
@@ -32,6 +33,7 @@ from app.api.routers.chat import router as chat_router
 from app.api.routers.memory import router as memory_router
 from app.api.routers.predictions import router as predictions_router
 from app.api.routers.race_control import router as race_control_router
+from app.api.routers.readiness import router as readiness_router
 from app.api.routers.season import router as season_router
 from app.utils.f1_values import safe_float as _safe_float
 from app.utils.f1_values import safe_int as _safe_int
@@ -56,6 +58,7 @@ router.include_router(predictions_router)
 router.include_router(race_control_router)
 router.include_router(season_router)
 router.include_router(champions_router)
+router.include_router(readiness_router)
 
 # ---------------------------------------------------------------------------
 # FastF1 cache — speeds up repeated session data requests significantly.

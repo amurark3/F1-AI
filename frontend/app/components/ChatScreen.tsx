@@ -1,11 +1,13 @@
 "use client";
 
-import { PanelLeftOpen } from 'lucide-react';
-import ChatSidebar from './ChatSidebar';
-import ChatWelcome from './ChatWelcome';
-import ChatMessages from './ChatMessages';
-import ChatInput from './ChatInput';
-import { useChat } from '../hooks/useChat';
+import { PanelLeftOpen } from "lucide-react";
+
+import { useChat } from "../hooks/useChat";
+
+import ChatInput from "./ChatInput";
+import ChatMessages from "./ChatMessages";
+import ChatSidebar from "./ChatSidebar";
+import ChatWelcome from "./ChatWelcome";
 
 export default function ChatScreen() {
   const {
@@ -34,7 +36,7 @@ export default function ChatScreen() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex" style={{ height: 'calc(100vh - 56px)' }}>
+    <div className="flex" style={{ height: "calc(100vh - 56px)" }}>
       <ChatSidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -56,9 +58,7 @@ export default function ChatScreen() {
           >
             <PanelLeftOpen className="w-5 h-5" />
           </button>
-          <span className="ml-3 text-sm text-neutral-400 font-medium truncate">
-            {activeChat?.title ?? 'New Chat'}
-          </span>
+          <span className="ml-3 text-sm text-neutral-400 font-medium truncate">{activeChat?.title ?? "New Chat"}</span>
         </div>
 
         {/* Messages or welcome */}
@@ -72,10 +72,7 @@ export default function ChatScreen() {
               onRegenerate={regenerate}
             />
           ) : (
-            <ChatWelcome
-              onSelectPrompt={sendMessage}
-              disabled={isLoading}
-            />
+            <ChatWelcome onSelectPrompt={sendMessage} disabled={isLoading} />
           )}
         </div>
 

@@ -1,6 +1,17 @@
-# Dependabot keeps dependencies patched and surfaces known vulnerabilities.
-# It opens PRs for version bumps and (independently) raises security alerts +
-# fix PRs when a dependency has a published CVE/GHSA advisory.
+# Dependabot — SECURITY-ONLY configuration.
+#
+# We do NOT want a PR for every routine version bump. So scheduled *version
+# updates* are disabled below via `open-pull-requests-limit: 0` on each
+# ecosystem.
+#
+# *Security updates* are unaffected: they are driven by published CVE/GHSA
+# advisories, enabled in repo Settings → Code security ("Dependabot alerts" +
+# "Dependabot security updates"), and use a separate internal PR limit (10) that
+# `open-pull-requests-limit` does not touch. So Dependabot will still open a PR
+# whenever a dependency has a known vulnerability — and only then.
+#
+# To re-enable routine version bumps for an ecosystem, raise its limit (e.g. 10)
+# and restore a `groups:` block to batch minor/patch updates.
 # Docs: https://docs.github.com/code-security/dependabot
 version: 2
 
@@ -11,17 +22,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0 # security updates only — no version-bump PRs
     labels: ["dependencies", "frontend"]
     commit-message:
       prefix: chore
       include: scope
-    groups:
-      # Batch low-risk minor/patch bumps into a single PR to cut noise.
-      # Security updates and majors still get their own dedicated PRs.
-      npm-minor-patch:
-        applies-to: version-updates
-        update-types: [minor, patch]
 
   # ── Backend (Python) ──────────────────────────────────────────────────────
   # Covers requirements.txt, requirements-ingest.txt, and requirements-train.txt
@@ -31,23 +36,19 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0 # security updates only — no version-bump PRs
     labels: ["dependencies", "backend"]
     commit-message:
       prefix: chore
       include: scope
-    groups:
-      pip-minor-patch:
-        applies-to: version-updates
-        update-types: [minor, patch]
 
   # ── GitHub Actions ────────────────────────────────────────────────────────
-  # Keeps action versions (checkout, setup-python, codeql-action, …) current.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 0 # security updates only — no version-bump PRs
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: ci

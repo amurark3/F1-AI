@@ -1,41 +1,30 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "node_modules/**",
-    "next-env.d.ts",
-    "*.tsbuildinfo",
-  ]),
+  globalIgnores([".next/**", "out/**", "build/**", "node_modules/**", "next-env.d.ts", "*.tsbuildinfo"]),
 
   // eslint-config-next already registers the `import`, `react`, `react-hooks`
   // and `jsx-a11y` plugins, so we only tune their rules below.
   ...nextVitals,
-  ...nextTs,
 
   // Type-aware linting for all first-party TypeScript sources.
+  //
+  // `eslint-config-next/typescript` (previously spread here) only applies
+  // `tseslint.configs.recommended` and downgrades `no-unused-vars` /
+  // `no-explicit-any` to warnings — both re-set to `error` below — so it was
+  // redundant against `recommendedTypeChecked`, a strict superset of recommended.
   {
-    files: ["**/*.ts", "**/*.tsx", "**/*.mts"],
-    extends: [
-      tseslint.configs.recommendedTypeChecked,
-      tseslint.configs.stylisticTypeChecked,
-    ],
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    extends: [tseslint.configs.recommendedTypeChecked, tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    settings: {
-      "import/resolver": {
-        typescript: { project: "./tsconfig.json" },
       },
     },
     plugins: { sonarjs },
@@ -49,10 +38,7 @@ const eslintConfig = defineConfig([
       "no-return-await": "off",
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
       "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        { checksVoidReturn: { attributes: false } },
-      ],
+      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
       "@typescript-eslint/await-thenable": "error",
       // Scoped to genuine defaulting. `a || b` used as a boolean test is not a
       // nullish-defaulting bug, and rewriting it to `??` would change behaviour
@@ -95,14 +81,9 @@ const eslintConfig = defineConfig([
       // meaningful metric once JSX conditional rendering dominates the count.
       complexity: ["error", 15],
       "max-depth": ["error", 4],
-      // `countVoidThis` defaults to false, so an explicit `this` parameter is
-      // not counted toward the limit.
       "max-params": ["error", { max: 4 }],
       "max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
-      "max-lines-per-function": [
-        "error",
-        { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true },
-      ],
+      "max-lines-per-function": ["error", { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }],
       "no-nested-ternary": "error",
       "no-else-return": ["error", { allowElseIf: false }],
       "no-lonely-if": "error",
@@ -134,25 +115,13 @@ const eslintConfig = defineConfig([
       "import/order": [
         "error",
         {
-          groups: [
-            "builtin",
-            "external",
-            "internal",
-            "parent",
-            "sibling",
-            "index",
-            "type",
-          ],
+          groups: ["builtin", "external", "internal", "parent", "sibling", "index", "type"],
           pathGroups: [{ pattern: "@/**", group: "internal" }],
           pathGroupsExcludedImportTypes: ["builtin"],
           "newlines-between": "always",
           alphabetize: { order: "asc", caseInsensitive: true },
         },
       ],
-
-      // --- Accessibility -------------------------------------------------
-      ...jsxA11y.flatConfigs.recommended.rules,
-      "jsx-a11y/no-autofocus": "off",
     },
   },
 
@@ -166,35 +135,40 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.tsx"],
     rules: {
+      // Accessibility rules only apply to files that contain JSX. Next already
+      // registers the `jsx-a11y` plugin, so we only tune its rules here.
+      ...jsxA11y.flatConfigs.recommended.rules,
+      "jsx-a11y/no-autofocus": "off",
+
       complexity: ["error", 20],
-      "max-lines-per-function": [
-        "error",
-        { max: 120, skipBlankLines: true, skipComments: true, IIFEs: true },
-      ],
+      "max-lines-per-function": ["error", { max: 120, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
   // Test suites intentionally hold whole scenarios in one `describe`/`it` block,
   // so function length is not a useful signal there.
   {
-    files: [
-      "**/*.{test,spec}.{ts,tsx}",
-      "**/__tests__/**/*.{ts,tsx}",
-    ],
+    files: ["**/*.{test,spec}.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}"],
     rules: {
       "max-lines-per-function": "off",
       "max-lines": ["error", { max: 800, skipBlankLines: true, skipComments: true }],
     },
   },
 
-  // Config files are not part of the app's type-checked program.
+  // Config and plain-JS files are not part of the app's type-checked program.
+  // Matched recursively so a nested `*.config.ts` outside the tsconfig program
+  // does not fall through to the type-aware block above and throw.
   {
-    files: ["*.mjs", "*.js", "*.config.ts"],
+    files: ["**/*.{js,mjs,cjs}", "**/*.config.{ts,mts,cts}"],
     extends: [tseslint.configs.disableTypeChecked],
     rules: {
       "no-console": "off",
     },
   },
+
+  // Must stay last: turns off any ESLint rules that conflict with Prettier so
+  // formatting is owned solely by Prettier and the two never disagree.
+  eslintConfigPrettier,
 ]);
 
 export default eslintConfig;

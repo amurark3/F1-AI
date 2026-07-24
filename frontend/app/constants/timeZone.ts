@@ -26,4 +26,4 @@ const F1_TIMEZONES = [
   { label: "Azerbaijan (Baku)", value: "Asia/Baku" },
 ];
 
-export default F1_TIMEZONES
+export default F1_TIMEZONES;

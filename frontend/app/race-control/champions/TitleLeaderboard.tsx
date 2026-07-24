@@ -21,13 +21,7 @@ function shortName(name: string): string {
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : name;
 }
 
-function LeaderboardTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: TitleEntry }>;
-}) {
+function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TitleEntry }> }) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (

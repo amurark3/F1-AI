@@ -1,7 +1,7 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from "react";
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -12,7 +12,7 @@ export interface Chat {
   messages: Message[];
 }
 
-const STORAGE_KEY = 'f1ai_chats';
+const STORAGE_KEY = "f1ai_chats";
 const MAX_TITLE_LENGTH = 50;
 
 /** Stable empty reference — required so `getSnapshot` never returns a new array. */
@@ -54,15 +54,15 @@ function getServerSnapshot(): Chat[] {
 
 function subscribe(onStoreChange: () => void): () => void {
   listeners.add(onStoreChange);
-  window.addEventListener('storage', onStoreChange);
+  window.addEventListener("storage", onStoreChange);
   return () => {
     listeners.delete(onStoreChange);
-    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
   };
 }
 
 function readChats(): Chat[] {
-  if (typeof window === 'undefined') return NO_CHATS;
+  if (typeof window === "undefined") return NO_CHATS;
   return getSnapshot();
 }
 
@@ -72,7 +72,7 @@ function writeChats(chats: Chat[]): void {
 }
 
 function titleFor(chat: Chat, msg: Message): string {
-  if (chat.title !== 'New Chat' || msg.role !== 'user') return chat.title;
+  if (chat.title !== "New Chat" || msg.role !== "user") return chat.title;
   const head = msg.content.slice(0, MAX_TITLE_LENGTH);
   return msg.content.length > MAX_TITLE_LENGTH ? `${head}...` : head;
 }
@@ -83,7 +83,7 @@ export function useLocalChats() {
   const createChat = useCallback((): Chat => {
     const chat: Chat = {
       id: crypto.randomUUID(),
-      title: 'New Chat',
+      title: "New Chat",
       updatedAt: Date.now(),
       messages: [],
     };
@@ -125,12 +125,10 @@ export function useLocalChats() {
       all.map((c) =>
         c.id === chatId
           ? {
-            ...c,
-            messages: c.messages.map((m, i) =>
-              i === lastIdx ? { ...m, content } : m,
-            ),
-            updatedAt: Date.now(),
-          }
+              ...c,
+              messages: c.messages.map((m, i) => (i === lastIdx ? { ...m, content } : m)),
+              updatedAt: Date.now(),
+            }
           : c,
       ),
     );

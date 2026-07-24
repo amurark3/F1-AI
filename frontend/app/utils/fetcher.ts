@@ -2,8 +2,7 @@
 const DEFAULT_TIMEOUT_MS = 35_000;
 
 /** Builds the error thrown for non-2xx responses. */
-const httpError = (res: Response): Error =>
-  new Error(`Request failed: ${res.status} ${res.statusText}`);
+const httpError = (res: Response): Error => new Error(`Request failed: ${res.status} ${res.statusText}`);
 
 /**
  * SWR-compatible fetch wrapper used by all data-fetching hooks.
@@ -14,7 +13,7 @@ const httpError = (res: Response): Error =>
  * The response body is trusted to match `T`; callers supply the shape via
  * the `useSWR<T>` generic at the call site.
  */
-export const fetcher = async <T,>(url: string): Promise<T> => {
+export const fetcher = async <T>(url: string): Promise<T> => {
   const res = await fetch(url);
   if (!res.ok) throw httpError(res);
   return (await res.json()) as T;
@@ -24,10 +23,7 @@ export const fetcher = async <T,>(url: string): Promise<T> => {
  * Fetcher with a timeout. Used for potentially slow endpoints like race
  * detail that load data from FastF1 on first request.
  */
-export const fetcherWithTimeout = async <T,>(
-  url: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS,
-): Promise<T> => {
+export const fetcherWithTimeout = async <T>(url: string, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<T> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -37,9 +33,7 @@ export const fetcherWithTimeout = async <T,>(
     return (await res.json()) as T;
   } catch (err: unknown) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error(
-        "Request timed out — the server may be loading data. Try again.",
-      );
+      throw new Error("Request timed out — the server may be loading data. Try again.");
     }
     throw err;
   } finally {

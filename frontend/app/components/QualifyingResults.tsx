@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { motion } from "framer-motion";
+import { useState } from "react";
 
 export interface QualifyingEntry {
   position: number;
@@ -38,7 +38,7 @@ export default function QualifyingResults({ qualifying }: QualifyingResultsProps
   if (!qualifying) return null;
 
   // Find first available tab if Q3 doesn't exist
-  const availableTabs = TABS.filter(t => qualifying[t]?.length);
+  const availableTabs = TABS.filter((t) => qualifying[t]?.length);
   if (availableTabs.length === 0) return null;
 
   const currentTab = qualifying[activeTab] ? activeTab : availableTabs[0];
@@ -85,13 +85,9 @@ export default function QualifyingResults({ qualifying }: QualifyingResultsProps
                 isPole ? "glass border-red-500/30" : "hover:bg-white/3"
               }`}
             >
-              <span className={`font-black ${positionClass(isPole, i)}`}>
-                {e.position}
-              </span>
+              <span className={`font-black ${positionClass(isPole, i)}`}>{e.position}</span>
               <span className="font-mono text-neutral-500">{e.driver}</span>
-              <span className={`font-medium truncate ${i < 3 ? "text-white" : "text-neutral-300"}`}>
-                {e.full_name}
-              </span>
+              <span className={`font-medium truncate ${i < 3 ? "text-white" : "text-neutral-300"}`}>{e.full_name}</span>
               <span className={`text-right font-mono ${isPole ? "text-white font-bold" : "text-neutral-400"}`}>
                 {e.time}
               </span>

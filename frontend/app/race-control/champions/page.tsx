@@ -61,10 +61,7 @@ interface StatsResponse {
 }
 
 export default function ChampionsPage() {
-  const { data, error, isLoading } = useSWR<ChampionsResponse, Error>(
-    `${API_BASE}/api/champions`,
-    fetcher,
-  );
+  const { data, error, isLoading } = useSWR<ChampionsResponse, Error>(`${API_BASE}/api/champions`, fetcher);
   const { data: stats } = useSWR<StatsResponse>(`${API_BASE}/api/champions/stats`, fetcher);
 
   if (isLoading) {
@@ -100,7 +97,11 @@ export default function ChampionsPage() {
       {(stats?.most_driver_titles?.length || stats?.most_constructor_titles?.length) && (
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
           <TitleLeaderboard title="Most Drivers' Titles" entries={stats?.most_driver_titles ?? []} color="#FFD700" />
-          <TitleLeaderboard title="Most Constructors' Titles" entries={stats?.most_constructor_titles ?? []} color="#00D2FF" />
+          <TitleLeaderboard
+            title="Most Constructors' Titles"
+            entries={stats?.most_constructor_titles ?? []}
+            color="#00D2FF"
+          />
         </div>
       )}
 
@@ -120,9 +121,7 @@ function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats
   const topDriver = stats?.most_driver_titles?.[0];
   const topConstructor = stats?.most_constructor_titles?.[0];
   const current = seasons[0];
-  const currentSub = current?.is_in_progress
-    ? `${current.season} — in progress`
-    : `${current?.season} champion`;
+  const currentSub = current?.is_in_progress ? `${current.season} — in progress` : `${current?.season} champion`;
 
   return (
     <MetricRow>

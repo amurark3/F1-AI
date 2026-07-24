@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import { useServerStatus } from '../hooks/useServerStatus';
+import { useServerStatus } from "../hooks/useServerStatus";
 
-const rcMono = { fontFamily: 'var(--font-geist-mono, var(--font-geist-sans, monospace))' };
+const rcMono = { fontFamily: "var(--font-geist-mono, var(--font-geist-sans, monospace))" };
 
 /**
  * Backend warm-up stages, in the order the server reports them. The index drives
  * how many start lights are illuminated, so the gantry fills as real work
  * completes rather than animating on a timer.
  */
-const STAGE_ORDER = ['pending', 'database', 'model', 'season'] as const;
+const STAGE_ORDER = ["pending", "database", "model", "season"] as const;
 const LIGHT_COUNT = 5;
 
 /** How long the lights-out celebration holds before the banner unmounts. */
@@ -29,7 +29,7 @@ function StartLight({ lit, active, out }: { lit: boolean; active: boolean; out: 
     return (
       <span
         className="h-2.5 w-2.5 rounded-full bg-[#E10600] animate-lights-out motion-reduce:animate-none"
-        style={{ boxShadow: '0 0 6px rgba(225, 6, 0, 0.5)' }}
+        style={{ boxShadow: "0 0 6px rgba(225, 6, 0, 0.5)" }}
       />
     );
   }
@@ -37,9 +37,9 @@ function StartLight({ lit, active, out }: { lit: boolean; active: boolean; out: 
   return (
     <span
       className={`h-2.5 w-2.5 rounded-full transition-colors ${
-        lit ? 'bg-[#E10600] animate-light-on' : 'bg-[#1A2130] border border-[#232C3D]'
-      } ${active ? 'animate-glow-pulse' : ''} motion-reduce:animate-none`}
-      style={lit ? { boxShadow: '0 0 8px rgba(225, 6, 0, 0.55)' } : undefined}
+        lit ? "bg-[#E10600] animate-light-on" : "bg-[#1A2130] border border-[#232C3D]"
+      } ${active ? "animate-glow-pulse" : ""} motion-reduce:animate-none`}
+      style={lit ? { boxShadow: "0 0 8px rgba(225, 6, 0, 0.55)" } : undefined}
     />
   );
 }
@@ -61,7 +61,7 @@ export default function ServerWarmingBanner() {
 
   // Only celebrate if the user actually waited. A server that was already warm
   // resolves on the first probe, so everWarmed stays false and nothing is shown.
-  const launching = !isWarming && status === 'ready' && everWarmed && !launchElapsed;
+  const launching = !isWarming && status === "ready" && everWarmed && !launchElapsed;
 
   useEffect(() => {
     if (!launching) return;
@@ -85,12 +85,7 @@ export default function ServerWarmingBanner() {
         aria-hidden="true"
       >
         {Array.from({ length: LIGHT_COUNT }).map((_, index) => (
-          <StartLight
-            key={index}
-            lit={index < lit}
-            active={!launching && index === lit - 1}
-            out={launching}
-          />
+          <StartLight key={index} lit={index < lit} active={!launching && index === lit - 1} out={launching} />
         ))}
       </div>
 
@@ -103,8 +98,8 @@ export default function ServerWarmingBanner() {
           <span
             className="ml-2 h-[3px] w-10 rounded-full"
             style={{
-              background: 'linear-gradient(90deg, transparent, #E10600 55%, #FF6B5A)',
-              boxShadow: '0 0 10px rgba(225, 6, 0, 0.6)',
+              background: "linear-gradient(90deg, transparent, #E10600 55%, #FF6B5A)",
+              boxShadow: "0 0 10px rgba(225, 6, 0, 0.6)",
             }}
           />
         </span>
@@ -112,15 +107,15 @@ export default function ServerWarmingBanner() {
 
       <p
         className="shrink-0 truncate text-[10px] font-bold uppercase tracking-[0.2em]"
-        style={{ ...rcMono, color: launching ? '#00FF78' : '#7F8797' }}
+        style={{ ...rcMono, color: launching ? "#00FF78" : "#7F8797" }}
       >
-        {launching ? 'Lights out' : 'Formation lap'}
+        {launching ? "Lights out" : "Formation lap"}
       </p>
 
       <p className="min-w-0 truncate text-xs text-[#8E96A8]">
         {launching
-          ? 'Server ready — go racing.'
-          : detail ?? 'Waking the server — the free-tier instance spins down when idle.'}
+          ? "Server ready — go racing."
+          : (detail ?? "Waking the server — the free-tier instance spins down when idle.")}
       </p>
     </div>
   );

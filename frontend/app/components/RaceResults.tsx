@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 export interface RaceResult {
   position: number | null;
@@ -54,13 +54,9 @@ function RaceResultRow({ result, index }: { result: RaceResult; index: number })
         isTop3 ? "glass" : "hover:bg-white/3"
       } ${isDNF ? "opacity-50" : ""}`}
     >
-      <span className={`font-black ${isTop3 ? "text-white" : "text-neutral-500"}`}>
-        {result.position ?? "-"}
-      </span>
+      <span className={`font-black ${isTop3 ? "text-white" : "text-neutral-500"}`}>{result.position ?? "-"}</span>
       <span className="font-mono text-neutral-500">{result.driver}</span>
-      <span className={`font-medium truncate ${isTop3 ? "text-white" : "text-neutral-300"}`}>
-        {result.full_name}
-      </span>
+      <span className={`font-medium truncate ${isTop3 ? "text-white" : "text-neutral-300"}`}>{result.full_name}</span>
       <span className="text-neutral-500 font-mono">{result.grid ?? "PL"}</span>
       <span className={`font-bold ${changeColor(change)}`}>{change}</span>
       <span className={`font-mono text-[11px] truncate ${isDNF ? "text-red-400" : "text-neutral-400"}`}>

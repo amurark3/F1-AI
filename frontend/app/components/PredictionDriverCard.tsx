@@ -1,23 +1,23 @@
 "use client";
 
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
 export const TEAM_COLORS: Record<string, string> = {
   "Red Bull Racing": "#3671C6",
-  "Red Bull":        "#3671C6",
-  "Mercedes":        "#27F4D2",
-  "Ferrari":         "#E8002D",
-  "McLaren":         "#FF8000",
-  "Aston Martin":    "#229971",
-  "Alpine F1 Team":  "#FF87BC",
-  "Alpine":          "#FF87BC",
-  "Williams":        "#64C4FF",
-  "RB F1 Team":      "#6692FF",
-  "RB":              "#6692FF",
-  "Haas F1 Team":    "#B6BABD",
-  "Haas":            "#B6BABD",
-  "Kick Sauber":     "#52E252",
-  "Audi":            "#FF0000",
+  "Red Bull": "#3671C6",
+  Mercedes: "#27F4D2",
+  Ferrari: "#E8002D",
+  McLaren: "#FF8000",
+  "Aston Martin": "#229971",
+  "Alpine F1 Team": "#FF87BC",
+  Alpine: "#FF87BC",
+  Williams: "#64C4FF",
+  "RB F1 Team": "#6692FF",
+  RB: "#6692FF",
+  "Haas F1 Team": "#B6BABD",
+  Haas: "#B6BABD",
+  "Kick Sauber": "#52E252",
+  Audi: "#FF0000",
   "Cadillac F1 Team": "#E0D4B8",
 };
 
@@ -53,15 +53,16 @@ interface PredictionDriverCardProps {
 }
 
 const rowVariants = {
-  hidden:  { opacity: 0, x: 24 },
+  hidden: { opacity: 0, x: 24 },
   visible: (i: number) => ({
-    opacity: 1, x: 0,
-    transition: { type: 'spring' as const, damping: 22, stiffness: 210, delay: i * 0.025 },
+    opacity: 1,
+    x: 0,
+    transition: { type: "spring" as const, damping: 22, stiffness: 210, delay: i * 0.025 },
   }),
 };
 
 export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCardProps) => {
-  const color   = getTeamColor(prediction.team);
+  const color = getTeamColor(prediction.team);
   const midConf = Math.round((prediction.confidence_low + prediction.confidence_high) / 2);
 
   return (
@@ -81,15 +82,12 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
       />
 
       {/* Team colour left bar */}
-      <div
-        className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-        style={{ background: color }}
-      />
+      <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: color }} />
 
       {/* Position */}
       <div
         className="w-7 sm:w-9 text-center font-black text-base sm:text-lg shrink-0 text-neutral-500"
-        style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+        style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
       >
         {prediction.position}
       </div>
@@ -100,7 +98,7 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
         style={{
           background: `${color}22`,
           color,
-          fontFamily: 'var(--font-barlow, var(--font-geist-sans))',
+          fontFamily: "var(--font-barlow, var(--font-geist-sans))",
         }}
       >
         {prediction.driver_code}
@@ -109,7 +107,9 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
       {/* Name + team */}
       <div className="flex-1 min-w-0">
         <p className="font-bold text-sm text-white truncate leading-tight">{prediction.driver_name}</p>
-        <p className="text-[10px] font-semibold truncate mt-0.5" style={{ color }}>{prediction.team}</p>
+        <p className="text-[10px] font-semibold truncate mt-0.5" style={{ color }}>
+          {prediction.team}
+        </p>
       </div>
 
       {/* Probability bar */}
@@ -137,7 +137,7 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
             className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-500 leading-tight"
             style={{ maxWidth: 190 }}
           >
-            {f.length > 28 ? `${f.slice(0, 26)  }…` : f}
+            {f.length > 28 ? `${f.slice(0, 26)}…` : f}
           </span>
         ))}
       </div>
@@ -146,7 +146,7 @@ export const PredictionDriverCard = ({ prediction, index }: PredictionDriverCard
       <div className="text-right shrink-0 w-12 sm:w-14">
         <p
           className="font-mono font-black text-sm sm:text-base text-white leading-none"
-          style={{ fontFamily: 'var(--font-barlow, var(--font-geist-sans))' }}
+          style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
         >
           {midConf}%
         </p>

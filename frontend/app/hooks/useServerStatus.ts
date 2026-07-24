@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from "react";
 
-import { API_BASE } from '../constants/api';
+import { API_BASE } from "../constants/api";
 
-export type ServerStatus = 'unknown' | 'warming' | 'ready' | 'unreachable';
+export type ServerStatus = "unknown" | "warming" | "ready" | "unreachable";
 
 export interface ServerState {
   status: ServerStatus;
@@ -33,7 +33,7 @@ const PROBE_INTERVAL_MS = 3000;
 const MAX_ATTEMPTS = 60;
 
 const INITIAL_STATE: ServerState = {
-  status: 'unknown',
+  status: "unknown",
   detail: null,
   stage: null,
   isWarming: false,
@@ -60,7 +60,7 @@ let probeStarted = false;
 let hasEverWarmed = false;
 
 /** Publishes a new snapshot. Always builds a fresh object — never mutates. */
-function notify(state: Omit<ServerState, 'everWarmed'>): void {
+function notify(state: Omit<ServerState, "everWarmed">): void {
   if (state.isWarming) hasEverWarmed = true;
   cachedState = { ...state, everWarmed: hasEverWarmed };
   listeners.forEach((listener) => listener());
@@ -68,7 +68,9 @@ function notify(state: Omit<ServerState, 'everWarmed'>): void {
 
 function subscribe(onStoreChange: () => void): () => void {
   listeners.add(onStoreChange);
-  return () => { listeners.delete(onStoreChange); };
+  return () => {
+    listeners.delete(onStoreChange);
+  };
 }
 
 /** Reference is stable between notifications, as useSyncExternalStore requires. */
@@ -107,18 +109,18 @@ function startProbing(): void {
     const readiness = await fetchReadiness();
 
     if (readiness?.ready) {
-      notify({ status: 'ready', detail: null, stage: readiness.stage, isWarming: false });
+      notify({ status: "ready", detail: null, stage: readiness.stage, isWarming: false });
       return;
     }
 
     if (attempts >= MAX_ATTEMPTS) {
       // Stop rather than claim "warming up" forever against a dead server.
-      notify({ status: 'unreachable', detail: null, stage: null, isWarming: false });
+      notify({ status: "unreachable", detail: null, stage: null, isWarming: false });
       return;
     }
 
     notify({
-      status: 'warming',
+      status: "warming",
       detail: readiness?.detail ?? null,
       stage: readiness?.stage ?? null,
       isWarming: true,
@@ -137,6 +139,8 @@ function startProbing(): void {
  * 'ready' and nothing is ever shown.
  */
 export function useServerStatus(): ServerState {
-  useEffect(() => { startProbing(); }, []);
+  useEffect(() => {
+    startProbing();
+  }, []);
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

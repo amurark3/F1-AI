@@ -29,9 +29,7 @@ export default function SiteFooter({ compact = false }: SiteFooterProps) {
   if (compact) {
     return (
       <footer className="border-t border-[#1E2633] px-4 py-4 sm:px-6">
-        <p className="text-[11px] leading-relaxed text-[#5C6473]">
-          {F1_DISCLAIMER}
-        </p>
+        <p className="text-[11px] leading-relaxed text-[#5C6473]">{F1_DISCLAIMER}</p>
         <p className="mt-1.5 text-[11px] text-[#5C6473]">
           © {year} F1 AI — an independent project for research and education.
         </p>
@@ -44,20 +42,14 @@ export default function SiteFooter({ compact = false }: SiteFooterProps) {
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:justify-between">
           <div className="max-w-2xl">
-            <p
-              className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]"
-              style={rcMono}
-            >
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]" style={rcMono}>
               Disclaimer
             </p>
             <p className="text-xs leading-relaxed text-[#6F7789]">{F1_DISCLAIMER}</p>
           </div>
 
           <div className="shrink-0">
-            <p
-              className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]"
-              style={rcMono}
-            >
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]" style={rcMono}>
               Data Sources
             </p>
             <ul className="space-y-1">

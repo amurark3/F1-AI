@@ -27,9 +27,7 @@ export default function TrackInsights({ circuit }: TrackInsightsProps) {
   return (
     <div className="glass rounded-xl p-4 space-y-2">
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="text-sm font-black italic text-white leading-tight">
-          {circuit.circuit_name}
-        </h4>
+        <h4 className="text-sm font-black italic text-white leading-tight">{circuit.circuit_name}</h4>
         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 shrink-0">
           {circuit.circuit_type}
         </span>
@@ -41,7 +39,10 @@ export default function TrackInsights({ circuit }: TrackInsightsProps) {
         <span>
           Record: <b className="text-white font-mono">{circuit.lap_record.time}</b>
           {circuit.lap_record.driver !== "-" && (
-            <> ({circuit.lap_record.driver}, {circuit.lap_record.year})</>
+            <>
+              {" "}
+              ({circuit.lap_record.driver}, {circuit.lap_record.year})
+            </>
           )}
         </span>
         <span>

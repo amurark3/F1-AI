@@ -157,8 +157,8 @@ export default function HomePage() {
           </span>
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#8E96A8]">
-          Live timing, championship context, and a prediction model trained on seven decades of race
-          results — with an assistant that can explain any of it on request.
+          Live timing, championship context, and a prediction model trained on seven decades of race results — with an
+          assistant that can explain any of it on request.
         </p>
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -185,10 +185,7 @@ export default function HomePage() {
           <div key={group.label}>
             <div className="mb-4 flex items-center gap-3">
               <span className="h-[2px] w-6 shrink-0" style={{ background: group.accent }} />
-              <p
-                className="text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]"
-                style={rcMono}
-              >
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#7F8797]" style={rcMono}>
                 {group.label}
               </p>
             </div>

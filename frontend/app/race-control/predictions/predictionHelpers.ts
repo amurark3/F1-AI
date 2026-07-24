@@ -1,11 +1,6 @@
 import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 
-import type {
-  DriverLookup,
-  DriverStanding,
-  RaceEvent,
-  RiskPrediction,
-} from "./predictionModel";
+import type { DriverLookup, DriverStanding, RaceEvent, RiskPrediction } from "./predictionModel";
 
 const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
@@ -14,9 +9,7 @@ export function confidenceMidpoint(prediction: DriverPrediction): number {
 }
 
 export function buildDriverLookup(drivers: DriverStanding[]): DriverLookup {
-  return Object.fromEntries(
-    drivers.map((driver) => [driver.code.toUpperCase(), driver]),
-  );
+  return Object.fromEntries(drivers.map((driver) => [driver.code.toUpperCase(), driver]));
 }
 
 export function driverDisplayName(prediction: DriverPrediction, lookup: DriverLookup): string {
@@ -51,7 +44,12 @@ export function formatSnapshotTime(value?: string | null): string {
   if (!value) return "not stored";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "not stored";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 export function countdownTo(value?: string): string | null {
@@ -91,9 +89,7 @@ export function estimateWinPct(prediction: DriverPrediction): number {
 export function estimatePodiumPct(prediction: DriverPrediction): number {
   const confidence = confidenceMidpoint(prediction);
   const pos = Math.max(1, prediction.position);
-  const value = pos <= 3
-    ? confidence * 0.72 + (4 - pos) * 4
-    : confidence * 0.4 * Math.pow(0.72, pos - 3);
+  const value = pos <= 3 ? confidence * 0.72 + (4 - pos) * 4 : confidence * 0.4 * Math.pow(0.72, pos - 3);
   return Math.max(0.2, Math.min(99, value));
 }
 
@@ -104,8 +100,8 @@ export function formatPct(value: number): string {
 export function parseGridPosition(prediction: DriverPrediction): number | null {
   const factors = (prediction.factors ?? []).join(" ");
   if (/pole position/i.test(factors)) return 1;
-  const match = (/(?:qualifying|practice|front row start).*?P(\d+)/i.exec(factors))
-    ?? (/P(\d+)\s*(?:in sessions)?/i.exec(factors));
+  const match =
+    /(?:qualifying|practice|front row start).*?P(\d+)/i.exec(factors) ?? /P(\d+)\s*(?:in sessions)?/i.exec(factors);
   return match ? Number(match[1]) : null;
 }
 

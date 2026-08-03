@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -12,11 +14,27 @@ import structlog
 
 from app.data.predictions import PREDICTION_LOGIC_VERSION
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
+from app.data.store_types import WriteResult
 
 logger = structlog.get_logger()
 
 CACHE_SCHEMA_VERSION = 2
 CACHE_POLICY = "stored_until_manual_recompute"
+
+# How long to wait before retrying a failed load. Without a retry, a single
+# failed read (a paused database, a network blip) would pin an empty snapshot
+# set for the entire process lifetime — which is exactly how a recovered
+# database still served "no stored prediction" until the container restarted.
+RELOAD_BACKOFF_SECONDS = 30.0
+
+
+class PredictionCacheUnavailable(RuntimeError):
+    """Raised when the snapshot store cannot be read, so writing is unsafe.
+
+    Persisting on top of a failed load would upload a document containing only
+    the entries this process happens to hold, silently destroying every snapshot
+    it failed to read.
+    """
 
 
 def _utc_now() -> datetime:
@@ -84,11 +102,14 @@ class PredictionSnapshotCache:
     def __init__(self) -> None:
         self._loaded = False
         self._entries: dict[str, dict[str, Any]] = {}
+        self._next_load_attempt = 0.0
+        self._lock = threading.RLock()
 
     def get(self, year: int, round_num: int) -> dict | None:
         self._ensure_loaded()
         key = self._key(year, round_num)
-        entry = self._entries.get(key)
+        with self._lock:
+            entry = self._entries.get(key)
         if not entry or not self._has_prediction(entry):
             return None
 
@@ -117,32 +138,38 @@ class PredictionSnapshotCache:
         return self._snapshot_logic_version(entry) != PREDICTION_LOGIC_VERSION
 
     def set(self, year: int, round_num: int, result: dict, *, reason: str = "manual_compute") -> dict:
-        self._ensure_loaded()
+        if not self._ensure_loaded():
+            raise PredictionCacheUnavailable(
+                "Prediction store is unreachable; refusing to overwrite stored "
+                "snapshots with an incomplete set. Try again shortly."
+            )
+
         key = self._key(year, round_num)
         stored_result = copy.deepcopy(result)
         stored_result.pop("cache", None)
 
-        previous = self._normalise_entry(self._entries.get(key))
-        snapshots = list(previous.get("snapshots") or [])
-        stored_at = _iso(_utc_now())
-        snapshot = {
-            "id": f"v{len(snapshots) + 1}-{stored_at}",
-            "stored_at": stored_at,
-            "reason": reason,
-            "result": stored_result,
-        }
-        snapshots.append(snapshot)
+        with self._lock:
+            previous = self._normalise_entry(self._entries.get(key))
+            snapshots = list(previous.get("snapshots") or [])
+            stored_at = _iso(_utc_now())
+            snapshot = {
+                "id": f"v{len(snapshots) + 1}-{stored_at}",
+                "stored_at": stored_at,
+                "reason": reason,
+                "result": stored_result,
+            }
+            snapshots.append(snapshot)
 
-        entry = {
-            "schema_version": CACHE_SCHEMA_VERSION,
-            "stored_at": previous.get("stored_at") or stored_at,
-            "updated_at": stored_at,
-            "policy": CACHE_POLICY,
-            "active_snapshot_id": snapshot["id"],
-            "snapshots": snapshots,
-        }
-        self._entries[key] = entry
-        self._save()
+            entry = {
+                "schema_version": CACHE_SCHEMA_VERSION,
+                "stored_at": previous.get("stored_at") or stored_at,
+                "updated_at": stored_at,
+                "policy": CACHE_POLICY,
+                "active_snapshot_id": snapshot["id"],
+                "snapshots": snapshots,
+            }
+            self._entries[key] = entry
+            write = self._save()
 
         logger.info(
             "prediction_cache.stored",
@@ -150,10 +177,14 @@ class PredictionSnapshotCache:
             round=round_num,
             snapshot_id=snapshot["id"],
             reason=reason,
+            durable=write.durable,
         )
-        return self._with_metadata(entry, status="stored")
+        # A failed write is queued by the store and retried, and the snapshot is
+        # live in memory either way — so the caller still gets its prediction,
+        # with the durability caveat stated rather than hidden.
+        return self._with_metadata(entry, status="stored", durable=write.durable)
 
-    def _with_metadata(self, entry: dict[str, Any], status: str) -> dict:
+    def _with_metadata(self, entry: dict[str, Any], status: str, durable: bool = True) -> dict:
         normalised = self._normalise_entry(entry)
         snapshot = self._active_snapshot(normalised)
         result = copy.deepcopy((snapshot or {}).get("result") or {})
@@ -167,6 +198,7 @@ class PredictionSnapshotCache:
             "snapshot_count": len(normalised.get("snapshots") or []),
             "recompute_count": max(0, len(normalised.get("snapshots") or []) - 1),
             "reason": (snapshot or {}).get("reason"),
+            "durable": durable,
         }
         return result
 
@@ -228,33 +260,61 @@ class PredictionSnapshotCache:
             "snapshots": [],
         }
 
-    def _ensure_loaded(self) -> None:
-        if self._loaded:
-            return
+    def load(self) -> bool:
+        """Read the snapshot document from the store. Returns success.
 
-        self._loaded = True
-        payload = document_store.read(DOCUMENT_PREDICTION_CACHE)
-        if not isinstance(payload, dict):
-            self._entries = {}
-            return
+        Called on startup warm-up and lazily on first use. A failure is left
+        unloaded so a later call retries; it is never recorded as "loaded and
+        empty".
+        """
+        with self._lock:
+            self._next_load_attempt = time.monotonic() + RELOAD_BACKOFF_SECONDS
+            read = document_store.read(DOCUMENT_PREDICTION_CACHE)
 
-        schema_version = payload.get("schema_version")
-        if schema_version not in {1, CACHE_SCHEMA_VERSION}:
-            self._entries = {}
-            return
+            if not read.ok:
+                logger.error("prediction_cache.load_failed", error=read.error)
+                return False
 
-        self._entries = {
-            str(key): self._normalise_entry(value)
-            for key, value in (payload.get("entries") or {}).items()
-            if isinstance(value, dict)
-        }
+            payload = read.payload
+            if payload is None:
+                # The store answered and holds nothing yet — a real empty cache.
+                self._entries = {}
+                self._loaded = True
+                return True
 
-    def _save(self) -> None:
+            schema_version = payload.get("schema_version")
+            if schema_version not in {1, CACHE_SCHEMA_VERSION}:
+                logger.warning(
+                    "prediction_cache.unsupported_schema", schema_version=schema_version
+                )
+                self._entries = {}
+                self._loaded = True
+                return True
+
+            self._entries = {
+                str(key): self._normalise_entry(value)
+                for key, value in (payload.get("entries") or {}).items()
+                if isinstance(value, dict)
+            }
+            self._loaded = True
+            logger.info("prediction_cache.loaded", entries=len(self._entries))
+            return True
+
+    def _ensure_loaded(self) -> bool:
+        """Load on first use, retrying a previous failure after a backoff."""
+        with self._lock:
+            if self._loaded:
+                return True
+            if time.monotonic() < self._next_load_attempt:
+                return False
+            return self.load()
+
+    def _save(self) -> WriteResult:
         payload = {
             "schema_version": CACHE_SCHEMA_VERSION,
             "entries": self._entries,
         }
-        document_store.write(DOCUMENT_PREDICTION_CACHE, payload)
+        return document_store.write(DOCUMENT_PREDICTION_CACHE, payload)
 
     @staticmethod
     def _key(year: int, round_num: int) -> str:

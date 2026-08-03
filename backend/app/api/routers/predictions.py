@@ -5,6 +5,7 @@ import asyncio
 import structlog
 from fastapi import APIRouter, Query
 
+from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
 from app.services.predictions import (
     compute_and_store_race_prediction,
@@ -54,8 +55,7 @@ async def get_predictions(year: int, round_num: int):
             logger.warning("api.predictions.timeout", year=year, round=round_num)
             return {"year": year, "round": round_num, "predictions": [], "error": "Prediction data source timed out. Try again shortly."}
         except Exception as exc:
-            logger.error("api.predictions.error", year=year, round=round_num, error=str(exc))
-            return {"year": year, "round": round_num, "predictions": [], "error": str(exc)}
+            return {"year": year, "round": round_num, "predictions": [], **client_error("api.predictions.error", exc, year=year, round=round_num)}
 
         return result
 
@@ -119,7 +119,6 @@ async def compute_predictions(
             logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason)
             return {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], "error": "Prediction data source timed out. Try again shortly."}
         except Exception as exc:
-            logger.error("api.predictions.compute_error", year=year, round=round_num, reason=reason, error=str(exc))
-            return {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], "error": str(exc)}
+            return {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason)}
 
         return result

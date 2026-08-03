@@ -8,6 +8,7 @@ import structlog
 from fastapi import APIRouter
 from fastf1.ergast import Ergast
 
+from app.api.errors import client_error
 from app.api.circuits import get_circuit_info
 from app.data.f1db_standings import (
     constructor_standings_detailed,
@@ -27,7 +28,7 @@ async def get_schedule(year: int):
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
         return [build_schedule_event(row) for _, row in schedule.iterrows()]
     except Exception as exc:
-        return {"error": str(exc)}
+        return client_error("api.schedule.error", exc, year=year)
 
 
 def build_schedule_event(row) -> dict:

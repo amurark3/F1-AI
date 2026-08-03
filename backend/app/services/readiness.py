@@ -122,10 +122,23 @@ def _warm_season() -> None:
     race_schedule(datetime.now(timezone.utc).year)
 
 
+def _warm_store() -> None:
+    """Load stored prediction snapshots, establishing document-store health.
+
+    Doing this here rather than on first request means a store outage shows up
+    in ``/api/ready`` instead of as a page that quietly renders no predictions.
+    """
+    from app.services.prediction_cache import prediction_snapshot_cache
+
+    if not prediction_snapshot_cache.load():
+        raise RuntimeError("prediction snapshot store unreachable")
+
+
 WARMUP_STEPS: tuple[WarmupStep, ...] = (
     WarmupStep("database", "Fetching the historical race database", _warm_database),
     WarmupStep("model", "Loading the race prediction model", _warm_model),
     WarmupStep("season", "Priming this season's schedule", _warm_season),
+    WarmupStep("store", "Loading stored prediction snapshots", _warm_store),
 )
 
 

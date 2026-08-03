@@ -42,7 +42,10 @@ def main() -> None:
         if data is None:
             print(f"skip  {name}: no local data at {path_str}")
             continue
-        document_store.write(name, data)
+        result = document_store.write(name, data)
+        if not result.ok:
+            print(f"FAIL  {name}: {result.error}")
+            continue
         print(f"wrote {name}: {len(json.dumps(data, default=str))} bytes from {path_str}")
         migrated += 1
     print(f"done. {migrated} document(s) migrated.")

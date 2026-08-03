@@ -1438,16 +1438,28 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
 # Accuracy tracking — JSON persistence
 # ===================================================================
 
+def _read_prediction_history() -> tuple[dict, bool]:
+    """Return ``(history, readable)`` from the document store.
+
+    ``readable`` is false when the backend failed, which is not the same as an
+    empty history: every caller here does read-modify-write, so writing after a
+    failed read would replace the accumulated history with a single entry.
+    """
+    read = document_store.read(DOCUMENT_PREDICTION_HISTORY)
+    if not read.ok:
+        logger.error("prediction_history.read_failed", error=read.error)
+        return {}, False
+    return (read.payload if isinstance(read.payload, dict) else {}), True
+
+
 def _load_prediction_history() -> dict:
     """Load prediction history from the document store (Postgres or JSON fallback).
 
-    Returns an empty dict if absent or malformed.
+    Returns an empty dict if absent, malformed, or unreadable.
     Never raises — graceful degradation is paramount.
     """
-    data = document_store.read(DOCUMENT_PREDICTION_HISTORY)
-    if not isinstance(data, dict):
-        return {}
-    return data
+    history, _ = _read_prediction_history()
+    return history
 
 
 def _save_prediction_history(data: dict) -> None:
@@ -1456,7 +1468,9 @@ def _save_prediction_history(data: dict) -> None:
     Durable when DATABASE_URL is configured; falls back to an atomic local file
     write otherwise.  Never raises.
     """
-    document_store.write(DOCUMENT_PREDICTION_HISTORY, data)
+    result = document_store.write(DOCUMENT_PREDICTION_HISTORY, data)
+    if not result.ok:
+        logger.error("prediction_history.write_failed", error=result.error)
 
 
 def save_prediction(year: int, round_num: int, predictions: dict) -> None:
@@ -1497,7 +1511,12 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
     }
 
     with _history_file_lock:
-        history = _load_prediction_history()
+        history, readable = _read_prediction_history()
+        if not readable:
+            # Writing now would replace the accumulated history with this one
+            # race. Skipping costs a single record; overwriting costs all of them.
+            logger.error("predictions.save_skipped_unreadable_history", key=key)
+            return
         existing = history.get(key, {})
         snapshots = list(existing.get("snapshots") or [])
         snapshots.append(snapshot)

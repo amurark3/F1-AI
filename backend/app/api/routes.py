@@ -27,6 +27,7 @@ import fastf1
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from datetime import datetime, timezone
 
+from app.api.errors import client_error
 from app.api.circuits import get_circuit_info
 from app.api.routers.champions import router as champions_router
 from app.api.routers.chat import router as chat_router
@@ -344,8 +345,7 @@ async def get_race_detail(year: int, round_num: int):
         logger.warning("api.race_detail.timeout", year=year, round=round_num, timeout_seconds=FASTF1_TIMEOUT)
         return {"error": "Request timed out loading race data. Try again later.", "timeout": True}
     except Exception as e:
-        logger.error("api.race_detail.error", error=str(e))
-        return {"error": str(e)}
+        return client_error("api.race_detail.error", e, year=year, round=round_num)
 
 
 # ---------------------------------------------------------------------------
@@ -574,7 +574,7 @@ async def compare_drivers_endpoint(year: int, driver1: str, driver2: str):
     except asyncio.TimeoutError:
         return {"error": "Comparison timed out. Try again."}
     except Exception as e:
-        return {"error": str(e)}
+        return client_error("api.compare_drivers.error", e, year=year, driver1=driver1, driver2=driver2)
 
 
 def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) -> dict:

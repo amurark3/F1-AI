@@ -28,7 +28,12 @@ services:
     envVars:
       - key: GROQ_API_KEY          # required — the LLM engine (Groq)
         sync: false
-      - key: DATABASE_URL          # required — Supabase Postgres + pgvector
+      # Required — Supabase Postgres + pgvector. MUST be the Supavisor session
+      # pooler host (aws-<n>-<region>.pooler.supabase.com:5432), never the direct
+      # db.<ref>.supabase.co: the direct endpoint is IPv6-only and Render's
+      # egress is IPv4, so the app silently falls back to an ephemeral local file
+      # that every cold start erases. See DEPLOYMENT.md.
+      - key: DATABASE_URL
         sync: false
       - key: TAVILY_API_KEY        # optional — web search tool
         sync: false

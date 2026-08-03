@@ -1,16 +1,25 @@
 name: Keep backend warm
 
-# Render's free tier spins the backend down after ~15 min of inactivity, and the
-# next request pays a ~50s cold-start. This job pings the lightweight /api/health
-# endpoint every 13 minutes so the service never goes idle long enough to sleep.
+# Pings /api/health/deep, which round-trips Postgres before answering 200.
+#
+# This job used to ping /api/health — a liveness probe that deliberately touches
+# nothing. It reported success every hour while the Supabase project sat idle,
+# and Supabase pauses free projects after 7 days of inactivity, which took every
+# stored prediction offline. A keepalive that cannot fail when the database is
+# down is not a keepalive. Pinging the deep check both generates the database
+# activity that prevents the pause and fails loudly when something is wrong.
+#
+# Cadence: GitHub throttles scheduled workflows on shared runners hard — the
+# */13 schedule below has been delivering a ~70 minute median gap in practice.
+# That is frequent enough to hold off a 7-day inactivity pause with a wide
+# margin, but NOT frequent enough to keep Render's free tier from sleeping after
+# 15 minutes idle. For that, point a free external monitor (UptimeRobot,
+# cron-job.org) at the same URL on a 5-minute interval; it also gives you
+# alerting on the 503 this endpoint returns when the database is unreachable.
 #
 # The backend URL is read from the BACKEND_URL repo variable (Settings → Secrets
 # and variables → Actions → Variables) and falls back to the production Render
 # host (https://f1-ai.onrender.com). Set the variable if your deployed URL differs.
-#
-# Note: GitHub-hosted cron can lag several minutes under load and auto-pauses
-# after 60 days of no repo commits. For a hard guarantee, also point a free
-# UptimeRobot / cron-job.org monitor at the same /api/health URL.
 on:
   schedule:
     - cron: "*/13 * * * *"
@@ -24,21 +33,40 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping /api/health
+      - name: Ping /api/health/deep
         env:
           BACKEND_URL: ${{ vars.BACKEND_URL || 'https://f1-ai.onrender.com' }}
         run: |
-          echo "Pinging ${BACKEND_URL}/api/health"
-          # Retry a few times: the very first hit may itself be waking a cold
-          # server, so we allow it up to ~90s across attempts before failing.
+          set -uo pipefail
+          URL="${BACKEND_URL}/api/health/deep"
+          echo "Pinging ${URL}"
+
+          # Retry only the "no usable response" case: the first hit may be waking
+          # a cold server, which can take ~50s. A 503 is a real answer — the
+          # backend is up and telling us its database is unreachable — so it is
+          # reported immediately rather than retried into a timeout.
           for attempt in 1 2 3 4 5 6; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BACKEND_URL}/api/health" || echo "000")
-            echo "Attempt ${attempt}: HTTP ${code}"
+            body=$(curl -s --max-time 25 -w "\n%{http_code}" "${URL}" || true)
+            code=$(printf '%s' "${body}" | tail -n1)
+            payload=$(printf '%s' "${body}" | sed '$d')
+            echo "Attempt ${attempt}: HTTP ${code:-000}"
+
             if [ "${code}" = "200" ]; then
-              echo "Backend is awake."
+              echo "Backend awake, database reachable."
+              echo "${payload}"
               exit 0
             fi
+
+            if [ "${code}" = "503" ]; then
+              echo "::error::Backend is up but its document store is unreachable."
+              echo "${payload}"
+              echo "If this persists, the Supabase project has most likely been"
+              echo "paused for inactivity — resume it from the Supabase dashboard."
+              exit 1
+            fi
+
             sleep 10
           done
-          echo "Backend did not return 200 after retries."
+
+          echo "::error::Backend did not respond after retries."
           exit 1

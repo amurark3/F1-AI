@@ -1,12 +1,11 @@
 """World champions routes — driver/constructor champions and race winners per
 season, sourced from the local f1db dataset (1950–present)."""
 
-import structlog
 from fastapi import APIRouter
 
+from app.api.errors import client_error
 from app.data.champions import get_champion_stats, get_season_detail, list_champions
 
-logger = structlog.get_logger()
 router = APIRouter(tags=["champions"])
 
 
@@ -16,8 +15,7 @@ async def get_champions():
     try:
         return {"seasons": list_champions()}
     except Exception as exc:
-        logger.error("champions.list_failed", error=str(exc))
-        return {"error": str(exc)}
+        return {"seasons": [], **client_error("champions.list_failed", exc)}
 
 
 @router.get("/champions/stats")
@@ -26,8 +24,7 @@ async def get_champions_stats():
     try:
         return get_champion_stats()
     except Exception as exc:
-        logger.error("champions.stats_failed", error=str(exc))
-        return {"error": str(exc)}
+        return client_error("champions.stats_failed", exc)
 
 
 @router.get("/champions/{year}")
@@ -36,5 +33,4 @@ async def get_champion_season(year: int):
     try:
         return get_season_detail(year)
     except Exception as exc:
-        logger.error("champions.detail_failed", year=year, error=str(exc))
-        return {"error": str(exc)}
+        return {"year": year, **client_error("champions.detail_failed", exc, year=year)}

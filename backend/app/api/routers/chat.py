@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
+from app.api.errors import client_error_text
 from app.api.llm import build_chat_llm
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
@@ -178,7 +179,6 @@ async def chat_endpoint(request: ChatRequest):
                 logger.warning("agent.rate_limited", error=str(exc))
                 yield "**Box, box:** The engine is rate-limited right now (free tier). Give it a few seconds and try again."
                 return
-            logger.error("agent.critical_error", error=str(exc))
-            yield f"**System Error:** My telemetry failed. Reason: {exc}"
+            yield f"**System Error:** {client_error_text('agent.critical_error', exc)}"
 
     return StreamingResponse(generate(), media_type="text/plain")

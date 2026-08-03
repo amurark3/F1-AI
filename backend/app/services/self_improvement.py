@@ -58,9 +58,18 @@ def _biggest_misses(predicted: dict, actual: dict, limit: int = 6) -> list[dict]
     return misses[:limit]
 
 
+def _read_postmortems() -> tuple[dict, bool]:
+    """Return ``(postmortems, readable)``. See ``_write_postmortem`` for why."""
+    read = document_store.read(DOCUMENT_PREDICTION_POSTMORTEMS)
+    if not read.ok:
+        logger.error("postmortems.read_failed", error=read.error)
+        return {}, False
+    return (read.payload if isinstance(read.payload, dict) else {}), True
+
+
 def _load_postmortems() -> dict:
-    data = document_store.read(DOCUMENT_PREDICTION_POSTMORTEMS)
-    return data if isinstance(data, dict) else {}
+    postmortems, _ = _read_postmortems()
+    return postmortems
 
 
 def get_postmortem(year: int, round_num: int) -> dict | None:
@@ -69,9 +78,20 @@ def get_postmortem(year: int, round_num: int) -> dict | None:
 
 
 def _write_postmortem(key: str, payload: dict) -> None:
-    store = _load_postmortems()
+    """Merge one post-mortem into the stored document.
+
+    Read-modify-write: an unreadable store means the merge base is unknown, and
+    writing anyway would drop every post-mortem that failed to load.
+    """
+    store, readable = _read_postmortems()
+    if not readable:
+        logger.error("postmortems.write_skipped_unreadable_store", key=key)
+        return
+
     store[key] = payload
-    document_store.write(DOCUMENT_PREDICTION_POSTMORTEMS, store)
+    result = document_store.write(DOCUMENT_PREDICTION_POSTMORTEMS, store)
+    if not result.ok:
+        logger.error("postmortems.write_failed", key=key, error=result.error)
 
 
 def _postmortem_prompt(year: int, round_num: int, review: dict, misses: list[dict]) -> str:

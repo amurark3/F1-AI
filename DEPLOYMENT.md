@@ -37,7 +37,7 @@ Set these in **Render → the service → Environment** (all `sync: false` in
 | Variable | Required | Purpose |
 |---|---|---|
 | `GROQ_API_KEY` | **Yes** | LLM engine (get a free key at console.groq.com) |
-| `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string |
+| `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
 | `TAVILY_API_KEY` | No | Web-search tool |
 | `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
@@ -46,6 +46,42 @@ Set these in **Render → the service → Environment** (all `sync: false` in
 
 > A missing `GROQ_API_KEY` no longer crashes the whole service — only the chat
 > endpoint fails; health, predictions, standings, and rulebook still work.
+
+### `DATABASE_URL` must use the pooler host
+
+Supabase's **direct** endpoint, `db.<project-ref>.supabase.co`, publishes no A
+record — it is IPv6-only. Render's egress is IPv4, so a service configured with
+the direct host cannot reach the database at all. Verify with:
+
+```bash
+dig +short A    db.<project-ref>.supabase.co   # empty — no IPv4
+dig +short AAAA db.<project-ref>.supabase.co   # resolves
+```
+
+Nothing about this failure is loud. The app boots, serves pages, and answers
+`/api/health` with 200, because every store operation degrades gracefully onto a
+local JSON file — on a container filesystem that is erased at every cold start.
+Predictions look saved and silently disappear; the rulebook returns "no excerpts
+matched" against a fully populated corpus.
+
+Use the **Supavisor session pooler** instead, which is dual-stack:
+
+```
+postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:5432/postgres
+```
+
+Copy it from Supabase → Project Settings → Database → Connection string →
+Session pooler. Use **session mode (port 5432)**, not transaction mode (6543):
+psycopg promotes repeated statements to prepared ones, which transaction mode
+rejects unless you also set `prepare_threshold=None`.
+
+Confirm the deployed service can actually reach it:
+
+```bash
+curl -s https://<your-host>/api/health/deep     # 200 + "ok": true, or 503
+```
+
+That endpoint round-trips Postgres, unlike `/api/health`, which touches nothing.
 
 ---
 

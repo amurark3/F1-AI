@@ -12,7 +12,7 @@ import threading
 
 import structlog
 
-from app.config import EMBEDDING_MODEL_NAME
+from app.config import EMBEDDING_MODEL_NAME, ENABLE_LOCAL_MODELS
 
 logger = structlog.get_logger()
 
@@ -25,8 +25,15 @@ _failed = False
 
 
 def get_embedder():
-    """Return the shared SentenceTransformer, or None if unavailable."""
+    """Return the shared SentenceTransformer, or None if unavailable.
+
+    Returns None without importing torch when ``ENABLE_LOCAL_MODELS`` is off:
+    the import itself is the memory cost, and on a small instance it is fatal
+    rather than catchable.
+    """
     global _model, _failed
+    if not ENABLE_LOCAL_MODELS:
+        return None
     if _model is not None:
         return _model
     if _failed:

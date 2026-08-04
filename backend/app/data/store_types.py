@@ -64,12 +64,20 @@ class StoreHealth:
     ``error`` holds the raw driver message, which for a connection failure names
     the database host and port. It is for logs only; ``error_id`` correlates a
     client response to the log entry carrying that detail.
+
+    ``reason`` and ``host_kind`` are the client-safe substitutes. They classify
+    *why* a connection failed and *what shape* of host was configured, without
+    naming the host, port, database or user. That is enough to tell a
+    misconfigured connection string from an unreachable network — the question an
+    operator actually has — from a response anyone can fetch.
     """
 
     backend: str
     ok: bool | None = None
     error: str | None = None
     error_id: str | None = None
+    reason: str | None = None
+    host_kind: str | None = None
     pending_documents: tuple[str, ...] = field(default_factory=tuple)
     checked_seconds_ago: float | None = None
 
@@ -84,6 +92,8 @@ class StoreHealth:
             "backend": self.backend,
             "ok": self.ok,
             "error_id": self.error_id,
+            "reason": self.reason,
+            "host_kind": self.host_kind,
             "pending_documents": list(self.pending_documents),
             "checked_seconds_ago": (
                 round(self.checked_seconds_ago, 1)

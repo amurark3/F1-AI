@@ -113,6 +113,12 @@ _ml_model_cache: dict[str, Any] | None | bool = None
 # ---------------------------------------------------------------------------
 _history_file_lock = threading.Lock()
 
+# How long to wait before retrying a result load that produced nothing, and the
+# (year, round) -> earliest-next-attempt monotonic deadlines it is tracked with.
+ACTUAL_RESULT_RETRY_SECONDS = 900.0
+_actual_result_attempts: dict[tuple[int, int], float] = {}
+_actual_result_attempt_lock = threading.Lock()
+
 
 # ===================================================================
 # FastF1 data loading helpers (all wrapped with _fastf1_lock)
@@ -1537,11 +1543,27 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
     logger.info("predictions.saved", key=key, drivers=len(predicted_positions))
 
 
+def _should_attempt_actual_load(year: int, round_num: int) -> bool:
+    """Rate-limit result loads for a race that has no result yet.
+
+    A future (or unpublished) race fails every load, so an unguarded call from
+    a request path would pay a slow failing FastF1 round trip on every page
+    view. Failed attempts back off; a successful load records the result and
+    never comes back here.
+    """
+    now = time.monotonic()
+    with _actual_result_attempt_lock:
+        if now < _actual_result_attempts.get((year, round_num), 0.0):
+            return False
+        _actual_result_attempts[(year, round_num)] = now + ACTUAL_RESULT_RETRY_SECONDS
+        return True
+
+
 def record_actual_result(year: int, round_num: int) -> None:
     """Load actual race finishing positions from FastF1 and store in history.
 
-    Called lazily when accuracy stats are requested and actual data is
-    missing for a past race.
+    Called lazily when accuracy stats or a post-race review are requested and
+    actual data is missing for a past race.
     """
     key = f"({year},{round_num})"
 
@@ -1552,6 +1574,9 @@ def record_actual_result(year: int, round_num: int) -> None:
         entry = history.get(key)
         if not entry or entry.get("actual_positions"):
             return
+
+    if not _should_attempt_actual_load(year, round_num):
+        return
 
     # Load actual results (outside the file lock to avoid holding it during I/O)
     actual_positions = {}
@@ -1609,10 +1634,77 @@ def _latest_prediction_snapshot(entry: dict) -> dict:
     }
 
 
+def _position_value(value: object) -> int | None:
+    """Coerce a stored position (int, float or string) to an int, else None."""
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_driver_results(
+    predicted: dict,
+    actual: dict,
+    statuses: dict,
+    incidents: dict,
+    risks: dict,
+) -> list[dict]:
+    """Per-driver predicted-vs-actual rows, ordered by where the driver finished.
+
+    Drivers appear even when only one side has them (a non-starter that was
+    predicted, or a substitute that raced) so the table never silently drops a
+    call the model made.
+    """
+    rows = []
+    for code in set(predicted) | set(actual):
+        predicted_position = _position_value(predicted.get(code))
+        actual_position = _position_value(actual.get(code))
+        delta = (
+            actual_position - predicted_position
+            if predicted_position is not None and actual_position is not None
+            else None
+        )
+        flags = incidents.get(code) or {}
+        risk = risks.get(code) or {}
+        rows.append({
+            "driver_code": code,
+            "predicted_position": predicted_position,
+            "actual_position": actual_position,
+            # Positive means the driver finished lower down than predicted.
+            "position_delta": delta,
+            "exact": delta == 0,
+            "status": statuses.get(code) or None,
+            "dnf": bool(flags.get("dnf")),
+            "crash": bool(flags.get("crash")),
+            "predicted_dnf_risk_pct": risk.get("dnf_risk_pct"),
+        })
+
+    # Unclassified drivers sort last, keeping the finishing order readable.
+    rows.sort(key=lambda row: (
+        row["actual_position"] is None,
+        row["actual_position"] if row["actual_position"] is not None else 0,
+        row["predicted_position"] if row["predicted_position"] is not None else 0,
+    ))
+    return rows
+
+
 def get_prediction_review(year: int, round_num: int) -> dict:
-    """Compare the latest saved prediction with actual race data when available."""
-    key = f"({year},{round_num})"
+    """Post-race review, loading the actual result first when it is missing.
+
+    Use :func:`build_prediction_review` on request paths that must not pay for
+    a FastF1 session load.
+    """
     record_actual_result(year, round_num)
+    return build_prediction_review(year, round_num)
+
+
+def build_prediction_review(year: int, round_num: int) -> dict:
+    """Compare the latest saved prediction with the recorded race result.
+
+    Reads stored history only — never fetches the actual result — so it is safe
+    to call while serving a request.
+    """
+    key = f"({year},{round_num})"
 
     history = _load_prediction_history()
     entry = history.get(key)
@@ -1673,6 +1765,13 @@ def get_prediction_review(year: int, round_num: int) -> dict:
         "crash_correct": len(predicted_crashes & actual_crashes),
         "crash_predicted": len(predicted_crashes),
         "crash_actual": len(actual_crashes),
+        "driver_results": _build_driver_results(
+            predicted,
+            actual,
+            entry.get("actual_statuses") or {},
+            incidents,
+            risks,
+        ),
     }
 
 

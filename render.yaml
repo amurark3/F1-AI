@@ -43,5 +43,13 @@ services:
         sync: false
       - key: HF_TOKEN              # optional — faster HuggingFace model downloads
         sync: false
+      # Must stay false on the free tier. Loading the sentence-transformers
+      # embedder and cross-encoder reranker in-process exhausts the 512MB
+      # instance: one rulebook query OOM-killed the container in production and
+      # every endpoint was down until Render restarted it. Rulebook search and
+      # conversation-memory recall are disabled while this is off; chat and
+      # predictions are unaffected. See backend/app/config.py.
+      - key: ENABLE_LOCAL_MODELS
+        value: "false"
       - key: PYTHON_VERSION
         value: 3.10.12

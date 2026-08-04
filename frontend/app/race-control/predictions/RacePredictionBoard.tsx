@@ -19,15 +19,8 @@ import {
   roundColor,
   roundStateLabel,
 } from "./predictionHelpers";
-import {
-  CircuitPanel,
-  FullGridTable,
-  ModelIO,
-  PodiumPanel,
-  ResultsReview,
-  RiskTable,
-  StandbyPanel,
-} from "./RacePredictionTabs";
+import { ResultsReview } from "./PredictionResultsReview";
+import { CircuitPanel, FullGridTable, ModelIO, PodiumPanel, RiskTable, StandbyPanel } from "./RacePredictionTabs";
 
 import type {
   DriverLookup,
@@ -394,7 +387,14 @@ function PredictionTabContent({
       {activeTab === "circuit" && <CircuitPanel selectedRace={selectedRace} data={data} />}
       {activeTab === "risk" && <RiskTable rows={riskPredictions} />}
       {activeTab === "model" && <ModelIO data={data} />}
-      {activeTab === "results" && <ResultsReview review={data?.prediction_review} accuracy={data?.accuracy} />}
+      {activeTab === "results" && (
+        <ResultsReview
+          review={data?.prediction_review}
+          accuracy={data?.accuracy}
+          predictions={predictions}
+          driverLookup={driverLookup}
+        />
+      )}
     </>
   );
 }

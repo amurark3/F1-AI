@@ -63,11 +63,35 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall app main.py mcp_server.py
 
+  backend_tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      # Runtime pins are installed alongside the test pins so a Dependabot bump
+      # to a runtime package is exercised by the suite, not just parsed by the
+      # syntax check. DATABASE_URL is deliberately unset: the document store
+      # falls back to JSON, keeping the suite hermetic.
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run pytest
+        run: pytest -q
+
   review_summary:
     name: Review summary comment
     runs-on: ubuntu-latest
     if: always()
-    needs: [frontend_lint, frontend_build, backend_syntax]
+    needs: [frontend_lint, frontend_build, backend_syntax, backend_tests]
     steps:
       - name: Publish PR review summary
         uses: actions/github-script@v9
@@ -78,6 +102,7 @@ jobs:
               frontendLint: "${{ needs.frontend_lint.result }}",
               frontendBuild: "${{ needs.frontend_build.result }}",
               backendSyntax: "${{ needs.backend_syntax.result }}",
+              backendTests: "${{ needs.backend_tests.result }}",
             };
 
             const toBadge = (result) => {
@@ -96,6 +121,9 @@ jobs:
             }
             if (statuses.backendSyntax !== "success") {
               failures.push("- **Backend syntax check** failed. Suggestion: run `python -m compileall app main.py mcp_server.py` in `/backend` and fix invalid Python files.");
+            }
+            if (statuses.backendTests !== "success") {
+              failures.push("- **Backend tests** failed. Suggestion: run `pytest -q` in `/backend` and fix the failing tests before merging.");
             }
 
             const improvementTips = [
@@ -117,6 +145,7 @@ jobs:
               `- Frontend lint: ${toBadge(statuses.frontendLint)}`,
               `- Frontend build: ${toBadge(statuses.frontendBuild)}`,
               `- Backend syntax check: ${toBadge(statuses.backendSyntax)}`,
+              `- Backend tests: ${toBadge(statuses.backendTests)}`,
               "",
               hasFailures ? "### Issues and suggested fixes" : "### Suggested improvements",
               ...(hasFailures ? failures : improvementTips),

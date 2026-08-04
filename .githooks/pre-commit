@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+# Blocks a commit when a local quality gate fails.
+#
+#   lint gate   — ESLint (correctness, type hygiene, imports, style)
+#   sonar gate  — the sonarjs rules and complexity budgets from the same run
+#   test gate   — backend pytest suite
+#
+# Gates are skipped when the commit touches none of their files, so a
+# frontend-only commit does not pay for pytest and vice versa.
+#
+# Install:  git config core.hooksPath .githooks
+# Bypass:   git commit --no-verify   (or SKIP_GATES=1 git commit ...)
+
+set -uo pipefail
+
+if [[ "${SKIP_GATES:-0}" == "1" ]]; then
+  echo "SKIP_GATES=1 — skipping local quality gates."
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+FRONTEND_DIR="$REPO_ROOT/frontend"
+BACKEND_DIR="$REPO_ROOT/backend"
+HOOK_DIR="$REPO_ROOT/.githooks"
+
+if [[ -t 2 ]]; then
+  RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
+else
+  RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
+fi
+
+FAILED_GATES=()
+
+fail_gate() {
+  FAILED_GATES+=("$1")
+  echo "${RED}✗ $1${RESET}" >&2
+}
+
+pass_gate() {
+  echo "${GREEN}✓ $1${RESET}" >&2
+}
+
+# Staged files, NUL-delimited so paths with spaces survive. Excludes deletions:
+# a deleted file has nothing left to lint or type-check.
+staged_files() {
+  git diff --cached --name-only --diff-filter=ACMR -z
+}
+
+# True when any staged path matches the extended regex in $1.
+has_staged_match() {
+  staged_files | tr '\0' '\n' | grep -Eq "$1"
+}
+
+echo "${BOLD}Running local quality gates...${RESET}" >&2
+
+# Gates run against the working tree, not against a checkout of the index, so
+# unstaged edits to tracked files are included in what gets checked.
+if ! git diff --quiet; then
+  echo "${YELLOW}! Unstaged changes present — gates check the working tree, not the exact commit.${RESET}" >&2
+fi
+
+# --- lint + sonar gates -------------------------------------------------------
+if has_staged_match '^frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$'; then
+  if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
+    fail_gate "lint/sonar gates: frontend/node_modules is missing — run 'npm ci' in frontend/."
+  else
+    # One ESLint pass feeds both gates; the reporter splits and attributes it.
+    # `.` matches CI's `npm run lint` exactly rather than linting staged files
+    # only, so the hook cannot pass on a diff that CI would reject.
+    eslint_report="$(cd "$FRONTEND_DIR" && npx --no-install eslint . -f json 2>/tmp/f1-eslint-stderr.$$)"
+    eslint_status=$?
+
+    if [[ $eslint_status -gt 1 ]]; then
+      # Exit >1 means ESLint itself crashed (bad config, parse failure), which is
+      # not a rule violation the reporter can describe.
+      fail_gate "lint/sonar gates: ESLint failed to run."
+      cat "/tmp/f1-eslint-stderr.$$" >&2
+    elif printf '%s' "$eslint_report" | node "$HOOK_DIR/eslint-gate-report.mjs" "$FRONTEND_DIR"; then
+      pass_gate "lint gate + sonar gate"
+    else
+      fail_gate "lint gate and/or sonar gate"
+    fi
+    rm -f "/tmp/f1-eslint-stderr.$$"
+  fi
+else
+  echo "  ${YELLOW}⊘${RESET} lint/sonar gates skipped — no frontend sources staged." >&2
+fi
+
+# --- test gate ----------------------------------------------------------------
+if has_staged_match '^backend/.*\.py$'; then
+  if [[ -x "$BACKEND_DIR/.venv/bin/pytest" ]]; then
+    PYTEST="$BACKEND_DIR/.venv/bin/pytest"
+  elif command -v pytest >/dev/null 2>&1; then
+    PYTEST="$(command -v pytest)"
+  else
+    PYTEST=""
+  fi
+
+  if [[ -z "$PYTEST" ]]; then
+    fail_gate "test gate: pytest not found — create backend/.venv and install requirements-dev.txt."
+  elif (cd "$BACKEND_DIR" && "$PYTEST" -q); then
+    pass_gate "test gate"
+  else
+    fail_gate "test gate"
+  fi
+else
+  echo "  ${YELLOW}⊘${RESET} test gate skipped — no backend sources staged." >&2
+fi
+
+# --- verdict ------------------------------------------------------------------
+if [[ ${#FAILED_GATES[@]} -gt 0 ]]; then
+  echo "" >&2
+  echo "${RED}${BOLD}Commit blocked — ${#FAILED_GATES[@]} gate(s) failed:${RESET}" >&2
+  for gate in "${FAILED_GATES[@]}"; do
+    echo "${RED}  • $gate${RESET}" >&2
+  done
+  echo "" >&2
+  echo "Reproduce:  ${BOLD}cd frontend && npm run lint${RESET}   ${BOLD}cd backend && .venv/bin/pytest${RESET}" >&2
+  echo "Bypass:     ${BOLD}git commit --no-verify${RESET}" >&2
+  exit 1
+fi
+
+echo "${GREEN}${BOLD}All gates passed.${RESET}" >&2
+exit 0

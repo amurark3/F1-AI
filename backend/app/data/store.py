@@ -49,6 +49,78 @@ _FALLBACK_FILES: dict[str, str] = {
 BACKEND_POSTGRES = "postgres"
 BACKEND_FILE = "file"
 
+# Client-safe classification of a configured host. Answers "did my connection
+# string change take effect?" without naming the host or project.
+HOST_SUPABASE_DIRECT = "supabase_direct"  # db.<ref>.supabase.co — IPv6-only
+HOST_SUPABASE_POOLER = "supabase_pooler"  # <region>.pooler.supabase.com
+HOST_OTHER = "other"
+
+# Client-safe classification of a connection failure. Each maps to a distinct
+# operator action, which is the whole point of separating them.
+REASON_DNS = "dns_unresolved"          # host does not resolve — wrong name, or
+                                       # IPv6-only host on an IPv4-only network
+REASON_REFUSED = "connection_refused"  # resolved, nothing listening — wrong port
+REASON_AUTH = "auth_failed"            # reached it, credentials rejected
+REASON_TIMEOUT = "timeout"             # no answer — firewall or egress block
+REASON_TLS = "tls_error"
+REASON_UNKNOWN = "unknown"
+
+# Supavisor identifies the project from the *username*, which must be
+# ``postgres.<project-ref>``. Pasting the direct connection string's plain
+# ``postgres`` user into a pooler host is the easiest mistake to make and its
+# error says nothing obvious, so it gets its own code.
+REASON_POOLER_USER = "pooler_user_invalid"
+
+# Matched against the lower-cased driver message. Order matters: the first hit
+# wins, so put the specific signatures ahead of the generic ones.
+_REASON_SIGNATURES: tuple[tuple[str, str], ...] = (
+    ("could not translate host name", REASON_DNS),
+    ("name or service not known", REASON_DNS),
+    ("nodename nor servname", REASON_DNS),
+    ("failed to resolve host", REASON_DNS),
+    ("temporary failure in name resolution", REASON_DNS),
+    # Supavisor tenant-resolution failures. Verified against a live pooler:
+    # a plain "postgres" user yields ENOIDENTIFIER, a bad ref yields ENOTFOUND.
+    ("enoidentifier", REASON_POOLER_USER),
+    ("no tenant identifier", REASON_POOLER_USER),
+    ("enotfound", REASON_POOLER_USER),
+    ("tenant/user", REASON_POOLER_USER),
+    ("tenant or user not found", REASON_POOLER_USER),
+    ("password authentication failed", REASON_AUTH),
+    ("authentication failed", REASON_AUTH),
+    ("no pg_hba.conf entry", REASON_AUTH),
+    ('role "', REASON_AUTH),
+    ("connection refused", REASON_REFUSED),
+    ("timeout expired", REASON_TIMEOUT),
+    ("timed out", REASON_TIMEOUT),
+    ("ssl", REASON_TLS),
+)
+
+
+def classify_failure(message: str) -> str:
+    """Map a driver error message to a client-safe reason code."""
+    lowered = (message or "").lower()
+    for signature, reason in _REASON_SIGNATURES:
+        if signature in lowered:
+            return reason
+    return REASON_UNKNOWN
+
+
+def classify_host(dsn: str) -> str:
+    """Classify the configured host without revealing it."""
+    try:
+        from urllib.parse import urlparse
+
+        host = (urlparse(dsn).hostname or "").lower()
+    except ValueError:
+        return HOST_OTHER
+
+    if host.endswith(".pooler.supabase.com"):
+        return HOST_SUPABASE_POOLER
+    if host.startswith("db.") and host.endswith(".supabase.co"):
+        return HOST_SUPABASE_DIRECT
+    return HOST_OTHER
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS app_documents (
     name       TEXT PRIMARY KEY,
@@ -127,7 +199,12 @@ class FileDocumentStore:
             return WriteResult(ok=False, durable=False, error=str(exc))
 
     def health(self) -> StoreHealth:
-        return StoreHealth(backend=BACKEND_FILE, ok=True, checked_seconds_ago=0.0)
+        return StoreHealth(
+            backend=BACKEND_FILE,
+            ok=True,
+            host_kind=HOST_OTHER,
+            checked_seconds_ago=0.0,
+        )
 
     def ping(self, max_age_seconds: float = 0.0) -> StoreHealth:
         """The local filesystem is always reachable; nothing to probe."""
@@ -156,6 +233,8 @@ class PostgresDocumentStore:
         self._last_ok: bool | None = None
         self._last_error: str | None = None
         self._last_error_id: str | None = None
+        self._last_reason: str | None = None
+        self._host_kind = classify_host(dsn)
         self._last_checked: float | None = None
         # Fail fast if the driver is missing so the factory can fall back.
         import psycopg  # noqa: F401
@@ -187,6 +266,7 @@ class PostgresDocumentStore:
             self._last_ok = ok
             self._last_error = error
             self._last_error_id = error_id
+            self._last_reason = classify_failure(error) if not ok else None
             self._last_checked = time.monotonic()
         return error_id
 
@@ -270,6 +350,8 @@ class PostgresDocumentStore:
                 ok=self._last_ok,
                 error=self._last_error,
                 error_id=self._last_error_id,
+                reason=self._last_reason,
+                host_kind=self._host_kind,
                 pending_documents=tuple(sorted(self._pending)),
                 checked_seconds_ago=age,
             )

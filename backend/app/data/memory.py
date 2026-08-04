@@ -21,7 +21,7 @@ from typing import Any
 
 import structlog
 
-from app.config import EMBEDDING_MODEL_NAME
+from app.config import EMBEDDING_MODEL_NAME, ENABLE_LOCAL_MODELS
 
 logger = structlog.get_logger()
 
@@ -84,8 +84,17 @@ def _ensure_schema(conn) -> None:
 
 
 def _get_embedder():
-    """Lazily load the sentence-transformers model; None if unavailable."""
+    """Lazily load the sentence-transformers model; None if unavailable.
+
+    Note this is a *second* instance of the same model — ``app.utils.embeddings``
+    holds another for the rulebook. That duplication is why chat could exhaust
+    memory independently of rulebook search, so this call site needs the same
+    gate. Returns None without importing torch when local models are disabled;
+    messages are still stored, only semantic recall goes quiet.
+    """
     global _embedder, _embedder_failed
+    if not ENABLE_LOCAL_MODELS:
+        return None
     if _embedder is not None:
         return _embedder
     if _embedder_failed:

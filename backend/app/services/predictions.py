@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.data.predictions import compute_race_predictions, get_prediction_review
+from app.data.predictions import build_prediction_review, compute_race_predictions
 from app.services.prediction_cache import prediction_snapshot_cache
 
 
@@ -119,8 +119,13 @@ def enrich_prediction_result(result: dict) -> dict:
         *warnings[:2],
     ]
     enriched["risk_predictions"] = risk_predictions
-    if predictions and "prediction_review" not in enriched:
-        enriched["prediction_review"] = get_prediction_review(
+
+    # A snapshot is frozen at compute time, so a prediction made before the race
+    # carries an unevaluated review forever. Rebuild it from stored history
+    # (no network) until it has actually been scored.
+    review = enriched.get("prediction_review") or {}
+    if predictions and not review.get("evaluated"):
+        enriched["prediction_review"] = build_prediction_review(
             int(enriched.get("year", 0)),
             int(enriched.get("round", 0)),
         )

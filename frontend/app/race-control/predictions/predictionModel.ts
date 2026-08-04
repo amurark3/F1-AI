@@ -32,6 +32,20 @@ export interface RiskPrediction {
   factors: string[];
 }
 
+/** One driver's predicted finish next to where they actually finished. */
+export interface PredictionDriverResult {
+  driver_code: string;
+  predicted_position: number | null;
+  actual_position: number | null;
+  /** actual - predicted: positive means the driver finished lower than predicted. */
+  position_delta: number | null;
+  exact: boolean;
+  status?: string | null;
+  dnf: boolean;
+  crash: boolean;
+  predicted_dnf_risk_pct?: number | null;
+}
+
 export interface PredictionReview {
   evaluated: boolean;
   reason?: string;
@@ -51,6 +65,7 @@ export interface PredictionReview {
   crash_correct?: number;
   crash_predicted?: number;
   crash_actual?: number;
+  driver_results?: PredictionDriverResult[];
 }
 
 export interface PredictionsResponse {

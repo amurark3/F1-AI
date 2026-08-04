@@ -7,7 +7,7 @@ from datetime import datetime
 
 import structlog
 
-from app.config import RULEBOOK_TOP_K
+from app.config import ENABLE_LOCAL_MODELS, RULEBOOK_TOP_K
 from app.rag.pgvector_store import RULEBOOK_ENABLED
 from app.rag.pgvector_store import search as rulebook_search
 from app.rag.rerank import rerank
@@ -66,6 +66,17 @@ def search_rulebook(query: str, category: str | None = None, year: int | None = 
         return fallback_rulebook_search(
             clean_query, category, resolved_year,
             "Rulebook vector store not configured (DATABASE_URL unset). Run `python -m app.rag.ingest`.",
+        )
+
+    if not ENABLE_LOCAL_MODELS:
+        # Without this branch the query would embed to None, retrieve nothing,
+        # and the response would read "no excerpts matched" — telling the user
+        # the regulations do not cover their question when in fact the search
+        # never ran. Report the real reason instead.
+        return fallback_rulebook_search(
+            clean_query, category, resolved_year,
+            "Rulebook search is disabled on this deployment: embedding a query "
+            "needs a model this instance does not have the memory to load.",
         )
 
     try:

@@ -74,6 +74,25 @@ EMBEDDING_MODEL_NAME = os.getenv(
     "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"
 )
 
+# Master switch for loading torch models inside the web process: the
+# sentence-transformers embedder (rulebook queries, conversation memory) and the
+# cross-encoder reranker.
+#
+# Off by default, and deliberately so. Loading them takes a request-time OOM kill
+# on a 512MB instance — verified in production, where one rulebook query killed
+# the container and every endpoint went down for minutes. An OOM cannot be caught,
+# so the graceful-degradation paths those modules already have never get to run.
+# A capability that can take the whole service down has to be opted into by a
+# deployment that knows it has the memory, not assumed.
+#
+# Enable it where the memory exists: local development, and the offline ingest
+# job (see .github/workflows/ingest-rulebook.yml), which must embed the corpus.
+ENABLE_LOCAL_MODELS = os.getenv("ENABLE_LOCAL_MODELS", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
+
 # Number of top-K results to return from rulebook search
 RULEBOOK_TOP_K = int(os.getenv("RULEBOOK_TOP_K", "6"))
 

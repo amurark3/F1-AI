@@ -42,7 +42,39 @@ Set these in **Render → the service → Environment** (all `sync: false` in
 | `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
 | `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
+| `ENABLE_LOCAL_MODELS` | Set in yaml | `false` on the free tier — see below |
 | `PYTHON_VERSION` | Set in yaml | Pinned to `3.10.12` |
+
+### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
+
+Rulebook search and conversation-memory recall need two torch models in-process:
+a sentence-transformers embedder and a cross-encoder reranker. Together they do
+not fit alongside the rest of the app on Render's free instance.
+
+This is not theoretical. A single `POST /api/race-control/rulebook/search`
+OOM-killed the container in production; the service returned 502, then every
+endpoint was unreachable for several minutes until Render restarted it. Because
+an OOM kill cannot be caught, the graceful `except` paths in those modules never
+executed. It was also reachable by any unauthenticated caller.
+
+With the flag off (the default), nothing imports torch:
+
+- **Rulebook search** reports that it is disabled, rather than claiming no
+  regulations matched — the corpus is fully populated and the query never ran.
+- **Chat** works normally and messages are still stored; only semantic recall
+  and personalisation are skipped.
+- **Predictions, standings, champions, health** are unaffected.
+
+Turn it on where the memory exists — local development, and the ingest job,
+which sets it explicitly because embedding the corpus is its entire purpose.
+
+Restoring rulebook search in production means getting the embedding out of the
+web process. The most promising route is a Supabase Edge Function using the
+built-in `gte-small` model: it is 384-dimensional, matching the existing
+`vector(384)` columns exactly, so no schema migration is needed. It is a
+different model from all-MiniLM-L6-v2 though, so the whole corpus would have to
+be re-embedded through the same function, and the cross-encoder has no Supabase
+equivalent.
 
 > A missing `GROQ_API_KEY` no longer crashes the whole service — only the chat
 > endpoint fails; health, predictions, standings, and rulebook still work.

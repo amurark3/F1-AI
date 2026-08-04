@@ -17,6 +17,8 @@ import threading
 
 import structlog
 
+from app.config import ENABLE_LOCAL_MODELS
+
 logger = structlog.get_logger()
 
 RERANK_MODEL_NAME = os.getenv("RERANK_MODEL_NAME", "cross-encoder/ms-marco-MiniLM-L-6-v2")
@@ -28,6 +30,10 @@ _reranker_failed = False
 
 def _get_reranker():
     global _reranker, _reranker_failed
+    if not ENABLE_LOCAL_MODELS:
+        # Second torch model in the query path. Same reasoning as the embedder:
+        # the load is what exhausts memory, and an OOM kill is not catchable.
+        return None
     if _reranker is not None:
         return _reranker
     if _reranker_failed:

@@ -8,8 +8,8 @@ import structlog
 from fastapi import APIRouter
 from fastf1.ergast import Ergast
 
-from app.api.errors import client_error
 from app.api.circuits import get_circuit_info
+from app.api.errors import client_error
 from app.data.f1db_standings import (
     constructor_standings_detailed,
     driver_standings_detailed,

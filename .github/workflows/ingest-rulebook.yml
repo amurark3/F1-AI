@@ -38,6 +38,11 @@ jobs:
       - name: Re-embed rulebook into pgvector
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Embedding the corpus is the entire job, so this runner opts in to
+          # loading the model. It is off by default because the deployed web
+          # service cannot afford it — a runner has gigabytes, Render's free
+          # instance has 512MB and gets OOM-killed. See app/config.py.
+          ENABLE_LOCAL_MODELS: "true"
           # Optional: set a HF_TOKEN repo secret for faster/rate-limit-free model
           # downloads. Works without it.
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import fastf1
 from fastf1.ergast import Ergast
 from langchain_core.tools import tool
+import pandas as pd
 import structlog
 
 from app.data.f1db_standings import constructor_standings_detailed, driver_standings_detailed
@@ -104,6 +105,17 @@ def get_constructor_standings(year: int) -> str:
         return f"Failed to fetch constructor standings: {e}"
 
 
+def _naive_utc(value: object) -> pd.Timestamp:
+    """Drop the timezone from an event date so it compares against a naive now.
+
+    FastF1 returns ``EventDate`` as a tz-naive ``datetime64[ns]``. Comparing that
+    against a tz-aware ``datetime`` raises, and the raise is swallowed by the
+    tool's except clause — every row would be reported as a fetch failure.
+    """
+    stamp = pd.Timestamp(value)
+    return stamp.tz_convert(None) if stamp.tzinfo else stamp
+
+
 @tool
 def get_season_schedule(year: int) -> str:
     """
@@ -116,7 +128,7 @@ def get_season_schedule(year: int) -> str:
     logger.info("tool.season_schedule", year=year)
     try:
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-        today = datetime.now(timezone.utc)
+        today = datetime.now(timezone.utc).replace(tzinfo=None)
 
         output = [f"### F1 Season Schedule ({year})"]
         output.append(f"*(Current Date: {today.strftime('%Y-%m-%d')})*\n")
@@ -126,7 +138,7 @@ def get_season_schedule(year: int) -> str:
         last_completed = "None"
 
         for _, row in schedule.iterrows():
-            race_date = row["EventDate"]  # FastF1 provides this as a Timestamp
+            race_date = _naive_utc(row["EventDate"])  # FastF1 provides this as a Timestamp
             gp_name = row["EventName"]
             round_num = row["RoundNumber"]
 

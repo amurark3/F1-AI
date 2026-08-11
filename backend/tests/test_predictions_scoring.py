@@ -337,6 +337,18 @@ def test_an_unrecognised_team_is_scored_as_midfield_rather_than_dropped():
     assert _get_team_position("Anything", []) == 10
 
 
+@pytest.mark.unit
+def test_a_driver_with_no_team_is_scored_as_midfield_not_as_the_leader():
+    """``driver_score`` defaults a missing team to ``""``, which without a guard
+    substring-matches the first constructor and scores the driver as the leader."""
+    standings = [
+        {"constructor_name": "Red Bull", "position": 1},
+        {"constructor_name": "Scuderia Ferrari", "position": 2},
+    ]
+    assert _get_team_position("", standings) == 10
+    assert _get_team_position("   ", standings) == 10
+
+
 # ---------------------------------------------------------------------------
 # Risk profile
 # ---------------------------------------------------------------------------

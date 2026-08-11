@@ -37,10 +37,9 @@ def _estimate_pit_loss(laps: pd.DataFrame) -> float | None:
     usable stop pairs are found.
     """
     losses: list[float] = []
+    # Driver codes come from this frame, so every one of them selects rows.
     for drv in laps["Driver"].dropna().unique():
         drv_laps = laps[laps["Driver"] == drv].sort_values("LapNumber")
-        if drv_laps.empty:
-            continue
 
         # Green-flag reference pace: laps with no pit activity, excluding lap 1.
         green = drv_laps[drv_laps["PitInTime"].isna() & drv_laps["PitOutTime"].isna() & (drv_laps["LapNumber"] > 1)][

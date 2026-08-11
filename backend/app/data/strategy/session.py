@@ -110,11 +110,10 @@ def _stint_degradation(stint_laps: pd.DataFrame, valid_times: pd.Series) -> floa
     if len(valid_sorted) < _DEGRADATION_SAMPLE_LAPS * 2:
         return 0.0
 
+    # Both means are over timed laps only, so neither can come back as NaT.
     opening = valid_sorted.head(_DEGRADATION_SAMPLE_LAPS)["LapTime"].mean()
     closing = valid_sorted.tail(_DEGRADATION_SAMPLE_LAPS)["LapTime"].mean()
-    if pd.notna(opening) and pd.notna(closing):
-        return round((closing - opening).total_seconds(), 2)
-    return 0.0
+    return round((closing - opening).total_seconds(), 2)
 
 
 def _fresh_tyres(stint_laps: pd.DataFrame, stint_num: float) -> bool:
@@ -144,10 +143,9 @@ def _extract_stint_data(laps: pd.DataFrame, driver_code: str) -> list[dict]:
     driver_laps = driver_laps.sort_values("LapNumber")
 
     stints = []
+    # Stint numbers come from this frame, so every one of them selects rows.
     for stint_num in sorted(driver_laps["Stint"].dropna().unique()):
         stint_laps = driver_laps[driver_laps["Stint"] == stint_num].copy()
-        if stint_laps.empty:
-            continue
 
         # Lap range
         lap_numbers = stint_laps["LapNumber"].dropna()

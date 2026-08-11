@@ -209,7 +209,9 @@ def _get_team_position(team_name: str, standings: list[dict]) -> int:
     Uses fuzzy matching since FastF1 and Ergast may use slightly different
     team names (e.g. 'Red Bull Racing' vs 'Red Bull').
     """
-    team_lower = team_name.lower()
+    team_lower = team_name.strip().lower()
+    if not team_lower:
+        return 10  # unknown team: the empty string substring-matches every name
     for entry in standings:
         if entry["constructor_name"].lower() in team_lower or team_lower in entry["constructor_name"].lower():
             return entry["position"]

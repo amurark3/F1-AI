@@ -116,7 +116,9 @@ def _get_team_for_driver(year: int, round_num: int) -> dict[str, str]:
 
 def _team_position(team_name: str, constructor_standings: dict[str, int]) -> int:
     """Fuzzy-match team name against constructor standings."""
-    tl = team_name.lower()
+    tl = team_name.strip().lower()
+    if not tl:
+        return 10  # unknown entrant: the empty string substring-matches every name
     for name, pos in constructor_standings.items():
         if name.lower() in tl or tl in name.lower():
             return pos

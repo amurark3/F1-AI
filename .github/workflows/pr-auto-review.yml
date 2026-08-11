@@ -103,13 +103,19 @@ jobs:
           cache: pip
           cache-dependency-path: |
             backend/requirements.txt
+            backend/requirements-ingest.txt
             backend/requirements-dev.txt
       # Runtime pins are installed alongside the test pins so a Dependabot bump
       # to a runtime package is exercised by the suite, not just parsed by the
       # syntax check. DATABASE_URL is deliberately unset: the document store
       # falls back to JSON, keeping the suite hermetic.
+      #
+      # requirements-ingest.txt (which pulls in requirements.txt) is installed
+      # too: app/rag/ingest.py imports PyPDFLoader and the text splitter at
+      # module level, so tests/test_rag_ingest.py cannot even be collected
+      # without them — and the 100% coverage gate requires that module to run.
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: pip install -r requirements-ingest.txt -r requirements-dev.txt
       - name: Run pytest
         run: pytest -q
 

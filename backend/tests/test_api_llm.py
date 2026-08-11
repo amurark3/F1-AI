@@ -35,7 +35,10 @@ def test_missing_api_key_raises_with_actionable_guidance(monkeypatch):
 
     message = str(excinfo.value)
     assert "GROQ_API_KEY" in message
-    assert "console.groq.com" in message
+    # The whole phrase, not the bare host: a bare "console.groq.com" substring
+    # check reads as URL sanitization to static analysis (CWE-020), and the
+    # point of the assertion is that the message tells the reader where to go.
+    assert "Get a free key at https://console.groq.com" in message
 
 
 @pytest.mark.unit

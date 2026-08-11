@@ -15,6 +15,11 @@ without a database keeps working exactly as before.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import psycopg
+
 import os
 import threading
 from typing import Any
@@ -66,13 +71,13 @@ _embedder_lock = threading.Lock()
 _embedder_failed = False
 
 
-def _connect():
+def _connect() -> psycopg.Connection:
     import psycopg
 
     return psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
 
 
-def _ensure_schema(conn) -> None:
+def _ensure_schema(conn: psycopg.Connection) -> None:
     global _schema_ready
     if _schema_ready:
         return
@@ -83,7 +88,7 @@ def _ensure_schema(conn) -> None:
         _schema_ready = True
 
 
-def _get_embedder():
+def _get_embedder() -> object | None:
     """Lazily load the sentence-transformers model; None if unavailable.
 
     Note this is a *second* instance of the same model — ``app.utils.embeddings``
@@ -112,7 +117,7 @@ def _get_embedder():
             logger.info("memory.embedder_loaded", model=model_name)
             return _embedder
         except Exception as exc:
-            logger.error("memory.embedder_load_failed", error=str(exc))
+            logger.exception("memory.embedder_load_failed", error=str(exc))
             _embedder_failed = True
             return None
 
@@ -153,17 +158,36 @@ def save_message(user_id: str, thread_id: str, role: str, content: str) -> None:
                 )
             else:
                 conn.execute(
-                    "INSERT INTO chat_message (user_id, thread_id, role, content) "
-                    "VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO chat_message (user_id, thread_id, role, content) VALUES (%s, %s, %s, %s)",
                     (user_id, thread_id, role, content),
                 )
     except Exception as exc:
         logger.warning("memory.save_message_failed", error=str(exc))
 
 
-def recall_relevant(
-    user_id: str, query: str, *, k: int = 4, exclude_thread: str | None = None
-) -> list[dict]:
+# Both recall statements, written out rather than assembled from a WHERE
+# fragment, so no SQL is built at runtime. The only difference is the extra
+# thread-exclusion predicate.
+_RECALL_ALL_THREADS = """
+    SELECT role, content, thread_id, created_at,
+           1 - (embedding <=> %s::vector) AS similarity
+    FROM chat_message
+    WHERE user_id = %s AND embedding IS NOT NULL
+    ORDER BY embedding <=> %s::vector
+    LIMIT %s
+"""
+
+_RECALL_EXCLUDING_THREAD = """
+    SELECT role, content, thread_id, created_at,
+           1 - (embedding <=> %s::vector) AS similarity
+    FROM chat_message
+    WHERE user_id = %s AND embedding IS NOT NULL AND thread_id <> %s
+    ORDER BY embedding <=> %s::vector
+    LIMIT %s
+"""
+
+
+def recall_relevant(user_id: str, query: str, *, k: int = 4, exclude_thread: str | None = None) -> list[dict]:
     """Return the user's most semantically-similar past messages to ``query``.
 
     Empty list when memory is off, the query can't be embedded, or on error.
@@ -174,31 +198,25 @@ def recall_relevant(
     if embedding is None:
         return []
     literal = _vec_literal(embedding)
-    params: list[Any] = [user_id, literal]
-    thread_filter = ""
     if exclude_thread:
-        thread_filter = "AND thread_id <> %s"
-        params.append(exclude_thread)
-    params.append(k)
+        statement = _RECALL_EXCLUDING_THREAD
+        # Order: sim-select vec, user_id, excluded thread, order vec, k.
+        params: list[Any] = [literal, user_id, exclude_thread, literal, k]
+    else:
+        statement = _RECALL_ALL_THREADS
+        params = [literal, user_id, literal, k]
     try:
         with _connect() as conn:
             _ensure_schema(conn)
-            rows = conn.execute(
-                f"""
-                SELECT role, content, thread_id, created_at,
-                       1 - (embedding <=> %s::vector) AS similarity
-                FROM chat_message
-                WHERE user_id = %s AND embedding IS NOT NULL {thread_filter}
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
-                """,
-                # order of params: sim-select vec, user_id, [exclude], order vec, k
-                [literal, user_id] + ([exclude_thread] if exclude_thread else []) + [literal, k],
-            ).fetchall()
+            rows = conn.execute(statement, params).fetchall()
         return [
-            {"role": r[0], "content": r[1], "thread_id": r[2],
-             "created_at": r[3].isoformat() if r[3] else None,
-             "similarity": round(float(r[4]), 3)}
+            {
+                "role": r[0],
+                "content": r[1],
+                "thread_id": r[2],
+                "created_at": r[3].isoformat() if r[3] else None,
+                "similarity": round(float(r[4]), 3),
+            }
             for r in rows
         ]
     except Exception as exc:

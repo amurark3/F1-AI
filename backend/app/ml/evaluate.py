@@ -15,9 +15,9 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from typing import Callable
+import sys
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,9 @@ from app.config import (
     TEAM_STRENGTH_WEIGHT,
 )
 from app.ml.features import FEATURES, TARGET
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Cached copy of the collected training dataset so the benchmark can re-run
 # instantly without hitting the network. Written by collect + evaluate runs.
@@ -75,7 +78,8 @@ def _ranking_metrics(pred_scores: np.ndarray, actual_positions: np.ndarray) -> d
     winner = 1.0 if order[0] == actual_order[0] else 0.0
 
     return {
-        "spearman": float(spearman) if spearman == spearman else 0.0,  # NaN guard
+        # spearmanr returns NaN when a rank vector has zero variance.
+        "spearman": 0.0 if np.isnan(spearman) else float(spearman),
         "mae": mae,
         "podium_hit_rate": podium_hit,
         "points_accuracy": points_acc,
@@ -139,7 +143,7 @@ def backtest(
     across all held-out races. Returns ``{predictor_name: metrics}``.
     """
     feature_cols = features or FEATURES
-    df = df.dropna(subset=feature_cols + [TARGET]).copy()
+    df = df.dropna(subset=[*feature_cols, TARGET]).copy()
     seasons = sorted(df["year"].unique())
     if holdout_seasons is None:
         # Default: hold out the most recent season only.
@@ -166,10 +170,7 @@ def backtest(
 
             preds = model.predict(race[feature_cols].values)
             heuristic = _heuristic_scores(race)
-            ensemble = (
-                ML_PREDICTION_BLEND_WEIGHT * preds
-                + (1 - ML_PREDICTION_BLEND_WEIGHT) * heuristic
-            )
+            ensemble = ML_PREDICTION_BLEND_WEIGHT * preds + (1 - ML_PREDICTION_BLEND_WEIGHT) * heuristic
 
             # Score the production blend, plus each layer alone, so the harness
             # shows whether the ensemble actually beats pure ML on the same races.

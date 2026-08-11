@@ -23,9 +23,9 @@ import os
 import re
 import sys
 
-import structlog
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import structlog
 
 from app.rag import pgvector_store
 
@@ -34,7 +34,7 @@ logger = structlog.get_logger()
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DATA_DIR = "data/raw"    # Root folder containing year sub-directories
+DATA_DIR = "data/raw"  # Root folder containing year sub-directories
 
 
 def _detect_year(root: str, filename: str) -> str:
@@ -84,16 +84,18 @@ def collect_chunks() -> list[dict]:
                 for split in text_splitter.split_documents(raw_docs):
                     # PyPDFLoader tags each doc with a 0-indexed 'page'.
                     page = split.metadata.get("page")
-                    chunks.append({
-                        "source_year": str(year),
-                        "doc_type": doc_type,
-                        "filename": filename,
-                        "page": page,
-                        "content": split.page_content,
-                    })
+                    chunks.append(
+                        {
+                            "source_year": str(year),
+                            "doc_type": doc_type,
+                            "filename": filename,
+                            "page": page,
+                            "content": split.page_content,
+                        }
+                    )
                 logger.info("ingest.chunks_added", filename=filename)
             except Exception as exc:
-                logger.error("ingest.load_failed", filename=filename, error=str(exc))
+                logger.exception("ingest.load_failed", filename=filename, error=str(exc))
 
     return chunks
 

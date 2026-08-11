@@ -13,8 +13,12 @@ be identical on both sides.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import statistics
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Feature order is the model's contract — the trained estimator expects columns
 # in exactly this sequence.
@@ -60,18 +64,31 @@ def _mean_or(
     return float(statistics.mean(window_values))
 
 
-def build_feature_row(
-    *,
-    grid_position: float | None,
-    sprint_position: float | None,
-    had_sprint: bool,
-    recent_finishes: Sequence[int] | None,
-    recent_sprint_finishes: Sequence[int] | None,
-    circuit_finishes: Sequence[int] | None,
-    circuit_grid_deltas: Sequence[float] | None,
-    team_standing: float | None,
-    driver_standing: float | None,
-) -> dict[str, float]:
+@dataclass(frozen=True)
+class DriverSignals:
+    """Raw per-driver signals for one race, before they become a feature vector.
+
+    The signal set is half of the feature contract, so it is a named type rather
+    than a loose argument list: training accumulates these chronologically while
+    inference queries them live, and a field either side forgets to supply is a
+    train/serve skew that a flat signature would have hidden behind a default.
+
+    Every field is optional because absence is meaningful — the fallbacks in
+    :func:`build_feature_row` are what the model was trained to expect.
+    """
+
+    grid_position: float | None = None
+    sprint_position: float | None = None
+    had_sprint: bool = False
+    recent_finishes: Sequence[int] | None = None
+    recent_sprint_finishes: Sequence[int] | None = None
+    circuit_finishes: Sequence[int] | None = None
+    circuit_grid_deltas: Sequence[float] | None = None
+    team_standing: float | None = None
+    driver_standing: float | None = None
+
+
+def build_feature_row(signals: DriverSignals) -> dict[str, float]:
     """Assemble the model feature dict from raw per-driver signals.
 
     Both training and inference gather these raw signals their own way (batch
@@ -79,15 +96,17 @@ def build_feature_row(
     this function so the resulting feature vector is identical.
     """
     return {
-        "grid_position": float(grid_position) if grid_position is not None else GRID_FALLBACK,
-        "sprint_position": float(sprint_position) if sprint_position is not None else 0.0,
-        "had_sprint": 1.0 if had_sprint else 0.0,
-        "recent_form_avg": _mean_or(recent_finishes, RECENT_FORM_FALLBACK, RECENT_FORM_WINDOW),
-        "recent_sprint_avg": _mean_or(recent_sprint_finishes, RECENT_SPRINT_FALLBACK, RECENT_SPRINT_WINDOW),
-        "circuit_avg": _mean_or(circuit_finishes, CIRCUIT_FALLBACK),
-        "team_standing": float(team_standing) if team_standing is not None else STANDING_FALLBACK,
-        "driver_standing": float(driver_standing) if driver_standing is not None else STANDING_FALLBACK,
-        "grid_delta_avg": _mean_or(circuit_grid_deltas, GRID_DELTA_FALLBACK),
+        "grid_position": float(signals.grid_position) if signals.grid_position is not None else GRID_FALLBACK,
+        "sprint_position": float(signals.sprint_position) if signals.sprint_position is not None else 0.0,
+        "had_sprint": 1.0 if signals.had_sprint else 0.0,
+        "recent_form_avg": _mean_or(signals.recent_finishes, RECENT_FORM_FALLBACK, RECENT_FORM_WINDOW),
+        "recent_sprint_avg": _mean_or(signals.recent_sprint_finishes, RECENT_SPRINT_FALLBACK, RECENT_SPRINT_WINDOW),
+        "circuit_avg": _mean_or(signals.circuit_finishes, CIRCUIT_FALLBACK),
+        "team_standing": float(signals.team_standing) if signals.team_standing is not None else STANDING_FALLBACK,
+        "driver_standing": (
+            float(signals.driver_standing) if signals.driver_standing is not None else STANDING_FALLBACK
+        ),
+        "grid_delta_avg": _mean_or(signals.circuit_grid_deltas, GRID_DELTA_FALLBACK),
     }
 
 

@@ -26,11 +26,18 @@ Usage:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sklearn.pipeline import Pipeline
+
+from dataclasses import dataclass
+from pathlib import Path
 import sys
 import warnings
-from pathlib import Path
 
 import pandas as pd
+
 from app.data.f1db_results import (
     driver_teams,
     qualifying_positions,
@@ -42,7 +49,7 @@ from app.data.f1db_standings import (
     constructor_standings_after_round,
     driver_standings_after_round,
 )
-from app.ml.features import FEATURES, TARGET, build_feature_row
+from app.ml.features import FEATURES, TARGET, DriverSignals, build_feature_row
 
 # Suppress pandas noise during bulk data assembly
 warnings.filterwarnings("ignore")
@@ -50,7 +57,7 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-TRAIN_YEARS = list(range(2018, 2027))   # 2018–2026 (2026 in progress; partial season handled)
+TRAIN_YEARS = list(range(2018, 2027))  # 2018–2026 (2026 in progress; partial season handled)
 MODEL_PATH = Path(__file__).parent.parent.parent / "models" / "race_predictor.joblib"
 
 
@@ -58,17 +65,13 @@ MODEL_PATH = Path(__file__).parent.parent.parent / "models" / "race_predictor.jo
 # Data collection helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_race_schedule(year: int) -> pd.DataFrame:
     """Return the race schedule for a season as a DataFrame (from f1db)."""
     rows = race_schedule(year)
     if not rows:
         return pd.DataFrame()
-    return pd.DataFrame(
-        [
-            {"RoundNumber": r["round"], "EventName": r["name"], "Location": r["location"]}
-            for r in rows
-        ]
-    )
+    return pd.DataFrame([{"RoundNumber": r["round"], "EventName": r["name"], "Location": r["location"]} for r in rows])
 
 
 def _get_qualifying_positions(year: int, round_num: int) -> dict[str, int]:
@@ -103,10 +106,7 @@ def _get_constructor_standings(year: int, round_num: int) -> dict[str, int]:
     Sourced from the local f1db dataset — no live API, no rate limits.
     """
     lookup_round = max(1, round_num - 1)
-    return {
-        row["constructor_name"]: row["position"]
-        for row in constructor_standings_after_round(year, lookup_round)
-    }
+    return {row["constructor_name"]: row["position"] for row in constructor_standings_after_round(year, lookup_round)}
 
 
 def _get_team_for_driver(year: int, round_num: int) -> dict[str, str]:
@@ -127,15 +127,27 @@ def _team_position(team_name: str, constructor_standings: dict[str, int]) -> int
 # Feature engineering per race
 # ---------------------------------------------------------------------------
 
+
+@dataclass(frozen=True)
+class SeasonHistory:
+    """History accumulated by the outer season loop, read when building a race.
+
+    These four move together — every one is chronological state that must be
+    as of the race being built and never include it, so they are passed as one
+    value rather than four positional dicts of identical shape.
+    """
+
+    circuit_results: dict[str, list[int]]  # driver -> [finish positions at this circuit]
+    season_results_so_far: dict[str, list[int]]  # driver -> [race finishes this season so far]
+    circuit_grid_deltas: dict[str, list[float]]  # driver -> [grid-finish deltas at this circuit]
+    season_sprints_so_far: dict[str, list[int]]  # driver -> [sprint finishes this season so far]
+
+
 def _build_race_rows(
     year: int,
     round_num: int,
     location: str,
-    # Accumulated history passed in from the outer loop
-    circuit_results: dict[str, list[int]],        # driver -> [finish positions at this circuit]
-    season_results_so_far: dict[str, list[int]],  # driver -> [race finishes this season so far]
-    circuit_grid_deltas: dict[str, list[float]],  # driver -> [grid-finish deltas at this circuit]
-    season_sprints_so_far: dict[str, list[int]],  # driver -> [sprint finishes this season so far]
+    history: SeasonHistory,
 ) -> tuple[list[dict], dict[str, int]]:
     """Build one feature row per driver for a single race.
 
@@ -155,24 +167,28 @@ def _build_race_rows(
     for driver_code, finish_pos in race.items():
         team_name = driver_teams.get(driver_code, "")
         features = build_feature_row(
-            grid_position=grid.get(driver_code),
-            sprint_position=sprint.get(driver_code),
-            had_sprint=bool(sprint),
-            recent_finishes=season_results_so_far.get(driver_code, []),
-            recent_sprint_finishes=season_sprints_so_far.get(driver_code, []),
-            circuit_finishes=circuit_results.get(driver_code, []),
-            circuit_grid_deltas=circuit_grid_deltas.get(driver_code, []),
-            team_standing=_team_position(team_name, constructor_standings),
-            driver_standing=driver_standings.get(driver_code, 10),
+            DriverSignals(
+                grid_position=grid.get(driver_code),
+                sprint_position=sprint.get(driver_code),
+                had_sprint=bool(sprint),
+                recent_finishes=history.season_results_so_far.get(driver_code, []),
+                recent_sprint_finishes=history.season_sprints_so_far.get(driver_code, []),
+                circuit_finishes=history.circuit_results.get(driver_code, []),
+                circuit_grid_deltas=history.circuit_grid_deltas.get(driver_code, []),
+                team_standing=_team_position(team_name, constructor_standings),
+                driver_standing=driver_standings.get(driver_code, 10),
+            )
         )
-        rows.append({
-            "year": year,
-            "round": round_num,
-            "location": location,
-            "driver_code": driver_code,
-            **features,
-            "finish_position": finish_pos,
-        })
+        rows.append(
+            {
+                "year": year,
+                "round": round_num,
+                "location": location,
+                "driver_code": driver_code,
+                **features,
+                "finish_position": finish_pos,
+            }
+        )
 
     return rows, sprint
 
@@ -180,6 +196,7 @@ def _build_race_rows(
 # ---------------------------------------------------------------------------
 # Main training routine
 # ---------------------------------------------------------------------------
+
 
 def collect_data() -> pd.DataFrame:
     """Assemble historical race data for all training years from f1db (offline)."""
@@ -209,13 +226,19 @@ def collect_data() -> pd.DataFrame:
             circ_deltas = all_circuit_deltas.get(location, {})
 
             rows, sprint = _build_race_rows(
-                year, round_num, location,
-                circ_hist, season_results_so_far, circ_deltas,
-                season_sprints_so_far,
+                year,
+                round_num,
+                location,
+                SeasonHistory(
+                    circuit_results=circ_hist,
+                    season_results_so_far=season_results_so_far,
+                    circuit_grid_deltas=circ_deltas,
+                    season_sprints_so_far=season_sprints_so_far,
+                ),
             )
 
             if rows:
-                sprint_tag = f", sprint" if sprint else ""
+                sprint_tag = ", sprint" if sprint else ""
                 all_rows.extend(rows)
                 print(f"({len(rows)} drivers{sprint_tag})")
 
@@ -255,7 +278,7 @@ MODEL_PARAMS = {
 }
 
 
-def _build_model():
+def _build_model() -> Pipeline:
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -263,7 +286,7 @@ def _build_model():
     return make_pipeline(StandardScaler(), Ridge(**MODEL_PARAMS))
 
 
-def _print_feature_influence(model) -> None:
+def _print_feature_influence(model: Pipeline) -> None:
     """Print each feature's influence, whichever estimator kind is in use.
 
     Linear models expose standardized ``coef_`` (sign matters: positive means the
@@ -273,11 +296,11 @@ def _print_feature_influence(model) -> None:
     final = model.steps[-1][1] if hasattr(model, "steps") else model
     if hasattr(final, "coef_"):
         print("\nStandardized coefficients (sign = direction, |value| = strength):")
-        for feat, coef in sorted(zip(FEATURES, final.coef_), key=lambda x: -abs(x[1])):
+        for feat, coef in sorted(zip(FEATURES, final.coef_, strict=False), key=lambda x: -abs(x[1])):
             print(f"  {feat:<22} {coef:+.3f}")
     elif hasattr(final, "feature_importances_"):
         print("\nFeature importances:")
-        for feat, imp in sorted(zip(FEATURES, final.feature_importances_), key=lambda x: -x[1]):
+        for feat, imp in sorted(zip(FEATURES, final.feature_importances_, strict=False), key=lambda x: -x[1]):
             print(f"  {feat:<22} {imp:.3f}")
 
 
@@ -314,7 +337,7 @@ def train(df: pd.DataFrame) -> None:
     """Validate with a season-forward backtest, then fit the production model."""
     import joblib
 
-    df = df.dropna(subset=FEATURES + [TARGET])
+    df = df.dropna(subset=[*FEATURES, TARGET])
 
     sprint_rounds = int((df["had_sprint"] == 1).sum())
     print(f"\nCollected {len(df)} driver-race samples across {df['year'].nunique()} seasons")
@@ -329,9 +352,7 @@ def train(df: pd.DataFrame) -> None:
     wf_results = walk_forward_validation(df)
     for r in wf_results:
         print(f"  {r['season']}: MAE {r['mae']:.2f} positions  (n={r['n']})")
-    wf_mae = (
-        sum(r["mae"] for r in wf_results) / len(wf_results) if wf_results else float("nan")
-    )
+    wf_mae = sum(r["mae"] for r in wf_results) / len(wf_results) if wf_results else float("nan")
     print(f"  mean walk-forward MAE: {wf_mae:.2f} positions")
 
     # ------------------------------------------------------------------
@@ -395,7 +416,7 @@ def train(df: pd.DataFrame) -> None:
                 "holdout_mae": holdout_mae,
                 "holdout_ranking": ranking_results,
                 "trained_seasons": [int(s) for s in seasons],
-                "n_samples": int(len(df)),
+                "n_samples": len(df),
             },
         },
         MODEL_PATH,

@@ -1,0 +1,37 @@
+# Coverage configuration for the backend suite.
+#
+# The target is a literal 100% of the backend: app/, main.py, mcp_server.py and
+# scripts/. Nothing is omitted — modules that talk to Groq, Supabase, FastF1 or
+# torch are covered with those boundaries mocked rather than excluded.
+#
+# `exclude_lines` below carries only constructs that cannot execute under test
+# by construction (TYPE_CHECKING imports, `if __name__ == "__main__"` guards,
+# abstract/protocol stubs). It is not an escape hatch for untested branches.
+[run]
+source =
+    app
+    main
+    mcp_server
+    scripts
+branch = False
+parallel = False
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 1
+fail_under = 100
+exclude_lines =
+    pragma: no cover
+    ^\s*if TYPE_CHECKING:
+    ^\s*\.\.\.$
+    ^\s*raise NotImplementedError
+
+exclude_also =
+    ^if __name__ == ["']__main__["']:
+
+[xml]
+output = reports/coverage.xml
+
+[html]
+directory = reports/htmlcov

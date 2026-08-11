@@ -28,7 +28,7 @@ _reranker_lock = threading.Lock()
 _reranker_failed = False
 
 
-def _get_reranker():
+def _get_reranker() -> object | None:
     global _reranker, _reranker_failed
     if not ENABLE_LOCAL_MODELS:
         # Second torch model in the query path. Same reasoning as the embedder:
@@ -70,7 +70,7 @@ def rerank(query: str, docs: list, top_k: int) -> list:
     try:
         pairs = [(query, getattr(d, "page_content", "")) for d in docs]
         scores = reranker.predict(pairs)
-        ranked = sorted(zip(docs, scores), key=lambda ds: ds[1], reverse=True)
+        ranked = sorted(zip(docs, scores, strict=False), key=lambda ds: ds[1], reverse=True)
         return [doc for doc, _ in ranked[:top_k]]
     except Exception as exc:
         logger.warning("rerank.failed", error=str(exc))

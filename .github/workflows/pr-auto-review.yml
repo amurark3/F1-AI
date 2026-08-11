@@ -63,6 +63,32 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall app main.py mcp_server.py
 
+  backend_lint:
+    name: Backend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      # Ruff is a standalone binary with no project dependencies, so the lint
+      # gate does not need the runtime pins installed — it stays fast and cannot
+      # be broken by an unrelated dependency resolution failure.
+      - name: Install Ruff
+        run: pip install "$(grep -E '^ruff==' requirements-dev.txt)"
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Run Ruff
+        run: ruff check --output-format github .
+      # Ruff has no per-module line budget rule, so the size gate is its own step.
+      - name: Check module size budget
+        run: python -m tools.check_module_size
+
   backend_tests:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -91,7 +117,7 @@ jobs:
     name: Review summary comment
     runs-on: ubuntu-latest
     if: always()
-    needs: [frontend_lint, frontend_build, backend_syntax, backend_tests]
+    needs: [frontend_lint, frontend_build, backend_syntax, backend_lint, backend_tests]
     steps:
       - name: Publish PR review summary
         uses: actions/github-script@v9
@@ -102,6 +128,7 @@ jobs:
               frontendLint: "${{ needs.frontend_lint.result }}",
               frontendBuild: "${{ needs.frontend_build.result }}",
               backendSyntax: "${{ needs.backend_syntax.result }}",
+              backendLint: "${{ needs.backend_lint.result }}",
               backendTests: "${{ needs.backend_tests.result }}",
             };
 
@@ -121,6 +148,9 @@ jobs:
             }
             if (statuses.backendSyntax !== "success") {
               failures.push("- **Backend syntax check** failed. Suggestion: run `python -m compileall app main.py mcp_server.py` in `/backend` and fix invalid Python files.");
+            }
+            if (statuses.backendLint !== "success") {
+              failures.push("- **Backend lint** failed. Suggestion: in `/backend` run `ruff format .`, then `ruff check .` and `python -m tools.check_module_size`, and fix what they report.");
             }
             if (statuses.backendTests !== "success") {
               failures.push("- **Backend tests** failed. Suggestion: run `pytest -q` in `/backend` and fix the failing tests before merging.");
@@ -145,6 +175,7 @@ jobs:
               `- Frontend lint: ${toBadge(statuses.frontendLint)}`,
               `- Frontend build: ${toBadge(statuses.frontendBuild)}`,
               `- Backend syntax check: ${toBadge(statuses.backendSyntax)}`,
+              `- Backend lint: ${toBadge(statuses.backendLint)}`,
               `- Backend tests: ${toBadge(statuses.backendTests)}`,
               "",
               hasFailures ? "### Issues and suggested fixes" : "### Suggested improvements",

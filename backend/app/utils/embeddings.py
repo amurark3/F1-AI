@@ -24,7 +24,7 @@ _lock = threading.Lock()
 _failed = False
 
 
-def get_embedder():
+def get_embedder() -> object | None:
     """Return the shared SentenceTransformer, or None if unavailable.
 
     Returns None without importing torch when ``ENABLE_LOCAL_MODELS`` is off:
@@ -50,7 +50,7 @@ def get_embedder():
             logger.info("embeddings.model_loaded", model=EMBEDDING_MODEL_NAME)
             return _model
         except Exception as exc:
-            logger.error("embeddings.load_failed", error=str(exc))
+            logger.exception("embeddings.load_failed", error=str(exc))
             _failed = True
             return None
 
@@ -74,9 +74,7 @@ def embed_batch(texts: list[str]) -> list[list[float]] | None:
     if model is None:
         return None
     try:
-        vectors = model.encode(
-            texts, normalize_embeddings=True, batch_size=64, show_progress_bar=False
-        )
+        vectors = model.encode(texts, normalize_embeddings=True, batch_size=64, show_progress_bar=False)
         return [[float(x) for x in v] for v in vectors]
     except Exception as exc:
         logger.warning("embeddings.embed_batch_failed", error=str(exc))

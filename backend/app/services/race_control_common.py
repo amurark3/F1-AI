@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import math
 from datetime import datetime, timezone
+import math
 from typing import Any
 
 import fastf1
+from fastf1.ergast import Ergast
 import pandas as pd
 import structlog
-from fastf1.ergast import Ergast
 
 from app.data.f1db_standings import (
     constructor_standings_detailed,
@@ -96,13 +96,7 @@ def normalise_driver_lookup(value: str) -> str:
 
 
 def team_slug(name: str) -> str:
-    return (
-        name.lower()
-        .replace(" racing", "")
-        .replace(" f1 team", "")
-        .replace(" team", "")
-        .replace(" ", "-")
-    )
+    return name.lower().replace(" racing", "").replace(" f1 team", "").replace(" team", "").replace(" ", "-")
 
 
 def team_color(team_name: str) -> str:
@@ -154,14 +148,16 @@ def get_standings_snapshot(year: int) -> tuple[list[dict], list[dict]]:
         driver_data = ergast.get_driver_standings(season=year)
         if driver_data.content:
             for idx, (_, row) in enumerate(driver_data.content[0].iterrows(), start=1):
-                drivers.append({
-                    "position": safe_int(row.get("position", idx), idx),
-                    "code": driver_code_from_row(row),
-                    "driver": driver_full_name(row),
-                    "team": constructor_name_from_row(row),
-                    "points": safe_float(row.get("points", 0)),
-                    "wins": safe_int(row.get("wins", 0)),
-                })
+                drivers.append(
+                    {
+                        "position": safe_int(row.get("position", idx), idx),
+                        "code": driver_code_from_row(row),
+                        "driver": driver_full_name(row),
+                        "team": constructor_name_from_row(row),
+                        "points": safe_float(row.get("points", 0)),
+                        "wins": safe_int(row.get("wins", 0)),
+                    }
+                )
     except Exception as exc:
         logger.warning("race_control.driver_snapshot.failed", year=year, error=str(exc))
 
@@ -169,12 +165,14 @@ def get_standings_snapshot(year: int) -> tuple[list[dict], list[dict]]:
         constructor_data = ergast.get_constructor_standings(season=year)
         if constructor_data.content:
             for idx, (_, row) in enumerate(constructor_data.content[0].iterrows(), start=1):
-                constructors.append({
-                    "position": safe_int(row.get("position", idx), idx),
-                    "team": safe_str(row, "constructorName", "Unknown"),
-                    "points": safe_float(row.get("points", 0)),
-                    "wins": safe_int(row.get("wins", 0)),
-                })
+                constructors.append(
+                    {
+                        "position": safe_int(row.get("position", idx), idx),
+                        "team": safe_str(row, "constructorName", "Unknown"),
+                        "points": safe_float(row.get("points", 0)),
+                        "wins": safe_int(row.get("wins", 0)),
+                    }
+                )
     except Exception as exc:
         logger.warning("race_control.constructor_snapshot.failed", year=year, error=str(exc))
 
@@ -194,16 +192,18 @@ def load_driver_standings(year: int) -> list[dict]:
 
     standings = []
     for idx, (_, row) in enumerate(driver_data.content[0].iterrows(), start=1):
-        standings.append({
-            "code": driver_code_from_row(row),
-            "name": driver_full_name(row),
-            "team": constructor_name_from_row(row),
-            "position": safe_int(row.get("position", idx), idx),
-            "points": safe_float(row.get("points", 0)),
-            "wins": safe_int(row.get("wins", 0)),
-            "nationality": safe_str(row, "driverNationality"),
-            "driver_id": safe_str(row, "driverId"),
-        })
+        standings.append(
+            {
+                "code": driver_code_from_row(row),
+                "name": driver_full_name(row),
+                "team": constructor_name_from_row(row),
+                "position": safe_int(row.get("position", idx), idx),
+                "points": safe_float(row.get("points", 0)),
+                "wins": safe_int(row.get("wins", 0)),
+                "nationality": safe_str(row, "driverNationality"),
+                "driver_id": safe_str(row, "driverId"),
+            }
+        )
     return standings
 
 

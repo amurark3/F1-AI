@@ -19,7 +19,7 @@ router = APIRouter(prefix="/race-control", tags=["race-control"])
 
 
 @router.get("/overview/{year}")
-async def get_overview(year: int):
+async def get_overview(year: int) -> dict:
     try:
         return await asyncio.to_thread(build_overview, year)
     except Exception as exc:
@@ -27,7 +27,7 @@ async def get_overview(year: int):
 
 
 @router.get("/teams/{year}")
-async def get_teams(year: int):
+async def get_teams(year: int) -> dict:
     try:
         return await asyncio.to_thread(build_teams, year)
     except Exception as exc:
@@ -35,17 +35,21 @@ async def get_teams(year: int):
 
 
 @router.get("/teams/{team_slug}/{year}")
-async def get_team(team_slug: str, year: int):
+async def get_team(team_slug: str, year: int) -> dict:
     try:
         teams = await asyncio.to_thread(build_teams, year)
         match = next((team for team in teams["teams"] if team["slug"] == team_slug), None)
         return {"year": year, "team": match, "error": None if match else f"Team '{team_slug}' not found"}
     except Exception as exc:
-        return {"year": year, "team": None, **client_error("api.race_control_team.error", exc, year=year, team=team_slug)}
+        return {
+            "year": year,
+            "team": None,
+            **client_error("api.race_control_team.error", exc, year=year, team=team_slug),
+        }
 
 
 @router.get("/drivers/{year}")
-async def get_drivers(year: int):
+async def get_drivers(year: int) -> dict:
     try:
         return await asyncio.to_thread(get_driver_options, year)
     except Exception as exc:
@@ -53,28 +57,39 @@ async def get_drivers(year: int):
 
 
 @router.get("/forecast/{year}")
-async def get_championship_forecast(year: int):
+async def get_championship_forecast(year: int) -> dict:
     try:
         return await asyncio.to_thread(build_championship_forecast, year)
     except Exception as exc:
-        return {"year": year, "drivers": [], "constructors": [], **client_error("api.race_control_forecast.error", exc, year=year)}
+        return {
+            "year": year,
+            "drivers": [],
+            "constructors": [],
+            **client_error("api.race_control_forecast.error", exc, year=year),
+        }
 
 
 @router.get("/battle/{year}/{driver1}/{driver2}")
-async def get_battle(year: int, driver1: str, driver2: str):
+async def get_battle(year: int, driver1: str, driver2: str) -> dict:
     return build_driver_battle(year, driver1, driver2)
 
 
 @router.get("/debrief/{year}/{round_num}")
-async def get_debrief(year: int, round_num: int):
+async def get_debrief(year: int, round_num: int) -> dict:
     try:
         return await asyncio.to_thread(build_race_debrief, year, round_num)
     except Exception as exc:
-        return {"year": year, "round": round_num, "podium": [], "takeaways": [], **client_error("api.race_control_debrief.error", exc, year=year, round=round_num)}
+        return {
+            "year": year,
+            "round": round_num,
+            "podium": [],
+            "takeaways": [],
+            **client_error("api.race_control_debrief.error", exc, year=year, round=round_num),
+        }
 
 
 @router.post("/rulebook/search")
-async def search_rulebook(request: RulebookSearchRequest):
+async def search_rulebook(request: RulebookSearchRequest) -> dict:
     return {
         "query": request.query,
         "category": request.category or "All",
@@ -84,10 +99,10 @@ async def search_rulebook(request: RulebookSearchRequest):
 
 
 @router.get("/intel/{team_slug}")
-async def get_intel(team_slug: str):
+async def get_intel(team_slug: str) -> dict:
     return build_intel(team_slug)
 
 
 @router.get("/health")
-async def health():
+async def health() -> dict:
     return {"status": "ok", "service": "race-control", "time": datetime.now(timezone.utc).isoformat()}

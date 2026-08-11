@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import structlog
@@ -69,9 +70,7 @@ def build_team_profile(row: dict, roster: list[dict], leader_points: float, comp
             "The strategy read is opportunistic: use race scenarios that can close the championship gap without relying on invented pace data."
         )
     else:
-        tendency = (
-            f"{row['team']} has no constructor points loaded yet. The strategy read stays limited until the standings feed contains scoring data."
-        )
+        tendency = f"{row['team']} has no constructor points loaded yet. The strategy read stays limited until the standings feed contains scoring data."
 
     return {
         "slug": team_slug(row["team"]),
@@ -106,15 +105,17 @@ def build_teams(year: int) -> dict:
     for row in constructors:
         roster = [driver for driver in drivers if driver["team"] == row["team"]]
         profile = build_team_profile(row, roster, leader_points, completed_events)
-        teams.append({
-            **profile,
-            "position": row["position"],
-            "points": row["points"],
-            "wins": row["wins"],
-            "drivers": roster,
-            "recent_form": points_trend(row["points"], min(max(completed_events, 1), 5))[-5:],
-            "pace_profile": profile["standing_profile"],
-        })
+        teams.append(
+            {
+                **profile,
+                "position": row["position"],
+                "points": row["points"],
+                "wins": row["wins"],
+                "drivers": roster,
+                "recent_form": points_trend(row["points"], min(max(completed_events, 1), 5))[-5:],
+                "pace_profile": profile["standing_profile"],
+            }
+        )
 
     if teams:
         return {
@@ -134,6 +135,120 @@ def build_teams(year: int) -> dict:
         "teams": [],
         "error": "Constructor standings are unavailable for this season.",
     }
+
+
+# A constructor within this many points is close enough to act on.
+_CLOSE_RIVAL_POINTS = 25
+
+# Share of a team's points coming from one driver before the concentration is
+# itself a risk.
+_POINTS_CONCENTRATION_RATIO = 0.7
+
+
+@dataclass(frozen=True)
+class IntelContext:
+    """A team's standings position and the constructors either side of it."""
+
+    position: int
+    points: float
+    wins: int
+    leader: dict
+    ahead: dict | None
+    behind: dict | None
+    gap_ahead: float
+    gap_behind: float
+    top_driver: dict | None
+    roster: list[dict]
+
+
+def _intel_context(match: dict, roster: list[dict], constructors: list[dict]) -> IntelContext:
+    """Locate a team in the constructor table alongside its nearest rivals."""
+    position = safe_int(match.get("position", 0))
+    points = safe_float(match.get("points", 0))
+    ahead = constructors[position - 2] if position > 1 and position - 2 < len(constructors) else None
+    behind = constructors[position] if position < len(constructors) else None
+
+    return IntelContext(
+        position=position,
+        points=points,
+        wins=safe_int(match.get("wins", 0)),
+        leader=constructors[0],
+        ahead=ahead,
+        behind=behind,
+        gap_ahead=safe_float(ahead["points"] - points) if ahead else 0,
+        gap_behind=safe_float(points - behind["points"]) if behind else 0,
+        top_driver=max(roster, key=lambda driver: driver.get("points", 0), default=None),
+        roster=roster,
+    )
+
+
+def _intel_evidence(context: IntelContext) -> list[str]:
+    """The standings facts the rest of the intel is reasoned from."""
+    leader_gap = max(0, context.leader["points"] - context.points)
+    evidence = [
+        f"WCC P{context.position} with {format_points_value(context.points)} points.",
+        f"{context.wins} constructor win{'s' if context.wins != 1 else ''} in the standings feed.",
+        f"Leader gap: {format_points_value(leader_gap)} points to {context.leader['team']}.",
+    ]
+    if context.top_driver:
+        evidence.append(
+            f"Top scorer: {context.top_driver['driver']} with {format_points_value(context.top_driver['points'])} points."
+        )
+    if context.ahead:
+        evidence.append(
+            f"Next target ahead: {context.ahead['team']} by {format_points_value(context.gap_ahead)} points."
+        )
+    if context.behind:
+        evidence.append(
+            f"Nearest pressure behind: {context.behind['team']} by {format_points_value(context.gap_behind)} points."
+        )
+    return evidence
+
+
+def _intel_threats(context: IntelContext) -> list[str]:
+    """What could cost this team places, with an explicit note when nothing does."""
+    threats = []
+    if context.ahead and context.gap_ahead <= _CLOSE_RIVAL_POINTS:
+        threats.append(
+            f"{context.ahead['team']} is within {format_points_value(context.gap_ahead)} points ahead; covering them can matter immediately."
+        )
+    if context.behind and context.gap_behind <= _CLOSE_RIVAL_POINTS:
+        threats.append(
+            f"{context.behind['team']} is only {format_points_value(context.gap_behind)} points behind; one race swing can change the order."
+        )
+    if (
+        context.top_driver
+        and context.points
+        and (safe_float(context.top_driver["points"]) / context.points) >= _POINTS_CONCENTRATION_RATIO
+    ):
+        threats.append(
+            f"Points are concentrated through {context.top_driver['driver']}; losing that car has high constructor impact."
+        )
+    if not threats:
+        threats.append("No close constructor-table threat is visible from current standings alone.")
+    return threats
+
+
+def _intel_opportunities(context: IntelContext) -> list[str]:
+    """Where this team's position gives it something to play for."""
+    opportunities = []
+    if context.ahead:
+        opportunities.append(
+            f"Close the gap to {context.ahead['team']} by targeting points swings above {format_points_value(context.gap_ahead)}."
+        )
+    if context.behind:
+        opportunities.append(
+            f"Protect against {context.behind['team']} by prioritising finishes that keep the gap above {format_points_value(context.gap_behind)}."
+        )
+    if len(context.roster) > 1:
+        opportunities.append(
+            "Use both cars in scenario planning because the roster has multiple classified points sources."
+        )
+    if context.position == 1:
+        opportunities.append(
+            "Leader control: minimise low-probability strategy branches when direct rivals are behind."
+        )
+    return opportunities
 
 
 def build_intel(team_slug_value: str, year: int | None = None) -> dict:
@@ -169,49 +284,7 @@ def build_intel(team_slug_value: str, year: int | None = None) -> dict:
     leader_points = constructors[0]["points"] if constructors else 0
     completed_events = completed_race_count(resolved_year) or 0
     profile = build_team_profile(match, roster, leader_points, completed_events)
-    position = safe_int(match.get("position", 0))
-    points = safe_float(match.get("points", 0))
-    wins = safe_int(match.get("wins", 0))
-    leader = constructors[0]
-    ahead = constructors[position - 2] if position > 1 and position - 2 < len(constructors) else None
-    behind = constructors[position] if position < len(constructors) else None
-    gap_ahead = safe_float(ahead["points"] - points) if ahead else 0
-    gap_behind = safe_float(points - behind["points"]) if behind else 0
-    top_driver = max(roster, key=lambda driver: driver.get("points", 0), default=None)
-
-    evidence = [
-        f"WCC P{position} with {format_points_value(points)} points.",
-        f"{wins} constructor win{'s' if wins != 1 else ''} in the standings feed.",
-        f"Leader gap: {format_points_value(max(0, leader['points'] - points))} points to {leader['team']}.",
-    ]
-    if top_driver:
-        evidence.append(
-            f"Top scorer: {top_driver['driver']} with {format_points_value(top_driver['points'])} points."
-        )
-    if ahead:
-        evidence.append(f"Next target ahead: {ahead['team']} by {format_points_value(gap_ahead)} points.")
-    if behind:
-        evidence.append(f"Nearest pressure behind: {behind['team']} by {format_points_value(gap_behind)} points.")
-
-    threats = []
-    if ahead and gap_ahead <= 25:
-        threats.append(f"{ahead['team']} is within {format_points_value(gap_ahead)} points ahead; covering them can matter immediately.")
-    if behind and gap_behind <= 25:
-        threats.append(f"{behind['team']} is only {format_points_value(gap_behind)} points behind; one race swing can change the order.")
-    if top_driver and points and (safe_float(top_driver["points"]) / points) >= 0.7:
-        threats.append(f"Points are concentrated through {top_driver['driver']}; losing that car has high constructor impact.")
-    if not threats:
-        threats.append("No close constructor-table threat is visible from current standings alone.")
-
-    opportunities = []
-    if ahead:
-        opportunities.append(f"Close the gap to {ahead['team']} by targeting points swings above {format_points_value(gap_ahead)}.")
-    if behind:
-        opportunities.append(f"Protect against {behind['team']} by prioritising finishes that keep the gap above {format_points_value(gap_behind)}.")
-    if roster and len(roster) > 1:
-        opportunities.append("Use both cars in scenario planning because the roster has multiple classified points sources.")
-    if position == 1:
-        opportunities.append("Leader control: minimise low-probability strategy branches when direct rivals are behind.")
+    context = _intel_context(match, roster, constructors)
 
     return {
         "year": resolved_year,
@@ -219,8 +292,8 @@ def build_intel(team_slug_value: str, year: int | None = None) -> dict:
         "status": "ok",
         "team": profile,
         "drivers": roster,
-        "upgrade_watch": evidence,
-        "threats": threats,
-        "opportunities": opportunities,
+        "upgrade_watch": _intel_evidence(context),
+        "threats": _intel_threats(context),
+        "opportunities": _intel_opportunities(context),
         "error": None,
     }

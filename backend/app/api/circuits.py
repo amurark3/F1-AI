@@ -341,7 +341,7 @@ def get_circuit_info(location: str) -> dict | None:
     """
     if location in CIRCUIT_DATA:
         return CIRCUIT_DATA[location]
-    city = location.split(",")[0].strip()
+    city = location.split(",", maxsplit=1)[0].strip()
     return CIRCUIT_DATA.get(city)
 
 
@@ -351,7 +351,7 @@ def get_circuit_gps(location: str) -> tuple[float, float] | None:
     if data and "lat" in data and "lon" in data:
         return (data["lat"], data["lon"])
     # Try city-part fallback
-    city = location.split(",")[0].strip()
+    city = location.split(",", maxsplit=1)[0].strip()
     data = CIRCUIT_DATA.get(city)
     if data and "lat" in data and "lon" in data:
         return (data["lat"], data["lon"])

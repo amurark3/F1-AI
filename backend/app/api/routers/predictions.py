@@ -2,19 +2,19 @@
 
 import asyncio
 
-import structlog
 from fastapi import APIRouter, Query
+import structlog
 
 from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
 from app.data.predictions import get_prediction_review
+from app.services.prediction_cache import prediction_snapshot_cache
 from app.services.predictions import (
     compute_and_store_race_prediction,
     enrich_prediction_result,
     get_cached_race_prediction,
     get_or_compute_race_prediction,
 )
-from app.services.prediction_cache import prediction_snapshot_cache
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["predictions"])
@@ -72,13 +72,15 @@ async def _with_scored_review(result: dict) -> dict:
     except Exception as exc:
         logger.warning(
             "api.predictions.review_refresh_failed",
-            year=year, round=round_num, error=str(exc),
+            year=year,
+            round=round_num,
+            error=str(exc),
         )
         return result
 
 
 @router.get("/predictions/{year}/{round_num}")
-async def get_predictions(year: int, round_num: int):
+async def get_predictions(year: int, round_num: int) -> dict:
     """Returns structured race predictions for existing web and mobile clients.
 
     This legacy route computes on a cache miss for backwards compatibility.
@@ -102,15 +104,25 @@ async def get_predictions(year: int, round_num: int):
             )
         except asyncio.TimeoutError:
             logger.warning("api.predictions.timeout", year=year, round=round_num)
-            return {"year": year, "round": round_num, "predictions": [], "error": "Prediction data source timed out. Try again shortly."}
+            return {
+                "year": year,
+                "round": round_num,
+                "predictions": [],
+                "error": "Prediction data source timed out. Try again shortly.",
+            }
         except Exception as exc:
-            return {"year": year, "round": round_num, "predictions": [], **client_error("api.predictions.error", exc, year=year, round=round_num)}
+            return {
+                "year": year,
+                "round": round_num,
+                "predictions": [],
+                **client_error("api.predictions.error", exc, year=year, round=round_num),
+            }
 
         return result
 
 
 @router.get("/predictions/{year}/{round_num}/snapshot")
-async def get_prediction_snapshot(year: int, round_num: int):
+async def get_prediction_snapshot(year: int, round_num: int) -> dict:
     """Return a stored prediction snapshot without generating a new one."""
 
     cached = get_cached_race_prediction(year, round_num)
@@ -127,7 +139,7 @@ async def get_prediction_snapshot(year: int, round_num: int):
 
 
 @router.get("/predictions/{year}/{round_num}/postmortem")
-async def get_prediction_postmortem(year: int, round_num: int):
+async def get_prediction_postmortem(year: int, round_num: int) -> dict:
     """Return the LLM post-mortem for a completed race, generating it on demand."""
     from app.services.self_improvement import generate_miss_postmortem, get_postmortem
 
@@ -151,7 +163,7 @@ async def compute_predictions(
     year: int,
     round_num: int,
     reason: str = Query("manual_compute"),
-):
+) -> dict:
     """Compute and store a fresh prediction snapshot on explicit request."""
 
     cache_key = (year, round_num)
@@ -166,8 +178,20 @@ async def compute_predictions(
             )
         except asyncio.TimeoutError:
             logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason)
-            return {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], "error": "Prediction data source timed out. Try again shortly."}
+            return {
+                "year": year,
+                "round": round_num,
+                "predictions": [],
+                "risk_predictions": [],
+                "error": "Prediction data source timed out. Try again shortly.",
+            }
         except Exception as exc:
-            return {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason)}
+            return {
+                "year": year,
+                "round": round_num,
+                "predictions": [],
+                "risk_predictions": [],
+                **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason),
+            }
 
         return result

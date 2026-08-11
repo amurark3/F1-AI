@@ -43,24 +43,20 @@ class FeatureContribution:
 
     feature: str
     label: str
-    value: float          # raw (pre-scaling) feature value
-    contribution: float   # signed, in finishing-position units (negative = helps)
+    value: float  # raw (pre-scaling) feature value
+    contribution: float  # signed, in finishing-position units (negative = helps)
 
 
-def _unwrap(model) -> tuple[object | None, object]:
+def _unwrap(model: object) -> tuple[object | None, object]:
     """Return (scaler_or_None, final_estimator) from a pipeline or bare estimator."""
     if hasattr(model, "named_steps"):
         steps = list(model.named_steps.values())
-        scaler = next(
-            (s for s in steps if hasattr(s, "mean_") and hasattr(s, "scale_")), None
-        )
+        scaler = next((s for s in steps if hasattr(s, "mean_") and hasattr(s, "scale_")), None)
         return scaler, steps[-1]
     return None, model
 
 
-def explain_prediction(
-    payload: dict, features: dict[str, float]
-) -> list[FeatureContribution] | None:
+def explain_prediction(payload: dict, features: dict[str, float]) -> list[FeatureContribution] | None:
     """Decompose one prediction into exact per-feature contributions.
 
     Returns contributions sorted by absolute impact (strongest first), or
@@ -112,9 +108,7 @@ def attribution_dicts(contributions: list[FeatureContribution]) -> list[dict]:
     ]
 
 
-def attribution_phrases(
-    contributions: list[FeatureContribution], top_n: int = 2
-) -> list[str]:
+def attribution_phrases(contributions: list[FeatureContribution], top_n: int = 2) -> list[str]:
     """Turn the strongest contributions into short human phrases.
 
     Skips near-zero contributions.  Phrases read from the driver's point of

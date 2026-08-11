@@ -2,11 +2,11 @@
 
 from datetime import datetime, timezone
 
+from fastapi import APIRouter
 import fastf1
+from fastf1.ergast import Ergast
 import pandas as pd
 import structlog
-from fastapi import APIRouter
-from fastf1.ergast import Ergast
 
 from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
@@ -21,7 +21,7 @@ router = APIRouter(tags=["season"])
 
 
 @router.get("/schedule/{year}")
-async def get_schedule(year: int):
+async def get_schedule(year: int) -> list[dict] | dict:
     """Returns the full season schedule for `year` with UTC timestamps."""
 
     try:
@@ -31,7 +31,7 @@ async def get_schedule(year: int):
         return client_error("api.schedule.error", exc, year=year)
 
 
-def build_schedule_event(row) -> dict:
+def build_schedule_event(row: pd.Series) -> dict:
     event_date = row["EventDate"].isoformat()
     if not event_date.endswith("Z") and "+" not in event_date:
         event_date += "Z"
@@ -74,7 +74,7 @@ def build_schedule_event(row) -> dict:
 
 
 @router.get("/standings/drivers/{year}")
-async def get_driver_standings(year: int):
+async def get_driver_standings(year: int) -> list[dict]:
     """Returns World Drivers' Championship standings for `year`."""
 
     # f1db first — no rate limits and carries the current season; Ergast fallback.
@@ -98,11 +98,11 @@ async def get_driver_standings(year: int):
             return [build_driver_standing(row, idx) for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)]
         return build_zero_point_driver_standings(ergast, year)
     except Exception as exc:
-        logger.error("api.driver_standings.error", error=str(exc))
+        logger.exception("api.driver_standings.error", error=str(exc))
         return []
 
 
-def build_driver_standing(row, fallback_position: int) -> dict:
+def build_driver_standing(row: pd.Series, fallback_position: int) -> dict:
     has_position = "position" in row and not (isinstance(row["position"], float) and pd.isna(row["position"]))
     team_name = "Unknown"
     if "constructorName" in row:
@@ -130,19 +130,21 @@ def build_zero_point_driver_standings(ergast: Ergast, year: int) -> list[dict]:
     for _, constructor in constructors.iterrows():
         drivers = ergast.get_driver_info(season=year, constructor=constructor["constructorId"])
         for _, driver in drivers.iterrows():
-            results.append({
-                "position": position,
-                "driver": f"{safe_str(driver, 'givenName')} {safe_str(driver, 'familyName')}".strip(),
-                "team": constructor["constructorName"],
-                "points": 0.0,
-                "wins": 0,
-            })
+            results.append(
+                {
+                    "position": position,
+                    "driver": f"{safe_str(driver, 'givenName')} {safe_str(driver, 'familyName')}".strip(),
+                    "team": constructor["constructorName"],
+                    "points": 0.0,
+                    "wins": 0,
+                }
+            )
             position += 1
     return results
 
 
 @router.get("/standings/constructors/{year}")
-async def get_constructor_standings(year: int):
+async def get_constructor_standings(year: int) -> list[dict]:
     """Returns World Constructors' Championship standings for `year`."""
 
     # f1db first — no rate limits and carries the current season; Ergast fallback.
@@ -162,14 +164,16 @@ async def get_constructor_standings(year: int):
         ergast = Ergast()
         data = ergast.get_constructor_standings(season=year)
         if data.content:
-            return [build_constructor_standing(row, idx) for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)]
+            return [
+                build_constructor_standing(row, idx) for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)
+            ]
         return build_zero_point_constructor_standings(ergast, year)
     except Exception as exc:
-        logger.error("api.constructor_standings.error", error=str(exc))
+        logger.exception("api.constructor_standings.error", error=str(exc))
         return []
 
 
-def build_constructor_standing(row, fallback_position: int) -> dict:
+def build_constructor_standing(row: pd.Series, fallback_position: int) -> dict:
     has_position = "position" in row and not (isinstance(row["position"], float) and pd.isna(row["position"]))
     return {
         "position": safe_int(row["position"]) if has_position else fallback_position,

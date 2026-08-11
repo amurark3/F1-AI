@@ -19,14 +19,17 @@ half-updated record and never need to copy defensively.
 from __future__ import annotations
 
 import asyncio
-import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable
+import threading
+from typing import TYPE_CHECKING
 
 import structlog
 
 from app.config import WARMUP_STEP_TIMEOUT_SECONDS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = structlog.get_logger()
 
@@ -183,12 +186,10 @@ async def run_warmup(steps: tuple[WarmupStep, ...] = WARMUP_STEPS) -> ReadinessS
             logger.info("warmup.step_done", stage=step.stage)
         except asyncio.TimeoutError:
             first_error = first_error or f"{step.stage} timed out"
-            logger.warning(
-                "warmup.step_timeout", stage=step.stage, timeout=WARMUP_STEP_TIMEOUT_SECONDS
-            )
+            logger.warning("warmup.step_timeout", stage=step.stage, timeout=WARMUP_STEP_TIMEOUT_SECONDS)
         except Exception as exc:
             first_error = first_error or f"{step.stage} failed: {exc}"
-            logger.error("warmup.step_failed", stage=step.stage, error=str(exc))
+            logger.exception("warmup.step_failed", stage=step.stage, error=str(exc))
 
     final = ReadinessState(
         ready=True,

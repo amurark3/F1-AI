@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -15,7 +17,34 @@ from app.services.race_control_common import (
 )
 from app.services.race_control_debriefs import load_race_classification
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 logger = structlog.get_logger()
+
+
+@dataclass(frozen=True)
+class SeasonProgress:
+    """Where the season stands, counted in events.
+
+    ``loaded_recent`` is separate from ``completed`` because form is computed
+    only over the races whose classification could actually be loaded, which is
+    usually fewer than the races that have been run.
+    """
+
+    completed: int
+    loaded_recent: int
+    remaining: int
+
+
+@dataclass(frozen=True)
+class EntrantAccessors:
+    """How to read a standings row — drivers and constructors key differently."""
+
+    key: Callable[[dict], str]
+    name: Callable[[dict], str]
+    team: Callable[[dict], str]
+    type_label: str
 
 
 def build_championship_forecast(year: int) -> dict:
@@ -44,27 +73,32 @@ def build_championship_forecast(year: int) -> dict:
             recent_driver_points[str(row.get("driver", "")).upper()] += points
             recent_constructor_points[str(row.get("team", "Unknown"))] += points
 
+    progress = SeasonProgress(
+        completed=completed_events,
+        loaded_recent=loaded_recent_events,
+        remaining=remaining_events,
+    )
     driver_rows = forecast_rows(
         entries=drivers,
         recent_points=recent_driver_points,
-        completed_events=completed_events,
-        loaded_recent_events=loaded_recent_events,
-        remaining_events=remaining_events,
-        key_getter=lambda row: row["code"],
-        name_getter=lambda row: row["driver"],
-        team_getter=lambda row: row["team"],
-        type_label="driver",
+        progress=progress,
+        accessors=EntrantAccessors(
+            key=lambda row: row["code"],
+            name=lambda row: row["driver"],
+            team=lambda row: row["team"],
+            type_label="driver",
+        ),
     )
     constructor_rows = forecast_rows(
         entries=constructors,
         recent_points=recent_constructor_points,
-        completed_events=completed_events,
-        loaded_recent_events=loaded_recent_events,
-        remaining_events=remaining_events,
-        key_getter=lambda row: row["team"],
-        name_getter=lambda row: row["team"],
-        team_getter=lambda row: row["team"],
-        type_label="constructor",
+        progress=progress,
+        accessors=EntrantAccessors(
+            key=lambda row: row["team"],
+            name=lambda row: row["team"],
+            team=lambda row: row["team"],
+            type_label="constructor",
+        ),
     )
 
     return {
@@ -85,51 +119,50 @@ def build_championship_forecast(year: int) -> dict:
     }
 
 
+def _trend_label(trend_delta: float) -> str:
+    """Whether recent form is running ahead of, behind, or level with the season."""
+    if trend_delta > 1.5:
+        return "Gaining"
+    if trend_delta < -1.5:
+        return "Sliding"
+    return "Holding"
+
+
 def forecast_rows(
     entries: list[dict],
     recent_points: dict[str, float],
-    completed_events: int,
-    loaded_recent_events: int,
-    remaining_events: int,
-    key_getter,
-    name_getter,
-    team_getter,
-    type_label: str,
+    progress: SeasonProgress,
+    accessors: EntrantAccessors,
 ) -> list[dict]:
-    base_events = max(completed_events, 1)
-    recent_events = max(loaded_recent_events, 1)
+    base_events = max(progress.completed, 1)
+    recent_events = max(progress.loaded_recent, 1)
     rows = []
 
     for entry in entries:
-        key = str(key_getter(entry)).upper() if type_label == "driver" else str(key_getter(entry))
+        raw_key = str(accessors.key(entry))
+        key = raw_key.upper() if accessors.type_label == "driver" else raw_key
         current_points = safe_float(entry.get("points", 0))
         season_rate = current_points / base_events
-        recent_rate = recent_points.get(key, 0) / recent_events if loaded_recent_events else season_rate
+        recent_rate = recent_points.get(key, 0) / recent_events if progress.loaded_recent else season_rate
         form_rate = (recent_rate * 0.62) + (season_rate * 0.38)
-        projected_points = current_points + form_rate * remaining_events
-        trend_delta = recent_rate - season_rate
+        projected_points = current_points + form_rate * progress.remaining
 
-        if trend_delta > 1.5:
-            trend = "Gaining"
-        elif trend_delta < -1.5:
-            trend = "Sliding"
-        else:
-            trend = "Holding"
-
-        rows.append({
-            "key": key,
-            "code": entry.get("code"),
-            "name": name_getter(entry),
-            "team": team_getter(entry),
-            "current_position": safe_int(entry.get("position")),
-            "current_points": round(current_points, 1),
-            "wins": safe_int(entry.get("wins", 0)),
-            "season_points_per_event": round(season_rate, 2),
-            "recent_points_per_event": round(recent_rate, 2),
-            "projected_points": round(projected_points, 1),
-            "trend": trend,
-            "confidence": "Medium" if loaded_recent_events >= 3 else "Low",
-        })
+        rows.append(
+            {
+                "key": key,
+                "code": entry.get("code"),
+                "name": accessors.name(entry),
+                "team": accessors.team(entry),
+                "current_position": safe_int(entry.get("position")),
+                "current_points": round(current_points, 1),
+                "wins": safe_int(entry.get("wins", 0)),
+                "season_points_per_event": round(season_rate, 2),
+                "recent_points_per_event": round(recent_rate, 2),
+                "projected_points": round(projected_points, 1),
+                "trend": _trend_label(recent_rate - season_rate),
+                "confidence": "Medium" if progress.loaded_recent >= 3 else "Low",
+            }
+        )
 
     rows.sort(key=lambda row: (-row["projected_points"], row["current_position"]))
     for index, row in enumerate(rows, start=1):

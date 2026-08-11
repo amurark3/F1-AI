@@ -84,12 +84,10 @@ def validate_query(sql: str) -> str:
     if ";" in cleaned:
         raise QueryValidationError("Only a single statement is allowed (no ';').")
     lowered = cleaned.lower()
-    if not (lowered.startswith("select") or lowered.startswith("with")):
+    if not (lowered.startswith(("select", "with"))):
         raise QueryValidationError("Only SELECT or WITH (CTE) queries are allowed.")
     if _FORBIDDEN.search(cleaned):
-        raise QueryValidationError(
-            "Query contains a forbidden keyword. Only read-only SELECT is permitted."
-        )
+        raise QueryValidationError("Query contains a forbidden keyword. Only read-only SELECT is permitted.")
     return cleaned
 
 

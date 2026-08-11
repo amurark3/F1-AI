@@ -96,9 +96,7 @@ class StoreHealth:
             "host_kind": self.host_kind,
             "pending_documents": list(self.pending_documents),
             "checked_seconds_ago": (
-                round(self.checked_seconds_ago, 1)
-                if self.checked_seconds_ago is not None
-                else None
+                round(self.checked_seconds_ago, 1) if self.checked_seconds_ago is not None else None
             ),
         }
 

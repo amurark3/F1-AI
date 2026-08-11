@@ -15,8 +15,9 @@ Third-party library noise (httpx, chromadb, sentence_transformers) is
 silenced to WARNING level so application logs stay readable.
 """
 
-import os
 import logging
+import os
+
 import structlog
 
 
@@ -36,12 +37,9 @@ def setup_logging() -> None:
         structlog.processors.UnicodeDecoder(),
     ]
 
-    if is_production:
-        # JSON lines for machine parsing
-        renderer = structlog.processors.JSONRenderer()
-    else:
-        # Pretty colored console output for local development
-        renderer = structlog.dev.ConsoleRenderer()
+    # JSON lines for machine parsing in production, pretty colored console
+    # output for local development.
+    renderer = structlog.processors.JSONRenderer() if is_production else structlog.dev.ConsoleRenderer()
 
     structlog.configure(
         processors=[

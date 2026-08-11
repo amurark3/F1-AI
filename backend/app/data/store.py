@@ -19,11 +19,17 @@ instead and retried on the next write, so a transient outage self-heals.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import psycopg
+
+import contextlib
 import json
 import os
+from pathlib import Path
 import threading
 import time
-from pathlib import Path
 
 import structlog
 
@@ -57,11 +63,12 @@ HOST_OTHER = "other"
 
 # Client-safe classification of a connection failure. Each maps to a distinct
 # operator action, which is the whole point of separating them.
-REASON_DNS = "dns_unresolved"          # host does not resolve — wrong name, or
-                                       # IPv6-only host on an IPv4-only network
+# DNS: host does not resolve — wrong name, or an IPv6-only host on an
+# IPv4-only network.
+REASON_DNS = "dns_unresolved"
 REASON_REFUSED = "connection_refused"  # resolved, nothing listening — wrong port
-REASON_AUTH = "auth_failed"            # reached it, credentials rejected
-REASON_TIMEOUT = "timeout"             # no answer — firewall or egress block
+REASON_AUTH = "auth_failed"  # reached it, credentials rejected
+REASON_TIMEOUT = "timeout"  # no answer — firewall or egress block
 REASON_TLS = "tls_error"
 REASON_UNKNOWN = "unknown"
 
@@ -120,6 +127,7 @@ def classify_host(dsn: str) -> str:
     if host.startswith("db.") and host.endswith(".supabase.co"):
         return HOST_SUPABASE_DIRECT
     return HOST_OTHER
+
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS app_documents (
@@ -185,17 +193,15 @@ class FileDocumentStore:
         tmp_path = path.with_suffix(f"{path.suffix}.tmp")
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path.write_text(
-                json.dumps(payload, indent=2, default=_json_default), encoding="utf-8"
-            )
+            tmp_path.write_text(json.dumps(payload, indent=2, default=_json_default), encoding="utf-8")
             tmp_path.replace(path)  # Atomic on POSIX
             return WriteResult()
         except OSError as exc:
             logger.warning("store.file_write_failed", document=name, error=str(exc))
-            try:
+            # Best-effort cleanup of the temp file; the write already failed and
+            # is reported below, so a failure to unlink adds nothing actionable.
+            with contextlib.suppress(OSError):
                 tmp_path.unlink(missing_ok=True)
-            except OSError:
-                pass
             return WriteResult(ok=False, durable=False, error=str(exc))
 
     def health(self) -> StoreHealth:
@@ -206,8 +212,12 @@ class FileDocumentStore:
             checked_seconds_ago=0.0,
         )
 
-    def ping(self, max_age_seconds: float = 0.0) -> StoreHealth:
-        """The local filesystem is always reachable; nothing to probe."""
+    def ping(self, _max_age_seconds: float = 0.0) -> StoreHealth:
+        """The local filesystem is always reachable; nothing to probe.
+
+        The cache window the Postgres backend honours is meaningless here, so
+        the parameter exists only to satisfy the ``DocumentStore`` protocol.
+        """
         return self.health()
 
 
@@ -240,12 +250,12 @@ class PostgresDocumentStore:
         import psycopg  # noqa: F401
 
     # -- connection helpers -------------------------------------------------
-    def _connect(self):
+    def _connect(self) -> psycopg.Connection:
         import psycopg
 
         return psycopg.connect(self._dsn, autocommit=True)
 
-    def _ensure_schema(self, conn) -> None:
+    def _ensure_schema(self, conn: psycopg.Connection) -> None:
         if self._schema_ready:
             return
         with self._lock:
@@ -271,7 +281,7 @@ class PostgresDocumentStore:
         return error_id
 
     @staticmethod
-    def _upsert(conn, name: str, payload: dict) -> None:
+    def _upsert(conn: psycopg.Connection, name: str, payload: dict) -> None:
         from psycopg.types.json import Jsonb
 
         conn.execute(
@@ -289,14 +299,10 @@ class PostgresDocumentStore:
         try:
             with self._connect() as conn:
                 self._ensure_schema(conn)
-                row = conn.execute(
-                    "SELECT payload FROM app_documents WHERE name = %s", (name,)
-                ).fetchone()
+                row = conn.execute("SELECT payload FROM app_documents WHERE name = %s", (name,)).fetchone()
         except Exception as exc:
             error_id = self._record_outcome(False, str(exc))
-            logger.error(
-                "store.pg_read_failed", document=name, error=str(exc), error_id=error_id
-            )
+            logger.exception("store.pg_read_failed", document=name, error=str(exc), error_id=error_id)
             return ReadResult(ok=False, error=str(exc))
 
         self._record_outcome(True)
@@ -326,7 +332,7 @@ class PostgresDocumentStore:
             with self._lock:
                 self._pending[name] = payload
             error_id = self._record_outcome(False, str(exc))
-            logger.error(
+            logger.exception(
                 "store.pg_write_failed_queued_for_retry",
                 document=name,
                 error=str(exc),
@@ -340,11 +346,7 @@ class PostgresDocumentStore:
     def health(self) -> StoreHealth:
         """Report the last observed outcome. Opens no connection."""
         with self._lock:
-            age = (
-                time.monotonic() - self._last_checked
-                if self._last_checked is not None
-                else None
-            )
+            age = time.monotonic() - self._last_checked if self._last_checked is not None else None
             return StoreHealth(
                 backend=BACKEND_POSTGRES,
                 ok=self._last_ok,
@@ -377,7 +379,7 @@ class PostgresDocumentStore:
                 conn.execute("SELECT 1").fetchone()
         except Exception as exc:
             error_id = self._record_outcome(False, str(exc))
-            logger.error("store.pg_ping_failed", error=str(exc), error_id=error_id)
+            logger.exception("store.pg_ping_failed", error=str(exc), error_id=error_id)
         else:
             self._record_outcome(True)
         return self.health()
@@ -425,7 +427,7 @@ def _build_store() -> DocumentStore:
             logger.info("store.backend_selected", backend=BACKEND_POSTGRES)
             return store
         except Exception as exc:
-            logger.error("store.postgres_unavailable_using_file", error=str(exc))
+            logger.exception("store.postgres_unavailable_using_file", error=str(exc))
     else:
         logger.info("store.backend_selected", backend=BACKEND_FILE)
     return FileDocumentStore()

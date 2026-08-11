@@ -13,11 +13,11 @@ prompt/model changes can't silently regress.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
-import time
 
-import structlog
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+import structlog
 
 from app.api.routers.chat import (
     MAX_AGENT_TURNS,
@@ -86,7 +86,7 @@ async def run_evals(items: list[GoldenQA] | None = None) -> dict:
         result = await _evaluate_one(item)
         results.append(result)
         logger.info("evals.item_scored", id=result["id"], score=result["score"])
-        time.sleep(1)  # be gentle on the free-tier rate limit
+        await asyncio.sleep(1)  # be gentle on the free-tier rate limit
     mean = round(sum(r["score"] for r in results) / len(results), 3) if results else 0.0
     return {"mean_score": mean, "n": len(results), "results": results}
 
@@ -94,10 +94,9 @@ async def run_evals(items: list[GoldenQA] | None = None) -> dict:
 def main() -> None:
     gate = DEFAULT_GATE
     if "--gate" in sys.argv:
-        try:
+        # A malformed or missing --gate value falls back to DEFAULT_GATE.
+        with contextlib.suppress(IndexError, ValueError):
             gate = float(sys.argv[sys.argv.index("--gate") + 1])
-        except (IndexError, ValueError):
-            pass
 
     report = asyncio.run(run_evals())
 

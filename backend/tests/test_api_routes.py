@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.api import routes
+from tests.route_paths import mounted_http_methods, mounted_paths
 
 # Every feature the frontend depends on, keyed by a representative path. A
 # router dropped from the assembly makes exactly one of these disappear.
@@ -45,7 +46,7 @@ EXPECTED_PATHS = {
 
 
 def _mounted_paths() -> set[str]:
-    return {route.path for route in routes.router.routes}
+    return mounted_paths(routes.router.routes)
 
 
 @pytest.mark.unit
@@ -56,9 +57,9 @@ def test_every_feature_router_is_mounted(path):
 
 @pytest.mark.unit
 def test_the_live_timing_websocket_is_mounted():
-    # WebSocket routes do not appear alongside HTTP ones in every FastAPI
-    # version, so this is matched by prefix rather than exact path.
-    assert any(route.path.startswith("/live") for route in routes.router.routes)
+    # Matched by prefix rather than exact path: the session parameter in the
+    # WebSocket path is free to change without this becoming a false failure.
+    assert any(path.startswith("/live") for path in _mounted_paths())
 
 
 @pytest.mark.unit
@@ -136,13 +137,8 @@ def test_importing_the_module_enables_the_fastf1_cache():
 
 @pytest.mark.unit
 def test_no_duplicate_paths_are_mounted():
-    # Two routers claiming one path means the second is unreachable.
-    http_paths = [route.path for route in routes.router.routes if hasattr(route, "methods")]
-    duplicates = {
-        path
-        for path in http_paths
-        if sum(1 for route in routes.router.routes if hasattr(route, "methods") and route.path == path)
-        > len({m for route in routes.router.routes if getattr(route, "path", None) == path for m in route.methods})
-    }
+    # Two routers claiming one path+method means the second is unreachable.
+    registrations = mounted_http_methods(routes.router.routes)
+    duplicates = {pair for pair in registrations if registrations.count(pair) > 1}
 
     assert duplicates == set(), f"paths mounted more than once for the same method: {duplicates}"

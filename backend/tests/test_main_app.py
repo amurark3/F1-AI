@@ -32,6 +32,8 @@ import pandas as pd
 import pytest
 import structlog
 
+from tests.route_paths import mounted_paths
+
 # `load_dotenv()` at main's module scope repopulates the credentials conftest
 # cleared. Restore the environment byte for byte the moment the import returns.
 _ENV_BEFORE_IMPORT = dict(os.environ)
@@ -372,7 +374,7 @@ def test_root_answers_a_health_probe():
 )
 def test_the_api_router_is_mounted_under_the_api_prefix(path):
     # An unprefixed mount would 404 every frontend call while the app booted fine.
-    assert path in {route.path for route in main.app.routes}
+    assert path in mounted_paths(main.app.routes)
 
 
 @pytest.mark.integration

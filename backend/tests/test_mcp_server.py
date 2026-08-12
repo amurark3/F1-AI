@@ -864,11 +864,23 @@ class _Chroma:
         return _Retriever(self._docs)
 
 
+def _redirect_data_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Any, *, with_chroma: bool) -> None:
+    """Point the tool's ``data/chroma`` lookup at ``tmp_path``.
+
+    Every rulebook test must do this, including the ones that never get as far as
+    querying. ``backend/data/chroma/`` is a gitignored leftover from before the
+    pgvector migration: on a developer machine that still has one, a test that
+    skips this redirect silently takes the "database present" branch and then
+    fails on CI, where the directory does not exist.
+    """
+    if with_chroma:
+        (tmp_path / "data" / "chroma").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(mcp_server.os.path, "dirname", lambda _path: str(tmp_path))
+
+
 def _install_chroma(monkeypatch: pytest.MonkeyPatch, tmp_path: Any, docs: list[_Doc]) -> None:
     """Point the tool at an existing dir and stub the two LangChain imports."""
-    chroma_dir = tmp_path / "data" / "chroma"
-    chroma_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(mcp_server.os.path, "dirname", lambda _path: str(tmp_path))
+    _redirect_data_dir(monkeypatch, tmp_path, with_chroma=True)
     monkeypatch.setitem(
         sys.modules, "langchain_chroma", _fake_module("langchain_chroma", Chroma=lambda **kw: _Chroma(docs))
     )
@@ -883,7 +895,7 @@ def test_consult_rulebook_returns_the_setup_hint_when_the_database_is_absent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     """The state of a clean checkout — chroma/ is gitignored as obsolete."""
-    monkeypatch.setattr(mcp_server.os.path, "dirname", lambda _path: str(tmp_path))
+    _redirect_data_dir(monkeypatch, tmp_path, with_chroma=False)
     monkeypatch.setitem(sys.modules, "langchain_chroma", _fake_module("langchain_chroma", Chroma=lambda **kw: None))
     monkeypatch.setitem(
         sys.modules,
@@ -951,7 +963,10 @@ def test_consult_rulebook_defaults_to_the_regulation_year_in_force(
     assert _Chroma.last_kwargs["filter"] == {"source_year": expected_year}
 
 
-def test_consult_rulebook_returns_the_error_as_text(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_consult_rulebook_returns_the_error_as_text(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    """The database has to exist for the query to be reached and to fail."""
+    _redirect_data_dir(monkeypatch, tmp_path, with_chroma=True)
+
     def _boom(**kwargs: Any) -> None:
         raise RuntimeError("embeddings unavailable")
 
@@ -1016,8 +1031,7 @@ def test_health_check_reports_every_dependency_as_ok_when_all_are_reachable(
 ) -> None:
     _install_schedule(monkeypatch, pd.DataFrame({"RoundNumber": [1]}))
     _install_ergast(monkeypatch, _FakeErgast(driver_standings=_ErgastResponse([])))
-    (tmp_path / "data" / "chroma").mkdir(parents=True)
-    monkeypatch.setattr(mcp_server.os.path, "dirname", lambda _path: str(tmp_path))
+    _redirect_data_dir(monkeypatch, tmp_path, with_chroma=True)
     monkeypatch.setenv("TAVILY_API_KEY", "test-key")
 
     output = mcp_server.health_check()
@@ -1034,7 +1048,7 @@ def test_health_check_names_each_failing_dependency_rather_than_failing_as_a_who
     """A status probe that raises tells the operator nothing about what broke."""
     _install_schedule(monkeypatch, ConnectionError("fastf1 down"))
     _install_ergast(monkeypatch, _FakeErgast(driver_standings=ConnectionError("ergast down")))
-    monkeypatch.setattr(mcp_server.os.path, "dirname", lambda _path: str(tmp_path))
+    _redirect_data_dir(monkeypatch, tmp_path, with_chroma=False)
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
 
     output = mcp_server.health_check()

@@ -168,7 +168,7 @@ fixable = ["ALL"]
 #   max-lines-per-function: 80 → PLR0915 max-statements = 50
 #                               (80 lines net of blanks/comments ≈ 50 statements)
 #   max-lines: 500            → no ruff rule exists; enforced by
-#                               scripts/check_module_size.py, which is a gate of
+#                               tools/check_module_size.py, which is a gate of
 #                               its own so the budget is not silently unenforced.
 #
 # Two frontend rules have no Python counterpart and are deliberately unreplaced
@@ -253,3 +253,9 @@ ban-relative-imports = "all"
 "app/ml/promote.py" = ["T20"]
 "app/evals/run.py" = ["T20"]
 "app/rag/ingest.py" = ["T20"]
+# Same category: both are run as `python -m` by an operator and report their
+# result to stdout. Deleting the print to satisfy T20 does not fix anything — it
+# turns the command into a silent no-op, which is strictly worse than the lint
+# finding it silences.
+"app/data/f1db_source.py" = ["T20"]
+"app/services/self_improvement.py" = ["T20"]

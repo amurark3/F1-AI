@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from fnmatch import fnmatch
+from fnmatch import fnmatchcase
 from pathlib import Path
 import sys
 import tokenize
@@ -72,11 +72,17 @@ class ModuleSize:
 
 
 def budget_for(relative_path: str) -> int:
-    """Return the line budget governing ``relative_path``."""
+    """Return the line budget governing ``relative_path``.
+
+    Patterns are globs matched with :func:`fnmatch.fnmatchcase`, most specific
+    first. The last entry in :data:`BUDGETS` must be a catch-all, which is what
+    makes every path resolve inside the loop — there is deliberately no fallback
+    return after it, because an unreachable one could never be tested.
+    """
     for pattern, budget in BUDGETS:
-        if fnmatch(relative_path, pattern) or relative_path.startswith(pattern.rstrip("*")):
+        if fnmatchcase(relative_path, pattern):
             return budget
-    return BUDGETS[-1][1]
+    raise AssertionError(f"BUDGETS has no catch-all pattern for {relative_path!r}")
 
 
 def count_code_lines(path: Path) -> int:
@@ -85,20 +91,35 @@ def count_code_lines(path: Path) -> int:
     Tokenizing rather than string-matching keeps a ``#`` inside a string literal
     from being miscounted as a comment.
     """
-    comment_lines: set[int] = set()
+    # line number -> column the comment starts at. Keyed by line rather than
+    # collected as a set of lines because a *trailing* comment sits on a line
+    # that still carries code: excluding the whole line would make every
+    # commented statement free, and a module could then breach the budget by any
+    # margin as long as its lines had trailing comments.
+    comment_starts: dict[int, int] = {}
     try:
         with path.open("rb") as handle:
             for token in tokenize.tokenize(handle.readline):
                 if token.type == tokenize.COMMENT:
-                    comment_lines.add(token.start[0])
+                    row, column = token.start
+                    comment_starts.setdefault(row, column)
     except (SyntaxError, tokenize.TokenError, UnicodeDecodeError):
         # A module that will not tokenize cannot be measured. Ruff and the
         # syntax check own that failure; reporting it here as a size breach
         # would be a misleading diagnosis.
         return 0
 
+    def is_code(number: int, text: str) -> bool:
+        if not text.strip():
+            return False
+        column = comment_starts.get(number)
+        if column is None:
+            return True
+        # Comment-only when everything before the `#` is whitespace.
+        return bool(text[:column].strip())
+
     source_lines = path.read_text(encoding="utf-8").splitlines()
-    return sum(1 for number, text in enumerate(source_lines, start=1) if text.strip() and number not in comment_lines)
+    return sum(1 for number, text in enumerate(source_lines, start=1) if is_code(number, text))
 
 
 def is_first_party(relative_parts: tuple[str, ...]) -> bool:

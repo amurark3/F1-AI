@@ -12,6 +12,8 @@
 #   sonar gate  — the code-smell rules and complexity budgets from the same run
 #   size gate   — per-module line budget (tools/check_module_size.py)
 #   test gate   — backend pytest suite
+#   coverage gate — literal 100% of app/, main, mcp_server, scripts and tools
+#                   (fail_under in .coveragerc; needs --cov to be evaluated)
 #
 # Gates are skipped when the commit touches none of their files, so a
 # frontend-only commit does not pay for pytest and vice versa.
@@ -155,13 +157,17 @@ if has_staged_match '^backend/.*\.py$'; then
     fail_gate "size gate"
   fi
 
-  # --- test gate --------------------------------------------------------------
+  # --- test + coverage gates --------------------------------------------------
+  # `--cov` is passed explicitly rather than set in pytest.ini `addopts`: the
+  # 100% `fail_under` in .coveragerc would otherwise trip on every single-file
+  # run during development. The flag has to be here and in CI, or the coverage
+  # gate is configured but never evaluated.
   if [[ -z "$PYTEST" ]]; then
-    fail_gate "test gate: pytest not found — create backend/.venv and install requirements-dev.txt."
-  elif (cd "$BACKEND_DIR" && "$PYTEST" -q); then
-    pass_gate "test gate"
+    fail_gate "test/coverage gates: pytest not found — create backend/.venv and install requirements-dev.txt."
+  elif (cd "$BACKEND_DIR" && "$PYTEST" -q --cov --cov-report=term-missing); then
+    pass_gate "test gate + coverage gate"
   else
-    fail_gate "test gate"
+    fail_gate "test gate and/or coverage gate"
   fi
 else
   echo "  ${YELLOW}⊘${RESET} backend gates skipped — no backend sources staged." >&2
@@ -176,7 +182,7 @@ if [[ ${#FAILED_GATES[@]} -gt 0 ]]; then
   done
   echo "" >&2
   echo "Reproduce:  ${BOLD}cd frontend && npm run lint${RESET}" >&2
-  echo "            ${BOLD}cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . && .venv/bin/python -m tools.check_module_size && .venv/bin/pytest${RESET}" >&2
+  echo "            ${BOLD}cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . && .venv/bin/python -m tools.check_module_size && .venv/bin/pytest --cov${RESET}" >&2
   echo "Bypass:     ${BOLD}git commit --no-verify${RESET}" >&2
   exit 1
 fi

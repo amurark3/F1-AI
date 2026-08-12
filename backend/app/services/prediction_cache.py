@@ -207,7 +207,10 @@ class PredictionSnapshotCache:
     def _has_prediction(self, entry: dict[str, Any]) -> bool:
         snapshot = self._active_snapshot(self._normalise_entry(entry))
         result = (snapshot or {}).get("result") or {}
-        return result.get("predictions")
+        # `bool(...)`, not the list itself: the return type is part of the
+        # contract, and an empty-but-present `predictions` list means the same
+        # thing as a missing one — no prediction to serve.
+        return bool(result.get("predictions"))
 
     def _active_snapshot(self, entry: dict[str, Any]) -> dict[str, Any] | None:
         snapshots = entry.get("snapshots") or []

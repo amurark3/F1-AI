@@ -116,8 +116,13 @@ jobs:
       # without them — and the 100% coverage gate requires that module to run.
       - name: Install dependencies
         run: pip install -r requirements-ingest.txt -r requirements-dev.txt
-      - name: Run pytest
-        run: pytest -q
+      # --cov is passed here rather than living in pytest.ini `addopts`, because
+      # `fail_under = 100` would then trip on every single-file run during local
+      # development. The consequence is that the coverage gate only exists where
+      # it is asked for: this step and the pre-commit hook. Dropping the flag
+      # would leave .coveragerc's fail_under configured but never evaluated.
+      - name: Run pytest with the coverage gate
+        run: pytest -q --cov --cov-report=term-missing
 
   review_summary:
     name: Review summary comment
@@ -159,7 +164,7 @@ jobs:
               failures.push("- **Backend lint** failed. Suggestion: in `/backend` run `ruff format .`, then `ruff check .` and `python -m tools.check_module_size`, and fix what they report.");
             }
             if (statuses.backendTests !== "success") {
-              failures.push("- **Backend tests** failed. Suggestion: run `pytest -q` in `/backend` and fix the failing tests before merging.");
+              failures.push("- **Backend tests** failed. Suggestion: run `pytest -q --cov` in `/backend` and fix the failing tests — or the coverage shortfall — before merging.");
             }
 
             const improvementTips = [

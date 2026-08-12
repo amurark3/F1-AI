@@ -50,7 +50,9 @@ SONAR_RULES = frozenset(
     }
 )
 
-_CODE = re.compile(r"^([A-Z]+)\d+$")
+# A Ruff code is a family prefix followed by digits. Used only to reject strings
+# that are not rule codes at all, so a stray log line cannot match a prefix.
+_CODE = re.compile(r"^[A-Z]+\d+$")
 
 
 def is_sonar(code: str | None) -> bool:
@@ -59,8 +61,12 @@ def is_sonar(code: str | None) -> bool:
         return False
     if code in SONAR_RULES:
         return True
-    match = _CODE.match(code)
-    return bool(match) and match.group(1) in SONAR_PREFIXES
+    if not _CODE.match(code):
+        return False
+    # Prefix test rather than a letters-only capture: `C4` (the comprehension
+    # family) contains a digit, so splitting letters from digits would reduce
+    # `C401` to `C` and quietly file every comprehension smell under lint.
+    return code.startswith(SONAR_PREFIXES)
 
 
 class Colour:

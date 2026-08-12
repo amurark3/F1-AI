@@ -189,4 +189,6 @@ def run_self_improvement_pass(year: int) -> dict:
 
 
 if __name__ == "__main__":
-    pass
+    from datetime import datetime, timezone
+
+    print(run_self_improvement_pass(datetime.now(timezone.utc).year))

@@ -106,3 +106,4 @@ if __name__ == "__main__":
             c.execute("SELECT MIN(year) FROM season").fetchone(),
             c.execute("SELECT MAX(year) FROM season").fetchone(),
         )
+    print(f"f1db ready at {path} — seasons {min_year}–{max_year}")

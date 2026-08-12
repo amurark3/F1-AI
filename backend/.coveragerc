@@ -1,18 +1,32 @@
 # Coverage configuration for the backend suite.
 #
-# The target is a literal 100% of the backend: app/, main.py, mcp_server.py and
-# scripts/. Nothing is omitted — modules that talk to Groq, Supabase, FastF1 or
-# torch are covered with those boundaries mocked rather than excluded.
+# The target is a literal 100% of the backend: app/, main.py, mcp_server.py,
+# scripts/ and the gate tooling. Nothing is omitted — modules that talk to Groq,
+# Supabase, FastF1 or torch are covered with those boundaries mocked rather than
+# excluded.
+#
+# `tools/` and `../.githooks` are in scope on purpose: they decide whether every
+# future commit is allowed to land, so a bug there fails open and silently
+# un-enforces a gate that still looks enforced. Holding them to the same bar as
+# the code they police is the whole point.
 #
 # `exclude_lines` below carries only constructs that cannot execute under test
 # by construction (TYPE_CHECKING imports, `if __name__ == "__main__"` guards,
 # abstract/protocol stubs). It is not an escape hatch for untested branches.
+#
+# NOTE: the gate only runs when coverage is asked for. `pytest -q` alone does not
+# load it, so CI and the pre-commit hook pass --cov explicitly; see
+# .github/workflows/pr-auto-review.yml and .githooks/pre-commit. It is
+# deliberately *not* in pytest.ini `addopts`, which would make `fail_under` trip
+# on every single-file run during development.
 [run]
 source =
     app
     main
     mcp_server
     scripts
+    tools
+    ../.githooks
 branch = False
 parallel = False
 

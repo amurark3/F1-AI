@@ -135,6 +135,13 @@ CREATE TABLE IF NOT EXISTS app_documents (
     payload    JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Supabase publishes every public table over PostgREST, so a table without RLS
+-- is readable and writable by anyone holding the project URL + anon key.  This
+-- backend connects as the owning role over plain Postgres, which bypasses RLS,
+-- so enabling it with no policies denies the anon/authenticated API while
+-- leaving the app untouched.  Idempotent: a no-op once already enabled.
+ALTER TABLE app_documents ENABLE ROW LEVEL SECURITY;
 """
 
 

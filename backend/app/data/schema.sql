@@ -10,3 +10,7 @@ CREATE TABLE IF NOT EXISTS app_documents (
     payload    JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Deny the Supabase anon/authenticated REST API; see rls.sql for the rationale
+-- and for the same treatment of the other tables this app owns.
+ALTER TABLE app_documents ENABLE ROW LEVEL SECURITY;

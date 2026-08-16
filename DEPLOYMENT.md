@@ -184,6 +184,30 @@ One Postgres database backs several things; tables are auto-created on first use
 Requires the `vector` extension (auto-enabled by the app). Free-tier Supabase
 pauses after ~1 week idle — first request after a pause is slow.
 
+### Row-Level Security
+
+Supabase publishes every `public` table over its PostgREST API, so a table with
+RLS disabled can be read **and written** by anyone holding the project URL and
+the client-side anon key — this is the `rls_disabled_in_public` advisor alert.
+
+All four tables therefore have RLS enabled with **no policies**. That is not an
+oversight: the backend never uses PostgREST. It connects with psycopg over
+plain Postgres as the owning role, and a table's owner bypasses RLS, so the
+backend keeps full access while the public API gets none. Do not add a
+permissive `USING (true)` policy — that re-opens exactly the hole this closes.
+
+The `ALTER TABLE … ENABLE ROW LEVEL SECURITY` statements live in each module's
+schema DDL (`app/data/store.py`, `app/data/memory.py`,
+`app/rag/pgvector_store.py`), so a rebuilt database comes up hardened. For a
+database created **before** this was added, run
+[`backend/app/data/rls.sql`](backend/app/data/rls.sql) once in the Supabase SQL
+editor. Verify with:
+
+```sql
+SELECT tablename, rowsecurity AS rls_enabled
+  FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
+```
+
 ---
 
 ## 6. Rulebook (pgvector) — populate & auto-update

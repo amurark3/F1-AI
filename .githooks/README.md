@@ -14,8 +14,18 @@ failures are attributed, so a commit costs one lint run, not two. That run is
 [`pr-auto-review.yml`](../.github/workflows/pr-auto-review.yml), so the hook cannot
 pass on a diff CI would reject. Warnings are printed but never block, matching CI.
 
+The test gate has the same relationship to the `backend_tests` job: both run
+`pytest -q` from `backend/`. CI installs `requirements.txt` alongside
+`requirements-dev.txt`, so a dependency-only change — which stages no `.py` file
+and therefore skips this gate entirely — is still exercised by the suite on the PR.
+
 Gate ownership of a rule lives in `SONAR_RULES` / `SONAR_RULE_PREFIX` at the top of
 `eslint-gate-report.mjs`.
+
+Every gate here is client-side and opt-in per clone, so it is a fast first
+opinion, not the enforcement boundary. The jobs in `pr-auto-review.yml` are what
+actually run on every PR, including ones no local hook can reach (Dependabot
+bumps, GitHub web edits, `--no-verify`).
 
 ## Install
 

@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS rulebook_chunk (
 CREATE INDEX IF NOT EXISTS rulebook_chunk_year_idx ON rulebook_chunk (source_year);
 CREATE INDEX IF NOT EXISTS rulebook_chunk_hnsw_idx
     ON rulebook_chunk USING hnsw (embedding vector_cosine_ops);
+
+-- Supabase exposes every public table over PostgREST; without RLS the anon key
+-- could truncate the corpus that ``python -m app.rag.ingest`` takes ~9 minutes
+-- to rebuild.  Reads/writes here run as the owning role over plain Postgres,
+-- which bypasses RLS, so no policy is needed.  Idempotent.
+ALTER TABLE rulebook_chunk ENABLE ROW LEVEL SECURITY;
 """
 
 

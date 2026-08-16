@@ -1,8 +1,15 @@
+# ⚠️ THIS FILE IS NOT APPLIED. Render only reads render.yaml for Blueprint-managed
+# services, and Blueprints require payment info on the account — this project is on
+# the free tier and the web service was created by hand. Editing anything here
+# changes nothing about the deployment.
+#
+# The **Render dashboard is the source of truth** (Settings → Build & Deploy, and
+# Environment). This file is reference documentation of what those fields should
+# contain: change a value here and you must paste the same change into the
+# dashboard, or it never ships. See DEPLOYMENT.md §4.
 services:
   - type: web
-    # Must exactly match the existing Render service name (Settings → General →
-    # Name) so the Blueprint adopts it (keeps f1-ai.onrender.com) instead of
-    # creating a duplicate.
+    # Matches the dashboard service name; keeps f1-ai.onrender.com.
     name: F1-AI
     runtime: python
     plan: free
@@ -11,20 +18,30 @@ services:
     rootDir: backend
     healthCheckPath: /api/health
     autoDeploy: true
-    # Fast build:
-    #   1) CPU-only torch first (from the PyTorch CPU index) so we don't pull the
-    #      ~2GB CUDA build via sentence-transformers — the biggest build-time win.
-    #   2) lean runtime deps only. Rulebook/PDF ingest deps live in
-    #      requirements-ingest.txt (not installed here); rulebook vectors live in
-    #      pgvector, populated once via `python -m app.rag.ingest` — nothing is
-    #      built at deploy time.
+    # One command, deliberately. requirements.txt carries no torch —
+    # sentence-transformers lives in requirements-ingest.txt because every import
+    # of it is gated on ENABLE_LOCAL_MODELS, which must stay false here. Rulebook
+    # vectors live in pgvector, populated once via `python -m app.rag.ingest`, so
+    # nothing is built at deploy time either.
+    #
+    # `--upgrade pip` is not decoration: Render's image ships pip 23.0.1, which
+    # is what actually broke the deploy this replaced. See DEPLOYMENT.md §3.
+    # Safe to do blindly because every runtime dep is `==` pinned, so a newer pip
+    # changes resolution mechanics, never the versions installed.
+    #
+    # Do NOT reintroduce a `pip install torch --index-url .../whl/cpu` step —
+    # that is what this replaced. See DEPLOYMENT.md §3 before adding torch back.
+    #
     # NOTE: plain pip (not uv). `uv pip install --system` on Render installed the
     # console scripts off the runtime PATH, so `uvicorn` wasn't found at start
     # (exit 127). pip installs into Render's active env, so the CLI resolves.
-    buildCommand: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    # Values for `sync: false` vars are set in the Render dashboard and preserved
-    # across Blueprint syncs. Declaring them here so adoption never drops them.
+    # Every var below is set in the dashboard (Environment). `sync: false` is the
+    # Blueprint keyword for "value lives in the dashboard"; it has no effect here
+    # and is kept only so this file stays a valid, copy-pasteable Blueprint if the
+    # service is ever put on a paid plan. The listing itself is the useful part —
+    # it records which vars the service needs.
     envVars:
       - key: GROQ_API_KEY          # required — the LLM engine (Groq)
         sync: false

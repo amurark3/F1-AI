@@ -15,10 +15,11 @@ Desktop / Cursor, and a **legacy iOS companion app**.
 
 ```
 F1-AI/
-├── backend/    Python FastAPI + LangChain agent on Groq (Llama 3.3 70B)
+├── backend/    Python FastAPI + LangChain agent on Groq (GPT-OSS 120B)
 ├── frontend/   Next.js 16 + React 19 (TypeScript) — "Race Control" workspace
 ├── ios/        SwiftUI iOS companion (legacy — lags the web feature set)
-└── render.yaml Render.com deployment config
+└── render.yaml Reference copy of the Render config (NOT applied — the Render
+                dashboard is the source of truth; see DEPLOYMENT.md §4)
 ```
 
 ```
@@ -31,8 +32,8 @@ MCP clients (Claude Desktop / Cursor)  ────────┤
         ┌──────────────┬─────────────┬─────────┴────────┬───────────────┐
         │              │             │                  │               │
    Groq LLM       f1db SQLite    FastF1 / OpenF1    ChromaDB RAG    Postgres
-   (Llama 3.3     (1950–present  (telemetry +       (FIA regs +    + pgvector
-    70B + tools)   history)       live timing)       reranker)     (memory/cache)
+   (GPT-OSS       (1950–present  (telemetry +       (FIA regs +    + pgvector
+    120B + tools)  history)       live timing)       reranker)     (memory/cache)
         │
    Tavily Search
    (live news)
@@ -41,8 +42,8 @@ MCP clients (Claude Desktop / Cursor)  ────────┤
 The chat backend runs an **agentic tool-use loop**: the model may call one or
 more of 15 F1 tools per turn (up to `MAX_AGENT_TURNS`), the backend executes
 them, feeds the results back, and repeats until the model returns a final
-analysis. A recovery layer parses Llama's occasional malformed inline tool calls
-so the loop keeps running.
+analysis. A recovery layer parses the model's occasional malformed inline tool
+calls so the loop keeps running.
 
 ---
 
@@ -114,7 +115,7 @@ pip install -r requirements.txt
 Create `backend/.env` (see `.env.example`):
 
 ```env
-GROQ_API_KEY=your_groq_key                        # required — the LLM engine
+GROQ_API_KEY=your_groq_key                         # required — authenticates the LLM engine
 TAVILY_API_KEY=your_tavily_key                     # optional — web-search tool
 OPENWEATHERMAP_API_KEY=your_openweathermap_key     # optional — weather tool
 DATABASE_URL=postgresql://...                      # optional — memory + durable store
@@ -124,6 +125,10 @@ ALLOWED_ORIGINS=http://localhost:3000              # CORS (comma-separated)
 - **GROQ_API_KEY** — free, no card required, at [console.groq.com](https://console.groq.com)
 - **TAVILY_API_KEY** — [app.tavily.com](https://app.tavily.com)
 - **DATABASE_URL** — any Postgres with the `pgvector` extension (e.g. Supabase)
+
+> **Which model?** Not an environment variable and not a secret — the Groq model
+> is a code constant, `GROQ_MODEL_NAME` in `backend/app/config.py`. Changing it
+> is a code change and a deploy, not a dashboard edit.
 
 ```bash
 python main.py
@@ -305,7 +310,7 @@ backend/
 │   │   ├── routers/          chat, season, predictions, champions, race_control, memory
 │   │   ├── llm.py            Groq chat model factory
 │   │   ├── tools.py          15 LangChain tools (data, predictions, rulebook, SQL, search)
-│   │   ├── tool_recovery.py  recovers Llama malformed inline tool calls
+│   │   ├── tool_recovery.py  recovers malformed inline tool calls
 │   │   ├── prompts.py        race-engineer system persona
 │   │   ├── schemas/          request/response models
 │   │   └── circuits.py       circuit GPS coordinates
@@ -354,7 +359,7 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | Styling | Tailwind CSS 4 |
 | Web UI libs | Recharts, Framer Motion, SWR, Vercel AI SDK, lucide-react |
 | Backend | FastAPI, Uvicorn, Python 3.10+, structlog |
-| LLM | Groq — Llama 3.3 70B Versatile |
+| LLM | Groq — GPT-OSS 120B |
 | LLM orchestration | LangChain (agentic tool-use loop) |
 | F1 data | f1db (SQLite, 1950–present), FastF1, OpenF1 (live), Ergast (fallback) |
 | Vector database | ChromaDB + sentence-transformers + cross-encoder reranker |

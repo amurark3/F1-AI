@@ -14,7 +14,8 @@ from app.api.llm import build_chat_llm
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
 from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls
-from app.api.tools import TOOL_LIST, TOOL_MAP
+from app.api.tool_router import select_tools
+from app.api.tools import TOOL_MAP
 from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS
 from app.data.memory import build_memory_context, save_message
 
@@ -28,28 +29,74 @@ router = APIRouter(tags=["chat"])
 # health check, and (b) make a missing GROQ_API_KEY crash the whole service
 # instead of only the chat endpoint. Deferring keeps boot fast and isolates the
 # LLM dependency to requests that actually need it.
-_llm_with_tools = None
+#
+# Keyed by tool subset: every distinct selection from tool_router needs its own
+# bound model, and binding is pure setup, so they are cached rather than rebuilt
+# per request. The number of distinct subsets is bounded by the keyword table.
+_llm_cache: dict[frozenset[str], object] = {}
 _llm_lock = threading.Lock()
 
 
-def _get_llm_with_tools():
-    global _llm_with_tools
-    if _llm_with_tools is None:
-        with _llm_lock:
-            if _llm_with_tools is None:
-                _llm_with_tools = build_chat_llm().bind_tools(TOOL_LIST)
-    return _llm_with_tools
+def _get_llm(tool_names: frozenset[str]):
+    """Return a model bound to exactly ``tool_names`` (unbound if empty)."""
+    global _llm_cache
+    cached = _llm_cache.get(tool_names)
+    if cached is not None:
+        return cached
+
+    with _llm_lock:
+        cached = _llm_cache.get(tool_names)
+        if cached is None:
+            base = build_chat_llm()
+            cached = (
+                base.bind_tools([TOOL_MAP[name] for name in sorted(tool_names)])
+                if tool_names
+                else base
+            )
+            _llm_cache = {**_llm_cache, tool_names: cached}
+    return cached
 
 
-async def _ainvoke_with_recovery(messages):
-    """Invoke the model, recovering from Groq/Llama malformed tool calls.
+FINAL_TURN_DIRECTIVE = (
+    "You have gathered all the data you are going to get. Answer the user's "
+    "question now, in full, using only the tool results above. Do not request "
+    "any further tools."
+)
 
-    When Llama emits a tool call as inline text (``<function=...>``), Groq
+
+async def _ainvoke_final(messages, tool_names: frozenset[str]):
+    """Force a text answer out of the model on the last permitted turn.
+
+    Binding no tools is the cheap path — it drops the entire schema payload from
+    one of the most expensive calls in the loop. But a model that has just seen
+    several tool calls in the history will sometimes attempt one more anyway,
+    and Groq rejects that with a 400 ("attempted to call tool X which was not in
+    request.tools") rather than ignoring it — which used to surface as a broken
+    stream instead of an answer.
+
+    So: ask nicely and bind nothing, then fall back once to sending the schemas
+    with tool calling explicitly disabled, which cannot fail that way. The
+    expensive path only runs when the cheap one is refused.
+    """
+    guided = [*messages, SystemMessage(content=FINAL_TURN_DIRECTIVE)]
+    try:
+        return await _get_llm(frozenset()).ainvoke(guided)
+    except Exception as exc:
+        if not is_tool_use_failed(exc):
+            raise
+        logger.info("agent.final_turn_forced", tools=len(tool_names))
+        return await _get_llm(tool_names).bind(tool_choice="none").ainvoke(guided)
+
+
+async def _ainvoke_with_recovery(messages, tool_names: frozenset[str]):
+    """Invoke the model, recovering from Groq malformed tool calls.
+
+    When the model emits a tool call as inline text (``<function=...>``), Groq
     returns a tool_use_failed error. We parse the intended call(s) out of it and
     return a synthesized tool-calling message so the agent loop can continue.
     """
     try:
-        return await _get_llm_with_tools().ainvoke(messages)
+        return await _get_llm(tool_names).ainvoke(messages)
     except Exception as exc:
         if not is_tool_use_failed(exc):
             raise
@@ -128,9 +175,13 @@ async def chat_endpoint(request: ChatRequest):
 
     langchain_messages = build_langchain_messages(request, today, memory_context)
 
+    # Only the tools this question plausibly needs — the full set costs ~2,100
+    # prompt tokens on every turn of the loop. See app/api/tool_router.py.
+    tool_names = select_tools(latest_user_text)
+
     async def generate():
         try:
-            current_response = await _ainvoke_with_recovery(langchain_messages)
+            current_response = await _ainvoke_with_recovery(langchain_messages, tool_names)
 
             for turn_count in range(1, MAX_AGENT_TURNS + 1):
                 if not current_response.tool_calls:
@@ -171,7 +222,26 @@ async def chat_endpoint(request: ChatRequest):
                     langchain_messages.append(ToolMessage(tool_call_id=tool_id, content=str(tool_result), name=tool_name))
                     yield f"[TOOL_END]{friendly}[/TOOL_END]"
 
-                current_response = await _ainvoke_with_recovery(langchain_messages)
+                # On the final permitted turn, stop offering tools: the model
+                # answers from what it already has, which saves the schema
+                # payload and turns what used to be a dead-end error into a
+                # real answer.
+                if turn_count == MAX_AGENT_TURNS:
+                    current_response = await _ainvoke_final(langchain_messages, tool_names)
+                else:
+                    current_response = await _ainvoke_with_recovery(langchain_messages, tool_names)
+
+            # Loop exhausted. The last invocation had no tools bound, so this is
+            # prose; the notice remains only for a model that returns nothing.
+            if current_response.content:
+                logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
+                if user_id:
+                    await asyncio.to_thread(
+                        save_message, user_id, thread_id, "assistant",
+                        str(current_response.content),
+                    )
+                yield current_response.content
+                return
 
             yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
         except Exception as exc:

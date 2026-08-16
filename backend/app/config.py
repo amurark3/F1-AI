@@ -40,8 +40,15 @@ WS_POLL_INTERVAL = int(os.getenv("WS_POLL_INTERVAL", "8"))
 # ---------------------------------------------------------------------------
 # Agentic loop
 # ---------------------------------------------------------------------------
-# Maximum number of tool-use turns before the model must produce a text answer
-MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "5"))
+# Maximum number of tool-use turns before the model must produce a text answer.
+#
+# 3, not 5: every turn re-sends the system prompt and all bound tool schemas, so
+# on Groq's free tier (8K tokens/minute) turn count multiplies directly into the
+# rate limit. The mandated worst-case chain is get_season_schedule → a results
+# tool → answer, which fits in 3 — and the chat router binds no tools on the
+# final turn, so the model always spends the last one answering rather than
+# asking for data it will not be allowed to fetch.
+MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "3"))
 
 # ---------------------------------------------------------------------------
 # Background prefetch settings
@@ -99,10 +106,18 @@ RULEBOOK_TOP_K = int(os.getenv("RULEBOOK_TOP_K", "6"))
 # ---------------------------------------------------------------------------
 # LLM settings — Groq only
 # ---------------------------------------------------------------------------
-# Groq — free, reliable, tool-calling capable engine. Llama 3.3 70B supports the
+# Groq — free, reliable, tool-calling capable engine. GPT-OSS 120B supports the
 # function calling the agentic loop depends on. Get a free key at
 # https://console.groq.com (no card required); set GROQ_API_KEY.
-GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+#
+# Deliberately a constant, not os.getenv: the model is not deployment config and
+# not a secret. Which model the agent runs on is a code decision — it changes the
+# quality of every answer and the tool-calling behaviour the agent loop depends
+# on, so it belongs in review and git history, not in a dashboard where prod can
+# silently diverge from this file.
+#
+# Replaced llama-3.3-70b-versatile, decommissioned by Groq on 2026-08-16.
+GROQ_MODEL_NAME = "openai/gpt-oss-120b"
 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 

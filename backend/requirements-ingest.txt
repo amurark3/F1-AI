@@ -2,11 +2,24 @@
 # These are NOT needed by the deployed web service — keeping them out of
 # requirements.txt makes the Render build leaner/faster. Install with:
 #     pip install -r requirements-ingest.txt
-# (pulls in the base runtime deps too, so embeddings/pgvector are available).
+# (pulls in the base runtime deps too, so pgvector/Postgres are available).
 #
 # Versions are PINNED (==) for reproducible builds — see requirements.txt header.
 
 -r requirements.txt
+
+# Embedding + reranking models, and the ~2GB torch they drag in. These are NOT
+# in requirements.txt on purpose: every import of them sits behind
+# ENABLE_LOCAL_MODELS (app/utils/embeddings.py, app/rag/rerank.py,
+# app/data/memory.py), which must stay false on Render's 512MB free tier — one
+# rulebook query with it on OOM-killed the container in production. So the web
+# service would install torch and never import it.
+#
+# Consequence: turning ENABLE_LOCAL_MODELS on somewhere that has the memory
+# needs this file installed, not just the env var flipped. Without the package
+# the lazy import raises, is caught, and embeddings degrade to None rather than
+# crashing. See DEPLOYMENT.md §3.
+sentence-transformers==5.6.1
 
 # PDF loading + chunking for the FIA regulation corpus
 langchain==1.3.14

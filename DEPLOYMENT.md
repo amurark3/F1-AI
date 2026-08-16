@@ -12,7 +12,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
                                    │
                  ┌─────────────────┼──────────────────────────┐
                  ▼                 ▼                          ▼
-          Groq (Llama 3.3)   Supabase Postgres          FastF1 + f1db
+          Groq (GPT-OSS)     Supabase Postgres          FastF1 + f1db
           LLM + tools        + pgvector                 (F1 data; f1db.db
                              • prediction cache/history  downloaded on boot)
                              • conversation memory
@@ -20,7 +20,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
 ```
 
 - **Backend:** Python 3.10 / FastAPI, deployed on **Render** (`backend/` root).
-- **LLM:** **Groq** (Llama 3.3 70B). Built lazily on first chat request.
+- **LLM:** **Groq** (GPT-OSS 120B). Built lazily on first chat request.
 - **Data store:** **Supabase Postgres** (with the `vector`/pgvector extension) holds
   the durable prediction cache + accuracy history, conversation memory, and the
   FIA rulebook embeddings. Falls back to local JSON when `DATABASE_URL` is unset.
@@ -31,19 +31,20 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
 
 ## 2. Environment variables
 
-Set these in **Render → the service → Environment** (all `sync: false` in
-`render.yaml`, so their values live in the dashboard and survive Blueprint syncs).
+Set these in **Render → the service → Environment**. That dashboard is the only
+place they exist — `render.yaml` is not applied to this service (§4), so adding a
+variable there does nothing on its own.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | **Yes** | LLM engine (get a free key at console.groq.com) |
+| `GROQ_API_KEY` | **Yes** | Authenticates the LLM engine (get a free key at console.groq.com) |
 | `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
 | `TAVILY_API_KEY` | No | Web-search tool |
 | `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
 | `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
-| `ENABLE_LOCAL_MODELS` | Set in yaml | `false` on the free tier — see below |
-| `PYTHON_VERSION` | Set in yaml | Pinned to `3.10.12` |
+| `ENABLE_LOCAL_MODELS` | **Yes** | Must be `false` on the free tier — see below |
+| `PYTHON_VERSION` | **Yes** | Pinned to `3.10.12` |
 
 ### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
 
@@ -67,6 +68,12 @@ With the flag off (the default), nothing imports torch:
 
 Turn it on where the memory exists — local development, and the ingest job,
 which sets it explicitly because embedding the corpus is its entire purpose.
+
+Because the flag can never be on here, the deployed service does not install
+`sentence-transformers` at all (§3). Turning it on therefore takes more than the
+env var: the instance also needs `pip install -r requirements-ingest.txt`. With
+the flag on but the package missing, the lazy import raises, is caught, and
+embeddings return `None` — degraded, not crashed.
 
 Restoring rulebook search in production means getting the embedding out of the
 web process. The most promising route is a Supabase Edge Function using the
@@ -119,24 +126,69 @@ That endpoint round-trips Postgres, unlike `/api/health`, which touches nothing.
 
 ## 3. Build & start commands
 
-Defined in [`render.yaml`](render.yaml):
+Set in **Render → the service → Settings → Build & Deploy**. ([`render.yaml`](render.yaml)
+mirrors them for reference but is not applied — §4.)
 
 ```bash
 # Build
-pip install torch --index-url https://download.pytorch.org/whl/cpu && \
-pip install -r requirements.txt
+pip install --upgrade pip && pip install -r requirements.txt
 
 # Start
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
+**`--upgrade pip` is load-bearing.** Render's image ships **pip 23.0.1** (three
+years stale), and that — not torch — was the root cause of the outage described
+below. Upgrading is safe to do blindly here because every runtime dependency is
+`==` pinned: a newer pip changes resolution *mechanics*, never which versions get
+installed. It costs a few seconds.
+
 Why this build is fast:
-- **CPU-only torch** — installed first from the PyTorch CPU index so pip doesn't
-  pull the ~2 GB CUDA build via `sentence-transformers` (the biggest win).
-- **Lean runtime deps** — the PDF/RAG-ingest packages live in
-  `requirements-ingest.txt`, not in `requirements.txt`, so the web build skips them.
+- **No torch** — `sentence-transformers` lives in `requirements-ingest.txt`, not
+  `requirements.txt`. Every import of it is behind `ENABLE_LOCAL_MODELS` (§2),
+  which must stay `false` here, so installing it would mean downloading ~2 GB the
+  service never imports. This is the biggest win by a wide margin.
+- **Lean runtime deps** — the PDF/RAG-ingest packages are in that same file, so
+  the web build skips them too.
 - **No build-time vector DB** — the rulebook lives in pgvector, so there is no
   ~9-minute ChromaDB rebuild at deploy time.
+
+### The build that broke, and why
+
+The previous command was:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
+```
+
+It fetched CPU-only torch to dodge the ~2 GB CUDA build that `sentence-transformers`
+drags in from PyPI. It failed with **no repo change**, via three compounding steps:
+
+1. The **PyTorch index is a flat file listing**, so pip derived the project name
+   from the URL path (`/whl/cpu/typing-extensions/`) while the file's own metadata
+   said `typing_extensions`. **pip 23.0.1 compares those without normalizing**, so
+   it rejected the wheel: `has inconsistent Name: expected 'typing-extensions',
+   but metadata has 'typing_extensions'`.
+2. Having discarded the wheel, pip fell back to the **sdist**, which needs a build
+   backend (`flit_core`).
+3. `--index-url` **replaces** PyPI rather than adding to it, so `flit_core` was
+   searched for on the PyTorch index alone → `No matching distribution found`.
+
+Two things worth knowing, both verified against pip 23.0.1 on Python 3.10:
+
+- **Upgrading pip alone fixes that command.** Modern pip normalizes before
+  comparing, accepts the wheel, and never needs a build backend. The
+  `--extra-index-url` / `+cpu`-pin workarounds that were briefly added were
+  treating step 3 — a symptom, not the cause.
+- **The bug is specific to the PyTorch index, not to old pip generally.** pip
+  23.0.1 resolves the current `requirements.txt` from PyPI cleanly, including that
+  same `typing_extensions-4.16.0`. The pin above stays anyway, as insurance
+  against the next stale-pip incompatibility.
+
+**If torch is ever genuinely needed here again**, upgrade pip *and* keep PyPI in
+the search path — `--extra-index-url https://pypi.org/simple` plus a `==<ver>+cpu`
+pin, since the `+cpu` local version exists only on the PyTorch index and so PyPI
+cannot silently serve the CUDA build instead.
 
 Health check path: `/api/health` (returns 200 immediately).
 
@@ -145,20 +197,25 @@ Health check path: `/api/health` (returns 200 immediately).
 ## 4. How the service is configured (dashboard-managed)
 
 This is a **manually-created Render web service**, and the **Render dashboard is
-the source of truth** for its settings. `render.yaml` is kept in the repo as
-accurate reference documentation of the intended config, but Render does **not**
-apply it automatically to a manual service.
+the source of truth** for its settings. Render does **not** read `render.yaml` for
+a manual service — it is applied only to Blueprint-managed services, and
+**Blueprints require payment info on the account**, which this free-tier project
+does not have.
 
-> Render **Blueprints** (which *would* make `render.yaml` authoritative) require
-> payment info on the account, so this project does not use them. Everything
-> below is managed in the dashboard instead — no card needed.
+> **Editing `render.yaml` deploys nothing.** It is kept in the repo purely as
+> reference documentation of the intended config. Any change to a build/start
+> command or an environment variable must be **typed into the dashboard** to take
+> effect; a commit alone will not do it.
+>
+> Code pushes *do* still auto-deploy — that is the service's own Auto-Deploy
+> setting (below), which is unrelated to Blueprints.
 
 Keep these dashboard settings in sync with `render.yaml` (Render → the service →
 Settings):
 
 | Setting | Value |
 |---|---|
-| **Build Command** | the `uv` + CPU-torch command in §3 |
+| **Build Command** | the pip + CPU-torch command in §3 |
 | **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
 | **Root Directory** | `backend` |
 | **Health Check Path** | `/api/health` |

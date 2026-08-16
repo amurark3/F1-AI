@@ -4,9 +4,12 @@ F1 AI Backend — Entry Point
 Boots the FastAPI application, configures CORS, and mounts the API router.
 
 Environment variables (place in a .env file in this directory — see .env.example):
-  GROQ_API_KEY    — Groq API key (Llama 3.3 70B). REQUIRED — the LLM engine.
+  GROQ_API_KEY    — Groq API key. REQUIRED — authenticates the LLM engine.
   TAVILY_API_KEY  — Tavily web-search API key (optional).
   DATABASE_URL    — Postgres + pgvector for memory/durable store (optional).
+
+The Groq model itself is not an environment variable: it is defined in code as
+GROQ_MODEL_NAME in app/config.py.
 """
 
 from dotenv import load_dotenv

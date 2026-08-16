@@ -22,9 +22,11 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from app.api.routers.chat import (
     MAX_AGENT_TURNS,
     TOOL_MAP,
+    _ainvoke_final,
     _ainvoke_with_recovery,
     build_system_prompt,
 )
+from app.api.tool_router import select_tools
 from app.evals.dataset import GOLDEN_QA, GoldenQA
 from app.evals.judge import judge_answer, keyword_score
 
@@ -34,10 +36,15 @@ DEFAULT_GATE = 0.7
 
 
 async def _run_agent(question: str, today: str = "July 20, 2026") -> str:
-    """Drive the tool-use loop to a final text answer (non-streaming)."""
+    """Drive the tool-use loop to a final text answer (non-streaming).
+
+    Mirrors the chat router exactly — same routed tool subset, same no-tools
+    final turn — so the eval scores the agent that actually ships.
+    """
     messages = [SystemMessage(content=build_system_prompt(today)), HumanMessage(content=question)]
-    response = await _ainvoke_with_recovery(messages)
-    for _ in range(MAX_AGENT_TURNS):
+    tool_names = select_tools(question)
+    response = await _ainvoke_with_recovery(messages, tool_names)
+    for turn in range(1, MAX_AGENT_TURNS + 1):
         if not response.tool_calls:
             return str(response.content)
         messages.append(response)
@@ -50,7 +57,10 @@ async def _run_agent(question: str, today: str = "July 20, 2026") -> str:
             except Exception as exc:  # tool failure shouldn't abort the eval
                 result = f"Tool error: {exc}"
             messages.append(ToolMessage(tool_call_id=call["id"], content=str(result), name=name))
-        response = await _ainvoke_with_recovery(messages)
+        if turn == MAX_AGENT_TURNS:
+            response = await _ainvoke_final(messages, tool_names)
+        else:
+            response = await _ainvoke_with_recovery(messages, tool_names)
     return str(response.content)
 
 

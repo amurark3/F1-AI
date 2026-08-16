@@ -2,7 +2,7 @@
 LLM-Callable Tools
 ==================
 Each function decorated with @tool is registered as a callable tool that the
-Groq LLM (Llama 3.3 70B) can invoke during the agentic loop in the chat router.
+Groq LLM (GPT-OSS 120B) can invoke during the agentic loop in the chat router.
 
 Available tools
 ---------------
@@ -22,8 +22,14 @@ Available tools
   get_constructor_standings   — World Constructors' Championship table (via f1db).
   get_season_schedule         — Full season calendar with completed/upcoming status.
 
-TOOL_LIST and TOOL_MAP (at the bottom of this file) are imported by the chat
-router to bind tools to the LLM and dispatch them by name.
+TOOL_MAP (at the bottom of this file) is how the chat router dispatches a call
+by name, and how it binds the subset chosen by app/api/tool_router.py — the full
+TOOL_LIST is no longer bound on every request, because each schema costs prompt
+tokens on every turn of the agent loop.
+
+Keep descriptions to what the model needs in order to CHOOSE the tool and fill
+its arguments. Implementation notes belong in comments in the function body:
+docstrings here are re-sent to the model on every turn.
 """
 
 import asyncio
@@ -85,17 +91,14 @@ def _fmt_timedelta(time_val) -> str:
 
 @tool
 def get_race_predictions(year: int, round_num: int):
-    """
-    Predicts race finishing order for all 20 drivers with confidence ranges
-    and reasoning factors.
+    """Predicts race finishing order with confidence ranges and reasoning.
 
-    Use when user asks about race predictions, who will win, expected race
-    results, or finishing order.
-
-    Returns a rich race-engineer briefing with narrative reasoning,
-    driver-by-driver analysis for the top 5, summary table for positions
-    6-20, confidence ranges, and accuracy statistics.
+    Use for predictions, who will win, or expected finishing order.
     """
+    # Returns a full briefing: narrative reasoning, driver-by-driver analysis
+    # for the top 5, a summary table for 6-20, confidence ranges and accuracy
+    # stats. Kept out of the docstring — the model picks the tool on intent, and
+    # the description is re-sent on every turn of the agent loop.
     logger.info("tool.race_predictions", year=year, round_num=round_num)
     try:
         result = get_or_compute_race_prediction(year, round_num)
@@ -174,18 +177,13 @@ def get_race_predictions(year: int, round_num: int):
 
 @tool
 def get_pit_strategy(year: int, round_num: int, driver_code: str = None):
-    """
-    Analyzes pit strategy including tyre stints, undercut/overcut opportunities,
-    and historical strategy data.
-
-    Use when user asks about pit strategy, tyre choices, undercut, overcut,
-    or stint analysis.
+    """Analyzes pit strategy: tyre stints, undercut/overcut, stint history.
 
     Args:
-        year: Season year (e.g. 2024).
+        year: Season year, e.g. 2024.
         round_num: Round number in the season.
-        driver_code: Optional 3-letter driver code (e.g. 'VER'). If omitted,
-                     returns circuit-level strategy overview.
+        driver_code: Optional 3-letter code, e.g. 'VER'. Omit for a
+            circuit-level overview.
     """
     logger.info("tool.pit_strategy", year=year, round_num=round_num, driver=driver_code)
     try:
@@ -425,15 +423,13 @@ def get_sprint_results(year: int, grand_prix: str):
 
 @tool
 def get_sprint_qualifying_results(year: int, grand_prix: str):
-    """
-    Fetches SPRINT QUALIFYING (Shootout) results broken into SQ1 / SQ2 / SQ3.
+    """Fetches SPRINT QUALIFYING (Shootout) results, split SQ1/SQ2/SQ3.
 
-    ALWAYS use this tool if the user mentions 'Sprint Qualifying', 'Shootout',
-    'SQ', or 'Sprint Quali'.  Do NOT use get_qualifying_results for this.
-
-    Note: FastF1 uses column names Q1/Q2/Q3 even for sprint shootout data;
-    laps=True is required because Ergast often lacks SQ split times.
+    Use for 'Sprint Qualifying', 'Shootout', 'SQ' or 'Sprint Quali' — NOT
+    get_qualifying_results.
     """
+    # FastF1 labels the columns Q1/Q2/Q3 even for shootout data, and laps=True
+    # is required because Ergast often lacks SQ split times.
     logger.info("tool.sprint_qualifying", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "SQ")
@@ -551,15 +547,13 @@ def get_qualifying_results(year: int, grand_prix: str):
 
 @tool
 def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str):
-    """
-    Compares the fastest Qualifying lap of two drivers, sector by sector.
+    """Compares two drivers' fastest Qualifying lap, sector by sector.
 
-    Accepts partial name matches so the model can pass 'Max' instead of 'VER'.
-    The lookup searches LastName, BroadcastName, and Abbreviation fields.
-
-    Returns a Markdown table showing total gap and per-sector deltas,
-    with green/red indicators for faster/slower relative to driver2.
+    Driver names may be partial ('Max' works as well as 'VER').
     """
+    # Lookup searches LastName, BroadcastName and Abbreviation. Returns a
+    # Markdown table of total gap and per-sector deltas, with green/red
+    # indicators relative to driver2.
     logger.info("tool.compare_drivers", driver1=driver1, driver2=driver2, grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "Q")
@@ -700,20 +694,16 @@ def get_race_results(year: int, grand_prix: str):
 
 @tool
 def consult_rulebook(query: str, year: int = None):
-    """
-    Searches the official FIA regulations (Sporting, Technical, Financial)
-    for text relevant to `query`.
-
-    The regulations are stored as vector embeddings in Postgres (pgvector),
-    populated by running `python -m app.rag.ingest`.
+    """Searches the official FIA regulations (Sporting, Technical, Financial).
 
     Args:
-        query: A natural-language question, e.g. "What is the penalty for
-               exceeding the pit-lane speed limit?"
-        year:  The season year to restrict results to (e.g. 2025).
-               Defaults intelligently to the current season; switches to the
-               next year's regulations in late December when available.
+        query: A natural-language question, e.g. "penalty for exceeding the
+            pit-lane speed limit?"
+        year: Season to restrict to, e.g. 2025. Defaults to the current season.
     """
+    # Regulations live as vector embeddings in Postgres (pgvector), populated by
+    # `python -m app.rag.ingest`. The year default switches to next season's
+    # regulations in late December once they are available.
     # --- Year resolution logic ---
     if year is None:
         now = datetime.now()
@@ -959,13 +949,10 @@ query_f1_database.description = (
 
 @tool
 def get_race_anomalies(year: int, round_num: int):
-    """
-    Surfaces the notable stories from a completed race: biggest position
-    gains/losses vs the grid, one-sided teammate battles, and retirements.
+    """Notable stories from a completed race: biggest position gains/losses
+    vs the grid, one-sided teammate battles, and retirements.
 
-    Use when the user asks what was surprising, notable, or the standout
-    stories of a race — or proactively when discussing a race result, to add
-    colour beyond the raw classification.
+    Use for what was surprising or notable, or to add colour to a result.
     """
     logger.info("tool.race_anomalies", year=year, round_num=round_num)
     try:

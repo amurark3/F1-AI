@@ -21,8 +21,8 @@ so existing clients keep seeing the keys they expect::
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
+import uuid
 
 import structlog
 

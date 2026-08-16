@@ -56,7 +56,9 @@ def enrich_prediction_result(result: dict) -> dict:
     enriched["model_summary"] = {
         "leader": leader.get("driver_name") if leader else None,
         "leader_code": leader.get("driver_code") if leader else None,
-        "average_top3_confidence": round(sum(confidence_values) / len(confidence_values), 1) if confidence_values else None,
+        "average_top3_confidence": round(sum(confidence_values) / len(confidence_values), 1)
+        if confidence_values
+        else None,
         "source_count": len(sources),
         "status": "ready" if predictions else "data_unavailable",
         "snapshot_policy": "Stored race predictions stay fixed until a manual compute or qualifying recompute is requested.",
@@ -73,7 +75,11 @@ def enrich_prediction_result(result: dict) -> dict:
             "Qualifying / practice pace",
             "available" if {"qualifying", "practice"} & sources else "missing",
             "Sets the launch-risk and opening-stint baseline.",
-            "Main qualifying order" if "qualifying" in sources else "practice timing proxy" if "practice" in sources else "not loaded",
+            "Main qualifying order"
+            if "qualifying" in sources
+            else "practice timing proxy"
+            if "practice" in sources
+            else "not loaded",
         ),
         input_card(
             "Recent form",

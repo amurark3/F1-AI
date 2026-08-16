@@ -1,13 +1,11 @@
 """Request schemas for the Race Control v2 API."""
 
-from typing import Optional
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class RulebookSearchRequest(BaseModel):
     """Inputs for a visual rulebook search."""
 
     query: str
-    category: Optional[str] = None
-    year: Optional[int] = None
+    category: str | None = None
+    year: int | None = None

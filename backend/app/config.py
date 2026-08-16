@@ -70,9 +70,7 @@ WARMUP_STEP_TIMEOUT_SECONDS = int(os.getenv("WARMUP_STEP_TIMEOUT_SECONDS", "120"
 # ---------------------------------------------------------------------------
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "data/chroma")
 
-EMBEDDING_MODEL_NAME = os.getenv(
-    "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"
-)
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 
 # Master switch for loading torch models inside the web process: the
 # sentence-transformers embedder (rulebook queries, conversation memory) and the

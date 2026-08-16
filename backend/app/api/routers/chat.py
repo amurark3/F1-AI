@@ -1,13 +1,15 @@
 """AI chat router and agent orchestration."""
 
 import asyncio
+from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
 import threading
-from datetime import datetime
 
-import structlog
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import Runnable
+import structlog
 
 from app.api.errors import client_error_text
 from app.api.llm import build_chat_llm
@@ -32,7 +34,7 @@ _llm_with_tools = None
 _llm_lock = threading.Lock()
 
 
-def _get_llm_with_tools():
+def _get_llm_with_tools() -> Runnable:
     global _llm_with_tools
     if _llm_with_tools is None:
         with _llm_lock:
@@ -41,7 +43,7 @@ def _get_llm_with_tools():
     return _llm_with_tools
 
 
-async def _ainvoke_with_recovery(messages):
+async def _ainvoke_with_recovery(messages: list[BaseMessage]) -> AIMessage:
     """Invoke the model, recovering from Groq/Llama malformed tool calls.
 
     When Llama emits a tool call as inline text (``<function=...>``), Groq
@@ -70,7 +72,7 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
 
     TOOL USAGE:
     - **CRITICAL:** If the user asks for "last race", "next race", or "schedule",
-      ALWAYS call `get_season_schedule({today.split(',')[-1].strip()})` FIRST to
+      ALWAYS call `get_season_schedule({today.rsplit(",", maxsplit=1)[-1].strip()})` FIRST to
       identify the correct Grand Prix name before calling any results tool.
     - Use 'get_race_results' for final race classifications.
     - Use 'compare_drivers' for specific lap-time comparisons.
@@ -89,7 +91,7 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
     """
 
 
-def build_langchain_messages(request: ChatRequest, today: str, memory_context: str = ""):
+def build_langchain_messages(request: ChatRequest, today: str, memory_context: str = "") -> list[BaseMessage]:
     messages = [SystemMessage(content=build_system_prompt(today, memory_context))]
     for msg in request.messages:
         if msg["role"] == "user":
@@ -107,10 +109,10 @@ def _latest_user_text(request: ChatRequest) -> str:
 
 
 @router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
     """Streaming chat endpoint that drives the F1 tool-use loop."""
 
-    today = datetime.now().strftime("%B %d, %Y")
+    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     user_id = request.user_id
     thread_id = request.thread_id or "default"
     latest_user_text = _latest_user_text(request)
@@ -118,17 +120,13 @@ async def chat_endpoint(request: ChatRequest):
     # Personalisation + semantic recall (no-op without a user_id or database).
     memory_context = ""
     if user_id:
-        memory_context = await asyncio.to_thread(
-            build_memory_context, user_id, latest_user_text, thread_id
-        )
+        memory_context = await asyncio.to_thread(build_memory_context, user_id, latest_user_text, thread_id)
         if latest_user_text:
-            await asyncio.to_thread(
-                save_message, user_id, thread_id, "user", latest_user_text
-            )
+            await asyncio.to_thread(save_message, user_id, thread_id, "user", latest_user_text)
 
     langchain_messages = build_langchain_messages(request, today, memory_context)
 
-    async def generate():
+    async def generate() -> AsyncGenerator[str, None]:
         try:
             current_response = await _ainvoke_with_recovery(langchain_messages)
 
@@ -137,7 +135,10 @@ async def chat_endpoint(request: ChatRequest):
                     logger.info("agent.generating_response")
                     if user_id and current_response.content:
                         await asyncio.to_thread(
-                            save_message, user_id, thread_id, "assistant",
+                            save_message,
+                            user_id,
+                            thread_id,
+                            "assistant",
                             str(current_response.content),
                         )
                     yield current_response.content
@@ -166,9 +167,11 @@ async def chat_endpoint(request: ChatRequest):
                         logger.warning("tool.timeout", tool=tool_name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
                     except Exception as exc:
                         tool_result = f"Error executing tool '{tool_name}': {exc}"
-                        logger.error("tool.error", tool=tool_name, error=str(exc))
+                        logger.exception("tool.error", tool=tool_name, error=str(exc))
 
-                    langchain_messages.append(ToolMessage(tool_call_id=tool_id, content=str(tool_result), name=tool_name))
+                    langchain_messages.append(
+                        ToolMessage(tool_call_id=tool_id, content=str(tool_result), name=tool_name)
+                    )
                     yield f"[TOOL_END]{friendly}[/TOOL_END]"
 
                 current_response = await _ainvoke_with_recovery(langchain_messages)

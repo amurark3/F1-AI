@@ -14,6 +14,8 @@ exactly as the FastF1 code filtered ``NaN`` positions.
 
 from __future__ import annotations
 
+from typing import Literal
+
 import structlog
 
 from app.data.f1db_source import connect
@@ -41,7 +43,39 @@ def race_schedule(year: int) -> list[dict]:
     return [{"round": int(r["round"]), "name": r["name"], "location": r["location"]} for r in rows]
 
 
-def _positions_by_type(year: int, round_num: int, result_type: str, column: str) -> dict[str, int]:
+# The two orderings this module queries by, as complete literal statements.
+#
+# A column name cannot be a bound parameter, so selecting the ordering at all
+# would mean interpolating an identifier into SQL. Both finished statements are
+# written out instead: nothing is assembled at runtime, `PositionColumn` is a
+# closed type, and there is no code path that can produce a third query.
+PositionColumn = Literal["position_number", "position_display_order"]
+
+_QUERY_BY_POSITION_NUMBER = """
+    SELECT d.abbreviation AS code, rd.position_number AS position
+    FROM race_data rd
+    JOIN race r ON r.id = rd.race_id
+    JOIN driver d ON d.id = rd.driver_id
+    WHERE r.year = ? AND r.round = ? AND rd.type = ?
+      AND rd.position_number IS NOT NULL AND d.abbreviation IS NOT NULL
+"""
+
+_QUERY_BY_DISPLAY_ORDER = """
+    SELECT d.abbreviation AS code, rd.position_display_order AS position
+    FROM race_data rd
+    JOIN race r ON r.id = rd.race_id
+    JOIN driver d ON d.id = rd.driver_id
+    WHERE r.year = ? AND r.round = ? AND rd.type = ?
+      AND rd.position_display_order IS NOT NULL AND d.abbreviation IS NOT NULL
+"""
+
+_POSITION_QUERIES: dict[PositionColumn, str] = {
+    "position_number": _QUERY_BY_POSITION_NUMBER,
+    "position_display_order": _QUERY_BY_DISPLAY_ORDER,
+}
+
+
+def _positions_by_type(year: int, round_num: int, result_type: str, column: PositionColumn) -> dict[str, int]:
     """Return ``{driver_code: position}`` for one session type of a race.
 
     ``column`` selects the ordering: ``position_number`` (classified only) or
@@ -49,14 +83,7 @@ def _positions_by_type(year: int, round_num: int, result_type: str, column: str)
     """
     with connect() as conn:
         rows = conn.execute(
-            f"""
-            SELECT d.abbreviation AS code, rd.{column} AS position
-            FROM race_data rd
-            JOIN race r ON r.id = rd.race_id
-            JOIN driver d ON d.id = rd.driver_id
-            WHERE r.year = ? AND r.round = ? AND rd.type = ?
-              AND rd.{column} IS NOT NULL AND d.abbreviation IS NOT NULL
-            """,
+            _POSITION_QUERIES[column],
             (year, round_num, result_type),
         ).fetchall()
     return {r["code"]: int(r["position"]) for r in rows}

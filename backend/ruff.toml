@@ -1,0 +1,261 @@
+# Backend lint gate — the Python counterpart to `frontend/eslint.config.mjs`.
+#
+# One tool owns two jobs, the same split the frontend runs with Prettier +
+# ESLint:
+#
+#   `ruff format`  — formatting only. Nothing below fights it; the `line-length`
+#                    here is the single source of truth for both, so the
+#                    formatter and `E501` can never disagree (this is the
+#                    `eslint-config-prettier` role, structural rather than a
+#                    rule list).
+#   `ruff check`   — correctness, code smells and the complexity budgets.
+#
+# Budgets are ported from the frontend one-for-one wherever a Python analogue
+# exists; see the "complexity budgets" block for the mapping and for the two
+# frontend rules that have no counterpart here.
+
+# Pinned to the version in requirements-dev.txt. CI installs that pin, but the
+# pre-commit hook falls back to whatever `ruff` is on PATH when there is no
+# venv — without this, a different local version can pass the hook and then fail
+# CI. Ruff refuses to run on a mismatch, so the two can no longer disagree.
+required-version = "0.16.1"
+
+target-version = "py310"
+line-length = 120  # matches frontend/.prettierrc.json `printWidth`
+src = ["."]
+
+# Generated, vendored or data directories. Everything first-party is linted:
+# there is no opt-out list for app code.
+#
+# Every pattern is root-anchored. A bare `data` would match on basename at any
+# depth and silently exempt `app/data/` — the largest package in the backend —
+# from the entire gate.
+extend-exclude = [
+    "/.venv",
+    "/f1_cache",
+    "/data",
+    "/models",
+    "/reports",
+]
+
+[format]
+docstring-code-format = true
+
+[lint]
+# `PLR1702` (max nesting depth) is still a preview rule. Opting in per-rule
+# rather than turning preview on wholesale keeps the gate to rules that are
+# stable — otherwise a ruff upgrade could add failures nobody chose.
+preview = true
+explicit-preview-rules = true
+
+select = [
+    "PLR1702", # nesting depth — the `max-depth` analogue, see budgets below
+
+    # --- Correctness ------------------------------------------------------
+    "F",      # pyflakes — undefined names, unused imports/variables
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "B",      # bugbear — mutable defaults, loop-variable capture, silent bugs
+    "A",      # builtin shadowing
+    "DTZ",    # naive datetime — F1 sessions are timezone-critical
+    "LOG",    # logging misuse
+    "G",      # logging call formatting
+    "PLE",    # pylint errors
+    "RUF",    # ruff-native correctness
+    "S",      # bandit — hardcoded secrets, injection, silent excepts
+    "ASYNC",  # blocking calls inside async defs
+
+    # --- Type hygiene -----------------------------------------------------
+    "TC",     # runtime-only vs typing-only imports (≈ consistent-type-imports)
+    "ICN",    # canonical import aliases (pd, np)
+    "PYI",    # typing-construct correctness
+    "ANN",    # every signature annotated (app code only — see per-file-ignores)
+
+    # --- Imports ----------------------------------------------------------
+    "I",      # isort — deterministic import order (≈ import/order)
+    "TID",    # banned/relative imports
+
+    # --- Code smells ------------------------------------------------------
+    # The sonarjs analogue. SIM/RET/PIE overlap sonarjs almost rule-for-rule:
+    # collapsible-if, redundant-boolean, no-else-return, prefer-immediate-return,
+    # inverted-boolean-check and useless-catch all live here.
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "PIE",    # unnecessary/duplicated code
+    "C4",     # comprehension smells
+    "PERF",   # avoidable-overhead patterns
+    "FURB",   # modernisation refactors
+    "ARG",    # unused arguments
+    "SLF",    # private-member access across objects
+    "RSE",    # raise smells
+    "PLC",    # pylint conventions
+    "PLR",    # pylint refactors — carries the complexity budgets below
+    "PLW",    # pylint warnings
+
+    # --- Style ------------------------------------------------------------
+    "UP",     # pyupgrade — py310 idioms
+    "N",      # pep8 naming
+    "Q",      # quote consistency
+    "C90",    # mccabe — cyclomatic complexity budget
+    "PT",     # pytest style
+    "T20",    # print() left in app code (≈ no-console)
+    "TRY400", # logger.exception over logger.error inside except — keeps tracebacks
+]
+
+ignore = [
+    # --- Owned by the formatter -------------------------------------------
+    # `ruff format` decides these; leaving them on would mean two tools with an
+    # opinion on the same character.
+    "E501",   # line length — the formatter wraps to `line-length`
+    "ISC001", # implicit concat on one line
+    "Q000", "Q001", "Q002", "Q003",
+    "W191", "E111", "E114", "E117",
+
+    # --- Deliberate architecture, not defects -----------------------------
+    # Heavy imports (torch, sentence-transformers, LangChain) are function-local
+    # on purpose: hoisting them to module scope is what OOM-killed the Render
+    # boot. The lazy imports are the fix, so the rule that forbids them is off.
+    "PLC0415",  # import-outside-top-level
+    # Module-level `_client`/`_model` singletons initialised on first use. The
+    # `global` is the memoisation, and there are no alternatives that keep the
+    # lazy-import property above.
+    "PLW0603",  # global-statement
+    # `except Exception` at an external boundary (Groq, Supabase, FastF1, OpenF1)
+    # is graceful degradation, not a swallowed error — every site logs and
+    # returns a fallback. `S110` and `SIM105` stay ON below and are what actually
+    # catch a silently-dropped exception.
+    "BLE001",   # blind-except
+
+    # --- Deliberately not part of this gate -------------------------------
+    # `Any` is not TypeScript's `any`. Every remaining use is a genuine dynamic
+    # boundary — `**context: Any` on a log/error helper, `value: Any` on the
+    # coercion helpers that turn unvalidated JSON into typed values. Narrowing
+    # those would be a lie about what the function accepts. ANN001/201/202 stay
+    # ON, so a signature still cannot go unannotated.
+    "ANN401",   # any-type
+    # The frontend gate has no `no-magic-numbers` either, and this is where the
+    # two would diverge most: of the ~100 sites here, the largest group is
+    # `status_code == 200`, where a named constant restates the literal without
+    # explaining it. Domain thresholds that *do* carry meaning already live in
+    # `app/config.py`, and that convention — not a linter — is what keeps them
+    # there.
+    "PLR2004",  # magic-value-comparison
+    # Prose in docstrings uses em dashes and arrows; these are not homoglyph
+    # attacks.
+    "RUF001", "RUF002", "RUF003",
+    # Exception-message style. No defect class behind them, and they add a local
+    # variable to every `raise`.
+    "TRY003",
+    # `try/except/else` restructuring — frequently makes the happy path harder to
+    # follow than the code it replaces.
+    "TRY300",
+    # try/except inside a loop. The only sites are loops over seasons that make a
+    # network call per iteration: the handler is what lets one season fail without
+    # losing the rest, and its cost is invisible next to the request it guards.
+    "PERF203",
+]
+
+# `ruff check --fix` may rewrite anything it can prove safe. Unsafe fixes stay
+# opt-in via --unsafe-fixes.
+fixable = ["ALL"]
+
+# --- Complexity budgets -------------------------------------------------------
+# Ported from the `complexity budgets` block of the frontend ESLint config:
+#
+#   complexity: 15            → C901   max-complexity  = 15
+#   max-depth: 4              → PLR1702 max-nested-blocks = 4
+#   max-params: { max: 4 }    → PLR0913 max-args = 4 (+ PLR0917 positional)
+#   max-lines-per-function: 80 → PLR0915 max-statements = 50
+#                               (80 lines net of blanks/comments ≈ 50 statements)
+#   max-lines: 500            → no ruff rule exists; enforced by
+#                               tools/check_module_size.py, which is a gate of
+#                               its own so the budget is not silently unenforced.
+#
+# Two frontend rules have no Python counterpart and are deliberately unreplaced
+# rather than approximated: `sonarjs/cognitive-complexity` (C901 + PLR0912 cover
+# the same code, by branch count instead of nesting weight) and
+# `sonarjs/no-identical-functions` (no duplicate-block detector in ruff).
+
+[lint.mccabe]
+max-complexity = 15
+
+[lint.pylint]
+max-args = 4
+max-positional-args = 4
+max-nested-blocks = 4
+max-statements = 50
+max-branches = 12
+max-returns = 8
+max-bool-expr = 5
+
+[lint.isort]
+known-first-party = ["app"]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[lint.flake8-type-checking]
+# FastAPI and Pydantic resolve annotations at runtime, so moving their imports
+# into a TYPE_CHECKING block breaks dependency injection and model building.
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+runtime-evaluated-decorators = ["fastapi.Depends", "fastapi.Query"]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[lint.per-file-ignores]
+# `load_dotenv()` must run before any `app.*` import so module-level
+# `os.getenv()` reads a populated environment. That ordering is the entry
+# point's job and cannot be expressed with imports at the top.
+"main.py" = ["E402"]
+
+# Test suites: `assert` is the point (S101), fixtures legitimately shadow names,
+# and private access is how internals get tested.
+"tests/**/*.py" = [
+    "S101",     # assert
+    "SLF001",   # private-member-access
+    # Unused args: pytest fixtures arrive as parameters, and a monkeypatch stub
+    # written as `lambda *a, **k: ...` has to accept the shape it replaces.
+    "ARG001", "ARG002", "ARG005",
+    "PLR2004",  # magic values are the expected literals
+    "PLR0915",  # a scenario test is one long linear arrangement
+    # A test's parameter list is pytest's injection mechanism, not an API it is
+    # offering anyone — fixtures and `parametrize` columns both arrive that way.
+    # Same reasoning as the `mcp_server.py` allowance below: the budget exists to
+    # keep call sites designable, and here there is no call site to design.
+    "PLR0913", "PLR0917",
+    "DTZ",      # frozen naive timestamps make fixtures deterministic
+    # Every test is `(fixtures...) -> None`. Annotating that adds no information
+    # a reader or checker did not already have.
+    "ANN",
+]
+
+# MCP tool definitions. A tool's parameter list *is* its public schema — it is
+# what the model sees and fills in — so the argument budget cannot apply: folding
+# `driver1, driver2` into an object would change the advertised tool contract,
+# and `ctx: Context` is injected by the framework rather than chosen. Every other
+# budget (complexity, nesting, statements) still applies to the bodies.
+"mcp_server.py" = ["PLR0913", "PLR0917"]
+
+# One-shot operational scripts: printing to stdout is their user interface.
+"scripts/**/*.py" = ["T20"]
+
+# Gate tooling invoked as `python -m tools.*` by the hook and by CI. Its report
+# *is* stdout/stderr — a gate that fails without saying what broke is the defect
+# this allowance exists to prevent.
+"tools/**/*.py" = ["T20"]
+
+# Operational modules invoked as `python -m ...` rather than served. Each has a
+# `__main__` block and reports progress to a console, so stdout is the interface
+# exactly as in `scripts/` above — ruff cannot scope T20 to the `__main__` block
+# alone, so the allowance is per-module. Request-path code keeps T20 on.
+"app/ml/train.py" = ["T20"]
+"app/ml/evaluate.py" = ["T20"]
+"app/ml/promote.py" = ["T20"]
+"app/evals/run.py" = ["T20"]
+"app/rag/ingest.py" = ["T20"]
+# Same category: both are run as `python -m` by an operator and report their
+# result to stdout. Deleting the print to satisfy T20 does not fix anything — it
+# turns the command into a silent no-op, which is strictly worse than the lint
+# finding it silences.
+"app/data/f1db_source.py" = ["T20"]
+"app/services/self_improvement.py" = ["T20"]

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+import sqlite3
+from typing import TYPE_CHECKING, Any
 
 import fastf1
 import structlog
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = structlog.get_logger()
 

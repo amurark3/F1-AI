@@ -20,9 +20,8 @@ _MARKER = "<function="
 def is_tool_use_failed(exc: Exception) -> bool:
     """True if ``exc`` is Groq's recoverable malformed-tool-call error."""
     body = getattr(exc, "body", None)
-    if isinstance(body, dict):
-        if (body.get("error") or {}).get("code") == "tool_use_failed":
-            return True
+    if isinstance(body, dict) and (body.get("error") or {}).get("code") == "tool_use_failed":
+        return True
     return "tool_use_failed" in str(exc)
 
 
@@ -53,15 +52,14 @@ def _match_json_object(text: str, open_brace: int) -> int | None:
                 escaped = True
             elif ch == '"':
                 in_string = False
-        else:
-            if ch == '"':
-                in_string = True
-            elif ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    return i + 1
+        elif ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
     return None
 
 

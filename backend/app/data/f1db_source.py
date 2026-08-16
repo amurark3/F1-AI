@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 import shutil
 import sqlite3
 import zipfile
-from pathlib import Path
 
 import requests
 import structlog

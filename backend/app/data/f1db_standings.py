@@ -13,9 +13,14 @@ latest in-progress round should fall back to the live API when f1db lacks it.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 
 from app.data.f1db_source import connect
+
+if TYPE_CHECKING:
+    import sqlite3
 
 logger = structlog.get_logger()
 
@@ -25,10 +30,9 @@ _driver_cache: dict[tuple[int, int], dict[str, int]] = {}
 _constructor_cache: dict[tuple[int, int], list[dict]] = {}
 
 
-def _latest_round(conn, year: int) -> int:
+def _latest_round(conn: sqlite3.Connection, year: int) -> int:
     row = conn.execute(
-        "SELECT MAX(r.round) FROM race_driver_standing rds "
-        "JOIN race r ON r.id = rds.race_id WHERE r.year = ?",
+        "SELECT MAX(r.round) FROM race_driver_standing rds JOIN race r ON r.id = rds.race_id WHERE r.year = ?",
         (year,),
     ).fetchone()
     return int(row[0]) if row and row[0] is not None else 0
@@ -91,7 +95,7 @@ def constructor_standings_after_round(year: int, round_num: int) -> list[dict]:
     return result
 
 
-def _season_wins_by_driver_code(conn, year: int) -> dict[str, int]:
+def _season_wins_by_driver_code(conn: sqlite3.Connection, year: int) -> dict[str, int]:
     rows = conn.execute(
         """
         SELECT d.abbreviation AS code, COUNT(*) AS wins
@@ -142,16 +146,18 @@ def driver_standings_detailed(year: int) -> list[dict]:
         if code in seen:  # a mid-season team change can duplicate the join row
             continue
         seen.add(code)
-        result.append({
-            "code": code,
-            "name": row["name"],
-            "team": row["team"] or "",
-            "position": int(row["position"]),
-            "points": float(row["points"]) if row["points"] is not None else 0.0,
-            "wins": wins_by_code.get(code, 0),
-            "nationality": row["nationality"] or "",
-            "driver_id": row["driver_id"],
-        })
+        result.append(
+            {
+                "code": code,
+                "name": row["name"],
+                "team": row["team"] or "",
+                "position": int(row["position"]),
+                "points": float(row["points"]) if row["points"] is not None else 0.0,
+                "wins": wins_by_code.get(code, 0),
+                "nationality": row["nationality"] or "",
+                "driver_id": row["driver_id"],
+            }
+        )
     return result
 
 

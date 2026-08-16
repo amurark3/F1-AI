@@ -12,17 +12,19 @@ Configure in Claude Desktop / Cursor by pointing to this script.
 See README or CLAUDE.md for full setup instructions.
 """
 
-import os
-import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
+import logging
+import os
 
-import fastf1
-import pandas as pd
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP, Context
+import fastf1
 from fastf1.ergast import Ergast
+from mcp.server.fastmcp import Context, FastMCP
+import pandas as pd
+
 from app.utils.fastf1_cache import enable_fastf1_cache
+from app.utils.lap_deltas import LAP_DELTA_COLUMNS, format_delta, lap_deltas
 
 # ---------------------------------------------------------------------------
 # Environment & cache setup
@@ -44,12 +46,11 @@ mcp = FastMCP("F1 Race Engineer")
 # ---------------------------------------------------------------------------
 # Helper — shared time-string formatter (mirrors tools.py)
 # ---------------------------------------------------------------------------
-def _fmt_timedelta(time_val) -> str:
+def _fmt_timedelta(time_val: pd.Timedelta | None) -> str:
     if pd.isna(time_val):
         return "-"
     s = str(time_val).split("days")[-1].strip()
-    if s.startswith("00:"):
-        s = s[3:]
+    s = s.removeprefix("00:")
     if len(s) > 10:
         s = s[:9]
     return s
@@ -67,15 +68,13 @@ async def get_season_schedule(year: int, ctx: Context) -> str:
     try:
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
-        schedule = await loop.run_in_executor(
-            None, lambda: fastf1.get_event_schedule(year=year, include_testing=False)
-        )
+        schedule = await loop.run_in_executor(None, lambda: fastf1.get_event_schedule(year=year, include_testing=False))
         await ctx.report_progress(progress=80, total=100)
 
         if schedule.empty:
             return f"No schedule data found for {year}."
 
-        today = datetime.now()
+        today = datetime.now(timezone.utc)
         output = [f"### F1 Season Schedule ({year})"]
         output.append(f"*(Current Date: {today.strftime('%Y-%m-%d')})*\n")
         output.append("| Round | Grand Prix | Date | Status |")
@@ -86,7 +85,7 @@ async def get_season_schedule(year: int, ctx: Context) -> str:
             race_date = row["EventDate"]
             gp_name = row["EventName"]
             round_num = row["RoundNumber"]
-            date_str = race_date.strftime('%d %b') if pd.notna(race_date) else "TBA"
+            date_str = race_date.strftime("%d %b") if pd.notna(race_date) else "TBA"
 
             if race_date < today:
                 status = "Completed"
@@ -116,7 +115,7 @@ async def get_race_results(year: int, grand_prix: str, ctx: Context) -> str:
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
 
-        def _fetch():
+        def _fetch() -> pd.DataFrame:
             session = fastf1.get_session(year, grand_prix, "R")
             session.load(telemetry=False, laps=False, weather=False)
             return session.results.sort_values(by="Position")
@@ -134,11 +133,7 @@ async def get_race_results(year: int, grand_prix: str, ctx: Context) -> str:
             team = row["TeamName"][:15]
             points = str(row["Points"]).rstrip("0").rstrip(".")
 
-            grid = (
-                str(int(row["GridPosition"]))
-                if pd.notna(row["GridPosition"]) and row["GridPosition"] > 0
-                else "PL"
-            )
+            grid = str(int(row["GridPosition"])) if pd.notna(row["GridPosition"]) and row["GridPosition"] > 0 else "PL"
 
             if grid.isdigit() and pos.isdigit():
                 diff = int(grid) - int(pos)
@@ -166,6 +161,30 @@ async def get_race_results(year: int, grand_prix: str, ctx: Context) -> str:
 # ---------------------------------------------------------------------------
 # 3. Qualifying Results
 # ---------------------------------------------------------------------------
+def _qualifying_phase_rows(results: pd.DataFrame, phase: str, grand_prix: str, year: int) -> list[str]:
+    """Markdown table for one qualifying phase, or nothing if it was not run.
+
+    Q1 keeps every entrant so drivers who set no time still appear in the order;
+    Q2 and Q3 list only the drivers who progressed and set a lap.
+    """
+    if phase not in results.columns or not results[phase].notna().any():
+        return []
+
+    phase_df = results.sort_values(by=phase) if phase == "Q1" else results[results[phase].notna()].sort_values(by=phase)
+    rows = [
+        f"### {phase} Results ({grand_prix} {year})",
+        f"| Pos | Driver | {phase} Time |",
+        "| :-- | :----- | :------ |",
+    ]
+    rows.extend(
+        f"| {position} | {row['Abbreviation']} | {_fmt_timedelta(row[phase])} |"
+        for position, (_, row) in enumerate(phase_df.iterrows(), 1)
+        if pd.notna(row[phase])
+    )
+    rows.append("")
+    return rows
+
+
 @mcp.tool()
 async def get_qualifying_results(year: int, grand_prix: str, ctx: Context) -> str:
     """
@@ -176,7 +195,7 @@ async def get_qualifying_results(year: int, grand_prix: str, ctx: Context) -> st
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
 
-        def _fetch():
+        def _fetch() -> pd.DataFrame:
             session = fastf1.get_session(year, grand_prix, "Q")
             session.load(telemetry=False, laps=False, weather=False)
             return session.results
@@ -185,16 +204,8 @@ async def get_qualifying_results(year: int, grand_prix: str, ctx: Context) -> st
         await ctx.report_progress(progress=80, total=100)
 
         output = []
-        for phase, col in [("Q1", "Q1"), ("Q2", "Q2"), ("Q3", "Q3")]:
-            if col in results.columns and results[col].notna().any():
-                phase_df = results[results[col].notna()].sort_values(by=col) if col != "Q1" else results.sort_values(by=col)
-                output.append(f"### {phase} Results ({grand_prix} {year})")
-                output.append(f"| Pos | Driver | {phase} Time |")
-                output.append(f"| :-- | :----- | :------ |")
-                for i, (_, row) in enumerate(phase_df.iterrows(), 1):
-                    if pd.notna(row[col]):
-                        output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row[col])} |")
-                output.append("")
+        for phase in ("Q1", "Q2", "Q3"):
+            output.extend(_qualifying_phase_rows(results, phase, grand_prix, year))
 
         await ctx.report_progress(progress=100, total=100)
         return "\n".join(output) if output else f"No qualifying data for {grand_prix} {year}."
@@ -214,7 +225,7 @@ async def get_sprint_results(year: int, grand_prix: str, ctx: Context) -> str:
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
 
-        def _fetch():
+        def _fetch() -> pd.DataFrame:
             session = fastf1.get_session(year, grand_prix, "S")
             session.load(telemetry=False, laps=False, weather=False)
             return session.results.sort_values(by="Position")
@@ -253,7 +264,7 @@ async def get_sprint_qualifying_results(year: int, grand_prix: str, ctx: Context
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
 
-        def _fetch():
+        def _fetch() -> pd.DataFrame:
             session = fastf1.get_session(year, grand_prix, "SQ")
             session.load(telemetry=False, laps=True, weather=False)
             return session.results
@@ -267,7 +278,7 @@ async def get_sprint_qualifying_results(year: int, grand_prix: str, ctx: Context
                 phase_df = results[results[col].notna()].sort_values(by=col)
                 output.append(f"### {phase} Results ({grand_prix} {year})")
                 output.append(f"| Pos | Driver | {phase} Time |")
-                output.append(f"| :-- | :----- | :------- |")
+                output.append("| :-- | :----- | :------- |")
                 for i, (_, row) in enumerate(phase_df.iterrows(), 1):
                     output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row[col])} |")
                 output.append("")
@@ -295,7 +306,7 @@ async def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str
         await ctx.report_progress(progress=10, total=100)
         loop = asyncio.get_event_loop()
 
-        def _fetch():
+        def _fetch() -> fastf1.core.Session:
             session = fastf1.get_session(year, grand_prix, "Q")
             session.load(telemetry=False, laps=True, weather=False)
             return session
@@ -303,7 +314,7 @@ async def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str
         session = await loop.run_in_executor(None, _fetch)
         await ctx.report_progress(progress=60, total=100)
 
-        def get_driver_code(name_query: str):
+        def get_driver_code(name_query: str) -> str | None:
             query = name_query.lower().strip()
             for drv in session.results.itertuples():
                 if (
@@ -319,18 +330,13 @@ async def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str
         if not d1_code or not d2_code:
             return f"Could not find drivers '{driver1}' or '{driver2}' in the entry list."
 
-        d1_lap = session.laps.pick_driver(d1_code).pick_fastest()
-        d2_lap = session.laps.pick_driver(d2_code).pick_fastest()
+        d1_lap = session.laps.pick_drivers(d1_code).pick_fastest()
+        d2_lap = session.laps.pick_drivers(d2_code).pick_fastest()
         if d1_lap is None or d2_lap is None:
             return f"No lap data found for {d1_code} or {d2_code}."
 
-        total = d1_lap["LapTime"] - d2_lap["LapTime"]
-        s1 = d1_lap["Sector1Time"] - d2_lap["Sector1Time"]
-        s2 = d1_lap["Sector2Time"] - d2_lap["Sector2Time"]
-        s3 = d1_lap["Sector3Time"] - d2_lap["Sector3Time"]
-
-        def fmt(sec):
-            return f"{'+' if sec > 0 else ''}{sec:.3f}s"
+        # Positive = d1 is slower than d2. None where a sector time is missing.
+        total, s1, s2, s3 = lap_deltas(d1_lap, d2_lap, LAP_DELTA_COLUMNS)
 
         await ctx.report_progress(progress=100, total=100)
         return (
@@ -338,10 +344,10 @@ async def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str
             f"**{d1_code} vs {d2_code}**\n\n"
             f"| Sector | Gap ({d1_code} vs {d2_code}) |\n"
             f"| :--- | :--- |\n"
-            f"| **TOTAL** | **{fmt(total.total_seconds())}** |\n"
-            f"| Sector 1 | {fmt(s1.total_seconds())} |\n"
-            f"| Sector 2 | {fmt(s2.total_seconds())} |\n"
-            f"| Sector 3 | {fmt(s3.total_seconds())} |"
+            f"| **TOTAL** | **{format_delta(total)}** |\n"
+            f"| Sector 1 | {format_delta(s1)} |\n"
+            f"| Sector 2 | {format_delta(s2)} |\n"
+            f"| Sector 3 | {format_delta(s3)} |"
         )
     except Exception as e:
         return f"Comparison failed: {e}"
@@ -429,17 +435,17 @@ def get_constructor_standings(year: int) -> str:
 # 9. Rulebook Search (RAG)
 # ---------------------------------------------------------------------------
 @mcp.tool()
-def consult_rulebook(query: str, year: int = None) -> str:
+def consult_rulebook(query: str, year: int | None = None) -> str:
     """
     Searches the official FIA regulations (Sporting, Technical, Financial)
     for text relevant to the query. Covers 2024-2026 regulations.
     """
     try:
-        from langchain_huggingface import HuggingFaceEmbeddings
         from langchain_chroma import Chroma
+        from langchain_huggingface import HuggingFaceEmbeddings
 
         if year is None:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             year = now.year + 1 if (now.month == 12 and now.day > 10) else now.year
 
         db_path = os.path.join(os.path.dirname(__file__), "data", "chroma")
@@ -448,9 +454,7 @@ def consult_rulebook(query: str, year: int = None) -> str:
 
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vector_db = Chroma(persist_directory=db_path, embedding_function=embeddings)
-        retriever = vector_db.as_retriever(
-            search_kwargs={"k": 6, "filter": {"source_year": str(year)}}
-        )
+        retriever = vector_db.as_retriever(search_kwargs={"k": 6, "filter": {"source_year": str(year)}})
         docs = retriever.invoke(query)
 
         if not docs:
@@ -477,15 +481,13 @@ def perform_web_search(query: str) -> str:
     """
     try:
         from tavily import TavilyClient
+
         client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
         response = client.search(query=query, search_depth="basic", max_results=3)
         results = response.get("results", [])
         if not results:
             return "No search results found."
-        return "\n\n".join(
-            f"Source: {r['title']}\nSnippet: {r['content']}\nURL: {r['url']}"
-            for r in results
-        )
+        return "\n\n".join(f"Source: {r['title']}\nSnippet: {r['content']}\nURL: {r['url']}" for r in results)
     except Exception as e:
         return f"Search failed: {e}"
 

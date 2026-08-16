@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import fastf1
 import pandas as pd
@@ -14,7 +14,9 @@ import structlog
 
 from app.data.predictions import PREDICTION_LOGIC_VERSION
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
-from app.data.store_types import WriteResult
+
+if TYPE_CHECKING:
+    from app.data.store_types import WriteResult
 
 logger = structlog.get_logger()
 
@@ -28,7 +30,7 @@ CACHE_POLICY = "stored_until_manual_recompute"
 RELOAD_BACKOFF_SECONDS = 30.0
 
 
-class PredictionCacheUnavailable(RuntimeError):
+class PredictionCacheUnavailableError(RuntimeError):
     """Raised when the snapshot store cannot be read, so writing is unsafe.
 
     Persisting on top of a failed load would upload a document containing only
@@ -139,7 +141,7 @@ class PredictionSnapshotCache:
 
     def set(self, year: int, round_num: int, result: dict, *, reason: str = "manual_compute") -> dict:
         if not self._ensure_loaded():
-            raise PredictionCacheUnavailable(
+            raise PredictionCacheUnavailableError(
                 "Prediction store is unreachable; refusing to overwrite stored "
                 "snapshots with an incomplete set. Try again shortly."
             )
@@ -205,9 +207,10 @@ class PredictionSnapshotCache:
     def _has_prediction(self, entry: dict[str, Any]) -> bool:
         snapshot = self._active_snapshot(self._normalise_entry(entry))
         result = (snapshot or {}).get("result") or {}
-        if not result.get("predictions"):
-            return False
-        return True
+        # `bool(...)`, not the list itself: the return type is part of the
+        # contract, and an empty-but-present `predictions` list means the same
+        # thing as a missing one — no prediction to serve.
+        return bool(result.get("predictions"))
 
     def _active_snapshot(self, entry: dict[str, Any]) -> dict[str, Any] | None:
         snapshots = entry.get("snapshots") or []
@@ -231,7 +234,8 @@ class PredictionSnapshotCache:
             normalised = copy.deepcopy(entry)
             normalised["policy"] = normalised.get("policy") or CACHE_POLICY
             normalised["snapshots"] = [
-                snapshot for snapshot in normalised.get("snapshots", [])
+                snapshot
+                for snapshot in normalised.get("snapshots", [])
                 if isinstance(snapshot, dict) and isinstance(snapshot.get("result"), dict)
             ]
             return normalised
@@ -284,9 +288,7 @@ class PredictionSnapshotCache:
 
             schema_version = payload.get("schema_version")
             if schema_version not in {1, CACHE_SCHEMA_VERSION}:
-                logger.warning(
-                    "prediction_cache.unsupported_schema", schema_version=schema_version
-                )
+                logger.warning("prediction_cache.unsupported_schema", schema_version=schema_version)
                 self._entries = {}
                 self._loaded = True
                 return True

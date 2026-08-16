@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS chat_message (
 
 CREATE INDEX IF NOT EXISTS chat_message_thread_idx
     ON chat_message (user_id, thread_id, created_at);
+
+-- Both tables hold per-user data and Supabase exposes every public table over
+-- PostgREST, so RLS with no policies is what keeps the anon/authenticated API
+-- from reading other people's profiles and chat history.  This module connects
+-- as the owning role over plain Postgres and so bypasses RLS.  Idempotent.
+ALTER TABLE user_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_message ENABLE ROW LEVEL SECURITY;
 """
 
 # ---------------------------------------------------------------------------

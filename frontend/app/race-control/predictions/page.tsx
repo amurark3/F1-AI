@@ -9,6 +9,7 @@ import { fetcher } from "@/app/utils/fetcher";
 
 import { PageLoader } from "../components/RaceControlPrimitives";
 
+import { isLiveRace } from "./predictionHelpers";
 import { RacePredictionBoard, type RacePredictionBoardProps } from "./RacePredictionBoard";
 
 import type { DriverStanding, PredictionsResponse, RaceEvent } from "./predictionModel";
@@ -84,7 +85,8 @@ function usePredictionWorkspace() {
   const defaultRace = useMemo(() => {
     if (!schedule.length) return null;
     return (
-      schedule.find((r) => r.status === "upcoming" || r.status === "next") ??
+      schedule.find((r) => isLiveRace(r.status)) ??
+      schedule.find((r) => r.status === "upcoming") ??
       [...schedule].reverse().find((r) => r.status === "completed") ??
       schedule[0]
     );

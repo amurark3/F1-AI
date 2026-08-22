@@ -43,7 +43,7 @@ def dataset(tmp_path, monkeypatch):
     monkeypatch.setattr(f1db_source, "DB_PATH", db_path)
     monkeypatch.setattr(f1db_source, "VERSION_PATH", tmp_path / "f1db.db.version")
     monkeypatch.setattr(f1db_source, "F1DB_VERSION", "")
-    monkeypatch.setattr(f1db_source, "_last_check_at", 0.0)
+    monkeypatch.setattr(f1db_source, "_last_check_at", None)
     return db_path
 
 
@@ -207,6 +207,30 @@ def test_forcing_a_sync_bypasses_the_throttle(dataset, monkeypatch):
     f1db_source.sync_to_latest(force=True)
 
     assert len(calls) == 2
+
+
+def test_the_first_sync_of_a_process_is_never_throttled(dataset, monkeypatch):
+    """Uptime is not a release check.
+
+    ``time.monotonic()`` counts from system boot, so on a machine that booted
+    less than the check interval ago every reading is small. A throttle that
+    treats "no check yet" as a timestamp of zero therefore concludes the process
+    just checked and skips the boot sync — silently, and for the first hour of
+    the container's life. CI runners boot seconds before the suite runs, which is
+    where this first showed up; a Render container restarting onto a persistent
+    disk that already holds a dataset is the same shape, and there it serves a
+    stale release instead.
+    """
+    monkeypatch.setattr(f1db_source.time, "monotonic", lambda: 5.0)
+    install(dataset, "v2026.10.0")
+    calls = fake_github(
+        monkeypatch, latest="v2026.11.0", asset=zip_bytes(b"with-hungary")
+    )
+
+    outcome = f1db_source.sync_to_latest()
+
+    assert outcome.updated is True, "a fresh process must check before it throttles"
+    assert f1db_source.F1DB_RELEASES_API in calls
 
 
 def test_a_missing_dataset_is_never_throttled(dataset, monkeypatch):

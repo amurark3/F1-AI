@@ -61,7 +61,14 @@ DOWNLOAD_TIMEOUT_SECONDS = int(os.getenv("F1DB_DOWNLOAD_TIMEOUT_SECONDS", "120")
 # guards against a caller that syncs more eagerly than intended.
 F1DB_CHECK_INTERVAL_SECONDS = int(os.getenv("F1DB_CHECK_INTERVAL_SECONDS", "3600"))
 
-_last_check_at = 0.0
+# ``None`` means "no release check has run in this process yet". The sentinel is
+# deliberately outside the number line: ``time.monotonic()`` counts from an
+# arbitrary epoch — system boot on Linux — so a numeric ``0.0`` reads as
+# "checked at boot". On a machine whose uptime is under the check interval that
+# makes the very first sync of a process look recent and throttles it away,
+# which on a container booting with a dataset already on disk is exactly the
+# stale-dataset regression this module exists to prevent.
+_last_check_at: float | None = None
 _sync_lock = threading.Lock()
 
 
@@ -184,6 +191,18 @@ def _write_version_stamp(version: str, destination: Path) -> None:
     os.replace(staging, stamp)
 
 
+def _checked_recently() -> bool:
+    """Whether a release check already ran inside the throttle window.
+
+    False until the first check of the process completes, whatever the clock
+    happens to read — a fresh process must reach GitHub once before any
+    throttling applies. See ``_last_check_at``.
+    """
+    if _last_check_at is None:
+        return False
+    return (time.monotonic() - _last_check_at) < F1DB_CHECK_INTERVAL_SECONDS
+
+
 def sync_to_latest(*, force: bool = False) -> SyncOutcome:
     """Bring the on-disk dataset up to the release it should be on.
 
@@ -202,9 +221,8 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
 
     with _sync_lock:
         current = installed_version()
-        elapsed = time.monotonic() - _last_check_at
         # A server with no dataset is never throttled: it has nothing to serve.
-        if current and not force and elapsed < F1DB_CHECK_INTERVAL_SECONDS:
+        if current and not force and _checked_recently():
             return SyncOutcome(current, False, "checked recently")
 
         _last_check_at = time.monotonic()

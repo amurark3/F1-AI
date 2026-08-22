@@ -39,11 +39,13 @@ logger = structlog.get_logger()
 DOCUMENT_PREDICTION_CACHE = "prediction_cache"
 DOCUMENT_PREDICTION_HISTORY = "prediction_history"
 DOCUMENT_PREDICTION_POSTMORTEMS = "prediction_postmortems"
+DOCUMENT_DRIVER_AVAILABILITY = "driver_availability"
 
 _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_PREDICTION_CACHE: PREDICTION_CACHE_PATH,
     DOCUMENT_PREDICTION_HISTORY: PREDICTION_HISTORY_PATH,
     DOCUMENT_PREDICTION_POSTMORTEMS: "data/prediction_postmortems.json",
+    DOCUMENT_DRIVER_AVAILABILITY: "data/driver_availability.json",
 }
 
 BACKEND_POSTGRES = "postgres"

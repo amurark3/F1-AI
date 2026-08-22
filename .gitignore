@@ -39,6 +39,9 @@ backend/data/prediction_cache.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db
+# Records which f1db release the local database came from — written beside it
+# by f1db_source, and as machine-local as the database itself.
+backend/data/f1db.db.version
 backend/data/training_dataset.csv
 
 # Claude Code project data

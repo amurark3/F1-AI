@@ -102,10 +102,16 @@ def _set_state(state: ReadinessState) -> None:
 
 
 def _warm_database() -> None:
-    """Download the f1db SQLite file if the ephemeral disk lost it."""
-    from app.data.f1db_source import ensure_db
+    """Put the newest f1db release on disk before the first visitor needs it.
 
-    ensure_db()
+    Boot is the natural place to check: the ephemeral disk has usually lost the
+    file anyway, and fetching the current release costs exactly what fetching a
+    stale one would. A container that never cold-starts is covered separately by
+    the refresh loop in ``main``.
+    """
+    from app.data.f1db_source import sync_to_latest
+
+    sync_to_latest()
 
 
 def _warm_model() -> None:

@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 import sys
 
-from app.data.f1db_source import latest_release_version, refresh_f1db, sqlite_url_for
+from app.data.f1db_source import sync_to_latest
 from app.ml.evaluate import backtest
 from app.ml.features import FEATURES, TARGET
 from app.ml.train import _build_model, collect_data, train
@@ -42,9 +42,12 @@ def _set_github_output(key: str, value: str) -> None:
 
 
 def main() -> None:
-    version = latest_release_version()
-    print(f"Refreshing f1db to {version} ...")
-    refresh_f1db(url=sqlite_url_for(version))
+    # Training reads whatever the shared source says is current. This job used to
+    # own the refresh, which quietly made live data freshness a side effect of
+    # model retraining — the runner got the new release, production never did.
+    outcome = sync_to_latest(force=True)
+    version = outcome.version
+    print(f"f1db dataset at {version} — {outcome.reason}")
 
     df = collect_data().dropna(subset=FEATURES + [TARGET])
     if df.empty:

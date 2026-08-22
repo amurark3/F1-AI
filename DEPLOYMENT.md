@@ -291,15 +291,54 @@ merge → the workflow re-ingests to Supabase on its own.
 ## 7. Model retraining — auto PRs
 
 [`.github/workflows/retrain.yml`](.github/workflows/retrain.yml) runs weekly (and
-on demand): it refreshes f1db, retrains the race-finish model, and **promotes a
-challenger only if it beats the grid-order baseline** (`app.ml.promote`). A
+on demand): it retrains the race-finish model and **promotes a challenger only if
+it beats the grid-order baseline** (`app.ml.promote`). It reads whatever release
+`app.data.f1db_source` says is current — it does **not** own dataset freshness.
+The running server keeps its own copy up to date (§8), so a rejected challenger
+never leaves production serving stale standings. A
 promoted model is opened as a PR, auto-approved (if a `RETRAIN_PAT` secret is set),
 and auto-merged — merging redeploys the model. Requires branch protection to allow
 Actions to open/merge PRs (0 required approvals, or a code-owner PAT).
 
 ---
 
-## 8. GitHub Actions secrets
+## 8. F1 dataset freshness (f1db)
+
+Standings, results, and championship history are read from the f1db SQLite dump,
+which f1db re-publishes as a tagged GitHub release within a day or two of every
+race. `app.data.f1db_source` keeps the local copy on the newest release:
+
+| When | What runs |
+|---|---|
+| Every boot | the readiness warm-up calls `sync_to_latest()` before serving |
+| Every 6 h | the `_refresh_f1db_dataset` loop in `main.py` re-checks |
+
+Both paths are cheap when nothing changed — one small GitHub API call, no
+download. A new release is fetched to a temp file and moved into place with
+`os.replace`, so open reader connections are never overwritten underneath. The
+release currently on disk is reported by `GET /api/ready` as `f1db_version`; the
+tag is also stamped in `backend/data/f1db.db.version`.
+
+**`F1DB_VERSION` must stay unset in the Render dashboard.** Setting it pins the
+dataset to one release and disables all of the above. That is a deliberate
+escape hatch for reproducible training runs, not a production setting — a stale
+pin is what once left the standings page four weeks behind, serving pre-Hungary
+points on every cold start.
+
+If the standings ever look behind again, check in this order:
+
+```bash
+curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_version
+curl -s https://api.github.com/repos/f1db/f1db/releases/latest | jq -r .tag_name
+```
+
+Different tags mean the sync is failing (GitHub rate limit or a download error —
+look for `f1db.sync.failed` in the logs). The same tag means f1db has not
+published the round yet, which is expected in the ~24 h after a race.
+
+---
+
+## 9. GitHub Actions secrets
 
 | Secret | Used by | Notes |
 |---|---|---|
@@ -311,7 +350,7 @@ Set at **GitHub → Settings → Secrets and variables → Actions**.
 
 ---
 
-## 9. Local development
+## 10. Local development
 
 ```bash
 cd backend
@@ -326,7 +365,7 @@ needs a database (local or Supabase) to answer.
 
 ---
 
-## 10. Deploy flow & troubleshooting
+## 11. Deploy flow & troubleshooting
 
 - **Auto-deploy** fires on every commit to `main` (Render "On Commit").
 - **First request after idle** is slow — free instance spins down (~50 s cold start).

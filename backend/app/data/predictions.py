@@ -39,12 +39,16 @@ from app.config import (
     RECENT_FORM_WEIGHT,
     TEAM_STRENGTH_WEIGHT,
 )
+from app.data.driver_availability import load_weekend_availability
 from app.data.f1db_standings import (
     current_constructor_standings,
     current_driver_standings,
     driver_standings_detailed,
 )
+from app.data.session_entries import UNAVAILABLE as ENTRY_LIST_UNAVAILABLE
+from app.data.session_entries import load_weekend_entry_list
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
+from app.data.weekend_grid import resolve_grid
 from app.ml.features import build_feature_row
 
 logger = structlog.get_logger()
@@ -60,7 +64,10 @@ ADAPTIVE_CORRECTION_WEIGHT = PREDICTION_ADAPTIVE_WEIGHT
 # stale and recomputes it, so users never see predictions from superseded logic.
 # v3: back-fill the full entry list so drivers without a qualifying time are
 #     still predicted instead of being dropped from the grid.
-PREDICTION_LOGIC_VERSION = 3
+# v4: build the grid from the weekend's own entry list (plus curated
+#     availability adjustments) instead of the season championship table, so a
+#     withdrawn driver is no longer predicted for a race they are not in.
+PREDICTION_LOGIC_VERSION = 4
 
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
@@ -1012,27 +1019,59 @@ def _compute_risk_predictions(
 # Main prediction function
 # ===================================================================
 
+def _to_utc(value):
+    """Coerce a FastF1 schedule timestamp to an aware UTC datetime, or None."""
+    import pandas as pd
+
+    if value is None or pd.isna(value):
+        return None
+    dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+
+def _session_datetimes(event_row) -> list[datetime]:
+    """Every scheduled session datetime on an event row, in UTC."""
+    stamps = (_to_utc(event_row.get(f"Session{i}DateUtc")) for i in range(1, 6))
+    return [stamp for stamp in stamps if stamp is not None]
+
+
+def _weekend_has_started(event_row) -> bool:
+    """Return True if any session of this event is in the past (UTC).
+
+    The weekend entry list and the practice-pace proxy both become available
+    from FP1, hours before qualifying, so neither may be gated on qualifying
+    having run — doing so left the whole practice window with no session data
+    and no real entry list.
+
+    Falls back to True (attempt the load) whenever the schedule is unavailable.
+    """
+    stamps = _session_datetimes(event_row)
+    if stamps:
+        return min(stamps) <= datetime.now(timezone.utc)
+
+    race_dt = _to_utc(event_row.get("EventDate"))
+    if race_dt is not None:
+        from datetime import timedelta
+
+        # FP1 is ~2 days before the race on a conventional weekend.
+        return (race_dt - timedelta(days=2)) <= datetime.now(timezone.utc)
+
+    return True
+
+
 def _qualifying_has_occurred(event_row) -> bool:
     """Return True if this event's qualifying session is in the past (UTC).
 
-    For an upcoming race weekend the qualifying and practice sessions do not
-    exist yet, so trying to load them from FastF1 just triggers a series of slow
-    failing network calls (and can push a compute past its timeout). We gate the
-    session loads on this check and go straight to the historical/pre-qualifying
-    path when the weekend has not run.
+    For an upcoming race weekend the qualifying session does not exist yet, so
+    trying to load it from FastF1 just triggers a series of slow failing network
+    calls (and can push a compute past its timeout). We gate the load on this
+    check and go straight to the historical/pre-qualifying path when qualifying
+    has not run.
 
     Falls back to True (attempt the load) whenever the schedule is unavailable,
     preserving the original behaviour.
     """
-    import pandas as pd
-
     now = datetime.now(timezone.utc)
-
-    def _to_utc(value):
-        if value is None or pd.isna(value):
-            return None
-        dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
-        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
     # Prefer the explicit Qualifying session datetime.
     for i in range(1, 6):
@@ -1089,22 +1128,25 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     #    Skipping futile loads for upcoming races avoids slow failing FastF1
     #    calls and keeps the compute well under its timeout.
     # ------------------------------------------------------------------
-    sessions_occurred = _qualifying_has_occurred(event_row) if event_row is not None else True
+    quali_occurred = _qualifying_has_occurred(event_row) if event_row is not None else True
+    weekend_started = _weekend_has_started(event_row) if event_row is not None else True
+
     quali_data = None
-    if sessions_occurred:
+    if quali_occurred:
         quali_data = _load_qualifying(year, round_num)
         if quali_data:
             data_sources.append("qualifying")
-        else:
-            quali_data = _load_practice(year, round_num)
-            if quali_data:
-                data_sources.append("practice")
-                is_pre_qualifying = True
-                warnings.append("Qualifying data unavailable; using practice session pace as proxy")
+
+    if not quali_data and weekend_started:
+        quali_data = _load_practice(year, round_num)
+        if quali_data:
+            data_sources.append("practice")
+            is_pre_qualifying = True
+            warnings.append("Qualifying data unavailable; using practice session pace as proxy")
 
     if not quali_data:
         is_pre_qualifying = True
-        if sessions_occurred:
+        if weekend_started:
             warnings.append("No qualifying or practice data available; using historical data only")
         else:
             warnings.append("Race weekend has not started; using historical form only")
@@ -1143,49 +1185,33 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         data_sources.append("adaptive_history")
 
     # ------------------------------------------------------------------
-    # 4. Build driver list — every entered driver gets a prediction.
-    #    Start from qualifying/practice, then back-fill the rest of the
-    #    entry list. A missing qualifying time (crash, DNS, no lap set) must
-    #    NOT drop a driver from the grid: unless the field is genuinely
-    #    reduced, the full roster of entered drivers should be predicted.
-    #    The roster comes from the season's championship entry list, which
-    #    gives real names + teams from f1db with no rate limits.
+    # 4. Build driver list — every driver *entered for this weekend* gets a
+    #    prediction, and nobody else. The weekend's own entry list is
+    #    authoritative once a session has run; before that we fall back to the
+    #    season championship roster and say so, because that roster describes
+    #    who has raced this season rather than who is at this track.
+    #    See app.data.weekend_grid for the resolution order.
     # ------------------------------------------------------------------
-    drivers_input: list[dict] = list(quali_data) if quali_data else []
+    timed_drivers: list[dict] = list(quali_data) if quali_data else []
 
     try:
-        roster = driver_standings_detailed(year)
+        championship_roster = driver_standings_detailed(year)
     except Exception as exc:
-        roster = []
+        championship_roster = []
         warnings.append(f"Could not load full-grid roster: {exc}")
 
-    if roster:
-        present = {d["driver_code"] for d in drivers_input}
-        missing = sorted(
-            (r for r in roster if r["code"] not in present),
-            key=lambda r: r["position"],
-        )
-        # Back-filled drivers line up behind the slowest actual qualifier
-        # (or from P1 when there's no session yet), in championship order,
-        # so they start from a realistic slot rather than an arbitrary one.
-        next_pos = max((d.get("position", 0) for d in drivers_input), default=0) + 1
-        for r in missing:
-            drivers_input.append({
-                "driver_code": r["code"],
-                "driver_name": r["name"],
-                "team": r["team"],
-                "position": next_pos,
-                "no_qualifying_time": True,
-            })
-            next_pos += 1
-        if missing:
-            if "championship_position" not in data_sources:
-                data_sources.append("championship_position")
-            if quali_data:
-                warnings.append(
-                    f"{len(missing)} entered driver(s) had no qualifying time; "
-                    "included from championship entry list at back of grid"
-                )
+    entry_list = (
+        load_weekend_entry_list(year, round_num) if weekend_started else ENTRY_LIST_UNAVAILABLE
+    )
+    grid = resolve_grid(
+        timed_drivers=timed_drivers,
+        championship_roster=championship_roster,
+        entry_list=entry_list,
+        availability=load_weekend_availability(year, round_num),
+    )
+    drivers_input: list[dict] = list(grid.drivers)
+    warnings.extend(grid.warnings)
+    data_sources.extend(grid.data_sources)
 
     if not drivers_input:
         logger.error("predictions.no_driver_data", year=year, round=round_num)

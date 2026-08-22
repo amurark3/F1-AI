@@ -6,9 +6,11 @@ of HTTP 429s during dataset collection). f1db carries per-round standings in
 collection (standings *before* a given race) and live inference (latest standings
 of a season) can be served from one local file with no API limits.
 
-Note on freshness: f1db is a pinned snapshot, so the current in-progress season is
-only as fresh as the last ``f1db_source`` refresh. Callers that need the very
-latest in-progress round should fall back to the live API when f1db lacks it.
+Note on freshness: ``f1db_source`` tracks the newest published release, checking
+on boot and on a slow background loop, so the in-progress season is current to
+the last release f1db cut — typically a day or two after the race. The Ergast
+fallback in the calling services covers the window between a race finishing and
+that release appearing.
 """
 
 from __future__ import annotations

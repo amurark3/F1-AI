@@ -39,7 +39,17 @@ psycopg[binary]==3.3.4
 
 # Utilities
 pydantic==2.13.4
-requests==2.34.2
+# PINNED BACK from 2.34.2 deliberately — do not let Dependabot raise this to
+# 2.34.x without re-testing FastF1. requests 2.34.0 added class-level runtime
+# annotations to Response/PreparedRequest/HTTPAdapter/Session that reference
+# names imported only under TYPE_CHECKING. Any library calling
+# attrs.resolve_types() on a subclass then dies with NameError — which is what
+# requests-cache does via cattrs, and requests-cache is how FastF1 makes every
+# HTTP call. The symptom is silent: FastF1's @soft_exceptions decorator swallows
+# it, logs "Failed to load schedule from ... backend!" and returns None, so the
+# service degrades to "race weekend has not started" with no session data at all.
+# 2.33.1 carries no advisories (checked against OSV) and resolves cleanly.
+requests==2.33.1
 httpx==0.28.1
 python-dotenv==1.2.2
 pandas==2.3.3

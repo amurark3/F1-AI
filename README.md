@@ -315,7 +315,7 @@ backend/
 │   │   ├── schemas/          request/response models
 │   │   └── circuits.py       circuit GPS coordinates
 │   ├── data/
-│   │   ├── f1db_source.py     downloads/pins the f1db SQLite dataset
+│   │   ├── f1db_source.py     f1db SQLite dataset — download + release tracking
 │   │   ├── f1db_query.py      read-only SQL access for query_f1_database
 │   │   ├── f1db_results.py    race/qualifying result helpers
 │   │   ├── f1db_standings.py  standings from f1db

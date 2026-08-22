@@ -66,6 +66,16 @@ PREFETCH_INTER_RACE_DELAY = int(os.getenv("PREFETCH_INTER_RACE_DELAY", "5"))
 PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
 
 # ---------------------------------------------------------------------------
+# f1db dataset freshness
+# ---------------------------------------------------------------------------
+# How often the background loop checks for a newer f1db release (seconds) —
+# default 6 hours. f1db publishes a release within a day or so of each race, and
+# the boot-time check covers every cold start, so this only has to catch the
+# container that stays warm across a race weekend. Cheap either way: a check
+# that finds nothing new is one small GitHub API call.
+F1DB_REFRESH_INTERVAL_SECONDS = int(os.getenv("F1DB_REFRESH_INTERVAL_SECONDS", "21600"))
+
+# ---------------------------------------------------------------------------
 # Startup warm-up / readiness settings
 # ---------------------------------------------------------------------------
 # Ceiling for a single warm-up step (seconds). Generous because the first step

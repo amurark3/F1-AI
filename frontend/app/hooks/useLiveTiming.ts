@@ -7,6 +7,8 @@ import { API_BASE } from "../constants/api";
 export interface LivePosition {
   position: number;
   driver: string;
+  driver_number: number;
+  team: string | null;
   gap: string;
   last_lap: string | null;
   pit_stops: number | null;
@@ -19,10 +21,20 @@ export interface CommentaryEntry {
   timestamp: string;
 }
 
+/**
+ * `live` is only ever reported when the feed is actually delivering fresh
+ * samples — an open session window alone reports `standby`.
+ */
+export type SessionState = "live" | "standby" | "finished";
+
 export interface SessionStatus {
-  status: string;
-  lap?: number;
-  total_laps?: number;
+  status: SessionState;
+  /** "Race", "Sprint", "Qualifying", "Practice 2" — null when nothing is running. */
+  session_name: string | null;
+  meeting_name: string | null;
+  starts_at: string | null;
+  /** Null when the lap count is unknown; OpenF1 publishes no total-lap figure. */
+  lap: number | null;
 }
 
 /** Messages pushed over the live-timing WebSocket. */
@@ -73,6 +85,7 @@ export function useLiveTiming(year: number, round: number) {
             break;
           case "session_status":
             setSessionStatus(msg.data);
+            if (msg.data.status !== "live") setPositions([]);
             break;
           case "commentary":
             setCommentary((prev) => [msg.data, ...prev].slice(0, MAX_COMMENTARY));
@@ -89,6 +102,8 @@ export function useLiveTiming(year: number, round: number) {
     };
 
     return () => {
+      setPositions([]);
+      setSessionStatus(null);
       ws.close();
     };
   }, [year, round]);

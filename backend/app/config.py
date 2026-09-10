@@ -37,6 +37,20 @@ WS_STALE_TIMEOUT = int(os.getenv("WS_STALE_TIMEOUT", "60"))
 # Polling interval for OpenF1 position data (seconds)
 WS_POLL_INTERVAL = int(os.getenv("WS_POLL_INTERVAL", "8"))
 
+# Slower cadence while no session is on track. A socket can sit open for a
+# whole race weekend, so idling at the live rate would hammer OpenF1 for days.
+#
+# Must stay below WS_STALE_TIMEOUT: the loop's own sends are what keep a
+# connection marked active, so an idle sleep at or past the timeout would
+# make every client look dead and get disconnected.
+WS_IDLE_POLL_INTERVAL = min(
+    int(os.getenv("WS_IDLE_POLL_INTERVAL", "30")),
+    max(1, WS_STALE_TIMEOUT // 2),
+)
+
+# How often to re-check which session is running while idle (seconds)
+SESSION_LOOKUP_INTERVAL = int(os.getenv("SESSION_LOOKUP_INTERVAL", "300"))
+
 # ---------------------------------------------------------------------------
 # Agentic loop
 # ---------------------------------------------------------------------------

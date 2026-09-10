@@ -57,7 +57,7 @@ const rcHeaderFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, san
 
 interface SessionOverview {
   race?: { name: string; status: string; sessions?: Record<string, string> } | null;
-  live_status?: { connected: boolean; label: string };
+  live_status?: { connected: boolean; label: string; session: string | null };
 }
 
 const RACE_STATUS_COLORS: Record<string, string> = {
@@ -66,9 +66,27 @@ const RACE_STATUS_COLORS: Record<string, string> = {
 };
 const RACE_STATUS_FALLBACK = "#737373";
 
+/**
+ * Weekend-level status labels.
+ *
+ * `in_progress` spans Friday practice to Sunday evening, so it describes the
+ * weekend rather than anything on track. The LIVE pill is the session-level
+ * indicator; this chip must not imply the same thing.
+ */
+const RACE_STATUS_LABELS: Record<string, string> = {
+  in_progress: "Race weekend",
+  upcoming: "Upcoming",
+  completed: "Completed",
+};
+
 /** Status dot colour for the current-event indicator. */
 function raceStatusColor(status: string): string {
   return RACE_STATUS_COLORS[status] ?? RACE_STATUS_FALLBACK;
+}
+
+/** Human label for the weekend-level status. */
+function raceStatusLabel(status: string): string {
+  return RACE_STATUS_LABELS[status] ?? status.replace("_", " ");
 }
 
 /** Formats a positive millisecond span as the coarsest useful countdown. */
@@ -126,7 +144,7 @@ function RaceContextChip({ race }: { race: RaceInfo }) {
       <p className="truncate text-xs font-bold leading-snug text-white">{race.name}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: raceStatusColor(race.status) }} />
-        <p className="text-[10px] capitalize text-neutral-500">{race.status.replace("_", " ")}</p>
+        <p className="text-[10px] text-neutral-500">{raceStatusLabel(race.status)}</p>
       </div>
     </div>
   );
@@ -342,10 +360,15 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
   const [navOpen, setNavOpen] = useState(false);
   const year = new Date().getFullYear();
 
-  const { data } = useSWR<SessionOverview>(`${API_BASE}/api/race-control/overview/${year}`, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 120000,
-  });
+  // The shell segment: schedule, standings, and session state, with no
+  // telemetry or model behind it. The full overview took as long as its
+  // slowest input, which held the sidebar and its countdown hostage on every
+  // Race Control page.
+  const { data } = useSWR<SessionOverview, Error>(
+    `${API_BASE}/api/race-control/overview/${year}/shell`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 120000 },
+  );
 
   const nextSession = useNextSession(data?.race?.sessions ?? undefined);
   const isLive = data?.live_status?.connected === true;

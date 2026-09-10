@@ -16,12 +16,18 @@ to prevent data corruption from concurrent loads.
 import threading
 import time
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from statistics import median
 from typing import Any
 
 import fastf1
 import pandas as pd
 import structlog
+
+from app.data.circuit_reference_cache import (
+    CircuitReferenceCacheUnavailable,
+    circuit_reference_cache,
+)
 
 logger = structlog.get_logger()
 
@@ -713,8 +719,14 @@ def analyze_pit_strategy(
 # and stint compounds. Undercut/overcut deltas are left to the caller's model
 # because the available stint-pace signal is not cleanly fuel-corrected.
 
-# (city, current_year) -> derived reference dict (or None when unavailable)
-_circuit_reference_cache: dict[str, dict | None] = {}
+# The earliest season with lap-accurate FastF1 telemetry. Editions before this
+# cannot produce a usable reference, so the backward search stops here.
+EARLIEST_TELEMETRY_SEASON = 2018
+
+# A race is only a usable reference once it has actually been run. Sessions are
+# scheduled in UTC and a grand prix takes about two hours, so an edition is
+# treated as complete this long after its scheduled start.
+RACE_COMPLETE_AFTER_HOURS = 3
 
 
 def _estimate_pit_loss(laps: pd.DataFrame) -> float | None:
@@ -821,41 +833,103 @@ def circuit_strategy_reference(location: str, current_year: int) -> dict | None:
     Args:
         location: Circuit location, e.g. ``"Budapest, Hungary"`` or ``"Budapest"``.
         current_year: The season being planned; editions are searched backwards
-            from here (the current-year edition is included in case it has
-            already been run).
+            from here (the current-year edition is included, and used once its
+            race has actually been run).
 
     Returns:
         A reference dict with pit loss, tyre windows, stint compounds, and
         degradation-based undercut/overcut deltas, or None when no historical
         race data can be loaded for the circuit.
+
+    Results are held in the durable circuit reference cache, so the telemetry
+    load behind them is paid once per circuit rather than once per process.
     """
     city = location.split(",")[0].strip() if location else ""
     if not city:
         return None
 
-    cache_key = f"{city}_{current_year}"
-    if cache_key in _circuit_reference_cache:
-        return _circuit_reference_cache[cache_key]
+    cached = circuit_reference_cache.get(city, current_year)
+    if cached is not None:
+        return cached.reference
 
-    reference: dict | None = None
-    for past_year in range(current_year, 2017, -1):
+    reference = _search_circuit_editions(city, current_year)
+
+    try:
+        circuit_reference_cache.set(city, current_year, reference)
+    except CircuitReferenceCacheUnavailable as exc:
+        # The reference is still valid for this request; only its durability is
+        # lost, and the next process will recompute it. Say so rather than fail.
+        logger.warning("strategy.reference_not_persisted", location=city, error=str(exc))
+
+    logger.info(
+        "strategy.reference_ready",
+        location=city, year=current_year,
+        source_year=(reference or {}).get("source_year"),
+    )
+    return reference
+
+
+def _edition_race_finished(event: Any, now_utc: datetime) -> bool:
+    """Whether this event's race has been run long enough to have full telemetry.
+
+    Loading an unraced (or in-progress) edition is guaranteed to fail, and the
+    failure is not cheap: FastF1 still fetches before it can tell us there are
+    no laps. The planning season's own edition is the common case — every cold
+    start used to burn seconds on it before falling back to last year.
+    """
+    race_start = _scheduled_race_start(event)
+    if race_start is None:
+        return False
+    return now_utc > race_start + timedelta(hours=RACE_COMPLETE_AFTER_HOURS)
+
+
+def _scheduled_race_start(event: Any) -> datetime | None:
+    """Return the event's scheduled race start (UTC, naive), if the row has one."""
+    for index in range(1, 6):
+        if str(event.get(f"Session{index}", "")).strip().lower() != "race":
+            continue
+        session_date = event.get(f"Session{index}DateUtc")
+        if session_date is not None and not pd.isna(session_date):
+            return pd.Timestamp(session_date).to_pydatetime()
+
+    event_date = event.get("EventDate")
+    if event_date is not None and not pd.isna(event_date):
+        return pd.Timestamp(event_date).to_pydatetime()
+    return None
+
+
+def _matching_event(schedule: pd.DataFrame, city: str) -> Any | None:
+    """Find the schedule row for a circuit city, exact match first."""
+    exact = schedule[schedule["Location"] == city]
+    if not exact.empty:
+        return exact.iloc[0]
+
+    for _, event in schedule.iterrows():
+        if city.lower() in str(event.get("Location", "")).lower():
+            return event
+    return None
+
+
+def _search_circuit_editions(city: str, current_year: int) -> dict | None:
+    """Walk seasons backwards for the most recent completed edition summary."""
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    for past_year in range(current_year, EARLIEST_TELEMETRY_SEASON - 1, -1):
         try:
             schedule = fastf1.get_event_schedule(past_year, include_testing=False)
         except Exception as exc:
             logger.debug("strategy.reference_schedule_error", year=past_year, error=str(exc))
             continue
 
-        matching = schedule[schedule["Location"] == city]
-        if matching.empty:
-            for _, evt in schedule.iterrows():
-                if city.lower() in str(evt.get("Location", "")).lower():
-                    matching = schedule[schedule.index == evt.name]
-                    break
-        if matching.empty:
+        event = _matching_event(schedule, city)
+        if event is None:
             continue
 
-        round_num = int(matching.iloc[0]["RoundNumber"])
-        race_data = _load_race_data(past_year, round_num)
+        if not _edition_race_finished(event, now_utc):
+            logger.debug("strategy.reference_edition_unraced", city=city, year=past_year)
+            continue
+
+        race_data = _load_race_data(past_year, int(event["RoundNumber"]))
         if race_data is None:
             continue
 
@@ -863,14 +937,8 @@ def circuit_strategy_reference(location: str, current_year: int) -> dict | None:
             reference = _summarize_circuit_edition(race_data, past_year)
         except Exception as exc:
             logger.warning("strategy.reference_summary_error", year=past_year, error=str(exc))
-            reference = None
+            continue
         if reference:
-            break
+            return reference
 
-    _circuit_reference_cache[cache_key] = reference
-    logger.info(
-        "strategy.reference_ready",
-        location=city, year=current_year,
-        source_year=(reference or {}).get("source_year"),
-    )
-    return reference
+    return None

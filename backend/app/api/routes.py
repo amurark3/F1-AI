@@ -36,6 +36,14 @@ from app.api.routers.predictions import router as predictions_router
 from app.api.routers.race_control import router as race_control_router
 from app.api.routers.readiness import router as readiness_router
 from app.api.routers.season import router as season_router
+from app.services.live_commentary import next_commentary, reset_room
+from app.services.live_timing import SESSION_END_GRACE, derive_session_state
+from app.services.live_timing_client import (
+    ActiveSession,
+    fetch_current_lap,
+    poll_positions,
+    resolve_active_session,
+)
 from app.utils.f1_values import safe_float as _safe_float
 from app.utils.f1_values import safe_int as _safe_int
 from app.utils.f1_values import safe_str as _safe_str
@@ -44,6 +52,8 @@ from app.utils.fastf1_cache import enable_fastf1_cache
 from app.config import (
     FASTF1_TIMEOUT_SECONDS,
     OPENF1_HTTP_TIMEOUT_SECONDS,
+    SESSION_LOOKUP_INTERVAL,
+    WS_IDLE_POLL_INTERVAL,
     WS_RECEIVE_TIMEOUT,
     WS_HEARTBEAT_INTERVAL,
     WS_STALE_TIMEOUT,
@@ -76,8 +86,6 @@ race_detail_cache: dict[tuple[int, int], dict] = {}
 
 
 # Per-room commentary state — keyed by "{year}-{round_num}"
-_commentary_state: dict[str, dict] = {}
-COMMENTARY_COOLDOWN_SECONDS = 30
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
@@ -354,7 +362,6 @@ async def get_race_detail(year: int, round_num: int):
 # Polls OpenF1 API and fans out position/timing updates to connected clients.
 
 import time
-import httpx
 
 
 # ---------------------------------------------------------------------------
@@ -415,149 +422,6 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
-
-
-# Cache driver info per session to avoid re-fetching every poll cycle
-_driver_cache: dict[str, dict[int, dict]] = {}
-
-
-async def _poll_openf1_positions(session_key: str) -> list[dict] | None:
-    """Fetch latest positions, gaps, and driver names from OpenF1 API."""
-    try:
-        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-            # Fetch driver info once per session, then cache
-            if session_key not in _driver_cache:
-                drv_resp = await client.get("https://api.openf1.org/v1/drivers", params={"session_key": session_key})
-                if drv_resp.status_code == 200 and isinstance(drv_resp.json(), list):
-                    _driver_cache[session_key] = {
-                        d["driver_number"]: d for d in drv_resp.json() if "driver_number" in d
-                    }
-
-            pos_resp = await client.get("https://api.openf1.org/v1/position", params={"session_key": session_key})
-            int_resp = await client.get("https://api.openf1.org/v1/intervals", params={"session_key": session_key})
-
-        if pos_resp.status_code != 200:
-            return None
-        pos_data = pos_resp.json()
-        if not isinstance(pos_data, list) or not pos_data:
-            return None
-
-        # Latest interval per driver
-        intervals: dict[int, dict] = {}
-        if int_resp.status_code == 200 and isinstance(int_resp.json(), list):
-            for entry in int_resp.json():
-                dn = entry.get("driver_number")
-                if dn is not None:
-                    intervals[dn] = entry
-
-        drivers = _driver_cache.get(session_key, {})
-
-        # Latest position per driver
-        latest: dict[int, dict] = {}
-        for entry in pos_data:
-            dn = entry.get("driver_number")
-            if dn is not None:
-                latest[dn] = entry
-
-        positions = []
-        for dn, entry in sorted(latest.items(), key=lambda x: x[1].get("position", 99)):
-            pos = entry.get("position", 0)
-            interval = intervals.get(dn, {})
-            gap_raw = interval.get("gap_to_leader")
-            try:
-                gap_float = float(gap_raw) if gap_raw is not None else None
-            except (ValueError, TypeError):
-                gap_float = None
-            if pos == 1 or gap_float == 0.0:
-                gap = "LEADER"
-            elif gap_float is not None:
-                gap = f"+{gap_float:.3f}"
-            else:
-                gap = "—"
-
-            drv_info = drivers.get(dn, {})
-            acronym = drv_info.get("name_acronym") or str(dn)
-
-            positions.append({
-                "position": pos,
-                "driver": acronym,
-                "gap": gap,
-                "last_lap": None,
-                "sector1": None,
-                "sector2": None,
-                "sector3": None,
-                "tyre": None,
-                "pit_stops": None,
-            })
-        return positions
-    except Exception as e:
-        logger.error("openf1.poll_error", error=str(e))
-        return None
-
-
-async def _fetch_current_lap(session_key: str) -> int:
-    """
-    Fetch the highest completed lap number for the session from OpenF1 /v1/laps.
-    Returns 0 on failure or empty response.
-    """
-    try:
-        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-            resp = await client.get(
-                "https://api.openf1.org/v1/laps",
-                params={"session_key": session_key},
-            )
-            if resp.status_code != 200:
-                return 0
-            data = resp.json()
-            if not data:
-                return 0
-            # Take the maximum lap_number across all drivers' lap entries
-            lap_nums = [entry.get("lap_number", 0) for entry in data if entry.get("lap_number")]
-            return max(lap_nums) if lap_nums else 0
-    except Exception as e:
-        logger.warning("openf1.laps_fetch_error", error=str(e))
-        return 0
-
-
-async def _find_openf1_session(year: int, round_num: int) -> tuple[str, int] | None:
-    """Find the session key and total laps for a specific race round from OpenF1."""
-    try:
-        async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-            # Step 1: find the meeting_key for this round
-            meetings_resp = await client.get(
-                "https://api.openf1.org/v1/meetings",
-                params={"year": year},
-            )
-            if meetings_resp.status_code != 200:
-                return None
-            meetings = meetings_resp.json()
-            # Sort by date; exclude testing events which shift round indices
-            meetings_sorted = sorted(
-                [m for m in meetings if "test" not in m.get("meeting_name", "").lower()],
-                key=lambda m: m.get("date_start", ""),
-            )
-            if round_num < 1 or round_num > len(meetings_sorted):
-                return None
-            meeting_key = meetings_sorted[round_num - 1].get("meeting_key")
-            if not meeting_key:
-                return None
-
-            # Step 2: find the Race session for that meeting
-            sessions_resp = await client.get(
-                "https://api.openf1.org/v1/sessions",
-                params={"meeting_key": meeting_key, "session_type": "Race"},
-            )
-            if sessions_resp.status_code != 200:
-                return None
-            sessions = sessions_resp.json()
-            for s in sessions:
-                if s.get("session_key"):
-                    total_laps = s.get("total_laps") or s.get("laps") or s.get("number_of_laps") or 0
-                    return str(s["session_key"]), int(total_laps)
-            return None
-    except Exception as e:
-        logger.warning("openf1.session_lookup_error", error=str(e))
-        return None
 
 
 @router.get("/compare/{year}/{driver1}/{driver2}")
@@ -662,276 +526,111 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
     }
 
 
-async def _fetch_session_status(session_key: int) -> str:
-    """
-    Poll OpenF1 /v1/race_control for the most recent safety car or flag event.
-    Returns a normalized status string: "safety car", "vsc", "red flag", or "".
-    """
-    try:
-        url = f"https://api.openf1.org/v1/race_control?session_key={session_key}&category=SafetyCar,Flag"
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            messages = resp.json()
-        if not messages:
-            return ""
-        # Messages are in chronological order; take the last one
-        latest = messages[-1]
-        msg = (latest.get("message") or "").lower()
-        flag = (latest.get("flag") or "").lower()
-        if "safety car" in msg or flag == "safety car":
-            return "safety car"
-        if "virtual safety car" in msg or flag == "virtual safety car":
-            return "vsc"
-        if "red flag" in msg or flag == "red":
-            return "red flag"
-        return ""
-    except Exception as e:
-        logger.warning("commentary.race_control_fetch_error", error=str(e))
-        return ""
-
-
-async def _fetch_stint_counts(session_key: int) -> dict[str, int]:
-    """
-    Poll OpenF1 /v1/stints for current session.
-    Returns a dict mapping driver_number (str) to number of stints (proxy for pit stops).
-    A driver on stint 2 has made 1 pit stop, stint 3 = 2 pit stops, etc.
-    """
-    try:
-        url = f"https://api.openf1.org/v1/stints?session_key={session_key}"
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            stints = resp.json()
-        counts: dict[str, int] = {}
-        for stint in stints:
-            drv = str(stint.get("driver_number", ""))
-            if drv:
-                counts[drv] = max(counts.get(drv, 0), stint.get("stint_number", 1))
-        return counts
-    except Exception as e:
-        logger.warning("commentary.stints_fetch_error", error=str(e))
-        return {}
-
-
-def _detect_event(
-    prev_positions: list[dict],
-    curr_positions: list[dict],
-    prev_session_status: str,
-    curr_session_status: str,
-    prev_stints: dict[str, int],
-    curr_stints: dict[str, int],
-) -> dict | None:
-    """
-    Compare successive snapshots and return the highest-priority event dict, or None.
-    Priority: (1) safety car / red flag, (2) position change, (3) pit stop.
-    """
-    # 1. Safety car / red flag
-    if curr_session_status and curr_session_status != prev_session_status and curr_session_status.lower() in (
-        "safety car", "vsc", "virtual safety car", "red flag"
-    ):
-        return {"type": "safety_car", "status": curr_session_status}
-
-    # Build lookup maps
-    curr_map = {p["driver"]: p for p in curr_positions}
-    prev_map = {p["driver"]: p for p in prev_positions}
-
-    # 2. Position change (any driver moved at least 1 place)
-    for driver, curr in curr_map.items():
-        prev = prev_map.get(driver)
-        if prev and curr["position"] != prev["position"]:
-            return {
-                "type": "position_change",
-                "driver": driver,
-                "from_pos": prev["position"],
-                "to_pos": curr["position"],
-                "positions": curr_positions[:5],
-            }
-
-    # 3. Pit stop (stint count increased for any driver)
-    for driver, curr_stint in curr_stints.items():
-        prev_stint = prev_stints.get(driver, 1)
-        if curr_stint > prev_stint:
-            curr_pos = curr_map.get(driver, {}).get("position", "?")
-            return {
-                "type": "pit_stop",
-                "driver": driver,
-                "pit_count": curr_stint - 1,  # stints = pit_stops + 1
-                "position": curr_pos,
-            }
-
-    return None
-
-
-async def _generate_commentary(event: dict, race_name: str) -> str:
-    """
-    Call Gemini to generate 2-3 sentence excited-commentator commentary.
-    Wrapped in asyncio.to_thread so it does not block the WebSocket event loop.
-    Falls back to a template string on any LLM error.
-    """
-    event_type = event["type"]
-
-    if event_type == "safety_car":
-        prompt = (
-            f"You are an excited F1 race commentator at {race_name}. "
-            f"The {event['status']} has just been deployed. "
-            "Write 2-3 energetic, fan-friendly sentences explaining what this means for the race. "
-            "No technical jargon."
-        )
-    elif event_type == "position_change":
-        top5 = event.get("positions", [])
-        top5_str = ", ".join(f"P{p['position']} #{p['driver']}" for p in top5)
-        prompt = (
-            f"You are an excited F1 race commentator at {race_name}. "
-            f"Driver #{event['driver']} just moved from P{event['from_pos']} to P{event['to_pos']}. "
-            f"Current top 5: {top5_str}. "
-            "Write 2-3 energetic, fan-friendly sentences. No technical jargon."
-        )
-    elif event_type == "pit_stop":
-        prompt = (
-            f"You are an excited F1 race commentator at {race_name}. "
-            f"Driver #{event['driver']} just pitted (stop #{event['pit_count']}), "
-            f"currently P{event['position']} after the stop. "
-            "Write 2-3 energetic, fan-friendly sentences. No technical jargon."
-        )
-    else:
-        return ""
-
-    try:
-        response = await asyncio.to_thread(llm.invoke, prompt)
-        return response.content.strip()
-    except Exception as e:
-        logger.error("commentary.llm_error", error=str(e))
-        # Template fallback
-        if event_type == "safety_car":
-            return f"Safety car out at {race_name}! The field bunches up and strategy windows open!"
-        elif event_type == "position_change":
-            return f"Position change! Driver #{event['driver']} moves to P{event['to_pos']}!"
-        elif event_type == "pit_stop":
-            return f"Driver #{event['driver']} dives into the pits for stop #{event['pit_count']}!"
-        return ""
-
-
 @router.websocket("/live/{year}/{round_num}")
 async def live_timing(websocket: WebSocket, year: int, round_num: int):
-    """WebSocket endpoint for live race timing data.
+    """Stream live timing for whichever session is running at a race weekend.
 
-    Uses ConnectionManager for heartbeat pings and stale connection cleanup.
+    The socket stays open across the weekend and re-resolves the active session
+    as practice gives way to qualifying and the race. It reports ``standby``
+    honestly between sessions rather than replaying finished classifications.
     """
     room = f"{year}-{round_num}"
     await manager.connect(room, websocket)
-
-    # Start heartbeat as a background task
     heartbeat_task = asyncio.create_task(manager.heartbeat(websocket))
 
     try:
-        session_result = await _find_openf1_session(year, round_num)
-        if session_result:
-            session_key, total_laps = session_result
-        else:
-            session_key, total_laps = None, 0
-        race_name = f"Round {round_num} {year}"  # fallback; sufficient for prompts
-        last_known_lap = 0
-
-        while True:
-            # Check if connection is stale
-            if manager.is_stale(websocket):
-                logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
-                break
-
-            if session_key:
-                positions = await _poll_openf1_positions(session_key)
-                if positions:
-                    await websocket.send_json({
-                        "type": "positions",
-                        "data": positions,
-                    })
-                    manager.touch(websocket)
-
-                    # Fetch current lap and broadcast session_status
-                    current_lap = await _fetch_current_lap(session_key)
-                    if current_lap > 0:
-                        last_known_lap = current_lap
-                    await websocket.send_json({
-                        "type": "session_status",
-                        "data": {
-                            "status": "started",
-                            "lap": last_known_lap if last_known_lap > 0 else None,
-                            "total_laps": total_laps if total_laps > 0 else None,
-                        },
-                    })
-                    manager.touch(websocket)
-
-                    # --- Commentary detection ---
-                    # Fetch auxiliary data for event types not available in positions endpoint
-                    curr_status, curr_stints = await asyncio.gather(
-                        _fetch_session_status(session_key),
-                        _fetch_stint_counts(session_key),
-                    )
-
-                    state = _commentary_state.setdefault(room, {
-                        "last_time": 0.0,
-                        "prev_positions": [],
-                        "prev_session_status": "",
-                        "prev_stints": {},
-                    })
-
-                    if not state["prev_positions"]:
-                        # First snapshot — store and skip detection to avoid false positives
-                        state["prev_positions"] = positions
-                        state["prev_session_status"] = curr_status
-                        state["prev_stints"] = curr_stints
-                    else:
-                        now_ts = time.time()
-                        if now_ts - state["last_time"] >= COMMENTARY_COOLDOWN_SECONDS:
-                            event = _detect_event(
-                                state["prev_positions"],
-                                positions,
-                                state["prev_session_status"],
-                                curr_status,
-                                state["prev_stints"],
-                                curr_stints,
-                            )
-                            if event:
-                                commentary_text = await _generate_commentary(event, race_name)
-                                if commentary_text:
-                                    commentary_entry = {
-                                        "type": "commentary",
-                                        "data": {
-                                            "id": str(time.time()),
-                                            "text": commentary_text,
-                                            "event_type": event["type"],
-                                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                                        },
-                                    }
-                                    await websocket.send_json(commentary_entry)
-                                    state["last_time"] = time.time()
-                                    logger.info(
-                                        "commentary.broadcast",
-                                        room=room,
-                                        event_type=event["type"],
-                                    )
-
-                        state["prev_positions"] = positions
-                        state["prev_session_status"] = curr_status
-                        state["prev_stints"] = curr_stints
-
-            # Wait before next poll
-            await asyncio.sleep(WS_POLL_INTERVAL)
-
-            # Check if client is still alive
-            try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
-                manager.touch(websocket)
-            except asyncio.TimeoutError:
-                pass  # Client didn't send anything -- that's fine
-
+        await _run_live_loop(websocket, room, year, round_num)
     except (WebSocketDisconnect, Exception):
         pass
     finally:
         heartbeat_task.cancel()
         manager.disconnect(room, websocket)
 
+
+async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: int) -> None:
+    """Poll the active session until the client goes away.
+
+    Idles cheaply between sessions: a socket left open across a race weekend
+    must not re-resolve the calendar every few seconds.
+    """
+    active: ActiveSession | None = None
+    resolved_at = 0.0
+
+    while not manager.is_stale(websocket):
+        now = datetime.now(timezone.utc)
+
+        if _needs_resolution(active, now, resolved_at):
+            previous_key = active.session_key if active else None
+            active = await resolve_active_session(year, round_num, now=now)
+            resolved_at = time.time()
+            if active is None or active.session_key != previous_key:
+                reset_room(room)
+                logger.info(
+                    "live.session_resolved",
+                    room=room,
+                    session=active.session_name if active else None,
+                )
+
+        positions = await poll_positions(active.session_key, now=now) if active else None
+        state = derive_session_state(active.raw if active else None, now, bool(positions))
+
+        await _broadcast_state(websocket, active, positions, state)
+
+        if positions and active:
+            entry = await next_commentary(room, active.session_key, active.meeting_name, positions)
+            if entry:
+                await websocket.send_json({"type": "commentary", "data": entry})
+                logger.info("commentary.broadcast", room=room, event_type=entry["event_type"])
+
+        await asyncio.sleep(WS_POLL_INTERVAL if active else WS_IDLE_POLL_INTERVAL)
+        await _drain_client(websocket)
+
+
+def _needs_resolution(active: "ActiveSession | None", now: datetime, resolved_at: float) -> bool:
+    """Whether the active session must be looked up again.
+
+    While nothing is on track the lookup is rate-limited: it costs a FastF1
+    schedule read plus two OpenF1 calls, and the answer changes at most once
+    per session.
+    """
+    if active is None:
+        return (time.time() - resolved_at) >= SESSION_LOOKUP_INTERVAL
+    return now > active.date_end + SESSION_END_GRACE
+
+
+async def _broadcast_state(
+    websocket: WebSocket,
+    active: "ActiveSession | None",
+    positions: list[dict] | None,
+    state: str,
+) -> None:
+    """Send session status, and positions only when there is a live feed."""
+    lap = await fetch_current_lap(active.session_key) if (positions and active) else None
+
+    await websocket.send_json({
+        "type": "session_status",
+        "data": {
+            "status": state,
+            "session_name": active.session_name if active else None,
+            "meeting_name": active.meeting_name if active else None,
+            "starts_at": active.date_start.isoformat() if active else None,
+            "lap": lap,
+        },
+    })
+    manager.touch(websocket)
+
+    if positions:
+        await websocket.send_json({"type": "positions", "data": positions})
+        manager.touch(websocket)
+
+
+async def _drain_client(websocket: WebSocket) -> None:
+    """Consume any client message so liveness is tracked; silence is fine."""
+    try:
+        await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
+        manager.touch(websocket)
+    except asyncio.TimeoutError:
+        pass
 
 
 @router.get("/health")

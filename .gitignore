@@ -36,6 +36,9 @@ ios/**/xcuserdata/
 # Runtime data
 backend/data/prediction_history.json
 backend/data/prediction_cache.json
+# Local fallback for the durable circuit strategy reference cache (Supabase in
+# production) — machine-local telemetry summaries, recreated on demand.
+backend/data/circuit_reference.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db

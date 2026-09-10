@@ -16,11 +16,12 @@ import structlog
 from app.api.circuits import get_circuit_info
 from app.data.strategy import circuit_strategy_reference
 from app.data.weather import get_weather_for_circuit
-from app.services.predictions import get_or_compute_race_prediction
+from app.services.predictions import get_cached_race_prediction, get_or_compute_race_prediction
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options, get_standings_snapshot, safe_int
 from app.services.race_control_debriefs import build_race_debrief
+from app.services.live_timing import scheduled_session_now
 from app.services.race_control_standings import build_intel, build_teams
 from app.utils.f1_values import utc_isoformat
 
@@ -81,8 +82,8 @@ def build_weather_block(race: dict | None) -> dict:
     }
 
 
-def build_strategy_dashboard(year: int) -> dict:
-    """Build the command-center shell from schedule and standings data."""
+def season_events(year: int) -> list[dict]:
+    """Build the season's event list from the schedule, with derived status."""
 
     schedule = fastf1.get_event_schedule(year=year, include_testing=False)
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -138,9 +139,25 @@ def build_strategy_dashboard(year: int) -> dict:
             "race_session": utc_isoformat(race_session_date) if race_session_date else None,
         })
 
+    return events
+
+
+def select_event(events: list[dict]) -> dict | None:
+    """Pick the event the command centre should be planning right now.
+
+    A weekend that is under way wins; otherwise the next one on the calendar;
+    otherwise the last race of a finished season.
+    """
     active_event = next((event for event in events if event["status"] == "in_progress"), None)
     next_event = next((event for event in events if event["status"] == "upcoming"), None)
-    selected_event = active_event or next_event or (events[-1] if events else None)
+    return active_event or next_event or (events[-1] if events else None)
+
+
+def build_strategy_dashboard(year: int) -> dict:
+    """Build the command-center shell from schedule and standings data."""
+
+    events = season_events(year)
+    selected_event = select_event(events)
     drivers, constructors = get_standings_snapshot(year)
 
     return {
@@ -160,10 +177,24 @@ def build_strategy_dashboard(year: int) -> dict:
     }
 
 
+def build_live_status(race: dict | None) -> dict:
+    """Report whether a session is on track, not merely whether the weekend began.
+
+    ``status == "in_progress"`` spans Friday practice to Sunday evening, so
+    using it here lit the LIVE pill for three days straight.
+    """
+    session = scheduled_session_now((race or {}).get("sessions", {}), datetime.now(timezone.utc))
+    return {
+        "connected": session is not None,
+        "label": f"{session} in progress" if session else "Standby",
+        "session": session,
+    }
+
+
 def focus_for_event(event: dict | None) -> str:
     if not event:
         return "Season review"
-    if event["status"] == "in_progress":
+    if scheduled_session_now(event.get("sessions", {}), datetime.now(timezone.utc)):
         return "Live session control"
     if event["days_until"] is not None and event["days_until"] <= 10:
         return "Race-week strategy lock"
@@ -361,27 +392,143 @@ def build_workstreams(
     ]
 
 
+def build_competitor_rows(constructors: list[dict]) -> list[dict]:
+    """Rank the top constructors by championship gap, with an operating read."""
+
+    leader_points = constructors[0]["points"] if constructors else 0
+    rows = []
+    for index, team in enumerate(constructors[:5], start=1):
+        gap = max(0, leader_points - team["points"])
+        rows.append({
+            "rank": index,
+            "team": team["team"],
+            "points": team["points"],
+            "gap_to_leader": round(gap, 1),
+            "threat": "Primary" if index == 1 else "High" if gap <= RIVAL_GAP_MODERATE else "Monitor",
+            "operating_read": (
+                "Benchmark car; protect against clean-air extensions."
+                if index == 1
+                else "Undercut exposure if they qualify within one pit-loss window."
+                if gap <= RIVAL_GAP_MODERATE
+                else "Scenario dependent; watch safety-car offsets."
+            ),
+        })
+    return rows
+
+
+def race_predictions(year: int, race: dict | None) -> dict | None:
+    """Prediction snapshot for the selected race, computing it if none is stored.
+
+    A prediction failure must not take the whole command centre down with it —
+    every panel that does not depend on the model still has something to show.
+    """
+    if not (race and race.get("round")):
+        return None
+    try:
+        return get_or_compute_race_prediction(year, race["round"])
+    except Exception as exc:
+        logger.warning("race_control.predictions.failed", year=year, error=str(exc))
+        return None
+
+
+def strategy_reference_for(year: int, race: dict | None) -> dict | None:
+    """Telemetry reference for the selected circuit, or None when unavailable."""
+    if not (race and race.get("location")):
+        return None
+    try:
+        return circuit_strategy_reference(race["location"], year)
+    except Exception as exc:
+        logger.warning("race_control.strategy_reference.failed", year=year, error=str(exc))
+        return None
+
+
+def _selected_race(year: int) -> dict | None:
+    """Resolve the event a segment is reporting on, without standings or telemetry."""
+    return select_event(season_events(year))
+
+
+def _top_constructors(year: int) -> list[dict]:
+    _, constructors = get_standings_snapshot(year)
+    return constructors[:5]
+
+
+# ---------------------------------------------------------------------------
+# Overview segments
+# ---------------------------------------------------------------------------
+# The command centre is assembled from four independently fetchable segments so
+# the page can render what it has instead of waiting on its slowest input. The
+# shell answers from the schedule and standings alone (fast); the other three
+# each depend on something that can require a FastF1 session load, and the two
+# that do are cached durably, so the cost is paid once rather than per process.
+
+
+def build_overview_shell(year: int) -> dict:
+    """Schedule, standings, and session state. No telemetry, no model."""
+
+    dashboard = build_strategy_dashboard(year)
+    return {**dashboard, "live_status": build_live_status(dashboard.get("race"))}
+
+
+def build_overview_weather(year: int) -> dict:
+    """Live forecast for the selected circuit, and the risk register it grades."""
+
+    race = _selected_race(year)
+    weather = build_weather_block(race)
+    competitors = build_competitor_rows(_top_constructors(year))
+    return {
+        "year": year,
+        "weather": weather,
+        "risk_register": build_risk_register(race, weather, competitors),
+    }
+
+
+def build_overview_predictions(year: int) -> dict:
+    """Projected podium from the stored race model snapshot."""
+
+    predictions = race_predictions(year, _selected_race(year))
+    return {
+        "year": year,
+        "predicted_podium": (predictions or {}).get("predictions", [])[:3],
+    }
+
+
+def build_overview_strategy(year: int) -> dict:
+    """Baseline strategy context derived from the circuit's telemetry reference.
+
+    The prediction snapshot is read, never computed: the predictions segment
+    owns that work, so this segment does not queue behind a model run whose
+    only effect here is the confidence grade and the race-model workstream.
+    """
+
+    race = _selected_race(year)
+    predictions = get_cached_race_prediction(year, race["round"]) if race and race.get("round") else None
+    context = build_strategy_context(
+        race,
+        _top_constructors(year),
+        predictions,
+        strategy_reference_for(year, race),
+    )
+    return {
+        "year": year,
+        "strategy_context": context,
+        "workstreams": build_workstreams(race, predictions, context),
+    }
+
+
 def build_overview(year: int) -> dict:
+    """Full command-centre payload — every segment in one response.
+
+    Kept for callers that want the whole picture in a single request. The web
+    UI fetches the segments instead, so it never blocks on the slowest one.
+    """
     dashboard = build_strategy_dashboard(year)
     race = dashboard.get("race")
-    championship = dashboard.get("championship", {})
-    constructors = championship.get("constructors", [])
+    constructors = dashboard.get("championship", {}).get("constructors", [])
 
-    predictions = None
-    if race and race.get("round"):
-        try:
-            predictions = get_or_compute_race_prediction(year, race["round"])
-        except Exception as exc:
-            logger.warning("race_control.predictions.failed", year=year, error=str(exc))
-
-    strategy_reference = None
-    if race and race.get("location"):
-        try:
-            strategy_reference = circuit_strategy_reference(race["location"], year)
-        except Exception as exc:
-            logger.warning("race_control.strategy_reference.failed", year=year, error=str(exc))
-
-    strategy_context = build_strategy_context(race, constructors, predictions, strategy_reference)
+    predictions = race_predictions(year, race)
+    strategy_context = build_strategy_context(
+        race, constructors, predictions, strategy_reference_for(year, race)
+    )
     weather = build_weather_block(race)
 
     return {
@@ -391,10 +538,7 @@ def build_overview(year: int) -> dict:
         "weather": weather,
         "risk_register": build_risk_register(race, weather, strategy_context.get("competitors", [])),
         "workstreams": build_workstreams(race, predictions, strategy_context),
-        "live_status": {
-            "connected": bool(race and race.get("status") == "in_progress"),
-            "label": "Live session active" if race and race.get("status") == "in_progress" else "Standby",
-        },
+        "live_status": build_live_status(race),
     }
 
 
@@ -503,27 +647,11 @@ def build_strategy_context(
             "Tyre windows are planning heuristics — no completed edition of this circuit was available for telemetry.",
         ]
 
-    competitor_rows = []
-    leader_points = constructors[0]["points"] if constructors else 0
-    for index, team in enumerate(constructors[:5], start=1):
-        gap = max(0, leader_points - team["points"])
-        competitor_rows.append({
-            "rank": index,
-            "team": team["team"],
-            "points": team["points"],
-            "gap_to_leader": round(gap, 1),
-            "threat": "Primary" if index == 1 else "High" if gap <= 60 else "Monitor",
-            "operating_read": (
-                "Benchmark car; protect against clean-air extensions."
-                if index == 1
-                else "Undercut exposure if they qualify within one pit-loss window."
-                if gap <= 60
-                else "Scenario dependent; watch safety-car offsets."
-            ),
-        })
+    competitor_rows = build_competitor_rows(constructors)
 
     return {
-        "phase": "Live race desk" if race and race.get("status") == "in_progress" else "Pre-race build",
+        "phase": "Live race desk" if scheduled_session_now((race or {}).get("sessions", {}),
+                                                              datetime.now(timezone.utc)) else "Pre-race build",
         "primary_call": {
             "title": "Base race plan",
             "summary": primary_summary,

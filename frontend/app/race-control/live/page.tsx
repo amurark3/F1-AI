@@ -8,7 +8,7 @@ import CommentaryPanel from "@/app/components/CommentaryPanel";
 import LiveTimingTower from "@/app/components/LiveTimingTower";
 import RaceCountdown from "@/app/components/RaceCountdown";
 import { API_BASE } from "@/app/constants/api";
-import { useLiveTiming } from "@/app/hooks/useLiveTiming";
+import { useLiveTiming, type SessionStatus } from "@/app/hooks/useLiveTiming";
 
 import {
   MetricCard,
@@ -31,6 +31,26 @@ interface LiveRound {
 function resolveTimingFeedState(isConnected: boolean, hasRound: boolean): string {
   if (isConnected) return "Connected";
   return hasRound ? "Linking" : "Idle";
+}
+
+/**
+ * Headline session state.
+ *
+ * A round being "in progress" only means the race weekend has started — the
+ * first practice session opens it and it stays open until Sunday evening. Only
+ * the socket knows whether a session is actually running and delivering data.
+ */
+function resolveSessionState(status: SessionStatus | null): { value: string; sub: string } {
+  if (status?.status === "live") {
+    return { value: "Live", sub: status.session_name ?? "Session on track" };
+  }
+  if (status?.status === "finished") {
+    return { value: "Finished", sub: `${status.session_name ?? "Session"} complete` };
+  }
+  if (status?.session_name) {
+    return { value: "Standby", sub: `${status.session_name} scheduled` };
+  }
+  return { value: "Standby", sub: "No session on track" };
 }
 
 export default function RaceControlLivePage() {
@@ -69,6 +89,8 @@ export default function RaceControlLivePage() {
   );
 
   const timingFeedState = resolveTimingFeedState(isConnected, Boolean(liveRound));
+  const sessionState = resolveSessionState(sessionStatus);
+  const isSessionLive = sessionStatus?.status === "live";
 
   if (loading) {
     return (
@@ -97,16 +119,16 @@ export default function RaceControlLivePage() {
       <MetricRow>
         <MetricCard
           label="Session state"
-          value={liveRound ? "Live" : "Standby"}
-          sub={liveRound ? liveRound.name : "No active session"}
+          value={sessionState.value}
+          sub={sessionState.sub}
           icon={RadioTower}
-          color={liveRound ? "#E10600" : "#3671C6"}
+          color={isSessionLive ? "#E10600" : "#3671C6"}
         />
         <MetricCard label="Timing feed" value={timingFeedState} sub={`Season ${year} live lookup`} icon={Satellite} />
       </MetricRow>
 
-      {!liveRound ? (
-        <LiveIdleView />
+      {!isSessionLive ? (
+        <LiveIdleView sessionName={sessionStatus?.session_name ?? null} />
       ) : (
         <LiveActiveView
           positions={positions}
@@ -119,7 +141,7 @@ export default function RaceControlLivePage() {
   );
 }
 
-function LiveIdleView() {
+function LiveIdleView({ sessionName }: { sessionName: string | null }) {
   return (
     <WorkspaceSplit className="xl:[&>*:first-child]:flex-1 xl:[&>*:last-child]:basis-[360px]">
       <section className="space-y-5">
@@ -134,8 +156,9 @@ function LiveIdleView() {
                 Control Room Idle
               </h2>
               <p className="mt-2 max-w-3xl text-base leading-relaxed text-neutral-400">
-                No active F1 session is broadcasting. The timing tower connects automatically when the schedule reports
-                an in-progress race weekend.
+                {sessionName
+                  ? `${sessionName} is scheduled but no timing data is coming through yet. The tower opens the moment the feed goes live.`
+                  : "No F1 session is on track. The timing tower opens automatically when a session starts broadcasting."}
               </p>
             </div>
           </div>

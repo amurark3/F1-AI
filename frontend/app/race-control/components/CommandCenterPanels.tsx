@@ -49,6 +49,46 @@ export interface StrategyContext {
   assumptions: string[];
 }
 
+/**
+ * The command centre is served as four independently fetchable segments so the
+ * page can render each as it arrives instead of waiting on the slowest one.
+ * `Overview` stays the shape of the composite endpoint, which is the union.
+ */
+export interface OverviewShell {
+  focus?: string;
+  race?: RaceEvent | null;
+  season?: { total_events: number; completed_events: number; upcoming_events: number };
+  championship?: {
+    drivers: Array<{ position: number; driver: string; team: string; points: number }>;
+    constructors: Array<{ position: number; team: string; points: number }>;
+  };
+  live_status?: { connected: boolean; label: string };
+  error?: string | null;
+}
+
+export interface OverviewWeather {
+  weather?: { rain_risk: number | null; track_temp_c: number | null; wind_kph: number | null; confidence: string };
+  risk_register?: Array<{ level: string; title: string; detail: string }>;
+  error?: string | null;
+}
+
+export interface OverviewPredictions {
+  predicted_podium?: Array<{
+    driver_code: string;
+    driver_name: string;
+    team: string;
+    confidence_low: number;
+    confidence_high: number;
+  }>;
+  error?: string | null;
+}
+
+export interface OverviewStrategy {
+  strategy_context?: StrategyContext;
+  workstreams?: Array<{ id: string; title: string; owner: string; priority: string; status: string; href: string }>;
+  error?: string | null;
+}
+
 export interface Overview {
   focus?: string;
   race?: RaceEvent | null;

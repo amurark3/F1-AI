@@ -2,8 +2,23 @@
 
 from __future__ import annotations
 
+import threading
+
 from app.data.predictions import build_prediction_review, compute_race_predictions
 from app.services.prediction_cache import prediction_snapshot_cache
+
+# One compute lock per race. Computing a snapshot costs a stack of FastF1
+# session loads, so two requests arriving together for the same race — two tabs,
+# or the command centre's own segments — must not both pay for it. The second
+# waits on the first and then reads the snapshot it stored.
+_compute_locks: dict[tuple[int, int], threading.Lock] = {}
+_compute_locks_guard = threading.Lock()
+
+
+def _compute_lock(year: int, round_num: int) -> threading.Lock:
+    """Return the shared compute lock for one race, creating it on first use."""
+    with _compute_locks_guard:
+        return _compute_locks.setdefault((year, round_num), threading.Lock())
 
 
 def get_cached_race_prediction(year: int, round_num: int) -> dict | None:
@@ -34,7 +49,15 @@ def get_or_compute_race_prediction(year: int, round_num: int) -> dict:
     if cached:
         return enrich_prediction_result(cached)
 
-    return compute_and_store_race_prediction(year, round_num, reason="first_compute")
+    with _compute_lock(year, round_num):
+        # A request that was already computing this race may have finished
+        # while we waited for the lock — take its snapshot instead of repeating
+        # the work.
+        cached = prediction_snapshot_cache.get(year, round_num)
+        if cached:
+            return enrich_prediction_result(cached)
+
+        return compute_and_store_race_prediction(year, round_num, reason="first_compute")
 
 
 def enrich_prediction_result(result: dict) -> dict:

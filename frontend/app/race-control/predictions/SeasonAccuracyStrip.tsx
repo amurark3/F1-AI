@@ -4,6 +4,7 @@ import { Check, CircleDot } from "lucide-react";
 
 import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { isLiveRace, roundColor, roundStateLabel } from "./predictionHelpers";
+import { raceCode } from "./raceCode";
 
 import type { PredictionsResponse, RaceEvent } from "./predictionModel";
 
@@ -65,6 +66,9 @@ export function SeasonAccuracyStrip({
                 key={race.round}
                 type="button"
                 onClick={() => onSelectRound(race.round)}
+                title={`${race.name} - round ${race.round} (${stateLabel})`}
+                aria-label={`${race.name}, round ${race.round}, ${stateLabel}`}
+                aria-pressed={active}
                 className="group flex w-16 shrink-0 flex-col items-center gap-2 text-center"
               >
                 <span
@@ -76,7 +80,7 @@ export function SeasonAccuracyStrip({
                   <RoundGlyph completed={completedRace} activeOrLive={liveRace || active} round={race.round} />
                 </span>
                 <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#A8AFBF]">
-                  {race.location.split(",")[0].slice(0, 3)}
+                  {raceCode(race.name)}
                 </span>
                 <span className="font-mono text-[10px] text-[#596173]">{stateLabel}</span>
               </button>

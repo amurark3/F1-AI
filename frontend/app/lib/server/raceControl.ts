@@ -1,9 +1,10 @@
+import { cache } from "react";
+
 import type { RaceEvent } from "@/app/race-control/predictions/predictionModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 
 import { fetchFromBackend } from "./backend";
 import { REVALIDATE } from "./revalidate";
-
 
 /** The season every Race Control surface reports on. */
 export const currentSeason = (): number => new Date().getFullYear();
@@ -23,20 +24,20 @@ export function getSchedule(year: number): Promise<RaceEvent[] | { error: string
 }
 
 /** Championship standings plus team operating profiles. */
-export function getTeams(year: number): Promise<TeamsResponse | null> {
+export const getTeams = cache((year: number): Promise<TeamsResponse | null> => {
   return fetchFromBackend<TeamsResponse>(`/api/race-control/teams/${year}`, {
     revalidate: REVALIDATE.STANDINGS,
     tags: ["teams", `teams:${year}`],
   });
-}
+});
 
 /** One constructor's detail page payload. */
-export function getTeamDetail<T>(slug: string, year: number): Promise<T | null> {
+export const getTeamDetail = cache(<T>(slug: string, year: number): Promise<T | null> => {
   return fetchFromBackend<T>(`/api/race-control/teams/${slug}/${year}`, {
     revalidate: REVALIDATE.STANDINGS,
     tags: ["teams", `teams:${year}`],
   });
-}
+});
 
 /** The season entry list, used to seed the prediction grid. */
 export function getDrivers<T>(year: number): Promise<T | null> {

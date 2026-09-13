@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { fetchFromBackend } from "./backend";
 import { REVALIDATE } from "./revalidate";
 
@@ -69,12 +71,12 @@ export const FIRST_SEASON = 1950;
  * is decided, so a day-long cache costs nothing and removes the backend from
  * the critical path of the most-visited reference page.
  */
-export function getChampions(): Promise<ChampionsResponse | null> {
+export const getChampions = cache((): Promise<ChampionsResponse | null> => {
   return fetchFromBackend<ChampionsResponse>("/api/champions", {
     revalidate: REVALIDATE.ARCHIVE,
     tags: ["champions"],
   });
-}
+});
 
 /** Aggregate title leaderboards. Same volatility as the season list. */
 export function getChampionStats(): Promise<StatsResponse | null> {
@@ -90,22 +92,38 @@ export function getChampionStats(): Promise<StatsResponse | null> {
  * An unknown year comes back as `{ error }` with no season payload; callers
  * distinguish that (a 404) from a null return (backend unreachable).
  */
-export function getSeasonDetail(year: string): Promise<SeasonDetail | null> {
+export const getSeasonDetail = cache((year: string): Promise<SeasonDetail | null> => {
   return fetchFromBackend<SeasonDetail>(`/api/champions/${year}`, {
     revalidate: REVALIDATE.ARCHIVE,
     tags: ["champions", `champions:${year}`],
   });
-}
+});
 
 /**
- * Every season year, newest first — the set of season detail routes to
- * prerender.
+ * How many recent seasons to prerender at build time.
+ *
+ * Prerendering all 77 fired a burst of requests at a free-tier backend that
+ * answered a third of them with 429, so most pages ended up unseeded anyway.
+ * The recent seasons carry nearly all the traffic; the rest render on demand
+ * on first visit and are then cached for an hour like everything else, which
+ * costs one reader a moment and spares the backend the stampede.
+ */
+const PRERENDERED_SEASONS = 12;
+
+/**
+ * The season years to prerender, newest first.
  *
  * Derived from the champions list rather than a hardcoded range so a new season
  * appears without touching this file. Returns an empty list when the backend is
- * unreachable at build time, which leaves the routes to render on demand.
+ * unreachable at build time, which leaves every route to render on demand.
  */
 export async function listSeasonYears(): Promise<string[]> {
   const champions = await getChampions();
-  return (champions?.seasons ?? []).map((season) => String(season.season));
+  const seasons = champions?.seasons ?? [];
+
+  return seasons
+    .map((season) => season.season)
+    .sort((a, b) => b - a)
+    .slice(0, PRERENDERED_SEASONS)
+    .map(String);
 }

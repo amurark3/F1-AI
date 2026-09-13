@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { fetchFromBackend } from "./backend";
 import { REVALIDATE } from "./revalidate";
 
@@ -69,12 +71,12 @@ export const FIRST_SEASON = 1950;
  * is decided, so a day-long cache costs nothing and removes the backend from
  * the critical path of the most-visited reference page.
  */
-export function getChampions(): Promise<ChampionsResponse | null> {
+export const getChampions = cache((): Promise<ChampionsResponse | null> => {
   return fetchFromBackend<ChampionsResponse>("/api/champions", {
     revalidate: REVALIDATE.ARCHIVE,
     tags: ["champions"],
   });
-}
+});
 
 /** Aggregate title leaderboards. Same volatility as the season list. */
 export function getChampionStats(): Promise<StatsResponse | null> {
@@ -90,12 +92,12 @@ export function getChampionStats(): Promise<StatsResponse | null> {
  * An unknown year comes back as `{ error }` with no season payload; callers
  * distinguish that (a 404) from a null return (backend unreachable).
  */
-export function getSeasonDetail(year: string): Promise<SeasonDetail | null> {
+export const getSeasonDetail = cache((year: string): Promise<SeasonDetail | null> => {
   return fetchFromBackend<SeasonDetail>(`/api/champions/${year}`, {
     revalidate: REVALIDATE.ARCHIVE,
     tags: ["champions", `champions:${year}`],
   });
-}
+});
 
 /**
  * How many recent seasons to prerender at build time.

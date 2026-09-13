@@ -1,76 +1,78 @@
-"use client";
-
 import { ArrowLeft, Trophy, Users, Flag } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
-import useSWR from "swr";
+import { notFound } from "next/navigation";
 
-import { getTeamColor } from "@/app/components/PredictionDriverCard";
-import { API_BASE } from "@/app/constants/api";
+
+import {
+  getSeasonDetail,
+  listSeasonYears,
+  type DriverChampion,
+  type RaceWinner,
+  type SeasonDetail,
+} from "@/app/lib/server/champions";
+import { getTeamColor } from "@/app/lib/teamColors";
 import {
   InlineNotice,
   MetricCard,
   MetricRow,
   Panel,
-  PageLoader,
   SectionHeader,
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
-import { fetcher } from "@/app/utils/fetcher";
 
-interface DriverChampion {
-  name: string;
-  code: string | null;
-  team: string | null;
-  points: number;
-  wins: number;
-  nationality: string | null;
-  title_decided: boolean;
+import type { Metadata } from "next";
+
+interface SeasonPageProps {
+  params: Promise<{ year: string }>;
 }
 
-interface ConstructorChampion {
-  name: string;
-  points: number;
-  title_decided: boolean;
+/**
+ * Hourly background regeneration. The dataset only moves when a title is
+ * decided, so this is not about freshness — it caps how long a render made
+ * against an unreachable backend stays on the page.
+ */
+export const revalidate = 3_600;
+
+/**
+ * Prerender every season the archive knows about.
+ *
+ * `dynamicParams` stays on so a season added between builds still resolves —
+ * it renders on demand and is then cached like the rest.
+ */
+export async function generateStaticParams(): Promise<Array<{ year: string }>> {
+  const years = await listSeasonYears();
+  return years.map((year) => ({ year }));
 }
 
-interface RaceWinner {
-  round: number;
-  race_name: string;
-  date: string | null;
-  winner: string;
-  team: string | null;
-}
+export async function generateMetadata({ params }: SeasonPageProps): Promise<Metadata> {
+  const { year } = await params;
+  const data = await getSeasonDetail(year);
+  const champion = data?.driver_champion?.name;
 
-interface SeasonDetail {
-  season: number;
-  is_in_progress: boolean;
-  driver_champion: DriverChampion | null;
-  constructor_champion: ConstructorChampion | null;
-  runner_up: { name: string; points: number } | null;
-  race_winners?: RaceWinner[];
-  error?: string;
-}
-
-export default function SeasonDetailPage({ params }: { params: Promise<{ year: string }> }) {
-  const { year } = use(params);
-  const { data, error, isLoading } = useSWR<SeasonDetail, Error>(`${API_BASE}/api/champions/${year}`, fetcher);
-
-  if (isLoading) {
-    return (
-      <div className="w-full">
-        <PageLoader title={`Loading ${year} season`} detail="Fetching champions and race winners." />
-      </div>
-    );
+  if (!champion) {
+    return { title: `${year} F1 Season | F1 AI` };
   }
 
-  if (error || data?.error || !data) {
+  return {
+    title: `${year} F1 Season — ${champion} | F1 AI`,
+    description: `${champion} took the ${year} Formula 1 World Championship with ${data.driver_champion?.points} points and ${data.driver_champion?.wins} wins. Full race winners and constructors' title.`,
+  };
+}
+
+export default async function SeasonDetailPage({ params }: SeasonPageProps) {
+  const { year } = await params;
+  const data = await getSeasonDetail(year);
+
+  // A season the dataset has never heard of is a genuine 404, not an outage.
+  if (data?.error) notFound();
+
+  if (!data) {
     return (
       <div className="w-full">
         <BackLink />
         <InlineNotice title={`Season ${year} unavailable`} tone="error">
-          {data?.error ?? "Could not load this season."}
+          Could not load this season.
         </InlineNotice>
       </div>
     );

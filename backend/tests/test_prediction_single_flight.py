@@ -35,7 +35,7 @@ class FakeSnapshotCache:
     def __init__(self) -> None:
         self.entries: dict[tuple[int, int], dict] = {}
 
-    def get(self, year: int, round_num: int) -> dict | None:
+    def get(self, year: int, round_num: int, phase: str | None = None) -> dict | None:
         return self.entries.get((year, round_num))
 
 

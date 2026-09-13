@@ -12,7 +12,12 @@ import fastf1
 import pandas as pd
 import structlog
 
-from app.data.predictions import PREDICTION_LOGIC_VERSION
+from app.data.predictions import (
+    PREDICTION_LOGIC_VERSION,
+    PREDICTION_PHASES,
+    normalise_phase,
+    trim_snapshots,
+)
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
 from app.data.store_types import WriteResult
 
@@ -105,37 +110,73 @@ class PredictionSnapshotCache:
         self._next_load_attempt = 0.0
         self._lock = threading.RLock()
 
-    def get(self, year: int, round_num: int) -> dict | None:
+    def get(self, year: int, round_num: int, phase: str | None = None) -> dict | None:
+        """Return a stored snapshot, optionally the newest one for a phase.
+
+        A phase that was never computed is a miss, not a fall-back to the other
+        phase: the two tabs hold different predictions, and serving one under
+        the other's heading would misreport which model produced it.
+        """
         self._ensure_loaded()
         key = self._key(year, round_num)
         with self._lock:
-            entry = self._entries.get(key)
-        if not entry or not self._has_prediction(entry):
+            raw = self._entries.get(key)
+        if not raw:
             return None
 
-        if self._is_stale(entry):
+        entry = self._normalise_entry(raw)
+        snapshot = self._select_snapshot(entry, normalise_phase(phase))
+        if not self._has_prediction(snapshot):
+            return None
+
+        if self._is_stale(snapshot):
             # Snapshot was produced by superseded prediction logic. Treat it as a
             # miss so callers recompute; never surface outdated predictions.
             logger.info(
                 "prediction_cache.stale",
                 year=year,
                 round=round_num,
-                snapshot_version=self._snapshot_logic_version(entry),
+                phase=phase,
+                snapshot_version=self._snapshot_logic_version(snapshot),
                 current_version=PREDICTION_LOGIC_VERSION,
             )
             return None
 
-        logger.info("prediction_cache.hit", year=year, round=round_num)
-        return self._with_metadata(entry, status="hit")
+        logger.info("prediction_cache.hit", year=year, round=round_num, phase=phase)
+        return self._with_metadata(entry, status="hit", snapshot=snapshot)
 
-    def _snapshot_logic_version(self, entry: dict[str, Any]) -> int:
-        snapshot = self._active_snapshot(self._normalise_entry(entry))
+    def phases_stored(self, year: int, round_num: int) -> list[str]:
+        """Phases that currently have a stored snapshot for this race."""
+        self._ensure_loaded()
+        with self._lock:
+            raw = self._entries.get(self._key(year, round_num))
+        if not raw:
+            return []
+        entry = self._normalise_entry(raw)
+        stored = {self._snapshot_phase(item) for item in entry.get("snapshots") or []}
+        return [phase for phase in PREDICTION_PHASES if phase in stored]
+
+    def _snapshot_logic_version(self, snapshot: dict[str, Any] | None) -> int:
         result = (snapshot or {}).get("result") or {}
         # Snapshots stored before logic-versioning existed default to 0 (stale).
         return int(result.get("logic_version") or 0)
 
-    def _is_stale(self, entry: dict[str, Any]) -> bool:
-        return self._snapshot_logic_version(entry) != PREDICTION_LOGIC_VERSION
+    def _is_stale(self, snapshot: dict[str, Any] | None) -> bool:
+        return self._snapshot_logic_version(snapshot) != PREDICTION_LOGIC_VERSION
+
+    @staticmethod
+    def _snapshot_phase(snapshot: dict[str, Any] | None) -> str | None:
+        return ((snapshot or {}).get("result") or {}).get("prediction_phase")
+
+    def _select_snapshot(self, entry: dict[str, Any], phase: str | None) -> dict[str, Any] | None:
+        """The snapshot a read serves: newest of the phase, else the active one."""
+        if phase is None:
+            return self._active_snapshot(entry)
+        matching = [
+            item for item in entry.get("snapshots") or []
+            if self._snapshot_phase(item) == phase
+        ]
+        return matching[-1] if matching else None
 
     def set(self, year: int, round_num: int, result: dict, *, reason: str = "manual_compute") -> dict:
         if not self._ensure_loaded():
@@ -158,7 +199,10 @@ class PredictionSnapshotCache:
                 "reason": reason,
                 "result": stored_result,
             }
-            snapshots.append(snapshot)
+            snapshots = trim_snapshots(
+                [*snapshots, snapshot],
+                phase_of=self._snapshot_phase,
+            )
 
             entry = {
                 "schema_version": CACHE_SCHEMA_VERSION,
@@ -184,9 +228,15 @@ class PredictionSnapshotCache:
         # with the durability caveat stated rather than hidden.
         return self._with_metadata(entry, status="stored", durable=write.durable)
 
-    def _with_metadata(self, entry: dict[str, Any], status: str, durable: bool = True) -> dict:
+    def _with_metadata(
+        self,
+        entry: dict[str, Any],
+        status: str,
+        durable: bool = True,
+        snapshot: dict[str, Any] | None = None,
+    ) -> dict:
         normalised = self._normalise_entry(entry)
-        snapshot = self._active_snapshot(normalised)
+        snapshot = snapshot or self._active_snapshot(normalised)
         result = copy.deepcopy((snapshot or {}).get("result") or {})
         result["cache"] = {
             "status": status,
@@ -202,12 +252,8 @@ class PredictionSnapshotCache:
         }
         return result
 
-    def _has_prediction(self, entry: dict[str, Any]) -> bool:
-        snapshot = self._active_snapshot(self._normalise_entry(entry))
-        result = (snapshot or {}).get("result") or {}
-        if not result.get("predictions"):
-            return False
-        return True
+    def _has_prediction(self, snapshot: dict[str, Any] | None) -> bool:
+        return bool(((snapshot or {}).get("result") or {}).get("predictions"))
 
     def _active_snapshot(self, entry: dict[str, Any]) -> dict[str, Any] | None:
         snapshots = entry.get("snapshots") or []

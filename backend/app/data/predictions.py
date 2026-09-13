@@ -22,6 +22,7 @@ import os
 import statistics
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,25 @@ ADAPTIVE_CORRECTION_WEIGHT = PREDICTION_ADAPTIVE_WEIGHT
 #     availability adjustments) instead of the season championship table, so a
 #     withdrawn driver is no longer predicted for a race they are not in.
 PREDICTION_LOGIC_VERSION = 4
+
+# ---------------------------------------------------------------------------
+# Prediction phases
+# ---------------------------------------------------------------------------
+# A race can be predicted twice: once from form and history alone, and again
+# once the grid is known. Both are kept so the two calls can be compared, and
+# so recomputing one never discards the other.
+PHASE_PRE_QUALIFYING = "pre_qualifying"
+PHASE_POST_QUALIFYING = "post_qualifying"
+PREDICTION_PHASES = (PHASE_PRE_QUALIFYING, PHASE_POST_QUALIFYING)
+
+# How many stored calls to keep per race, across both phases.
+SNAPSHOT_HISTORY_LIMIT = 8
+
+
+def normalise_phase(phase: str | None) -> str | None:
+    """Return a known phase, or None for "whichever the data supports"."""
+    return phase if phase in PREDICTION_PHASES else None
+
 
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
@@ -1091,12 +1111,46 @@ def _qualifying_has_occurred(event_row) -> bool:
     return True  # unknown schedule → attempt the load (original behaviour)
 
 
-def compute_race_predictions(year: int, round_num: int) -> dict:
+def should_use_qualifying(event_row: Any, forced_pre_qualifying: bool) -> bool:
+    """Whether this compute may load the qualifying result.
+
+    A forced pre-qualifying call answers no even when the session has run —
+    that is the whole point of the phase: it is the prediction the model would
+    have made without the grid, kept alongside the one that uses it.
+    """
+    if forced_pre_qualifying:
+        return False
+    return _qualifying_has_occurred(event_row) if event_row is not None else True
+
+
+def _pre_qualifying_warning(forced: bool, basis: str) -> str:
+    """Explain why a prediction has no grid behind it.
+
+    A forced pre-qualifying call is not missing the qualifying result — it is
+    ignoring it on purpose — so saying "unavailable" would misreport the model.
+    """
+    if forced:
+        return (
+            "Qualifying result deliberately excluded; using practice session pace"
+            if basis == "practice"
+            else "Qualifying result deliberately excluded; using historical form only"
+        )
+    if basis == "practice":
+        return "Qualifying data unavailable; using practice session pace as proxy"
+    return "No qualifying or practice data available; using historical data only"
+
+
+def compute_race_predictions(year: int, round_num: int, *, phase: str | None = None) -> dict:
     """Compute probabilistic race outcome predictions for all drivers.
 
     Args:
         year: Season year (e.g. 2025).
         round_num: Round number in the season calendar.
+        phase: Force a prediction phase. ``PHASE_PRE_QUALIFYING`` ignores the
+            qualifying result even when it exists, producing the form-and-history
+            call for comparison against the post-qualifying one. ``None`` (the
+            default) lets the available data decide, which is what every caller
+            did before phases existed.
 
     Returns:
         Dict matching the REST response shape with predictions for all
@@ -1106,6 +1160,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     warnings: list[str] = []
     data_sources: list[str] = []
     is_pre_qualifying = False
+    forced_pre_qualifying = normalise_phase(phase) == PHASE_PRE_QUALIFYING
 
     # ------------------------------------------------------------------
     # 1. Get event info (needed for circuit key AND to gate session loads)
@@ -1128,11 +1183,13 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     #    Skipping futile loads for upcoming races avoids slow failing FastF1
     #    calls and keeps the compute well under its timeout.
     # ------------------------------------------------------------------
-    quali_occurred = _qualifying_has_occurred(event_row) if event_row is not None else True
+    use_qualifying = should_use_qualifying(event_row, forced_pre_qualifying)
     weekend_started = _weekend_has_started(event_row) if event_row is not None else True
 
     quali_data = None
-    if quali_occurred:
+    # A forced pre-qualifying call deliberately skips the grid, so it takes the
+    # same practice/historical path a genuinely pre-qualifying weekend takes.
+    if use_qualifying:
         quali_data = _load_qualifying(year, round_num)
         if quali_data:
             data_sources.append("qualifying")
@@ -1142,12 +1199,12 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         if quali_data:
             data_sources.append("practice")
             is_pre_qualifying = True
-            warnings.append("Qualifying data unavailable; using practice session pace as proxy")
+            warnings.append(_pre_qualifying_warning(forced_pre_qualifying, "practice"))
 
     if not quali_data:
         is_pre_qualifying = True
-        if weekend_started:
-            warnings.append("No qualifying or practice data available; using historical data only")
+        if forced_pre_qualifying or weekend_started:
+            warnings.append(_pre_qualifying_warning(forced_pre_qualifying, "history"))
         else:
             warnings.append("Race weekend has not started; using historical form only")
 
@@ -1226,6 +1283,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "predictions": [],
             "risk_predictions": [],
             "prediction_review": get_prediction_review(year, round_num),
+            "prediction_phase": PHASE_PRE_QUALIFYING if is_pre_qualifying else PHASE_POST_QUALIFYING,
             "weather_impact": "unknown",
             "wet_scenario": None,
             "warnings": warnings + ["No driver data available for predictions"],
@@ -1430,6 +1488,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
     # ------------------------------------------------------------------
     # 7. Build response
     # ------------------------------------------------------------------
+    resolved_phase = PHASE_PRE_QUALIFYING if is_pre_qualifying else PHASE_POST_QUALIFYING
     result = {
         "year": year,
         "round": round_num,
@@ -1440,8 +1499,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         "accuracy": get_accuracy_stats(),
         "predictions": predictions,
         "risk_predictions": risk_predictions,
-        "prediction_review": get_prediction_review(year, round_num),
-        "prediction_phase": "pre_qualifying" if is_pre_qualifying else "post_qualifying",
+        "prediction_phase": resolved_phase,
         "weather_impact": "dry",  # Weather module (Plan 02) will populate this
         "wet_scenario": None,
         "warnings": warnings if warnings else None,
@@ -1454,6 +1512,10 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         save_prediction(year, round_num, result)
     except Exception as exc:
         logger.warning("predictions.save_failed", error=str(exc))
+
+    # Scored after the save so a completed race reviews the call just made,
+    # not the previous snapshot of this phase.
+    result["prediction_review"] = get_prediction_review(year, round_num, phase=resolved_phase)
 
     logger.info(
         "predictions.computed",
@@ -1562,7 +1624,7 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
             "actual_positions": existing.get("actual_positions"),
             "actual_statuses": existing.get("actual_statuses"),
             "actual_incidents": existing.get("actual_incidents"),
-            "snapshots": snapshots[-8:],
+            "snapshots": trim_snapshots(snapshots),
         }
         _save_prediction_history(history)
 
@@ -1647,10 +1709,46 @@ def record_actual_result(year: int, round_num: int) -> None:
             logger.info("predictions.actual_recorded", key=key, drivers=len(actual_positions))
 
 
-def _latest_prediction_snapshot(entry: dict) -> dict:
-    snapshots = entry.get("snapshots") or []
-    if snapshots:
-        return snapshots[-1]
+def history_snapshot_phase(item: dict) -> str | None:
+    """Phase of a prediction-history snapshot, which stores it at the top level."""
+    return item.get("prediction_phase")
+
+
+def trim_snapshots(
+    snapshots: list[dict],
+    limit: int = SNAPSHOT_HISTORY_LIMIT,
+    phase_of: Callable[[dict], str | None] = history_snapshot_phase,
+) -> list[dict]:
+    """Keep the most recent calls, never dropping the newest one of either phase.
+
+    Recomputing one tab repeatedly must not evict the other tab's only stored
+    prediction — that call is what its review and side-by-side comparison are
+    built from.
+    """
+    if len(snapshots) <= limit:
+        return list(snapshots)
+
+    keep = set(range(len(snapshots) - limit, len(snapshots)))
+    for phase in PREDICTION_PHASES:
+        newest = max(
+            (index for index, item in enumerate(snapshots) if phase_of(item) == phase),
+            default=None,
+        )
+        if newest is not None:
+            keep.add(newest)
+    return [snapshots[index] for index in sorted(keep)]
+
+
+def _snapshots_for_phase(entry: dict, phase: str | None) -> list[dict]:
+    """Stored calls for one phase, oldest first — or all of them when phase is None."""
+    snapshots = [item for item in (entry.get("snapshots") or []) if isinstance(item, dict)]
+    if phase is None:
+        return snapshots
+    return [item for item in snapshots if item.get("prediction_phase") == phase]
+
+
+def _legacy_prediction_snapshot(entry: dict) -> dict:
+    """The flat fields written before snapshots were kept as a list."""
     return {
         "generated_at": entry.get("generated_at"),
         "prediction_phase": entry.get("prediction_phase"),
@@ -1658,6 +1756,46 @@ def _latest_prediction_snapshot(entry: dict) -> dict:
         "predicted_positions": entry.get("predicted_positions") or {},
         "risk_predictions": entry.get("risk_predictions") or {},
     }
+
+
+def _latest_prediction_snapshot(entry: dict, phase: str | None = None) -> dict:
+    """The most recent stored call, optionally restricted to one phase.
+
+    Asking for a phase that was never computed returns an empty snapshot rather
+    than the other phase's call — scoring a pre-qualifying prediction against a
+    post-qualifying request would silently misreport which model was right.
+    """
+    wanted = normalise_phase(phase)
+    matching = _snapshots_for_phase(entry, wanted)
+    if matching:
+        return matching[-1]
+
+    legacy = _legacy_prediction_snapshot(entry)
+    if wanted is None or legacy.get("prediction_phase") == wanted:
+        return legacy
+    return {"predicted_positions": {}, "risk_predictions": {}}
+
+
+def _accuracy_snapshot(entry: dict) -> dict:
+    """The most informed stored call for a race.
+
+    Rolling accuracy must not drop to a weaker number because the pre-qualifying
+    tab happened to be recomputed last, so the post-qualifying call wins
+    whenever both exist.
+    """
+    post_qualifying = _snapshots_for_phase(entry, PHASE_POST_QUALIFYING)
+    if post_qualifying:
+        return post_qualifying[-1]
+    return _latest_prediction_snapshot(entry)
+
+
+def _missing_prediction_reason(phase: str | None) -> str:
+    """Why a review has nothing to score, naming the phase when one was asked for."""
+    if phase == PHASE_PRE_QUALIFYING:
+        return "No stored pre-qualifying prediction for this race."
+    if phase == PHASE_POST_QUALIFYING:
+        return "No stored post-qualifying prediction for this race."
+    return "Stored prediction has no finishing order."
 
 
 def _position_value(value: object) -> int | None:
@@ -1714,21 +1852,22 @@ def _build_driver_results(
     return rows
 
 
-def get_prediction_review(year: int, round_num: int) -> dict:
+def get_prediction_review(year: int, round_num: int, phase: str | None = None) -> dict:
     """Post-race review, loading the actual result first when it is missing.
 
     Use :func:`build_prediction_review` on request paths that must not pay for
     a FastF1 session load.
     """
     record_actual_result(year, round_num)
-    return build_prediction_review(year, round_num)
+    return build_prediction_review(year, round_num, phase=phase)
 
 
-def build_prediction_review(year: int, round_num: int) -> dict:
-    """Compare the latest saved prediction with the recorded race result.
+def build_prediction_review(year: int, round_num: int, phase: str | None = None) -> dict:
+    """Compare a saved prediction with the recorded race result.
 
-    Reads stored history only — never fetches the actual result — so it is safe
-    to call while serving a request.
+    Scores the latest call for ``phase``, or the latest of any phase when none
+    is given. Reads stored history only — never fetches the actual result — so
+    it is safe to call while serving a request.
     """
     key = f"({year},{round_num})"
 
@@ -1737,11 +1876,12 @@ def build_prediction_review(year: int, round_num: int) -> dict:
     if not entry:
         return {"evaluated": False, "reason": "No stored prediction snapshot for this race."}
 
-    snapshot = _latest_prediction_snapshot(entry)
+    wanted_phase = normalise_phase(phase)
+    snapshot = _latest_prediction_snapshot(entry, wanted_phase)
     predicted = snapshot.get("predicted_positions") or {}
     actual = entry.get("actual_positions") or {}
     if not predicted:
-        return {"evaluated": False, "reason": "Stored prediction has no finishing order."}
+        return {"evaluated": False, "reason": _missing_prediction_reason(wanted_phase)}
     if not actual:
         return {"evaluated": False, "reason": "Actual race result is not available yet."}
 
@@ -1821,7 +1961,7 @@ def get_accuracy_stats(last_n_races: int = 8) -> dict:
     # Collect entries that have both predicted and actual positions
     evaluated: list[dict] = []
     for key, entry in history.items():
-        snapshot = _latest_prediction_snapshot(entry)
+        snapshot = _accuracy_snapshot(entry)
         predicted = snapshot.get("predicted_positions")
         actual = entry.get("actual_positions")
         if predicted and actual:

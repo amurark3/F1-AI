@@ -1,5 +1,12 @@
-"use client";
-
+/**
+ * Shared presentational primitives for the Race Control surfaces.
+ *
+ * Intentionally *not* a client module: every export here is a pure function of
+ * its props with no state, effects, or event handlers. Keeping the boundary off
+ * lets server components render panels, metrics, and loaders into the initial
+ * HTML — these are imported by almost every page, so a stray `"use client"`
+ * here would pull all of them into the browser bundle for no benefit.
+ */
 import type { LucideIcon } from "lucide-react";
 
 export const rcFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };

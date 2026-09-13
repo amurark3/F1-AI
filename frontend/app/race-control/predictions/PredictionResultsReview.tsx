@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 
-import { getTeamColor, type DriverPrediction } from "@/app/components/PredictionDriverCard";
+import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
+import { getTeamColor } from "@/app/lib/teamColors";
 
 import { StatusPill } from "../components/RaceControlPrimitives";
 

@@ -1,6 +1,12 @@
 import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 
-import type { DriverLookup, DriverStanding, RaceEvent, RiskPrediction } from "./predictionModel";
+import type {
+  DriverLookup,
+  DriverStanding,
+  PredictionPhase,
+  RaceEvent,
+  RiskPrediction,
+} from "./predictionModel";
 
 const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
@@ -26,32 +32,6 @@ export function shortName(name: string): string {
   return parts.length > 1 ? parts[parts.length - 1] : name;
 }
 
-export function formatDate(value?: string): string {
-  if (!value) return "date TBC";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "date TBC";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date);
-}
-
-export function formatTime(value?: string): string {
-  if (!value) return "time TBC";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "time TBC";
-  return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(date);
-}
-
-export function formatSnapshotTime(value?: string | null): string {
-  if (!value) return "not stored";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "not stored";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 export function countdownTo(value?: string): string | null {
   if (!value) return null;
   const target = new Date(value).getTime();
@@ -69,10 +49,47 @@ export function raceSessionTime(race?: RaceEvent | null): string | undefined {
   return race.sessions.Race ?? race.sessions["Grand Prix"] ?? race.date;
 }
 
-export function phaseLabel(phase?: string): string {
+export function phaseLabel(phase?: string | null): string {
   if (phase === "post_qualifying") return "post-qualifying";
   if (phase === "pre_qualifying") return "pre-qualifying";
   return "no snapshot";
+}
+
+/** Tab heading for a phase. */
+export function phaseTabLabel(phase: PredictionPhase): string {
+  return phase === "post_qualifying" ? "After Qualifying" : "Overall";
+}
+
+/** One line explaining what the phase's model did and did not look at. */
+export function phaseDescription(phase: PredictionPhase): string {
+  return phase === "post_qualifying"
+    ? "Form, history and the qualifying result — the grid is known."
+    : "Form, history and practice pace only — the grid is ignored.";
+}
+
+/**
+ * Whether this weekend's qualifying session has already run.
+ *
+ * The post-qualifying prediction cannot exist before it has: the backend
+ * refuses to store one, so the tab stays empty rather than quietly showing a
+ * pre-qualifying call under the wrong heading. Falls back to the race start
+ * when the schedule carries no qualifying entry, matching the backend's own
+ * "roughly a day before the race" assumption.
+ */
+export function qualifyingHasRun(race: RaceEvent | null | undefined, now: number = Date.now()): boolean {
+  if (!race) return false;
+
+  const qualifying = race.sessions?.Qualifying;
+  if (qualifying) {
+    const start = new Date(qualifying).getTime();
+    if (!Number.isNaN(start)) return start <= now;
+  }
+
+  const raceTime = raceSessionTime(race);
+  if (!raceTime) return false;
+  const start = new Date(raceTime).getTime();
+  if (Number.isNaN(start)) return false;
+  return start - 86400000 <= now;
 }
 
 export function pointsForPosition(position: number): number {
@@ -175,4 +192,22 @@ export function reviewBadgeLabel(
 ): string {
   if (!review?.evaluated) return `${racesEvaluated} scored predictions`;
   return review.winner_correct ? "winner hit" : "winner miss";
+}
+
+/**
+ * The race a visitor should land on: whatever is running now, else the next one
+ * up, else the most recent completed round.
+ *
+ * Shared by the server (to decide which prediction snapshot to prefetch) and
+ * the client (to pick the initially selected round). Both must agree, or the
+ * server would seed a snapshot the client never asks for.
+ */
+export function resolveDefaultRace(schedule: RaceEvent[]): RaceEvent | null {
+  if (schedule.length === 0) return null;
+  return (
+    schedule.find((race) => isLiveRace(race.status)) ??
+    schedule.find((race) => race.status === "upcoming") ??
+    [...schedule].reverse().find((race) => race.status === "completed") ??
+    schedule[0]
+  );
 }

@@ -1,30 +1,24 @@
 "use client";
 
-import { AlertTriangle, Check, CircleDot, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, LockKeyhole, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { LocalCountdown, LocalTime } from "@/app/components/LocalTime";
 import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 
 import { InlineNotice, SectionLoader, rcFont } from "../components/RaceControlPrimitives";
 
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
-import {
-  buildDriverLookup,
-  countdownTo,
-  formatDate,
-  formatTime,
-  isLiveRace,
-  phaseLabel,
-  raceSessionTime,
-  roundColor,
-  roundStateLabel,
-} from "./predictionHelpers";
+import { ConsolePanel } from "./predictionConsole";
+import { buildDriverLookup, phaseDescription, phaseTabLabel, raceSessionTime } from "./predictionHelpers";
+import { PredictionPhaseTabs, type PhaseTabState } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
 import { CircuitPanel, FullGridTable, ModelIO, PodiumPanel, RiskTable, StandbyPanel } from "./RacePredictionTabs";
+import { SeasonAccuracyStrip } from "./SeasonAccuracyStrip";
 
 import type {
   DriverLookup,
   DriverStanding,
+  PredictionPhase,
   PredictionsResponse,
   RaceEvent,
   RiskPrediction,
@@ -40,90 +34,19 @@ const tabs: Array<{ key: TabKey; label: string; locked?: boolean }> = [
   { key: "results", label: "Results" },
 ];
 
-/** Round-selector glyph: check when scored, dot when live/selected, else the round number. */
-function RoundGlyph({ completed, activeOrLive, round }: { completed: boolean; activeOrLive: boolean; round: number }) {
-  if (completed) return <Check className="h-3.5 w-3.5" />;
-  if (activeOrLive) return <CircleDot className="h-3.5 w-3.5 fill-current" />;
-  return <>{round}</>;
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
-  );
-}
-
-function SeasonAccuracyStrip({
-  schedule,
-  selectedRound,
-  data,
-  onSelectRound,
-}: {
+interface RaceHeaderProps {
   schedule: RaceEvent[];
   selectedRound: number | null;
+  selectedRace: RaceEvent | null;
+  raceName: string;
   data?: PredictionsResponse;
+  scheduleLoading: boolean;
+  activePhase: PredictionPhase;
+  /** False while the active phase cannot be computed yet. */
+  phaseAvailable: boolean;
+  isComputing: boolean;
   onSelectRound: (round: number) => void;
-}) {
-  // Show the whole calendar, not a fixed slice — the "N races" count in the
-  // header must match the number of dots. The row scrolls horizontally when the
-  // season is longer than the panel (e.g. a full 22-race calendar).
-  const completed = schedule.filter((race) => race.status === "completed").length;
-  const total = schedule.length || 0;
-  const scored = data?.accuracy?.races_evaluated ?? 0;
-  const window = data?.accuracy?.rolling_window ?? 8;
-
-  return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={`${new Date().getFullYear()} season - prediction accuracy`}
-        right={
-          <span className="font-mono text-[11px] text-[#7F8797]">
-            {total} races / {completed} complete / {scored} of latest {window} scored
-          </span>
-        }
-      />
-      <div className="overflow-x-auto px-4 py-4">
-        <div className="flex w-max items-start gap-5">
-          {schedule.map((race) => {
-            const active = race.round === selectedRound;
-            const completedRace = race.status === "completed";
-            const liveRace = isLiveRace(race.status);
-            const color = roundColor(completedRace, liveRace, active);
-            const stateLabel = roundStateLabel(liveRace, completedRace, active);
-            return (
-              <button
-                key={race.round}
-                type="button"
-                onClick={() => onSelectRound(race.round)}
-                className="group flex w-16 shrink-0 flex-col items-center gap-2 text-center"
-              >
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-[11px] transition-transform group-hover:scale-105 ${
-                    active ? "ring-4 ring-[#E10600]/20" : ""
-                  }`}
-                  style={{ borderColor: `${color}88`, color, background: active ? `${color}22` : "transparent" }}
-                >
-                  <RoundGlyph completed={completedRace} activeOrLive={liveRace || active} round={race.round} />
-                </span>
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#A8AFBF]">
-                  {race.location.split(",")[0].slice(0, 3)}
-                </span>
-                <span className="font-mono text-[10px] text-[#596173]">{stateLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-          <LegendDot color="#00FF78" label="scored or complete" />
-          <LegendDot color="#E10600" label="live or selected" />
-          <LegendDot color="#333B49" label="future" />
-        </div>
-      </div>
-    </ConsolePanel>
-  );
+  onRun: () => void;
 }
 
 function RaceHeader({
@@ -133,26 +56,13 @@ function RaceHeader({
   raceName,
   data,
   scheduleLoading,
+  activePhase,
+  phaseAvailable,
   isComputing,
-  computeReason,
   onSelectRound,
   onRun,
-  onQualifyingRecompute,
-}: {
-  schedule: RaceEvent[];
-  selectedRound: number | null;
-  selectedRace: RaceEvent | null;
-  raceName: string;
-  data?: PredictionsResponse;
-  scheduleLoading: boolean;
-  isComputing: boolean;
-  computeReason: "manual_compute" | "qualifying_recompute" | null;
-  onSelectRound: (round: number) => void;
-  onRun: () => void;
-  onQualifyingRecompute: () => void;
-}) {
+}: RaceHeaderProps) {
   const raceTime = raceSessionTime(selectedRace);
-  const countdown = countdownTo(raceTime);
 
   return (
     <div className="space-y-4">
@@ -173,25 +83,18 @@ function RaceHeader({
             ))}
           </select>
           <span className="hidden font-mono text-xs text-[#596173] sm:inline">/</span>
-          <span className="font-mono text-xs text-[#8E96A8]">{phaseLabel(data?.prediction_phase)}</span>
+          <span className="font-mono text-xs text-[#8E96A8]">{phaseDescription(activePhase)}</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             onClick={onRun}
-            disabled={!selectedRound || isComputing}
+            disabled={!selectedRound || isComputing || !phaseAvailable}
+            title={phaseAvailable ? undefined : "Qualifying has not run yet."}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#00FF78]/35 bg-[#00FF78]/10 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-[#596173]"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {computeReason === "manual_compute" ? "running" : "run model"}
-          </button>
-          <button
-            onClick={onQualifyingRecompute}
-            disabled={!selectedRound || isComputing}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#E10600]/35 bg-[#E10600]/10 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#FF6B67] transition-colors hover:bg-[#E10600] hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-[#596173]"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {computeReason === "qualifying_recompute" ? "recomputing" : "after quali"}
+            {isComputing ? "running" : `run ${phaseTabLabel(activePhase).toLowerCase()}`}
           </button>
         </div>
       </div>
@@ -207,18 +110,15 @@ function RaceHeader({
               Round {selectedRound ?? data?.round ?? "-"}/{data?.year ?? new Date().getFullYear()}
             </span>
             <span>
-              Race {formatDate(raceTime)} - {formatTime(raceTime)}
+              Race <LocalTime value={raceTime} style="day" fallback="date TBC" /> -{" "}
+              <LocalTime value={raceTime} style="time" fallback="time TBC" />
             </span>
             <span>
               status <b className="text-white">{selectedRace?.status ?? "unknown"}</b>
             </span>
           </div>
         </div>
-        {countdown && (
-          <div className="w-fit rounded-full border border-[#E10600]/40 bg-[#E10600]/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white shadow-[0_0_24px_rgba(225,6,0,0.12)]">
-            lights out in <span className="text-[#FF4655]">{countdown}</span>
-          </div>
-        )}
+        <LocalCountdown value={raceTime} />
       </div>
     </div>
   );
@@ -279,12 +179,35 @@ function PredictionAlerts({
   );
 }
 
+/** Shown on the after-qualifying tab before the session that feeds it has run. */
+function AwaitingQualifyingPanel({ raceName }: { raceName: string }) {
+  return (
+    <ConsolePanel>
+      <div className="flex items-start gap-4 p-6">
+        <LockKeyhole className="mt-1 h-5 w-5 text-[#C6A24B]" />
+        <div>
+          <h2 className="text-xl font-black text-white" style={rcFont}>
+            Qualifying Has Not Run
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8E96A8]">
+            This prediction is the one the model makes once the grid is set, so it cannot exist until
+            qualifying for {raceName} has been run. The Overall tab holds the call the model can make
+            today.
+          </p>
+        </div>
+      </div>
+    </ConsolePanel>
+  );
+}
+
 interface PredictionLoadStateProps {
   predictionLoading: boolean;
   predictionError: boolean;
   hasPredictions: boolean;
   isComputing: boolean;
-  computeReason: "manual_compute" | "qualifying_recompute" | null;
+  activePhase: PredictionPhase;
+  /** False while the active phase cannot be computed yet. */
+  phaseAvailable: boolean;
   errorMessage?: string;
   raceName: string;
   onRetry: () => void;
@@ -296,18 +219,25 @@ function PredictionLoadState({
   predictionError,
   hasPredictions,
   isComputing,
-  computeReason,
+  activePhase,
+  phaseAvailable,
   errorMessage,
   raceName,
   onRetry,
   onRun,
 }: PredictionLoadStateProps) {
+  const phaseName = phaseTabLabel(activePhase);
+
+  if (!phaseAvailable) {
+    return <AwaitingQualifyingPanel raceName={raceName} />;
+  }
+
   return (
     <>
       {predictionLoading && (
         <SectionLoader
-          title="Loading stored snapshot"
-          detail="Checking whether this Grand Prix already has a saved prediction."
+          title={`Loading the ${phaseName.toLowerCase()} snapshot`}
+          detail="Checking whether this Grand Prix already has a saved prediction for this phase."
         />
       )}
 
@@ -317,7 +247,7 @@ function PredictionLoadState({
             <AlertTriangle className="mt-1 h-5 w-5 text-[#E10600]" />
             <div>
               <h2 className="text-xl font-black text-white" style={rcFont}>
-                No Prediction Snapshot
+                No {phaseName} Snapshot
               </h2>
               <p className="mt-2 text-sm text-[#8E96A8]">
                 {errorMessage ?? "The stored prediction could not be loaded."}
@@ -334,7 +264,7 @@ function PredictionLoadState({
                   disabled={isComputing}
                   className="rounded-md border border-[#00FF78]/35 bg-[#00FF78]/10 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[#00FF78] hover:bg-[#00FF78] hover:text-black disabled:opacity-50"
                 >
-                  run model
+                  run {phaseName.toLowerCase()}
                 </button>
               </div>
             </div>
@@ -344,13 +274,19 @@ function PredictionLoadState({
 
       {isComputing && (
         <SectionLoader
-          title={computeReason === "qualifying_recompute" ? "Recomputing after qualifying" : "Running prediction model"}
-          detail="Building a fresh stored snapshot with finish order, model I/O, accuracy, and incident risk."
+          title={`Running the ${phaseName.toLowerCase()} model`}
+          detail="Building a fresh stored snapshot with finish order, model I/O, accuracy, and incident risk. The other tab keeps its own prediction."
         />
       )}
 
       {!predictionLoading && !hasPredictions && !predictionError && (
-        <StandbyPanel raceName={raceName} onRun={onRun} isComputing={isComputing} />
+        <StandbyPanel
+          raceName={raceName}
+          phaseName={phaseName}
+          phaseDetail={phaseDescription(activePhase)}
+          onRun={onRun}
+          isComputing={isComputing}
+        />
       )}
     </>
   );
@@ -423,11 +359,16 @@ export interface RacePredictionBoardProps {
   raceName: string;
   predictionLoading: boolean;
   predictionError: boolean;
+  /** Which of the race's two predictions every panel below is describing. */
+  activePhase: PredictionPhase;
+  phaseStates: PhaseTabState[];
+  /** False while the active phase cannot be computed yet. */
+  phaseAvailable: boolean;
   isComputing: boolean;
   computeReason: "manual_compute" | "qualifying_recompute" | null;
   onSelectRound: (round: number) => void;
+  onSelectPhase: (phase: PredictionPhase) => void;
   onRun: () => void;
-  onQualifyingRecompute: () => void;
   onRetry: () => void;
   onReloadSchedule: () => void;
   onReloadDrivers: () => void;
@@ -448,11 +389,13 @@ export function RacePredictionBoard({
   raceName,
   predictionLoading,
   predictionError,
+  activePhase,
+  phaseStates,
+  phaseAvailable,
   isComputing,
-  computeReason,
   onSelectRound,
+  onSelectPhase,
   onRun,
-  onQualifyingRecompute,
   onRetry,
   onReloadSchedule,
   onReloadDrivers,
@@ -476,12 +419,14 @@ export function RacePredictionBoard({
         raceName={raceName}
         data={data}
         scheduleLoading={scheduleLoading}
+        activePhase={activePhase}
+        phaseAvailable={phaseAvailable}
         isComputing={isComputing}
-        computeReason={computeReason}
         onSelectRound={onSelectRound}
         onRun={onRun}
-        onQualifyingRecompute={onQualifyingRecompute}
       />
+
+      <PredictionPhaseTabs states={phaseStates} activePhase={activePhase} onSelectPhase={onSelectPhase} />
 
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -497,7 +442,8 @@ export function RacePredictionBoard({
         predictionError={predictionError}
         hasPredictions={predictions.length > 0}
         isComputing={isComputing}
-        computeReason={computeReason}
+        activePhase={activePhase}
+        phaseAvailable={phaseAvailable}
         errorMessage={data?.error}
         raceName={raceName}
         onRetry={onRetry}

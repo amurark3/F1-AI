@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-import { getTeamColor } from "@/app/components/PredictionDriverCard";
+import { getTeamColor } from "@/app/lib/teamColors";
 
 import { ChampionshipBarChart, DriverChampionshipChart } from "../components/Charts";
 import { Panel, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";

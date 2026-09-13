@@ -1,11 +1,8 @@
-"use client";
-
 import { AlertTriangle, ArrowRight, CalendarClock, CloudRain, Target, Timer, Trophy } from "lucide-react";
 import Link from "next/link";
-import useSWR from "swr";
 
-import { API_BASE } from "@/app/constants/api";
-import { fetcher } from "@/app/utils/fetcher";
+
+import { currentSeason, getOverviewSegment } from "@/app/lib/server/raceControl";
 
 import {
   AssumptionStat,
@@ -29,18 +26,34 @@ import {
   MetricRow,
   Panel,
   SectionHeader,
-  SkeletonPanel,
   rcFont,
 } from "./components/RaceControlPrimitives";
 
-const year = new Date().getFullYear();
+import type { Metadata } from "next";
 
-const SWR_OPTIONS = { revalidateOnFocus: false, dedupingInterval: 120_000 };
+/**
+ * The overview is regenerated every five minutes rather than per request.
+ *
+ * That is the cadence the underlying telemetry and strategy inputs actually
+ * move at, and it keeps a cold backend off the critical path: visitors are
+ * served the last good render while the refresh happens in the background.
+ */
+export const revalidate = 300;
 
-/** Where one overview segment currently stands. */
+export const metadata: Metadata = {
+  title: "Race Weekend Command Center | F1 AI",
+  description:
+    "Pre-race operating view for a Formula 1 weekend — session timing, baseline strategy, competitor threats, weather risk, and championship pressure.",
+};
+
+/**
+ * Where one overview segment currently stands.
+ *
+ * There is no pending state: the server awaits every segment before it renders,
+ * so a segment has either landed or failed by the time the HTML is built.
+ */
 interface SegmentState {
-  loading: boolean;
-  /** A user-facing reason the segment has no data, or null while it is fine. */
+  /** A user-facing reason the segment has no data, or null when it is fine. */
   failure: string | null;
 }
 
@@ -49,49 +62,43 @@ interface Segment<T> extends SegmentState {
 }
 
 /**
- * Fetch one overview segment.
+ * Fetch one overview segment on the server.
  *
  * The command centre is assembled from four of these rather than one response,
- * so a cold telemetry load on the backend delays only the panels that depend
- * on it — the race name, calendar, and championship arrive immediately.
+ * so a cold telemetry read costs only the panels that depend on it — each
+ * segment is its own cache entry and revalidates on its own clock.
+ *
+ * A handled backend failure answers 200 with an `error` field, so a healthy
+ * transport does not imply a healthy segment. An unreachable backend resolves
+ * to null, which the slot reports the same way.
  */
-function useOverviewSegment<T extends { error?: string | null }>(path: string): Segment<T> {
-  const { data, error, isLoading } = useSWR<T, Error>(
-    `${API_BASE}/api/race-control/overview/${year}${path}`,
-    fetcher,
-    SWR_OPTIONS,
-  );
+async function loadSegment<T extends { error?: string | null }>(year: number, path: string): Promise<Segment<T>> {
+  const data = await getOverviewSegment<T>(year, path);
 
-  // A handled backend failure answers 200 with an `error` field, so a healthy
-  // transport does not imply a healthy segment.
-  const failure = error?.message ?? data?.error ?? null;
-  return { data, loading: isLoading, failure };
+  if (data === null) {
+    return { data: undefined, failure: "Segment is still warming up. Refresh in a moment." };
+  }
+
+  return { data, failure: data.error ?? null };
 }
 
 /** Merge the states of the segments a single panel needs. */
 function combined(...states: SegmentState[]): SegmentState {
   return {
-    loading: states.some((state) => state.loading),
     failure: states.map((state) => state.failure).find((failure) => failure !== null) ?? null,
   };
 }
 
-/**
- * Render a panel once its segment has landed: a skeleton while it is in
- * flight, and the reason it is missing if it failed.
- */
+/** Renders a panel, or the reason its segment is missing. */
 function SegmentSlot({
   state,
   title,
-  height,
   children,
 }: {
   state: SegmentState;
   title: string;
-  height: string;
   children: React.ReactNode;
 }) {
-  if (state.loading) return <SkeletonPanel className={height} />;
   if (state.failure !== null) {
     return (
       <Panel className="p-5">
@@ -104,11 +111,9 @@ function SegmentSlot({
   return <>{children}</>;
 }
 
-/** Metric values track their own segment: pending, failed, or ready. */
+/** A metric reads as its value, or as unavailable when its segment failed. */
 function metricValue(state: SegmentState, value: string): string {
-  if (state.loading) return "…";
-  if (state.failure !== null) return "Unavailable";
-  return value;
+  return state.failure === null ? value : "Unavailable";
 }
 
 interface CommandMetricsProps {
@@ -163,14 +168,17 @@ function CommandMetrics({ race, context, weather, focus, shell, strategy, weathe
   );
 }
 
-export default function RaceControlHome() {
-  // Four parallel requests, each rendered the moment it lands. The shell is
-  // schedule and standings only, so the page has a race name and a calendar
-  // while the telemetry-backed panels are still being built.
-  const shell = useOverviewSegment<OverviewShell>("/shell");
-  const strategy = useOverviewSegment<OverviewStrategy>("/strategy");
-  const predictions = useOverviewSegment<OverviewPredictions>("/predictions");
-  const weather = useOverviewSegment<OverviewWeather>("/weather");
+export default async function RaceControlHome() {
+  const year = currentSeason();
+
+  // Four parallel requests. Each is cached separately, so one slow segment
+  // neither blocks the others nor invalidates their cache entries.
+  const [shell, strategy, predictions, weather] = await Promise.all([
+    loadSegment<OverviewShell>(year, "/shell"),
+    loadSegment<OverviewStrategy>(year, "/strategy"),
+    loadSegment<OverviewPredictions>(year, "/predictions"),
+    loadSegment<OverviewWeather>(year, "/weather"),
+  ]);
 
   const race = shell.data?.race;
   const context = strategy.data?.strategy_context;
@@ -196,35 +204,35 @@ export default function RaceControlHome() {
       />
 
       <div className="space-y-5">
-        <SegmentSlot state={combined(shell, strategy)} title="Baseline strategy unavailable" height="h-[420px]">
+        <SegmentSlot state={combined(shell, strategy)} title="Baseline strategy unavailable">
           <BaselineStrategyPanel context={context} race={race} sessions={sessions} />
         </SegmentSlot>
 
         <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <SegmentSlot state={predictions} title="Prediction snapshot unavailable" height="h-96">
+          <SegmentSlot state={predictions} title="Prediction snapshot unavailable">
             <ProjectedPodiumPanel podium={predictions.data?.predicted_podium ?? []} />
           </SegmentSlot>
-          <SegmentSlot state={weather} title="Weather feed unavailable" height="h-96">
+          <SegmentSlot state={weather} title="Weather feed unavailable">
             <WeatherRiskPanel weather={forecast} risks={weather.data?.risk_register ?? []} />
           </SegmentSlot>
-          <SegmentSlot state={shell} title="Championship standings unavailable" height="h-96">
+          <SegmentSlot state={shell} title="Championship standings unavailable">
             <ChampionshipControlPanel championship={shell.data?.championship} />
           </SegmentSlot>
         </div>
 
         <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <SegmentSlot state={strategy} title="Call sheet unavailable" height="h-96">
+          <SegmentSlot state={strategy} title="Call sheet unavailable">
             <CallSheetPanel context={context} />
           </SegmentSlot>
-          <SegmentSlot state={strategy} title="Stint plan unavailable" height="h-96">
+          <SegmentSlot state={strategy} title="Stint plan unavailable">
             <StintPlanPanel context={context} />
           </SegmentSlot>
         </div>
 
-        <SegmentSlot state={strategy} title="Competitor matrix unavailable" height="h-72">
+        <SegmentSlot state={strategy} title="Competitor matrix unavailable">
           <CompetitorMatrixPanel context={context} />
         </SegmentSlot>
-        <SegmentSlot state={strategy} title="Data assumptions unavailable" height="h-40">
+        <SegmentSlot state={strategy} title="Data assumptions unavailable">
           <DataAssumptionsPanel context={context} />
         </SegmentSlot>
       </div>

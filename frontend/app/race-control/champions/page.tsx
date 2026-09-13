@@ -1,78 +1,41 @@
-"use client";
-
 import { Trophy, Users, Flag, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import useSWR from "swr";
 
-import { getTeamColor } from "@/app/components/PredictionDriverCard";
-import { API_BASE } from "@/app/constants/api";
+
+import { getChampions, getChampionStats, type SeasonChampion, type StatsResponse } from "@/app/lib/server/champions";
+import { getTeamColor } from "@/app/lib/teamColors";
 import {
   InlineNotice,
   MetricCard,
   MetricRow,
   Panel,
-  PageLoader,
   SectionHeader,
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
-import { fetcher } from "@/app/utils/fetcher";
 
 import { TitleLeaderboard } from "./TitleLeaderboard";
 
-interface DriverChampion {
-  name: string;
-  code: string | null;
-  team: string | null;
-  points: number;
-  wins: number;
-  nationality: string | null;
-  title_decided: boolean;
-}
+import type { Metadata } from "next";
 
-interface ConstructorChampion {
-  name: string;
-  points: number;
-  title_decided: boolean;
-}
+/**
+ * Hourly background regeneration. The dataset only moves when a title is
+ * decided, so this is not about freshness — it caps how long a render made
+ * against an unreachable backend stays on the page.
+ */
+export const revalidate = 3_600;
 
-interface SeasonChampion {
-  season: number;
-  is_in_progress: boolean;
-  driver_champion: DriverChampion | null;
-  constructor_champion: ConstructorChampion | null;
-  round_count: number;
-}
+export const metadata: Metadata = {
+  title: "F1 World Champions (1950–Present) | F1 AI",
+  description:
+    "Every Formula 1 World Drivers' and Constructors' Champion since 1950, with points, wins, and the races that decided each title.",
+};
 
-interface ChampionsResponse {
-  seasons?: SeasonChampion[];
-  error?: string;
-}
+export default async function ChampionsPage() {
+  // Both are cached independently, so the slower one never delays the other.
+  const [data, stats] = await Promise.all([getChampions(), getChampionStats()]);
 
-interface TitleEntry {
-  name: string;
-  titles: number;
-}
-
-interface StatsResponse {
-  most_driver_titles?: TitleEntry[];
-  most_constructor_titles?: TitleEntry[];
-  error?: string;
-}
-
-export default function ChampionsPage() {
-  const { data, error, isLoading } = useSWR<ChampionsResponse, Error>(`${API_BASE}/api/champions`, fetcher);
-  const { data: stats } = useSWR<StatsResponse>(`${API_BASE}/api/champions/stats`, fetcher);
-
-  if (isLoading) {
-    return (
-      <div className="w-full">
-        <PageLoader title="Loading F1 Champions" detail="Fetching every title from 1950 to today." />
-      </div>
-    );
-  }
-
-  if (error || data?.error || !data?.seasons) {
+  if (!data?.seasons || data.error) {
     return (
       <div className="w-full">
         <InlineNotice title="Could not load champions" tone="error">
@@ -117,7 +80,7 @@ export default function ChampionsPage() {
   );
 }
 
-function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats?: StatsResponse }) {
+function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats: StatsResponse | null }) {
   const topDriver = stats?.most_driver_titles?.[0];
   const topConstructor = stats?.most_constructor_titles?.[0];
   const current = seasons[0];

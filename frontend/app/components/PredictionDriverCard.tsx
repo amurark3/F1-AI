@@ -2,31 +2,7 @@
 
 import { motion } from "framer-motion";
 
-export const TEAM_COLORS: Record<string, string> = {
-  "Red Bull Racing": "#3671C6",
-  "Red Bull": "#3671C6",
-  Mercedes: "#27F4D2",
-  Ferrari: "#E8002D",
-  McLaren: "#FF8000",
-  "Aston Martin": "#229971",
-  "Alpine F1 Team": "#FF87BC",
-  Alpine: "#FF87BC",
-  Williams: "#64C4FF",
-  "RB F1 Team": "#6692FF",
-  RB: "#6692FF",
-  "Haas F1 Team": "#B6BABD",
-  Haas: "#B6BABD",
-  "Kick Sauber": "#52E252",
-  Audi: "#FF0000",
-  "Cadillac F1 Team": "#E0D4B8",
-};
-
-export const getTeamColor = (team: string): string => {
-  for (const [key, color] of Object.entries(TEAM_COLORS)) {
-    if (team.includes(key) || key.includes(team)) return color;
-  }
-  return "#6B7280";
-};
+import { getTeamColor } from "@/app/lib/teamColors";
 
 export interface ModelAttribution {
   feature: string;

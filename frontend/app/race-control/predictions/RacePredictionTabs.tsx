@@ -3,7 +3,9 @@
 import { BrainCircuit, ShieldAlert, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 
-import { getTeamColor, type DriverPrediction } from "@/app/components/PredictionDriverCard";
+import { LocalTime } from "@/app/components/LocalTime";
+import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
+import { getTeamColor } from "@/app/lib/teamColors";
 
 import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
 import { rcFont } from "../components/RaceControlPrimitives";
@@ -18,10 +20,7 @@ import {
   driverDisplayName,
   estimatePodiumPct,
   estimateWinPct,
-  formatDate,
   formatPct,
-  formatSnapshotTime,
-  formatTime,
   modelStatusColor,
   pointsForPosition,
   raceSessionTime,
@@ -212,7 +211,15 @@ function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) 
         <InfoRow label="Circuit" value={circuit?.circuit_name ?? selectedRace?.location ?? "-"} />
         <InfoRow label="Length" value={circuitLengthLabel(circuit)} />
         <InfoRow label="Type" value={circuit?.circuit_type ?? "-"} />
-        <InfoRow label="Race" value={`${formatDate(raceTime)} - ${formatTime(raceTime)}`} />
+        <InfoRow
+          label="Race"
+          value={
+            <>
+              <LocalTime value={raceTime} style="day" fallback="date TBC" /> -{" "}
+              <LocalTime value={raceTime} style="time" fallback="time TBC" />
+            </>
+          }
+        />
         <InfoRow label="Status" value={selectedRace?.status ?? "-"} />
       </dl>
     </ConsolePanel>
@@ -235,7 +242,16 @@ function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> 
           <p className="text-sm text-[#7F8797]">Session times have not been returned for this event.</p>
         )}
         {sessions.map(([label, value]) => (
-          <InfoRow key={label} label={label} value={`${formatDate(value)} - ${formatTime(value)}`} />
+          <InfoRow
+            key={label}
+            label={label}
+            value={
+              <>
+                <LocalTime value={value} style="day" fallback="date TBC" /> -{" "}
+                <LocalTime value={value} style="time" fallback="time TBC" />
+              </>
+            }
+          />
         ))}
       </div>
     </ConsolePanel>
@@ -265,7 +281,7 @@ function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
         />
         <StatBlock
           label="Updated"
-          value={formatSnapshotTime(data?.cache?.updated_at ?? data?.generated_at)}
+          value={<LocalTime value={data?.cache?.updated_at ?? data?.generated_at} style="stamp" fallback="not stored" />}
           detail={data?.cache?.reason ?? "snapshot"}
         />
       </div>
@@ -379,10 +395,16 @@ export function ModelIO({ data }: { data?: PredictionsResponse }) {
 
 export function StandbyPanel({
   raceName,
+  phaseName,
+  phaseDetail,
   onRun,
   isComputing,
 }: {
   raceName: string;
+  /** The tab this panel is standing in for, e.g. "After Qualifying". */
+  phaseName: string;
+  /** What that tab's model is fed. */
+  phaseDetail: string;
   onRun: () => void;
   isComputing: boolean;
 }) {
@@ -391,14 +413,14 @@ export function StandbyPanel({
       <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[#E10600]">
-            No stored prediction
+            No stored {phaseName.toLowerCase()} prediction
           </p>
           <h2 className="mt-2 text-3xl font-black text-white" style={rcFont}>
             {raceName}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8E96A8]">
-            Run the model when you want to create a saved snapshot. The snapshot stays fixed until you manually
-            recompute it.
+            {phaseDetail} Run the model to create a saved snapshot for this tab. It stays fixed until you
+            recompute it, and recomputing it leaves the other tab alone.
           </p>
         </div>
         <button
@@ -407,7 +429,7 @@ export function StandbyPanel({
           className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-md border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#00FF78] hover:bg-[#00FF78] hover:text-black disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-[#596173]"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          {isComputing ? "running" : "run model"}
+          {isComputing ? "running" : `run ${phaseName.toLowerCase()}`}
         </button>
       </div>
     </ConsolePanel>

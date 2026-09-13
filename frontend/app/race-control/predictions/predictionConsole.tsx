@@ -17,7 +17,7 @@ export function ConsoleHeader({ label, right }: { label: string; right?: ReactNo
   );
 }
 
-export function InfoRow({ label, value }: { label: string; value: string }) {
+export function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <dt className="text-[#6F7789]">{label}</dt>
@@ -26,7 +26,7 @@ export function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function StatBlock({ label, value, detail }: { label: string; value: string; detail: string }) {
+export function StatBlock({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) {
   return (
     <div>
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">{label}</p>

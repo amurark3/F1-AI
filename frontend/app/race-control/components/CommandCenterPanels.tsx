@@ -1,6 +1,12 @@
-"use client";
-
+/**
+ * Command-centre panel set.
+ *
+ * No client boundary: these panels are pure functions of their props, so the
+ * server renders them straight into the overview HTML.
+ */
 import { Gauge, Timer, Users } from "lucide-react";
+
+import { LocalTime, LocalTimeZone } from "@/app/components/LocalTime";
 
 import { Panel, StatusPill, rcFont } from "./RaceControlPrimitives";
 
@@ -109,22 +115,6 @@ export interface Overview {
   live_status?: { connected: boolean; label: string };
   risk_register?: Array<{ level: string; title: string; detail: string }>;
 }
-
-const formatDate = (value?: string) => {
-  if (!value) return "No date";
-  return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(
-    new Date(value),
-  );
-};
-
-const formatTime = (value?: string) => {
-  if (!value) return "No time";
-  return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(
-    new Date(value),
-  );
-};
-
-const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "browser local time";
 
 export const formatWeatherMetric = (value: number | null | undefined, unit: string) =>
   typeof value === "number" ? `${Math.round(value)}${unit}` : "—";
@@ -302,7 +292,9 @@ function RaceWeekendClock({
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>
             Race weekend clock
           </p>
-          <p className="mt-1 text-[11px] text-neutral-500">UTC race calendar, shown in {localTimeZone()}.</p>
+          <p className="mt-1 text-[11px] text-neutral-500">
+            UTC race calendar, shown in <LocalTimeZone />.
+          </p>
         </div>
         <StatusPill>{race?.status ?? "No event"}</StatusPill>
       </div>
@@ -313,8 +305,12 @@ function RaceWeekendClock({
         {sessions.map(([name, time]) => (
           <div key={name} className="rounded border border-white/8 bg-white/[0.03] p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{name}</p>
-            <p className="mt-2 text-sm font-bold text-white">{formatDate(time)}</p>
-            <p className="mt-1 font-mono text-xs text-neutral-500">{formatTime(time)}</p>
+            <p className="mt-2 text-sm font-bold text-white">
+              <LocalTime value={time} style="weekday" fallback="No date" />
+            </p>
+            <p className="mt-1 font-mono text-xs text-neutral-500">
+              <LocalTime value={time} style="time" fallback="No time" />
+            </p>
           </div>
         ))}
       </div>

@@ -1,17 +1,14 @@
-"use client";
-
 import { ArrowLeft, BarChart3, Gauge, ShieldAlert, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import useSWR from "swr";
+import { notFound } from "next/navigation";
 
-import { API_BASE } from "@/app/constants/api";
-import { fetcher } from "@/app/utils/fetcher";
+
+import { currentSeason, getTeamDetail, getTeams } from "@/app/lib/server/raceControl";
+
 
 import {
   MetricCard,
   MetricRow,
-  PageLoader,
   Panel,
   SectionHeader,
   StatusPill,
@@ -19,7 +16,9 @@ import {
   rcFont,
 } from "../../components/RaceControlPrimitives";
 
-interface TeamDetail {
+import type { Metadata } from "next";
+
+export interface TeamDetail {
   slug: string;
   name: string;
   color: string;
@@ -35,21 +34,56 @@ interface TeamDetail {
   pace_profile?: Record<string, number>;
 }
 
-export default function TeamDetailPage() {
-  const year = new Date().getFullYear();
-  const params = useParams<{ team: string }>();
-  const slug = params.team;
-  const { data, isLoading } = useSWR<{ team: TeamDetail | null; error?: string }>(
-    `${API_BASE}/api/race-control/teams/${slug}/${year}`,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 180000 },
-  );
+interface TeamPageProps {
+  params: Promise<{ team: string }>;
+}
 
+/** Team profiles track the standings, which move once per race weekend. */
+export const revalidate = 900;
+
+/**
+ * Prerender the constructors currently in the championship.
+ *
+ * `dynamicParams` stays on, so a slug that is not on this list — a team added
+ * mid-season, or a stale bookmark — still renders on demand.
+ */
+export async function generateStaticParams(): Promise<Array<{ team: string }>> {
+  const teams = await getTeams(currentSeason());
+  return (teams?.teams ?? []).map((team) => ({ team: team.slug }));
+}
+
+export async function generateMetadata({ params }: TeamPageProps): Promise<Metadata> {
+  const { team: slug } = await params;
+  const year = currentSeason();
+  const data = await getTeamDetail<TeamDetailResponse>(slug, year);
   const team = data?.team;
 
-  if (isLoading) {
-    return <TeamDetailLoading />;
+  if (!team) {
+    return { title: "Team Profile | F1 AI" };
   }
+
+  return {
+    title: `${team.name} — ${year} F1 Season | F1 AI`,
+    description: `${team.name} championship position, points, and driver line-up for the ${year} Formula 1 season, with pace and standings profiles.`,
+  };
+}
+
+interface TeamDetailResponse {
+  team: TeamDetail | null;
+  error?: string;
+}
+
+export default async function TeamDetailPage({ params }: TeamPageProps) {
+  const { team: slug } = await params;
+  const year = currentSeason();
+  const data = await getTeamDetail<TeamDetailResponse>(slug, year);
+
+  // A reachable backend that knows no such constructor is a genuine 404.
+  if (data !== null && !data.team) {
+    notFound();
+  }
+
+  const team = data?.team;
 
   if (!team) {
     return <TeamNotFound />;
@@ -188,22 +222,6 @@ function TeamProfileWorkspace({ team }: { team: TeamDetail }) {
         </Panel>
       </div>
     </WorkspaceSplit>
-  );
-}
-
-function TeamDetailLoading() {
-  return (
-    <div>
-      <SectionHeader
-        eyebrow="Team Performance Hub"
-        title="Constructor Detail"
-        description="Loading the constructor standings profile, driver table, and operating notes."
-      />
-      <PageLoader
-        title="Preparing team profile"
-        detail="Loading constructor standings and strategy profile for this team."
-      />
-    </div>
   );
 }
 

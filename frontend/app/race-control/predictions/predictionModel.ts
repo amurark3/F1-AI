@@ -68,12 +68,23 @@ export interface PredictionReview {
   driver_results?: PredictionDriverResult[];
 }
 
+/**
+ * Which of a race's two predictions a payload holds.
+ *
+ * `pre_qualifying` is the call the model makes from form and history alone;
+ * `post_qualifying` is the one that has seen the grid. Both are stored per
+ * race, and recomputing one never touches the other.
+ */
+export type PredictionPhase = "pre_qualifying" | "post_qualifying";
+
+export const PREDICTION_PHASES: readonly PredictionPhase[] = ["pre_qualifying", "post_qualifying"];
+
 export interface PredictionsResponse {
   year: number;
   round: number;
   grand_prix?: string;
   generated_at?: string;
-  prediction_phase?: "pre_qualifying" | "post_qualifying";
+  prediction_phase?: PredictionPhase | null;
   predictions: DriverPrediction[];
   risk_predictions?: RiskPrediction[];
   prediction_review?: PredictionReview;

@@ -10,13 +10,15 @@
  */
 
 /** Named presets, so a format is described by intent rather than by options. */
-export type TimeStyle = "weekday" | "day" | "time" | "stamp" | "stampZone";
+export type TimeStyle = "weekday" | "day" | "dayShort" | "time" | "stamp" | "stampZone";
 
 const STYLES: Record<TimeStyle, Intl.DateTimeFormatOptions> = {
   /** "Fri, Sep 11" — session cards on the weekend clock. */
   weekday: { weekday: "short", month: "short", day: "numeric" },
   /** "Sep 11, 2026" — race dates in the prediction console. */
   day: { month: "short", day: "numeric", year: "numeric" },
+  /** "Sep 11" — round tiles in the season selector, where width is scarce. */
+  dayShort: { month: "short", day: "2-digit" },
   /** "04:30 AM PDT" — session start times. */
   time: { hour: "2-digit", minute: "2-digit", timeZoneName: "short" },
   /** "Sep 11, 04:30 AM" — snapshot timestamps. */

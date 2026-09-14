@@ -1,12 +1,6 @@
 import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 
-import type {
-  DriverLookup,
-  DriverStanding,
-  PredictionPhase,
-  RaceEvent,
-  RiskPrediction,
-} from "./predictionModel";
+import type { DriverLookup, DriverStanding, PredictionPhase, RaceEvent, RiskPrediction } from "./predictionModel";
 
 const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
@@ -155,26 +149,6 @@ export function modelStatusColor(status: string): string {
 /** Whether a race is currently running. */
 export function isLiveRace(status: string): boolean {
   return status === "in_progress" || status === "live";
-}
-
-/** Round-selector dot colour for a race by its state. */
-export function roundColor(completed: boolean, live: boolean, active: boolean): string {
-  if (completed) return "#00FF78";
-  if (live || active) return "#E10600";
-  return "#333B49";
-}
-
-/**
- * Short state label shown under a round selector.
- *
- * Describes the round, not the prediction: this strip used to double as an
- * accuracy readout, where "scored" meant a stored call had been compared
- * against the result. As plain navigation it reports whether the race has run.
- */
-export function roundStateLabel(live: boolean, completed: boolean, active: boolean): string {
-  if (live) return "live";
-  if (completed) return "done";
-  return active ? "selected" : "-";
 }
 
 /** Grid-delta cell colour: gained, lost, held, or unknown. */

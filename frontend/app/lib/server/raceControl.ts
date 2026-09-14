@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import type { RaceEvent } from "@/app/race-control/predictions/predictionModel";
+import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 
 import { fetchFromBackend } from "./backend";
@@ -66,6 +66,28 @@ export function getDebrief<T>(year: number, round: number): Promise<T | null> {
   return fetchFromBackend<T>(`/api/race-control/debrief/${year}/${round}`, {
     revalidate: REVALIDATE.STANDINGS,
     tags: ["debrief", `debrief:${year}:${round}`],
+  });
+}
+
+/**
+ * The published starting grid for one round, with any penalties applied.
+ *
+ * Tagged per round rather than per season: the grid is fixed once a weekend is
+ * run, so a completed round never needs revalidating, while the round in
+ * progress moves from "not set" to provisional to official within a day.
+ */
+export function getStartingGrid<T>(year: number, round: number): Promise<T | null> {
+  return fetchFromBackend<T>(`/api/race-control/grid/${year}/${round}`, {
+    revalidate: REVALIDATE.GRID,
+    tags: ["grid", `grid:${year}:${round}`],
+  });
+}
+
+/** Every session the weekend ran — practice, and the sprint set if any. */
+export function getWeekendSessions<T>(year: number, round: number): Promise<T | null> {
+  return fetchFromBackend<T>(`/api/race-control/sessions/${year}/${round}`, {
+    revalidate: REVALIDATE.SESSION_RESULTS,
+    tags: ["sessions", `sessions:${year}:${round}`],
   });
 }
 

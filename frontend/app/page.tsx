@@ -71,7 +71,7 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     accent: "#00FF78",
     items: [
       {
-        href: "/race-control/predictions",
+        href: "/race-control/grand-prix",
         label: "Race Predictions",
         description: "Model-ranked finishing order, with the reasoning behind each driver's placement.",
         icon: Gauge,

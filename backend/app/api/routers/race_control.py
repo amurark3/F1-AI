@@ -20,6 +20,9 @@ from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
 from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
+from app.services.race_grid import build_starting_grid
+from app.services.race_strategy_board import build_race_strategy
+from app.services.weekend_sessions import build_weekend_sessions
 
 router = APIRouter(prefix="/race-control", tags=["race-control"])
 
@@ -106,6 +109,57 @@ async def get_drivers(year: int):
         return await asyncio.to_thread(get_driver_options, year)
     except Exception as exc:
         return {"year": year, "drivers": [], **client_error("api.race_control_drivers.error", exc, year=year)}
+
+
+@router.get("/grid/{year}/{round_num}")
+async def get_starting_grid(year: int, round_num: int):
+    """The round's starting grid and any grid penalties applied to it."""
+    try:
+        return await asyncio.to_thread(build_starting_grid, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "provisional": False,
+            "grid": [],
+            "penalties": [],
+            **client_error("api.race_control_grid.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/sessions/{year}/{round_num}")
+async def get_weekend_sessions(year: int, round_num: int):
+    """Every session the weekend ran — practice, and the sprint set if any."""
+    try:
+        return await asyncio.to_thread(build_weekend_sessions, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "is_sprint": False,
+            "sessions": [],
+            **client_error("api.race_control_sessions.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/stints/{year}/{round_num}")
+async def get_race_strategy(year: int, round_num: int):
+    """Tyre stints and pit stops for the race."""
+    try:
+        return await asyncio.to_thread(build_race_strategy, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "has_stints": False,
+            "has_stops": False,
+            "drivers": [],
+            "stops": [],
+            **client_error("api.race_control_stints.error", exc, year=year, round=round_num),
+        }
 
 
 @router.get("/forecast/{year}")

@@ -6,7 +6,7 @@ import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { isLiveRace, roundColor, roundStateLabel } from "./predictionHelpers";
 import { raceCode } from "./raceCode";
 
-import type { PredictionsResponse, RaceEvent } from "./predictionModel";
+import type { RaceEvent } from "./predictionModel";
 
 /** Round-selector glyph: check when scored, dot when live/selected, else the round number. */
 function RoundGlyph({ completed, activeOrLive, round }: { completed: boolean; activeOrLive: boolean; round: number }) {
@@ -24,15 +24,21 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export function SeasonAccuracyStrip({
+/**
+ * The season calendar as a round selector.
+ *
+ * This used to double as a prediction-accuracy readout, which made the
+ * screen's primary navigation look like part of the model's output. The
+ * accuracy figures now sit in the prediction section that owns them; this strip
+ * reports only on the season and which round is in focus.
+ */
+export function SeasonRoundStrip({
   schedule,
   selectedRound,
-  data,
   onSelectRound,
 }: {
   schedule: RaceEvent[];
   selectedRound: number | null;
-  data?: PredictionsResponse;
   onSelectRound: (round: number) => void;
 }) {
   // Show the whole calendar, not a fixed slice — the "N races" count in the
@@ -40,16 +46,14 @@ export function SeasonAccuracyStrip({
   // season is longer than the panel (e.g. a full 22-race calendar).
   const completed = schedule.filter((race) => race.status === "completed").length;
   const total = schedule.length || 0;
-  const scored = data?.accuracy?.races_evaluated ?? 0;
-  const window = data?.accuracy?.rolling_window ?? 8;
 
   return (
     <ConsolePanel>
       <ConsoleHeader
-        label={`${new Date().getFullYear()} season - prediction accuracy`}
+        label={`${new Date().getFullYear()} season - select a round`}
         right={
           <span className="font-mono text-[11px] text-[#7F8797]">
-            {total} races / {completed} complete / {scored} of latest {window} scored
+            {total} races / {completed} complete
           </span>
         }
       />
@@ -88,7 +92,7 @@ export function SeasonAccuracyStrip({
           })}
         </div>
         <div className="mt-4 flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-          <LegendDot color="#00FF78" label="scored or complete" />
+          <LegendDot color="#00FF78" label="complete" />
           <LegendDot color="#E10600" label="live or selected" />
           <LegendDot color="#333B49" label="future" />
         </div>

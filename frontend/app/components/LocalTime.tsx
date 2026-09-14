@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { formatLocal, formatUtc, resolvedTimeZone, type TimeStyle } from "../lib/formatTime";
-import { countdownTo } from "../race-control/predictions/predictionHelpers";
+import { countdownTo } from "../race-control/grand-prix/predictionHelpers";
 
 /**
  * Nothing to subscribe to — hydration happens once and never reverses, so the

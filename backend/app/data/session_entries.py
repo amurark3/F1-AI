@@ -26,9 +26,13 @@ from dataclasses import dataclass
 import fastf1
 import structlog
 
+from app.utils.fastf1_lock import FASTF1_LOCK
+
 logger = structlog.get_logger()
 
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # Tried newest-first: the latest session that has run carries the most current
 # lineup, so a driver withdrawn after FP1 is already absent from qualifying.

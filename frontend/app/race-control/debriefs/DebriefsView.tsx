@@ -24,7 +24,7 @@ import {
 
 import { resolveDefaultDebriefRace, type Debrief } from "./debriefModel";
 
-import type { RaceEvent } from "../predictions/predictionModel";
+import type { RaceEvent } from "../grand-prix/predictionModel";
 
 /** Server-rendered payloads used to seed the debrief desk's SWR caches. */
 export interface DebriefSeed {

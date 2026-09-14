@@ -22,6 +22,8 @@ The chat endpoint implements an agentic loop:
 import asyncio
 import threading
 import structlog
+
+from app.utils.fastf1_lock import FASTF1_LOCK
 import pandas as pd
 import fastf1
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -89,7 +91,9 @@ race_detail_cache: dict[tuple[int, int], dict] = {}
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 
 def _fmt_td(time_val) -> str:

@@ -24,6 +24,8 @@ import fastf1
 import pandas as pd
 import structlog
 
+from app.utils.fastf1_lock import FASTF1_LOCK
+
 from app.data.circuit_reference_cache import (
     CircuitReferenceCacheUnavailable,
     circuit_reference_cache,
@@ -34,7 +36,9 @@ logger = structlog.get_logger()
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as predictions.py
 # ---------------------------------------------------------------------------
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # ---------------------------------------------------------------------------
 # In-memory caches

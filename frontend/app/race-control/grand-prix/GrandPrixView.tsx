@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import useSWR, { type KeyedMutator } from "swr";
 
@@ -10,11 +9,14 @@ import { fetcher } from "@/app/utils/fetcher";
 
 import { PageLoader } from "../components/RaceControlPrimitives";
 
+import { GrandPrixBoard, type GrandPrixBoardProps } from "./GrandPrixBoard";
 import { qualifyingHasRun, resolveDefaultRace } from "./predictionHelpers";
-import { RacePredictionBoard, type RacePredictionBoardProps } from "./RacePredictionBoard";
 
+import type { StartingGridResponse } from "./gridModel";
 import type { DriverStanding, PredictionPhase, PredictionsResponse, RaceEvent } from "./predictionModel";
 import type { PhaseTabState } from "./PredictionPhaseTabs";
+import type { WeekendSessionsResponse } from "./sessionsModel";
+import type { RaceStrategyResponse } from "./strategyModel";
 
 export interface DriversResponse {
   drivers: DriverStanding[];
@@ -25,7 +27,7 @@ export interface DriversResponse {
 export type PhaseSnapshots = Record<PredictionPhase, PredictionsResponse | null>;
 
 /** Server-rendered payloads used to seed the workspace's SWR caches. */
-export interface PredictionSeed {
+export interface GrandPrixSeed {
   year: number;
   schedule: RaceEvent[] | { error: string } | null;
   drivers: DriversResponse | null;
@@ -33,6 +35,12 @@ export interface PredictionSeed {
   snapshots: PhaseSnapshots;
   /** The round `snapshots` belong to, so a different selection is not seeded. */
   snapshotRound: number | null;
+  /** The starting grid for `snapshotRound`, or null when there was none. */
+  grid: StartingGridResponse | null;
+  /** Practice and sprint classifications for `snapshotRound`. */
+  sessions: WeekendSessionsResponse | null;
+  /** Tyre stints and pit stops for `snapshotRound`. */
+  strategy: RaceStrategyResponse | null;
 }
 
 async function postPredictionCompute(url: string) {
@@ -101,6 +109,58 @@ function usePhaseSnapshot(
   return { data, error, awaiting: awaitingFirstData(isLoading, data !== undefined), mutate };
 }
 
+/**
+ * The published starting grid for the round in focus.
+ *
+ * A separate key from the prediction snapshots on purpose: the grid is a fact
+ * about the weekend, not model output, and recomputing a prediction must not
+ * invalidate or blank it.
+ */
+function useStartingGrid(year: number, round: number | null, seed: StartingGridResponse | null) {
+  const { data, isLoading } = useSWR<StartingGridResponse, Error>(
+    round ? `${API_BASE}/api/race-control/grid/${year}/${round}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 120000,
+      ...seededWith(seed),
+    },
+  );
+
+  return { grid: data, gridLoading: awaitingFirstData(isLoading, data !== undefined) };
+}
+
+/**
+ * The weekend's sessions and its race strategy.
+ *
+ * Both describe what the weekend did, not what the model thinks, so they hold
+ * their own SWR keys: recomputing a prediction must not blank either, and a
+ * round with no snapshot still fills these tabs.
+ */
+function useWeekendData(
+  year: number,
+  round: number | null,
+  seed: { sessions: WeekendSessionsResponse | null; strategy: RaceStrategyResponse | null },
+) {
+  const sessions = useSWR<WeekendSessionsResponse, Error>(
+    round ? `${API_BASE}/api/race-control/sessions/${year}/${round}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 120000, ...seededWith(seed.sessions) },
+  );
+  const strategy = useSWR<RaceStrategyResponse, Error>(
+    round ? `${API_BASE}/api/race-control/stints/${year}/${round}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 120000, ...seededWith(seed.strategy) },
+  );
+
+  return {
+    sessions: sessions.data,
+    sessionsLoading: awaitingFirstData(sessions.isLoading, sessions.data !== undefined),
+    strategy: strategy.data,
+    strategyLoading: awaitingFirstData(strategy.isLoading, strategy.data !== undefined),
+  };
+}
+
 /** Resolve which round/race is in focus from the selection and schedule defaults. */
 function resolveRound(schedule: RaceEvent[], selectedRound: number | null, defaultRace: RaceEvent | null) {
   const effectiveRound = selectedRound ?? defaultRace?.round ?? null;
@@ -159,12 +219,14 @@ function buildPhaseStates(
   ];
 }
 
-function usePredictionWorkspace(seed: PredictionSeed) {
+/**
+ * The season-wide inputs every tab needs: the calendar and the entry list.
+ *
+ * Both are per-season rather than per-round, so they sit apart from the
+ * round-scoped fetches — selecting a different race must not refetch either.
+ */
+function useSeasonContext(seed: GrandPrixSeed) {
   const { year } = seed;
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [selectedPhase, setSelectedPhase] = useState<PredictionPhase | null>(null);
-  const [computeError, setComputeError] = useState<string | null>(null);
-  const [job, setJob] = useState<ComputeJob | null>(null);
 
   const {
     data: scheduleResponse,
@@ -189,6 +251,32 @@ function usePredictionWorkspace(seed: PredictionSeed) {
   });
 
   const schedule = useMemo(() => (Array.isArray(scheduleResponse) ? scheduleResponse : []), [scheduleResponse]);
+  const drivers = driversData?.drivers ?? [];
+
+  return {
+    schedule,
+    scheduleResponse,
+    // Background revalidation must not re-open the loading chrome over content
+    // the server already rendered.
+    awaitingSchedule: awaitingFirstData(scheduleLoading, schedule.length > 0),
+    scheduleFailed: Boolean(scheduleError) || hasScheduleErrorPayload(scheduleResponse),
+    reloadSchedule,
+    drivers,
+    driversFailed: Boolean(driversError || driversData?.error),
+    awaitingDrivers: awaitingFirstData(driversLoading, drivers.length > 0),
+    reloadDrivers,
+  };
+}
+
+function useGrandPrixWorkspace(seed: GrandPrixSeed) {
+  const { year } = seed;
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedPhase, setSelectedPhase] = useState<PredictionPhase | null>(null);
+  const [computeError, setComputeError] = useState<string | null>(null);
+  const [job, setJob] = useState<ComputeJob | null>(null);
+
+  const season = useSeasonContext(seed);
+  const { schedule } = season;
   const defaultRace = useMemo(() => resolveDefaultRace(schedule), [schedule]);
 
   const { effectiveRound, selectedRace } = resolveRound(schedule, selectedRound, defaultRace);
@@ -198,6 +286,11 @@ function usePredictionWorkspace(seed: PredictionSeed) {
   const seeded = effectiveRound === seed.snapshotRound;
   const preQualifying = usePhaseSnapshot(year, effectiveRound, "pre_qualifying", seeded ? seed.snapshots.pre_qualifying : null);
   const postQualifying = usePhaseSnapshot(year, effectiveRound, "post_qualifying", seeded ? seed.snapshots.post_qualifying : null);
+  const { grid, gridLoading } = useStartingGrid(year, effectiveRound, seeded ? seed.grid : null);
+  const weekend = useWeekendData(year, effectiveRound, {
+    sessions: seeded ? seed.sessions : null,
+    strategy: seeded ? seed.strategy : null,
+  });
 
   const qualifyingRun = qualifyingHasRun(selectedRace);
   // Land on the most informed prediction the race actually has, until the
@@ -207,11 +300,7 @@ function usePredictionWorkspace(seed: PredictionSeed) {
   const active = activePhase === "post_qualifying" ? postQualifying : preQualifying;
 
   const view = derivePredictionView(active.data, selectedRace ?? null);
-  const drivers = driversData?.drivers ?? [];
-  // Background revalidation must not re-open the loading chrome over content
-  // the server already rendered.
-  const awaitingSchedule = awaitingFirstData(scheduleLoading, schedule.length > 0);
-  const pageLoading = awaitingSchedule || awaitingFirstData(driversLoading, drivers.length > 0);
+  const pageLoading = season.awaitingSchedule || season.awaitingDrivers;
 
   const computePrediction = useCallback(
     async (phase: PredictionPhase, mutate: KeyedMutator<PredictionsResponse>) => {
@@ -240,18 +329,24 @@ function usePredictionWorkspace(seed: PredictionSeed) {
     void computePrediction(activePhase, active.mutate);
   }, [activePhase, active.mutate, computePrediction]);
 
-  const boardProps: RacePredictionBoardProps = {
+  const boardProps: GrandPrixBoardProps = {
     schedule,
-    scheduleError: Boolean(scheduleError) || hasScheduleErrorPayload(scheduleResponse),
-    scheduleLoading: awaitingSchedule,
+    scheduleError: season.scheduleFailed,
+    scheduleLoading: season.awaitingSchedule,
     selectedRound: effectiveRound,
     selectedRace: selectedRace ?? null,
     data: active.data,
+    grid,
+    gridLoading,
+    sessions: weekend.sessions,
+    sessionsLoading: weekend.sessionsLoading,
+    strategy: weekend.strategy,
+    strategyLoading: weekend.strategyLoading,
     predictions: view.predictions,
     riskPredictions: view.riskPredictions,
     podium: view.podium,
-    drivers,
-    driversError: Boolean(driversError || driversData?.error),
+    drivers: season.drivers,
+    driversError: season.driversFailed,
     raceName: view.raceName,
     predictionLoading: active.awaiting,
     predictionError: Boolean(active.error || view.backendError),
@@ -260,6 +355,7 @@ function usePredictionWorkspace(seed: PredictionSeed) {
     phaseAvailable: activePhase === "pre_qualifying" || qualifyingRun,
     isComputing: job !== null,
     computeReason: job?.reason ?? null,
+    computeError,
     onSelectRound: (round) => {
       setSelectedRound(round);
       setComputeError(null);
@@ -270,37 +366,26 @@ function usePredictionWorkspace(seed: PredictionSeed) {
     },
     onRun: runActivePhase,
     onRetry: () => void active.mutate(),
-    onReloadSchedule: () => void reloadSchedule(),
-    onReloadDrivers: () => void reloadDrivers(),
+    onReloadSchedule: () => void season.reloadSchedule(),
+    onReloadDrivers: () => void season.reloadDrivers(),
   };
 
-  return { pageLoading, computeError, boardProps };
+  return { pageLoading, boardProps };
 }
 
-function ComputeErrorBanner({ message }: { message: string }) {
-  return (
-    <div className="mb-5 flex items-center gap-3 rounded-md border border-[#E10600]/35 bg-[#E10600]/10 px-4 py-3 text-sm text-red-100">
-      <AlertTriangle className="h-4 w-4 shrink-0 text-[#E10600]" />
-      <span>{message}</span>
-    </div>
-  );
-}
-
-export function PredictionsView({ seed }: { seed: PredictionSeed }) {
-  const { pageLoading, computeError, boardProps } = usePredictionWorkspace(seed);
+export function GrandPrixView({ seed }: { seed: GrandPrixSeed }) {
+  const { pageLoading, boardProps } = useGrandPrixWorkspace(seed);
 
   if (pageLoading) {
     return (
       <div>
-        <PageLoader title="Preparing prediction workspace" detail="Loading the race calendar and championship table." />
+        <PageLoader
+          title="Preparing the Grand Prix hub"
+          detail="Loading the race calendar and championship table."
+        />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {computeError && <ComputeErrorBanner message={computeError} />}
-      <RacePredictionBoard {...boardProps} />
-    </div>
-  );
+  return <GrandPrixBoard {...boardProps} />;
 }

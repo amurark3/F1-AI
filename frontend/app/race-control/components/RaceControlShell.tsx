@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bot,
   BookOpenCheck,
+  CalendarRange,
   ClipboardList,
   Flag,
   Gauge,
@@ -36,7 +37,7 @@ const NAV_GROUPS = [
   {
     label: "Decision Tools",
     items: [
-      { href: "/race-control/predictions", label: "Race Predictions", icon: Gauge },
+      { href: "/race-control/grand-prix", label: "Grand Prix Hub", icon: CalendarRange },
       { href: "/race-control/teams", label: "Standings", icon: Users },
     ],
   },

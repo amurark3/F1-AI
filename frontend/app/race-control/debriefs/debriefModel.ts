@@ -1,6 +1,6 @@
 /** Shared shapes and selection rules for the race debrief desk. */
 
-import type { RaceEvent } from "../predictions/predictionModel";
+import type { RaceEvent } from "../grand-prix/predictionModel";
 
 export interface Debrief {
   race?: string;

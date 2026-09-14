@@ -10,6 +10,8 @@ from typing import Any, Callable
 import fastf1
 import structlog
 
+from app.utils.fastf1_lock import FASTF1_LOCK
+
 logger = structlog.get_logger()
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -57,17 +59,23 @@ def _install_recovery_hooks(cache_path: Path) -> None:
     _ORIGINAL_GET_SESSION = fastf1.get_session
     _ORIGINAL_GET_EVENT_SCHEDULE = fastf1.get_event_schedule
 
+    # Every wrapper takes FASTF1_LOCK. requests-cache's SQLite backend is not
+    # safe against concurrent writers, and guarding it here means a caller
+    # cannot forget to — which is how a request-path load running alongside the
+    # boot prefetch reached "database is locked" and killed the worker.
     def safe_get_event_schedule(*args: Any, **kwargs: Any) -> Any:
-        return _with_cache_repair(
-            lambda: _ORIGINAL_GET_EVENT_SCHEDULE(*args, **kwargs),  # type: ignore[misc]
-            "get_event_schedule",
-        )
+        with FASTF1_LOCK:
+            return _with_cache_repair(
+                lambda: _ORIGINAL_GET_EVENT_SCHEDULE(*args, **kwargs),  # type: ignore[misc]
+                "get_event_schedule",
+            )
 
     def safe_get_session(*args: Any, **kwargs: Any) -> Any:
-        session = _with_cache_repair(
-            lambda: _ORIGINAL_GET_SESSION(*args, **kwargs),  # type: ignore[misc]
-            "get_session",
-        )
+        with FASTF1_LOCK:
+            session = _with_cache_repair(
+                lambda: _ORIGINAL_GET_SESSION(*args, **kwargs),  # type: ignore[misc]
+                "get_session",
+            )
         _patch_session_load(session, args, kwargs)
         return session
 
@@ -80,6 +88,12 @@ def _patch_session_load(session: Any, session_args: tuple[Any, ...], session_kwa
     original_load = session.load
 
     def safe_load(*args: Any, **kwargs: Any) -> Any:
+        # The cache is written during load, not just during resolution, so this
+        # is the call that actually needs guarding.
+        with FASTF1_LOCK:
+            return _locked_load(*args, **kwargs)
+
+    def _locked_load(*args: Any, **kwargs: Any) -> Any:
         try:
             return original_load(*args, **kwargs)
         except sqlite3.DatabaseError as exc:

@@ -16,23 +16,41 @@ const CODE_LENGTH = 3;
 const UNKNOWN_CODE = "TBC";
 
 /**
- * Overrides for names the derived code gets *wrong*, and only those — every
- * other race falls through to `deriveCode`, so this table stays short enough
- * to audit. Each entry carries the defect it fixes.
+ * Overrides for names whose derived code is wrong or unconventional.
+ *
+ * There is no single rule in the sport: some rounds are known by their
+ * country (Bahrain, Hungarian, Canadian), others by their circuit (Spa,
+ * Monza, Suzuka, Imola). This table records the conventional short name for
+ * each round that needs one. Most names already derive correctly — Miami,
+ * Monaco, Barcelona, Mexico City, São Paulo, Las Vegas, Abu Dhabi — so only
+ * the disagreements are listed, each with the reason it is listed.
  */
 const RACE_CODES = new Map<string, string>([
-  // "JAP" is an ethnic slur.
-  ["japanese", "JPN"],
+  // --- Rounds known by circuit rather than country ----------------------
+  // The country code would read as a translation of what these races are
+  // actually called.
+  ["belgian", "SPA"],
+  // Monza cannot take "MON" — Monaco holds it — so it uses the timing-screen
+  // form. This is also why the Emilia Romagna round is "IMO", not "EMI".
+  ["italian", "MNZ"],
+  ["emilia romagna", "IMO"],
+  // Suzuka doubles as the fix for the derived "JAP", an ethnic slur. Do not
+  // let this one fall back to `deriveCode`.
+  ["japanese", "SUZ"],
+
+  // --- Country codes where the derived form is wrong or unconventional ---
   // Collides with the Australian Grand Prix, which also derives "AUS".
   ["austrian", "AUT"],
-  // Derives "SPA", which reads as Spa-Francorchamps — a circuit racing on a
-  // different round of the same season, under the Belgian Grand Prix ("BEL").
+  // The derived "CHI" / "BRI" / "DUT" / "FRE" are readable but are not what
+  // a country-named round is called anywhere else in the sport.
+  ["chinese", "CHN"],
+  ["british", "GBR"],
+  ["dutch", "NED"],
+  ["french", "FRA"],
+  // Derives "SPA", which belongs to Spa-Francorchamps above.
   ["spanish", "ESP"],
   // Derives "UNI".
   ["united states", "USA"],
-  // Derives "EMI"; Imola is how the round is known, and it keeps the race
-  // distinct from the Italian Grand Prix at Monza ("ITA").
-  ["emilia romagna", "IMO"],
   // Derives "70T".
   ["70th anniversary", "ANV"],
 ]);

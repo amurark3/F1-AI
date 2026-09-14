@@ -127,4 +127,21 @@ export interface PredictionsResponse {
 }
 
 export type DriverLookup = Record<string, DriverStanding>;
-export type TabKey = "predictions" | "podium" | "circuit" | "risk" | "model" | "results";
+
+/**
+ * The sections of the Grand Prix Hub.
+ *
+ * `weekend` and `grid` describe the event itself and stand on their own data;
+ * the rest read a stored prediction snapshot. The split matters because the
+ * former must render on a weekend the model has never been run for.
+ */
+export type TabKey =
+  | "weekend"
+  | "sessions"
+  | "grid"
+  | "stints"
+  | "predictions"
+  | "podium"
+  | "risk"
+  | "model"
+  | "results";

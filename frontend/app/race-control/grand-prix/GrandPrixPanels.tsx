@@ -258,7 +258,7 @@ function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> 
   );
 }
 
-function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
+export function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
   const accuracy = data?.accuracy;
   const avgError = accuracy?.avg_position_error == null ? "-" : String(accuracy.avg_position_error);
   const top3 = accuracy?.recent_top3_pct == null ? "-" : `${accuracy.recent_top3_pct}%`;
@@ -289,14 +289,20 @@ function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
   );
 }
 
-export function CircuitPanel({ selectedRace, data }: { selectedRace: RaceEvent | null; data?: PredictionsResponse }) {
+/**
+ * The event itself: where it is run and when each session starts.
+ *
+ * Reads only the schedule, so it renders on a weekend the prediction model has
+ * never been run for — which is the whole reason it is no longer bundled with
+ * the model's accuracy panel.
+ */
+export function WeekendPanel({ selectedRace }: { selectedRace: RaceEvent | null }) {
   const sessions = Object.entries(selectedRace?.sessions ?? {});
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
       <CircuitInfoPanel selectedRace={selectedRace} />
       <SessionSchedulePanel sessions={sessions} />
-      <ModelStatsPanel data={data} />
     </div>
   );
 }

@@ -25,4 +25,14 @@ export const REVALIDATE = {
   OVERVIEW: 300,
   /** Model output. Recomputed as practice and qualifying land. */
   PREDICTIONS: 300,
+  /**
+   * The starting grid. Fixed once a round is run, but during the round in
+   * question it moves from "not set" to provisional to official within a day.
+   */
+  GRID: 300,
+  /**
+   * Session classifications and race strategy. Both are fixed once a weekend
+   * is complete, and absent until then.
+   */
+  SESSION_RESULTS: 300,
 } as const;

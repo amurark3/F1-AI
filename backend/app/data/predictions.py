@@ -29,6 +29,8 @@ from typing import Any
 
 import fastf1
 import structlog
+
+from app.utils.fastf1_lock import FASTF1_LOCK
 from fastf1.ergast import Ergast
 
 from app.config import (
@@ -92,7 +94,9 @@ def normalise_phase(phase: str | None) -> str | None:
 # ---------------------------------------------------------------------------
 # Thread safety — same pattern as tools.py / routes.py
 # ---------------------------------------------------------------------------
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # ---------------------------------------------------------------------------
 # In-memory data caches — persist across requests within the same process
@@ -189,6 +193,18 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
     except Exception as exc:
         logger.warning("predictions.qualifying_unavailable", year=year, round=round_num, error=str(exc))
         return None
+
+
+def load_qualifying(year: int, round_num: int) -> list[dict] | None:
+    """Public view of the cached qualifying classification for a round.
+
+    Exposed for :mod:`app.services.race_grid`, which needs the qualifying order
+    as a *provisional* stand-in during the window after a session has run and
+    before f1db publishes that round's official grid sheet. Sharing this
+    module's cache keeps the grid panel from triggering a second FastF1 session
+    load for data a prediction has usually already fetched.
+    """
+    return _load_qualifying(year, round_num)
 
 
 def _load_practice(year: int, round_num: int) -> list[dict] | None:

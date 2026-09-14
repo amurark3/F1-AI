@@ -1,12 +1,6 @@
 import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 
-import type {
-  DriverLookup,
-  DriverStanding,
-  PredictionPhase,
-  RaceEvent,
-  RiskPrediction,
-} from "./predictionModel";
+import type { DriverLookup, DriverStanding, PredictionPhase, RaceEvent, RiskPrediction } from "./predictionModel";
 
 const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
@@ -27,9 +21,22 @@ export function driverDisplayName(prediction: DriverPrediction, lookup: DriverLo
     : prediction.driver_code;
 }
 
+/**
+ * Generational suffixes, which are part of the surname rather than the surname
+ * itself. Without this, "Carlos Sainz Jr." reduces to "Jr." — which is what the
+ * starting grid rendered before the list existed.
+ */
+const NAME_SUFFIXES = new Set(["jr", "jr.", "sr", "sr.", "i", "ii", "iii", "iv"]);
+
+/** The surname a timing screen would show, suffix kept attached to it. */
 export function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);
-  return parts.length > 1 ? parts[parts.length - 1] : name;
+  if (parts.length < 2) return name;
+
+  const last = parts[parts.length - 1];
+  if (!NAME_SUFFIXES.has(last.toLowerCase())) return last;
+  // Keep the suffix with the name it belongs to, e.g. "Sainz Jr.".
+  return parts.length > 2 ? `${parts[parts.length - 2]} ${last}` : name;
 }
 
 export function countdownTo(value?: string): string | null {
@@ -142,20 +149,6 @@ export function modelStatusColor(status: string): string {
 /** Whether a race is currently running. */
 export function isLiveRace(status: string): boolean {
   return status === "in_progress" || status === "live";
-}
-
-/** Round-selector dot colour for a race by its state. */
-export function roundColor(completed: boolean, live: boolean, active: boolean): string {
-  if (completed) return "#00FF78";
-  if (live || active) return "#E10600";
-  return "#333B49";
-}
-
-/** Short state label shown under a round selector. */
-export function roundStateLabel(live: boolean, completed: boolean, active: boolean): string {
-  if (live) return "live";
-  if (completed) return "scored";
-  return active ? "selected" : "-";
 }
 
 /** Grid-delta cell colour: gained, lost, held, or unknown. */

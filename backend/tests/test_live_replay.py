@@ -19,7 +19,7 @@ from fastapi import WebSocketDisconnect
 from app.api import routes
 from app.services import live_commentary as lc
 from app.services import live_timing_client as client
-from app.services.live_timing_client import ActiveSession
+from app.services.live_timing_client import ActiveSession, SessionLookup
 
 pytestmark = pytest.mark.unit
 
@@ -97,9 +97,9 @@ def replay_stack(monkeypatch):
     client._driver_cache.clear()
 
     async def fake_resolve(_year, _round, now=None):
-        return _session(now or datetime.now(timezone.utc))
+        return SessionLookup(active=_session(now or datetime.now(timezone.utc)), next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_active_session", fake_resolve)
+    monkeypatch.setattr(routes, "resolve_session_window", fake_resolve)
     monkeypatch.setattr(routes, "WS_POLL_INTERVAL", 0)
 
     # Commentary: no flags, no pit stops, and a model that always answers.
@@ -176,8 +176,12 @@ def test_replay_stays_silent_on_the_opening_snapshot(replay_stack):
     assert ws.of_type("commentary") == []
 
 
-def test_replay_goes_to_standby_when_the_feed_goes_stale(monkeypatch, replay_stack):
-    """The same recorded frames at their original 19 July timestamps."""
+def test_replay_goes_to_standby_for_a_previous_sessions_feed(monkeypatch, replay_stack):
+    """The same recorded frames at their original 19 July timestamps.
+
+    OpenF1 serves them forever, so the guard is that they predate the session
+    now on track — not that they are old in wall-clock terms.
+    """
     async def stale_get_json(_client, path, _params):
         if path == "position":
             return FIXTURE["frames"][0]
@@ -197,11 +201,41 @@ def test_replay_goes_to_standby_when_the_feed_goes_stale(monkeypatch, replay_sta
     assert ws.of_type("positions") == [], "a finished session was replayed as live"
 
 
+def test_replay_stays_live_through_a_quiet_feed(monkeypatch, replay_stack):
+    """Spain 2026: the position feed went 58 minutes without a new sample.
+
+    Nothing had changed on track, so the last frame is still the running order
+    and the tower must keep showing it. Judged on sample age instead, the desk
+    reported "Control Room Idle" for 39% of the Grand Prix.
+    """
+    quiet = datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    async def quiet_get_json(_client, path, _params):
+        if path == "position":
+            return [{**row, "date": quiet.isoformat()} for row in FIXTURE["frames"][0]]
+        if path == "intervals":
+            return FIXTURE["intervals"]
+        if path == "drivers":
+            return FIXTURE["drivers"]
+        return []
+
+    monkeypatch.setattr(client, "_get_json", quiet_get_json)
+    client._driver_cache.clear()
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    status = ws.of_type("session_status")[0]
+    assert status["status"] == "live"
+    assert status["feed_age_seconds"] >= 20 * 60
+    assert len(ws.of_type("positions")[0]) == 7
+
+
 def test_replay_reports_standby_when_no_session_is_running(monkeypatch, replay_stack):
     async def no_session(_year, _round, now=None):
-        return None
+        return SessionLookup(active=None, next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_active_session", no_session)
+    monkeypatch.setattr(routes, "resolve_session_window", no_session)
     monkeypatch.setattr(routes, "WS_IDLE_POLL_INTERVAL", 0)
     ws = FakeWebSocket(stop_after_polls=1)
 

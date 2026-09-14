@@ -22,8 +22,10 @@ export interface CommentaryEntry {
 }
 
 /**
- * `live` is only ever reported when the feed is actually delivering fresh
- * samples — an open session window alone reports `standby`.
+ * `live` is only ever reported once the feed for *this* session has opened —
+ * an open session window alone reports `standby`. A `standby` that still
+ * carries a `session_name` means the session is under way and the desk is
+ * waiting on OpenF1, which is a different thing from an empty track.
  */
 export type SessionState = "live" | "standby" | "finished";
 
@@ -35,6 +37,12 @@ export interface SessionStatus {
   starts_at: string | null;
   /** Null when the lap count is unknown; OpenF1 publishes no total-lap figure. */
   lap: number | null;
+  /**
+   * Seconds since the newest sample behind the current rows, or null when no
+   * feed is open. A quiet feed is normal — the order simply held — so the
+   * tower keeps its rows and reports the age instead of blanking.
+   */
+  feed_age_seconds: number | null;
 }
 
 /** Messages pushed over the live-timing WebSocket. */

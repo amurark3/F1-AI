@@ -25,7 +25,9 @@ export default async function RaceControlLivePage() {
   const schedule = await getSchedule(year);
 
   const inProgress = scheduleRaces(schedule).find((race) => race.status === "in_progress");
-  const liveRound = inProgress ? { year, round: inProgress.round, name: inProgress.name } : null;
+  const liveRound = inProgress
+    ? { year, round: inProgress.round, name: inProgress.name, sessions: inProgress.sessions ?? null }
+    : null;
 
   return <LiveView year={year} liveRound={liveRound} />;
 }

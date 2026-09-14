@@ -11,17 +11,20 @@ Prix's final classification as a live Dutch Grand Prix feed:
   * the active session is whichever session's window contains *now*, never
     "the first session whose type is Race" (that is the Sprint on a sprint
     weekend, and a finished race every other day of it)
-  * position data is rejected unless it was sampled seconds ago — OpenF1
-    serves a finished session's last rows indefinitely
+  * feed data is rejected unless it was sampled *after the active session
+    began* — OpenF1 serves a finished session's last rows indefinitely, but
+    judging a sample by its age instead reads a quiet track as a dead feed
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-# Position samples older than this are a replay of a finished session, not a
-# live feed. OpenF1 pushes updates every few seconds during a session.
-STALE_AFTER = timedelta(minutes=5)
+# How far back the gap and lap feeds are queried. Both are read only for their
+# latest row per driver, so pulling a whole session is wasted bandwidth: Spain
+# 2026 served 3.8 MB of intervals by the chequered flag, every poll.
+GAP_FEED_WINDOW = timedelta(minutes=5)
+LAP_FEED_WINDOW = timedelta(minutes=15)
 
 # Sessions routinely run past their scheduled end (red flags, safety cars).
 SESSION_END_GRACE = timedelta(minutes=15)
@@ -115,6 +118,23 @@ def select_active_session(
     return None
 
 
+def next_session_start(sessions: list[dict], now: datetime) -> datetime | None:
+    """When the next session of this weekend opens, or None if none remain.
+
+    The socket uses this to stop sleeping through lights out. Rate-limiting the
+    calendar lookup to a flat interval left a five-minute hole at the start of
+    every session: a page opened at 12:58 still reported "no session on track"
+    two minutes into the race.
+    """
+    starts = [
+        parse_iso(session.get("date_start"))
+        for session in sessions
+        if not session.get("is_cancelled")
+    ]
+    upcoming = [start for start in starts if start is not None and start > now]
+    return min(upcoming) if upcoming else None
+
+
 def newest_sample_time(rows: list[dict], key: str = "date") -> datetime | None:
     """The most recent timestamp across ``rows``, or None if there is none."""
     stamps = [parse_iso(row.get(key)) for row in rows]
@@ -122,26 +142,48 @@ def newest_sample_time(rows: list[dict], key: str = "date") -> datetime | None:
     return max(usable) if usable else None
 
 
-def is_fresh(rows: list[dict], now: datetime, max_age: timedelta = STALE_AFTER) -> bool:
-    """Whether ``rows`` were sampled recently enough to present as live.
+def newest_feed_sample(feeds: list[tuple[list[dict] | None, str]]) -> datetime | None:
+    """The newest timestamp across several feeds, each with its own date key.
 
-    Without this guard a session that ended weeks ago renders as a live tower,
-    because OpenF1 keeps returning its final rows.
+    No single OpenF1 feed covers every session type: the gap feed is published
+    for races only, while the position feed is change-driven and goes quiet
+    whenever the order holds. Reading them together is what keeps practice,
+    qualifying and a processional Grand Prix all looking live.
     """
-    newest = newest_sample_time(rows)
-    return newest is not None and (now - newest) < max_age
+    stamps = [newest_sample_time(rows or [], key) for rows, key in feeds]
+    usable = [stamp for stamp in stamps if stamp is not None]
+    return max(usable) if usable else None
+
+
+def feed_belongs_to_session(newest: datetime | None, session_start: datetime) -> bool:
+    """Whether the newest sample was produced by the session now on track.
+
+    This replaced a wall-clock staleness gate. Both guard the same defect —
+    OpenF1 serving a finished session's final rows forever — but age is the
+    wrong question: the position feed only emits on a change, so Spain 2026
+    left it untouched for 58 minutes mid-race and the tower went dark for 39%
+    of the Grand Prix. Provenance is exact, and a row from this session is
+    current however old it is, because nothing has happened to supersede it.
+
+    Rows sampled before lights out are the pre-session feed (Spain opened its
+    position feed 54 minutes early) and do not count as the session running.
+    """
+    return newest is not None and newest >= session_start
 
 
 def derive_session_state(
     session: dict | None,
     now: datetime,
-    has_fresh_data: bool,
+    has_session_data: bool,
     grace: timedelta = SESSION_END_GRACE,
 ) -> str:
     """Classify the session as ``live``, ``finished`` or ``standby``.
 
-    ``live`` requires fresh data as well as an open window: the clock alone is
-    never enough to claim a feed is delivering.
+    ``live`` requires data from this session as well as an open window: the
+    clock alone is never enough to claim a feed is delivering. An open window
+    whose feed has not opened yet is ``standby`` *with a session name*, which
+    is what lets the desk say "Race — awaiting feed" instead of the flatly
+    wrong "no session on track".
     """
     if session is None:
         return "standby"
@@ -153,7 +195,7 @@ def derive_session_state(
         return "standby"
     if now > end + grace:
         return "finished"
-    return "live" if has_fresh_data else "standby"
+    return "live" if has_session_data else "standby"
 
 
 def _latest_per_driver(rows: list[dict]) -> dict[int, dict]:

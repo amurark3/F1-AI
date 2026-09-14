@@ -55,6 +55,24 @@ def test_a_finished_session_is_re_resolved_immediately():
     assert _needs_resolution(active, NOW, resolved_at=time.time()) is True
 
 
+def test_an_imminent_session_is_resolved_the_moment_it_opens():
+    """The Spain 2026 report: a desk opened at 12:58 still said "no session on
+    track" two minutes into the race, because the idle lookup was rate-limited
+    to five minutes regardless of what the calendar said was about to start."""
+    assert _needs_resolution(None, NOW, resolved_at=time.time(), next_start=NOW) is True
+
+
+def test_a_session_still_hours_away_stays_rate_limited():
+    later = NOW + timedelta(hours=3)
+    assert _needs_resolution(None, NOW, resolved_at=time.time(), next_start=later) is False
+
+
+def test_an_unknown_next_session_falls_back_to_the_interval():
+    """OpenF1 unreachable: the socket still retries, just not every poll."""
+    stale = time.time() - SESSION_LOOKUP_INTERVAL - 1
+    assert _needs_resolution(None, NOW, resolved_at=stale, next_start=None) is True
+
+
 def test_idle_interval_cannot_outlast_the_stale_timeout():
     """The loop's own sends keep a connection alive; sleeping past the
     timeout would disconnect every idle viewer."""

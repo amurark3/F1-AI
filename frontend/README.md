@@ -50,7 +50,7 @@ Consumer, Calendar, Standings, Champions, Predictions, Live.
 | `/race-control/intel`                           | Per-team strategic intel                  |
 | `/race-control/predictions`                     | Race predictions + post-mortems           |
 | `/race-control/rulebook`                        | FIA regulation semantic search            |
-| `/race-control/live`                            | Live timing + AI commentary               |
+| `/race-control/live`                            | Live timing                               |
 | `/race-control/champions` · `/champions/[year]` | Historical champions                      |
 | `/calendar`                                     | Season schedule with countdown            |
 | `/standings`                                    | WDC + WCC tables                          |

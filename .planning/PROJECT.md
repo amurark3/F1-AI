@@ -32,7 +32,6 @@ An intelligent F1 race engineer that can answer any Formula 1 question using rea
 - [ ] Race outcome predictions based on qualifying, history, and conditions
 - [ ] Tire strategy analysis — pit windows, undercut/overcut scenarios
 - [ ] Richer driver comparisons — sector times, career arcs, trend analysis
-- [ ] Live AI race commentary — real-time insights during sessions
 - [ ] iOS push notifications — overtakes, pit stops, safety cars, penalties
 - [ ] iOS live timing widget — Dynamic Island / home screen glanceable positions
 - [ ] iOS session countdown reminders before FP, Quali, Race
@@ -48,6 +47,7 @@ An intelligent F1 race engineer that can answer any Formula 1 question using rea
 - Android app — focused on iOS for mobile learning
 - Social features — not a community app
 - Video content — storage/bandwidth overhead not justified
+- Live AI race commentary — built in Phase 4, then removed from backend, web and iOS on 2026-09-29. Not a current feature; see [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md)
 
 ## Context
 

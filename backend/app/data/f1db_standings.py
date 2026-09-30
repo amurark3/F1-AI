@@ -108,6 +108,28 @@ def _season_wins_by_driver_code(conn, year: int) -> dict[str, int]:
     return {row["code"]: int(row["wins"]) for row in rows}
 
 
+def _latest_team_by_driver_id(conn, year: int) -> dict[str, str]:
+    """The team each driver raced for in their most recent start of ``year``.
+
+    ``season_entrant_driver`` has one row per team a driver raced for in the
+    season and nothing that orders them, so a driver who changed seats cannot be
+    placed from it. Their latest race start can.
+    """
+    rows = conn.execute(
+        """
+        SELECT rd.driver_id AS driver_id, con.name AS team
+        FROM race_data rd
+        JOIN race r ON r.id = rd.race_id
+        JOIN constructor con ON con.id = rd.constructor_id
+        WHERE r.year = ? AND rd.type = 'RACE_RESULT'
+        ORDER BY r.round
+        """,
+        (year,),
+    ).fetchall()
+    # Later rounds overwrite earlier ones, leaving each driver's latest team.
+    return {row["driver_id"]: row["team"] for row in rows}
+
+
 def driver_standings_detailed(year: int) -> list[dict]:
     """Rich latest-round driver standings for the UI.
 
@@ -136,6 +158,7 @@ def driver_standings_detailed(year: int) -> list[dict]:
             (year, latest),
         ).fetchall()
         wins_by_code = _season_wins_by_driver_code(conn, year)
+        latest_team = _latest_team_by_driver_id(conn, year)
 
     result: list[dict] = []
     seen: set[str] = set()
@@ -147,7 +170,8 @@ def driver_standings_detailed(year: int) -> list[dict]:
         result.append({
             "code": code,
             "name": row["name"],
-            "team": row["team"] or "",
+            # The season entry is only a fallback for a driver with no start.
+            "team": latest_team.get(row["driver_id"]) or row["team"] or "",
             "position": int(row["position"]),
             "points": float(row["points"]) if row["points"] is not None else 0.0,
             "wins": wins_by_code.get(code, 0),

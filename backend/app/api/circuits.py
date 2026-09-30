@@ -20,6 +20,18 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lat": 26.0325,
         "lon": 50.5106,
     },
+    # The 2026 Bahrain Grand Prix moved to Sepang but kept its name, so the
+    # schedule files it as "Kuala Lumpur, Bahrain" and resolves here by city.
+    "Kuala Lumpur": {
+        "circuit_name": "Sepang International Circuit",
+        "track_length_km": 5.543,
+        "laps": 56,
+        "lap_record": {"time": "1:34.223", "driver": "Juan Pablo Montoya", "year": 2004},
+        "first_gp": 1999,
+        "circuit_type": "Purpose-built",
+        "lat": 2.7608,
+        "lon": 101.7382,
+    },
     "Jeddah": {
         "circuit_name": "Jeddah Corniche Circuit",
         "track_length_km": 6.174,
@@ -343,6 +355,18 @@ def get_circuit_info(location: str) -> dict | None:
         return CIRCUIT_DATA[location]
     city = location.split(",")[0].strip()
     return CIRCUIT_DATA.get(city)
+
+
+STREET_CIRCUIT = "Street circuit"
+
+
+def is_street_circuit(circuit: dict | None) -> bool:
+    """Whether circuit metadata from :func:`get_circuit_info` is a street circuit.
+
+    Semi-street venues (Montréal) do not count: their pit lanes behave like a
+    permanent circuit's, which is what the strategy heuristics care about.
+    """
+    return bool(circuit) and circuit.get("circuit_type") == STREET_CIRCUIT
 
 
 def get_circuit_gps(location: str) -> tuple[float, float] | None:

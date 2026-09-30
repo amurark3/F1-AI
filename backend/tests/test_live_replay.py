@@ -2,8 +2,8 @@
 
 No live race required: recorded OpenF1 frames from the 2026 Belgian Grand Prix
 (`tests/fixtures/openf1_session_replay.json`) are replayed with their
-timestamps rewritten to now, so the whole stack runs — freshness guard,
-position builder, event detection, commentary — against real data shapes.
+timestamps rewritten to now, so the whole stack runs — freshness guard and
+position builder — against real data shapes.
 
 This is the harness to reach for whenever a live session is not available.
 """
@@ -17,9 +17,8 @@ import pytest
 from fastapi import WebSocketDisconnect
 
 from app.api import routes
-from app.services import live_commentary as lc
 from app.services import live_timing_client as client
-from app.services.live_timing_client import ActiveSession
+from app.services.live_timing_client import ActiveSession, SessionLookup
 
 pytestmark = pytest.mark.unit
 
@@ -76,7 +75,7 @@ def _session(now: datetime) -> ActiveSession:
 
 @pytest.fixture
 def replay_stack(monkeypatch):
-    """Wire the loop to recorded data, a stub model, and a fake socket."""
+    """Wire the loop to recorded data and a fake socket."""
     now = datetime.now(timezone.utc)
     replay = Replay(FIXTURE["frames"], now)
 
@@ -97,30 +96,10 @@ def replay_stack(monkeypatch):
     client._driver_cache.clear()
 
     async def fake_resolve(_year, _round, now=None):
-        return _session(now or datetime.now(timezone.utc))
+        return SessionLookup(active=_session(now or datetime.now(timezone.utc)), next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_active_session", fake_resolve)
+    monkeypatch.setattr(routes, "resolve_session_window", fake_resolve)
     monkeypatch.setattr(routes, "WS_POLL_INTERVAL", 0)
-
-    # Commentary: no flags, no pit stops, and a model that always answers.
-    async def _blank_status(_key):
-        return ""
-
-    async def _no_stints(_key):
-        return {}
-
-    class _Reply:
-        content = "Verstappen sweeps into the lead at Spa!"
-
-    class _Chat:
-        def invoke(self, _prompt):
-            return _Reply()
-
-    monkeypatch.setattr(lc, "fetch_session_status", _blank_status)
-    monkeypatch.setattr(lc, "fetch_stint_counts", _no_stints)
-    monkeypatch.setattr(lc, "build_chat_llm", lambda: _Chat())
-    monkeypatch.setattr(lc, "COMMENTARY_COOLDOWN_SECONDS", 0)
-    lc._state.clear()
 
     return replay
 
@@ -156,28 +135,23 @@ def test_replay_streams_the_timing_tower(replay_stack):
     assert rows[0]["gap"] == "LEADER"
 
 
-def test_replay_narrates_a_real_overtake(replay_stack):
+def test_replay_follows_a_real_overtake(replay_stack):
     """Frame two is a genuine swap for the lead at Spa: ANT loses P1 to VER."""
     ws = FakeWebSocket(stop_after_polls=2)
 
     _drive(ws)
 
-    entries = ws.of_type("commentary")
-    assert len(entries) == 1
-    assert entries[0]["event_type"] == "position_change"
-    assert entries[0]["text"] == "Verstappen sweeps into the lead at Spa!"
+    before, after = ws.of_type("positions")
+    assert [r["driver"] for r in before[:2]] == ["ANT", "VER"]
+    assert [r["driver"] for r in after[:2]] == ["VER", "ANT"]
 
 
-def test_replay_stays_silent_on_the_opening_snapshot(replay_stack):
-    ws = FakeWebSocket(stop_after_polls=1)
+def test_replay_goes_to_standby_for_a_previous_sessions_feed(monkeypatch, replay_stack):
+    """The same recorded frames at their original 19 July timestamps.
 
-    _drive(ws)
-
-    assert ws.of_type("commentary") == []
-
-
-def test_replay_goes_to_standby_when_the_feed_goes_stale(monkeypatch, replay_stack):
-    """The same recorded frames at their original 19 July timestamps."""
+    OpenF1 serves them forever, so the guard is that they predate the session
+    now on track — not that they are old in wall-clock terms.
+    """
     async def stale_get_json(_client, path, _params):
         if path == "position":
             return FIXTURE["frames"][0]
@@ -197,11 +171,41 @@ def test_replay_goes_to_standby_when_the_feed_goes_stale(monkeypatch, replay_sta
     assert ws.of_type("positions") == [], "a finished session was replayed as live"
 
 
+def test_replay_stays_live_through_a_quiet_feed(monkeypatch, replay_stack):
+    """Spain 2026: the position feed went 58 minutes without a new sample.
+
+    Nothing had changed on track, so the last frame is still the running order
+    and the tower must keep showing it. Judged on sample age instead, the desk
+    reported "Control Room Idle" for 39% of the Grand Prix.
+    """
+    quiet = datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    async def quiet_get_json(_client, path, _params):
+        if path == "position":
+            return [{**row, "date": quiet.isoformat()} for row in FIXTURE["frames"][0]]
+        if path == "intervals":
+            return FIXTURE["intervals"]
+        if path == "drivers":
+            return FIXTURE["drivers"]
+        return []
+
+    monkeypatch.setattr(client, "_get_json", quiet_get_json)
+    client._driver_cache.clear()
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    status = ws.of_type("session_status")[0]
+    assert status["status"] == "live"
+    assert status["feed_age_seconds"] >= 20 * 60
+    assert len(ws.of_type("positions")[0]) == 7
+
+
 def test_replay_reports_standby_when_no_session_is_running(monkeypatch, replay_stack):
     async def no_session(_year, _round, now=None):
-        return None
+        return SessionLookup(active=None, next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_active_session", no_session)
+    monkeypatch.setattr(routes, "resolve_session_window", no_session)
     monkeypatch.setattr(routes, "WS_IDLE_POLL_INTERVAL", 0)
     ws = FakeWebSocket(stop_after_polls=1)
 

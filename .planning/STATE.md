@@ -112,15 +112,15 @@ Recent decisions affecting current work:
 - [Phase 03-05]: Auto-dismiss uses Task.sleep structured concurrency (not DispatchQueue) — cancellation-safe
 - [Phase 04-01]: RaceLiveActivity.swift placed in F1AIWidgets/ and added to F1AI target via xcodegen explicit source path — avoids third Shared/ directory
 - [Phase 04-01]: isLeader Bool included in ContentState for UI branching without gap string parsing
-- [Phase 04-live-race-experience]: Commentary state keyed by room string at module level for shared 30s cooldown across connections
-- [Phase 04-live-race-experience]: asyncio.to_thread wraps llm.invoke to prevent blocking WebSocket event loop; template fallback on LLM error
+- [Phase 04-live-race-experience]: Commentary state keyed by room string at module level for shared 30s cooldown across connections *(removed 2026-09-29)*
+- [Phase 04-live-race-experience]: asyncio.to_thread wraps llm.invoke to prevent blocking WebSocket event loop; template fallback on LLM error *(removed 2026-09-29)*
 - [Phase 04-live-race-experience]: favoriteDriver AppStorage key empty-string default — LiveActivityService interprets empty as track-leader fallback; no validation in settings layer
 - [Phase 04-live-race-experience]: LiveActivityService keeps ActivityKit isolated in its own service file — not on LiveTimingViewModel — avoiding import confusion between app and widget targets
 - [Phase 04-live-race-experience]: Tracked driver re-read from UserDefaults on every update() so mid-session favorite changes propagate without restart
-- [Phase 04-live-race-experience]: Two-step WebSocket decode (JSONSerialization for type, then JSONDecoder) avoids touching brittle LiveTimingData singleValueContainer enum
-- [Phase 04-live-race-experience]: Commentary badge dot uses @State hasNewCommentary cleared on Commentary tab .onAppear — no auto-switch, visual only
+- [Phase 04-live-race-experience]: Two-step WebSocket decode (JSONSerialization for type, then JSONDecoder) avoids touching brittle LiveTimingData singleValueContainer enum *(removed 2026-09-29)*
+- [Phase 04-live-race-experience]: Commentary badge dot uses @State hasNewCommentary cleared on Commentary tab .onAppear — no auto-switch, visual only *(removed 2026-09-29)*
 - [Phase 04-06]: useLiveTiming guards useEffect with !year || !round check so hook can be called unconditionally; round 0 is never a valid F1 round
-- [Phase 04-06]: AnimatePresence initial=false on CommentaryPanel so only newly prepended entries animate in; initial render is instant
+- [Phase 04-06]: AnimatePresence initial=false on CommentaryPanel so only newly prepended entries animate in; initial render is instant *(removed 2026-09-29)*
 - [Phase 04-07]: _find_openf1_session returns tuple[str, int] | None so session_key and total_laps are fetched atomically in one call
 - [Phase 04-07]: last_known_lap cache variable preserves last good lap count across failed /v1/laps fetches rather than broadcasting null
 - [Phase 04-07]: session_status message sent after positions so iOS receives positions first (triggering activity start) then lap update follows
@@ -138,10 +138,12 @@ None
 ### Roadmap Evolution
 
 - Phase 6 added: ML-backed data analytics revamp with professional UI, sophisticated models, and iOS cleanup
+- 2026-09-29: Live AI commentary (Phase 4, LIVE-03–05) removed from backend, web and iOS. Not a current feature; see [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md)
 
 ### Blockers/Concerns
 
 - Phase 5 requires Apple Developer account with p8 auth key -- confirm availability before planning Phase 5
+- Phase 5 plans reuse the removed commentary engine (05-CONTEXT push body, 05-03 event detection) -- re-plan before executing Phase 5
 - Render.com free tier: ChromaDB on ephemeral storage resets on deploy -- may need persistent disk or managed vector DB
 - FastF1 thread safety on current version should be verified before Phase 1 implementation
 

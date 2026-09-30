@@ -1,17 +1,10 @@
 import ActivityKit
 import SwiftUI
 
-private enum LiveSegment: String, CaseIterable {
-    case timing = "Timing"
-    case commentary = "Commentary"
-}
-
 struct LiveTab: View {
     @State private var vm = LiveTimingViewModel()
     @State private var calendarVM = CalendarViewModel()
     @State private var liveActivityService = LiveActivityService()
-    @State private var selectedSegment: LiveSegment = .timing
-    @State private var hasNewCommentary = false
     @State private var serverStatus = ServerStatusService.shared
 
     var body: some View {
@@ -81,61 +74,34 @@ struct LiveTab: View {
 
             Divider()
 
-            // Segment picker
-            Picker("", selection: $selectedSegment) {
-                ForEach(LiveSegment.allCases, id: \.self) { seg in
-                    if seg == .commentary && hasNewCommentary {
-                        Label(seg.rawValue, systemImage: "circle.fill")
-                            .labelStyle(.titleAndIcon)
-                    } else {
-                        Text(seg.rawValue)
-                    }
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-
-            // Content switch
-            switch selectedSegment {
-            case .timing:
-                ScrollView {
-                    if vm.isConnected {
-                        if vm.positions.isEmpty {
-                            VStack(spacing: 8) {
-                                ProgressView()
-                                Text("Waiting for timing data...")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 60)
-                        } else {
-                            TimingTower(
-                                positions: vm.positions,
-                                sessionStatus: vm.sessionStatus
-                            )
-                            .padding(.top, 8)
-                        }
-                    } else {
-                        VStack(spacing: 12) {
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 32))
-                                .foregroundStyle(.secondary)
-                            Text("Connecting to live timing...")
+            ScrollView {
+                if vm.isConnected {
+                    if vm.positions.isEmpty {
+                        VStack(spacing: 8) {
+                            ProgressView()
+                            Text("Waiting for timing data...")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.top, 60)
+                    } else {
+                        TimingTower(
+                            positions: vm.positions,
+                            sessionStatus: vm.sessionStatus
+                        )
+                        .padding(.top, 8)
                     }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.secondary)
+                        Text("Connecting to live timing...")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 60)
                 }
-            case .commentary:
-                CommentaryFeedView(entries: vm.commentaryEntries)
-                    .onAppear { hasNewCommentary = false }
-            }
-        }
-        .onChange(of: vm.commentaryEntries.count) {
-            if selectedSegment != .commentary {
-                hasNewCommentary = true
             }
         }
         .onChange(of: vm.positions) {

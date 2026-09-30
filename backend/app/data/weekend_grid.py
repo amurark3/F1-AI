@@ -1,18 +1,22 @@
 """Resolve which drivers a race prediction should cover.
 
-Three sources answer "who is on the grid", in descending order of authority:
+Four sources answer "who is on the grid", in descending order of authority:
 
 1. **The weekend entry list** (:mod:`app.data.session_entries`) — observed fact
    once any session has run. It is the only source that knows about a
    mid-season seat change or a Thursday withdrawal.
 2. **Curated adjustments** (:mod:`app.data.driver_availability`) — the manual
    bridge for the window before the first session, when nothing is observed.
-3. **The season championship roster** — a fallback that describes who has
-   raced this season, not who is racing this weekend. Correct most weekends and
-   wrong exactly when a driver is withdrawn, so a grid built on it is labelled
-   provisional.
+   Applied on top of whichever roster below is used.
+3. **The previous weekend's entry list** — who was actually in the cars last
+   time out. The best guess at this weekend's lineup until it is observed, so a
+   grid built on it is labelled provisional.
+4. **The season championship roster** — a last resort that describes who has
+   raced this season, not who is racing this weekend. Once a stand-in has
+   driven it holds both the stand-in and the driver they replaced, so it can
+   list more drivers than there are seats.
 
-The previous behaviour used (3) unconditionally and back-filled *every*
+The previous behaviour used (4) unconditionally and back-filled *every*
 championship entrant missing from the session, which re-inserted a withdrawn
 driver at the back of the grid even after the real entry list said otherwise.
 Timed drivers are now filtered against the resolved roster and back-fill is
@@ -26,11 +30,12 @@ from dataclasses import dataclass
 import structlog
 
 from app.data.driver_availability import WeekendAvailability
-from app.data.session_entries import WeekendEntryList
+from app.data.session_entries import UNAVAILABLE, WeekendEntryList
 
 logger = structlog.get_logger()
 
 SOURCE_ENTRY_LIST = "weekend_entry_list"
+SOURCE_PREVIOUS_ENTRY_LIST = "previous_weekend_entry_list"
 SOURCE_CHAMPIONSHIP = "championship_position"
 SOURCE_MANUAL_ADJUSTMENT = "manual_entry_adjustment"
 
@@ -57,6 +62,16 @@ class GridRoster:
     warnings: tuple[str, ...] = ()
     data_sources: tuple[str, ...] = ()
     provisional: bool = False
+
+
+@dataclass(frozen=True)
+class _BaseRoster:
+    """The roster chosen before curated adjustments, and how to report it."""
+
+    drivers: tuple[RosterDriver, ...]
+    source: str | None
+    provisional: bool
+    warning: str | None = None
 
 
 def _roster_from_entry_list(entry_list: WeekendEntryList, championship: list[dict]) -> tuple[RosterDriver, ...]:
@@ -109,6 +124,46 @@ def _apply_adjustments(
     return kept + added
 
 
+def _base_roster(
+    entry_list: WeekendEntryList,
+    previous_entry_list: WeekendEntryList,
+    championship: list[dict],
+) -> _BaseRoster:
+    """Pick the most authoritative roster source that has an answer."""
+    if entry_list.available:
+        return _BaseRoster(
+            drivers=_roster_from_entry_list(entry_list, championship),
+            source=SOURCE_ENTRY_LIST,
+            provisional=False,
+        )
+
+    if previous_entry_list.available:
+        return _BaseRoster(
+            drivers=_roster_from_entry_list(previous_entry_list, championship),
+            source=SOURCE_PREVIOUS_ENTRY_LIST,
+            provisional=True,
+            warning=(
+                "Entry list not published yet — provisional lineup carried over "
+                "from the previous race weekend; a lineup change announced since "
+                "may not be shown"
+            ),
+        )
+
+    drivers = _roster_from_championship(championship)
+    if not drivers:
+        return _BaseRoster(drivers=(), source=None, provisional=True)
+    return _BaseRoster(
+        drivers=drivers,
+        source=SOURCE_CHAMPIONSHIP,
+        provisional=True,
+        warning=(
+            "Entry list not published yet — provisional lineup from the "
+            "season's championship entrants; a driver withdrawn this "
+            "weekend may still be shown"
+        ),
+    )
+
+
 def _sorted_roster(roster: tuple[RosterDriver, ...]) -> tuple[RosterDriver, ...]:
     return tuple(sorted(roster, key=lambda driver: (driver.championship_position, driver.code)))
 
@@ -134,6 +189,7 @@ def resolve_grid(
     championship_roster: list[dict],
     entry_list: WeekendEntryList,
     availability: WeekendAvailability,
+    previous_entry_list: WeekendEntryList = UNAVAILABLE,
 ) -> GridRoster:
     """Build the driver list a prediction should score.
 
@@ -142,28 +198,18 @@ def resolve_grid(
         championship_roster: ``driver_standings_detailed`` rows for the season.
         entry_list: The weekend's observed entry list, possibly unavailable.
         availability: Curated adjustments recorded for this round.
+        previous_entry_list: The most recent weekend's entry list, used as the
+            provisional lineup while ``entry_list`` is unavailable.
 
     Returns:
         The resolved grid, plus the warnings and data sources that make its
         provenance visible to the caller.
     """
-    warnings: list[str] = []
-    data_sources: list[str] = []
-
-    if entry_list.available:
-        roster = _roster_from_entry_list(entry_list, championship_roster)
-        data_sources.append(SOURCE_ENTRY_LIST)
-        provisional = False
-    else:
-        roster = _roster_from_championship(championship_roster)
-        provisional = True
-        if roster:
-            data_sources.append(SOURCE_CHAMPIONSHIP)
-            warnings.append(
-                "Entry list not published yet — provisional lineup from the "
-                "season's championship entrants; a driver withdrawn this "
-                "weekend may still be shown"
-            )
+    base = _base_roster(entry_list, previous_entry_list, championship_roster)
+    roster = base.drivers
+    provisional = base.provisional
+    data_sources: list[str] = [base.source] if base.source else []
+    warnings: list[str] = [base.warning] if base.warning else []
 
     if not availability.ok:
         warnings.append(
@@ -222,6 +268,7 @@ def resolve_grid(
     logger.info(
         "weekend_grid.resolved",
         entry_list_session=entry_list.session,
+        roster_source=base.source,
         provisional=provisional,
         timed=len(kept_timed),
         back_filled=len(back_filled),

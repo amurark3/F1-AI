@@ -19,6 +19,7 @@ from app.data.weekend_grid import (
     SOURCE_CHAMPIONSHIP,
     SOURCE_ENTRY_LIST,
     SOURCE_MANUAL_ADJUSTMENT,
+    SOURCE_PREVIOUS_ENTRY_LIST,
     resolve_grid,
 )
 
@@ -109,6 +110,69 @@ class TestBeforeAnySessionRuns:
         grid = resolve_grid([], CHAMPIONSHIP, UNAVAILABLE, availability)
 
         assert any("could not be read" in warning for warning in grid.warnings)
+
+
+class TestCarriedOverFromThePreviousWeekend:
+    """Before this weekend's entry list exists, the last weekend's lineup is used.
+
+    The championship table lists everyone who has raced this season, so after a
+    stand-in drives it holds both the stand-in and the driver they replaced —
+    23 drivers for 22 seats. The previous weekend's entry list holds only the
+    people actually in the cars.
+    """
+
+    def test_stand_in_who_no_longer_races_is_not_predicted(self):
+        championship_with_stand_in = [
+            *CHAMPIONSHIP,
+            {"code": "TSU", "name": "Yuki Tsunoda", "team": "Racing Bulls", "position": 20},
+        ]
+        previous = entry_list("ANT", "HAM", "HAD", "LIN", session="Q")
+        grid = resolve_grid(
+            [], championship_with_stand_in, UNAVAILABLE, WeekendAvailability(),
+            previous_entry_list=previous,
+        )
+
+        assert codes(grid) == ["ANT", "HAM", "HAD", "LIN"]
+
+    def test_carried_over_grid_is_provisional_and_says_where_it_came_from(self):
+        grid = resolve_grid(
+            [], CHAMPIONSHIP, UNAVAILABLE, WeekendAvailability(),
+            previous_entry_list=entry_list("ANT", "HAM", session="Q"),
+        )
+
+        assert grid.provisional is True
+        assert SOURCE_PREVIOUS_ENTRY_LIST in grid.data_sources
+        assert SOURCE_CHAMPIONSHIP not in grid.data_sources
+        assert any("carried over from the previous race weekend" in w for w in grid.warnings)
+
+    def test_this_weekends_entry_list_wins_over_the_previous_one(self):
+        grid = resolve_grid(
+            [], CHAMPIONSHIP, entry_list("ANT", "HAM", "LIN"), WeekendAvailability(),
+            previous_entry_list=entry_list("ANT", "HAM", "HAD", session="Q"),
+        )
+
+        assert codes(grid) == ["ANT", "HAM", "LIN"]
+        assert grid.provisional is False
+        assert SOURCE_PREVIOUS_ENTRY_LIST not in grid.data_sources
+
+    def test_curated_withdrawal_applies_to_the_carried_over_lineup(self):
+        grid = resolve_grid(
+            [], CHAMPIONSHIP, UNAVAILABLE,
+            withdrawal("HAD", "TSU", "Yuki Tsunoda", "Racing Bulls"),
+            previous_entry_list=entry_list("ANT", "HAM", "HAD", "LIN", session="Q"),
+        )
+
+        assert "HAD" not in codes(grid)
+        assert "TSU" in codes(grid)
+
+    def test_championship_is_the_fallback_when_neither_entry_list_exists(self):
+        grid = resolve_grid(
+            [], CHAMPIONSHIP, UNAVAILABLE, WeekendAvailability(),
+            previous_entry_list=UNAVAILABLE,
+        )
+
+        assert codes(grid) == ["ANT", "HAM", "HAD", "LIN"]
+        assert SOURCE_CHAMPIONSHIP in grid.data_sources
 
 
 class TestOnceASessionHasRun:

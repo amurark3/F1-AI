@@ -38,13 +38,12 @@ from app.api.routers.predictions import router as predictions_router
 from app.api.routers.race_control import router as race_control_router
 from app.api.routers.readiness import router as readiness_router
 from app.api.routers.season import router as season_router
-from app.services.live_commentary import next_commentary, reset_room
 from app.services.live_timing import SESSION_END_GRACE, derive_session_state
 from app.services.live_timing_client import (
     ActiveSession,
-    fetch_current_lap,
-    poll_positions,
-    resolve_active_session,
+    TimingSnapshot,
+    poll_timing,
+    resolve_session_window,
 )
 from app.utils.f1_values import safe_float as _safe_float
 from app.utils.f1_values import safe_int as _safe_int
@@ -86,8 +85,6 @@ enable_fastf1_cache()
 # ---------------------------------------------------------------------------
 race_detail_cache: dict[tuple[int, int], dict] = {}
 
-
-# Per-room commentary state — keyed by "{year}-{round_num}"
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
@@ -558,59 +555,84 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
     must not re-resolve the calendar every few seconds.
     """
     active: ActiveSession | None = None
+    next_start: datetime | None = None
+    last_lap: int | None = None
     resolved_at = 0.0
 
     while not manager.is_stale(websocket):
         now = datetime.now(timezone.utc)
 
-        if _needs_resolution(active, now, resolved_at):
+        if _needs_resolution(active, now, resolved_at, next_start):
             previous_key = active.session_key if active else None
-            active = await resolve_active_session(year, round_num, now=now)
+            lookup = await resolve_session_window(year, round_num, now=now)
+            active, next_start = lookup.active, lookup.next_start
             resolved_at = time.time()
             if active is None or active.session_key != previous_key:
-                reset_room(room)
+                last_lap = None
                 logger.info(
                     "live.session_resolved",
                     room=room,
                     session=active.session_name if active else None,
+                    next_start=str(next_start),
                 )
 
-        positions = await poll_positions(active.session_key, now=now) if active else None
-        state = derive_session_state(active.raw if active else None, now, bool(positions))
+        snapshot = await poll_timing(active, now=now, last_lap=last_lap) if active else None
+        if snapshot:
+            last_lap = snapshot.lap
+        state = derive_session_state(active.raw if active else None, now, snapshot is not None)
 
-        await _broadcast_state(websocket, active, positions, state)
-
-        if positions and active:
-            entry = await next_commentary(room, active.session_key, active.meeting_name, positions)
-            if entry:
-                await websocket.send_json({"type": "commentary", "data": entry})
-                logger.info("commentary.broadcast", room=room, event_type=entry["event_type"])
+        await _broadcast_state(websocket, active, snapshot, state, now)
 
         await asyncio.sleep(WS_POLL_INTERVAL if active else WS_IDLE_POLL_INTERVAL)
         await _drain_client(websocket)
 
 
-def _needs_resolution(active: "ActiveSession | None", now: datetime, resolved_at: float) -> bool:
+def _needs_resolution(
+    active: "ActiveSession | None",
+    now: datetime,
+    resolved_at: float,
+    next_start: "datetime | None" = None,
+) -> bool:
     """Whether the active session must be looked up again.
 
     While nothing is on track the lookup is rate-limited: it costs a FastF1
     schedule read plus two OpenF1 calls, and the answer changes at most once
-    per session.
+    per session. The calendar is the exception to that thrift — once it says a
+    session is due, waiting out the interval means reporting an empty track
+    into a running session for up to five minutes.
     """
-    if active is None:
-        return (time.time() - resolved_at) >= SESSION_LOOKUP_INTERVAL
-    return now > active.date_end + SESSION_END_GRACE
+    if active is not None:
+        return now > active.date_end + SESSION_END_GRACE
+    if next_start is not None and now >= next_start:
+        return True
+    return (time.time() - resolved_at) >= SESSION_LOOKUP_INTERVAL
+
+
+def _feed_age(snapshot: "TimingSnapshot | None", now: datetime) -> int | None:
+    """Seconds since the newest sample, never negative.
+
+    OpenF1 stamps samples with its own clock, so a few seconds of skew against
+    ours can put the newest sample marginally in the future. "-3s ago" is not
+    a thing the desk should ever print.
+    """
+    if snapshot is None:
+        return None
+    return max(0, int((now - snapshot.sampled_at).total_seconds()))
 
 
 async def _broadcast_state(
     websocket: WebSocket,
     active: "ActiveSession | None",
-    positions: list[dict] | None,
+    snapshot: "TimingSnapshot | None",
     state: str,
+    now: datetime,
 ) -> None:
-    """Send session status, and positions only when there is a live feed."""
-    lap = await fetch_current_lap(active.session_key) if (positions and active) else None
+    """Send session status, and positions only when there is a live feed.
 
+    ``feed_age_seconds`` lets the desk say how long the feed has been quiet.
+    A quiet feed is normal — the order simply held — so the tower keeps the
+    rows on screen and reports the age rather than blanking.
+    """
     await websocket.send_json({
         "type": "session_status",
         "data": {
@@ -618,13 +640,14 @@ async def _broadcast_state(
             "session_name": active.session_name if active else None,
             "meeting_name": active.meeting_name if active else None,
             "starts_at": active.date_start.isoformat() if active else None,
-            "lap": lap,
+            "lap": snapshot.lap if snapshot else None,
+            "feed_age_seconds": _feed_age(snapshot, now),
         },
     })
     manager.touch(websocket)
 
-    if positions:
-        await websocket.send_json({"type": "positions", "data": positions})
+    if snapshot:
+        await websocket.send_json({"type": "positions", "data": snapshot.rows})
         manager.touch(websocket)
 
 

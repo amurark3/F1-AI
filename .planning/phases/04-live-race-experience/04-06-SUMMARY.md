@@ -55,6 +55,8 @@ duration: 8min
 completed: 2026-03-08
 ---
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 # Phase 04 Plan 06: Web Live Page + Commentary Sidebar Summary
 
 **Next.js /live page with useLiveTiming WebSocket hook, LiveTimingTower table, and AnimatePresence-animated CommentaryPanel — plus Live nav link in NavShell**

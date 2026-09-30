@@ -46,7 +46,6 @@
 		795EE0B41EDEE9D0D64DD823 /* CircuitInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C4CFA443F1105A8FEFF3C9 /* CircuitInfoCard.swift */; };
 		890F3E9344A54D3F8C5EAC27 /* DriverStandingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E042BE6201F66F92BF6A0448 /* DriverStandingsView.swift */; };
 		8AA77DE21E9737D8CFD316BC /* LiveTimingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3DAFC88B92F7C952576C7FF /* LiveTimingService.swift */; };
-		8EC8B43D92D85A15C6D8686C /* CommentaryFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733BFB76BF7AC92575D9D904 /* CommentaryFeedView.swift */; };
 		926749B5F4823A24C692428E /* RaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461D6F9807482987BCD5BCE6 /* RaceDetailView.swift */; };
 		94CE6B267C5977F9207070B2 /* ServerStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D909697CEE1F31E247A5EDED /* ServerStatusService.swift */; };
 		95D409359B1A804017ED1A57 /* LiveTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBEE0C5D11790C2016F998D /* LiveTab.swift */; };
@@ -116,7 +115,6 @@
 		54E2B95FCAF0F578BE1C203D /* PredictionDriverCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionDriverCard.swift; sourceTree = "<group>"; };
 		586313474E0AC1A83974602A /* PitWallTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitWallTab.swift; sourceTree = "<group>"; };
 		664587F0019523848866ED98 /* F1AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = F1AI.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		733BFB76BF7AC92575D9D904 /* CommentaryFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentaryFeedView.swift; sourceTree = "<group>"; };
 		752F31164862BC7A08A1837A /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 		75BE24EE5A3859ED95EADB39 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7983B64B042E4633D2157016 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -242,7 +240,6 @@
 		82D6A1C08DA125AFE2378474 /* Live */ = {
 			isa = PBXGroup;
 			children = (
-				733BFB76BF7AC92575D9D904 /* CommentaryFeedView.swift */,
 				F44DAF5941CF75246DE05CDE /* PositionRow.swift */,
 				F6B6B283EF3950B7E2AE6644 /* TimingTower.swift */,
 			);
@@ -457,7 +454,6 @@
 				CE41CC402FFA80A9318EE84E /* ChatView.swift in Sources */,
 				5620292DF92F49837783E5B4 /* ChatViewModel.swift in Sources */,
 				795EE0B41EDEE9D0D64DD823 /* CircuitInfoCard.swift in Sources */,
-				8EC8B43D92D85A15C6D8686C /* CommentaryFeedView.swift in Sources */,
 				6C5038293E4212DF8B740868 /* Compare.swift in Sources */,
 				DB867D94326EF59C0FDF47BA /* CompareViewModel.swift in Sources */,
 				64CFB7A5BEFF362748C28FC7 /* ConstructorStandingsView.swift in Sources */,

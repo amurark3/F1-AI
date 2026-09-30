@@ -4,9 +4,9 @@
  * Keyed on the Grand Prix name rather than the circuit's city. City initials
  * collide badly — a single season can carry Montréal, Monte Carlo and Monza,
  * which all abbreviate to "MON", leaving three identical labels on a row of
- * clickable pills. The GP name is also the more reliable of the two fields:
- * FastF1's provisional 2026 schedule files the Bahrain Grand Prix under
- * "Kuala Lumpur", which the city scheme would render as "KUA".
+ * clickable pills. The GP name is also the more stable of the two fields: the
+ * 2026 Bahrain Grand Prix moved to Sepang but kept its name, so the schedule
+ * files it under "Kuala Lumpur", which the city scheme would render as "KUA".
  */
 
 /** How many characters a derived code keeps. */

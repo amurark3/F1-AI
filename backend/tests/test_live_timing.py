@@ -6,6 +6,7 @@ render as a live Dutch Grand Prix timing tower:
   * positional round->meeting indexing against a calendar that disagrees
   * "first Race session" selecting the Sprint on a sprint weekend
   * OpenF1 serving a finished session's last rows forever
+  * a wall-clock staleness gate reading a quiet track as a dead feed
 """
 
 from datetime import datetime, timedelta, timezone
@@ -13,12 +14,13 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.services.live_timing import (
-    STALE_AFTER,
     build_positions,
     derive_session_state,
-    is_fresh,
+    feed_belongs_to_session,
     match_meeting,
+    newest_feed_sample,
     newest_sample_time,
+    next_session_start,
     parse_iso,
     scheduled_session_now,
     select_active_session,
@@ -182,6 +184,9 @@ BELGIAN_ROWS = [
 ]
 
 
+DUTCH_RACE_START = _utc(2026, 8, 23, 13, 0)
+
+
 def test_newest_sample_time_takes_the_latest_row():
     rows = [{"date": "2026-08-23T13:00:00+00:00"}, {"date": "2026-08-23T13:04:00+00:00"}]
     assert newest_sample_time(rows) == _utc(2026, 8, 23, 13, 4)
@@ -191,26 +196,84 @@ def test_newest_sample_time_is_none_without_usable_dates():
     assert newest_sample_time([{"driver_number": 1}]) is None
 
 
-def test_is_fresh_rejects_a_finished_session_replayed_as_live():
-    """The core bug: OpenF1 serves July's last rows forever."""
-    assert is_fresh(BELGIAN_ROWS, _utc(2026, 8, 22, 23, 28)) is False
+def test_newest_feed_sample_spans_feeds_with_different_date_keys():
+    """Practice publishes no gap feed, so laps are the only liveness signal."""
+    feeds = [
+        ([], "date"),
+        ([{"date_start": "2026-08-23T13:04:00+00:00"}], "date_start"),
+    ]
+    assert newest_feed_sample(feeds) == _utc(2026, 8, 23, 13, 4)
 
 
-def test_is_fresh_accepts_data_inside_the_staleness_window():
-    now = _utc(2026, 8, 23, 13, 30)
-    rows = [{"date": (now - timedelta(seconds=20)).isoformat()}]
-    assert is_fresh(rows, now) is True
+def test_newest_feed_sample_takes_the_latest_across_every_feed():
+    feeds = [
+        ([{"date": "2026-08-23T13:04:00+00:00"}], "date"),
+        ([{"date_start": "2026-08-23T13:31:00+00:00"}], "date_start"),
+    ]
+    assert newest_feed_sample(feeds) == _utc(2026, 8, 23, 13, 31)
 
 
-def test_is_fresh_rejects_data_at_the_staleness_boundary():
-    now = _utc(2026, 8, 23, 13, 30)
-    rows = [{"date": (now - STALE_AFTER).isoformat()}]
-    assert is_fresh(rows, now) is False
+def test_newest_feed_sample_is_none_when_every_feed_is_empty():
+    assert newest_feed_sample([([], "date"), (None, "date_start")]) is None
 
 
-@pytest.mark.parametrize("rows", [[], [{"driver_number": 1}], [{"date": "nonsense"}]])
-def test_is_fresh_rejects_unusable_payloads(rows):
-    assert is_fresh(rows, _utc(2026, 8, 23, 13, 30)) is False
+def test_feed_belongs_to_session_rejects_a_finished_session_replayed_as_live():
+    """The original bug: OpenF1 serves July's last rows forever."""
+    newest = newest_sample_time(BELGIAN_ROWS)
+    assert feed_belongs_to_session(newest, DUTCH_RACE_START) is False
+
+
+def test_feed_belongs_to_session_accepts_a_sample_from_after_lights_out():
+    newest = DUTCH_RACE_START + timedelta(minutes=4)
+    assert feed_belongs_to_session(newest, DUTCH_RACE_START) is True
+
+
+def test_feed_belongs_to_session_accepts_a_quiet_hour_mid_race():
+    """Spain 2026 went 58 minutes without a position change; still a live race.
+
+    This is the regression a wall-clock staleness gate caused: judged on age
+    alone, the tower called a processional Grand Prix a dead feed for 39% of
+    the race.
+    """
+    newest = DUTCH_RACE_START + timedelta(minutes=4)
+    assert feed_belongs_to_session(newest, DUTCH_RACE_START) is True
+
+
+def test_feed_belongs_to_session_rejects_the_pre_session_feed():
+    """Spain's position feed opened 54 minutes before lights out."""
+    newest = DUTCH_RACE_START - timedelta(minutes=54)
+    assert feed_belongs_to_session(newest, DUTCH_RACE_START) is False
+
+
+def test_feed_belongs_to_session_rejects_a_missing_sample():
+    assert feed_belongs_to_session(None, DUTCH_RACE_START) is False
+
+
+# --------------------------------------------------------------------------
+# next_session_start
+# --------------------------------------------------------------------------
+
+
+def test_next_session_start_finds_the_window_about_to_open():
+    """Two minutes before lights out the socket must know when to look again."""
+    assert next_session_start(DUTCH_SESSIONS, _utc(2026, 8, 23, 12, 58)) == DUTCH_RACE_START
+
+
+def test_next_session_start_ignores_a_session_already_under_way():
+    assert next_session_start(DUTCH_SESSIONS, _utc(2026, 8, 22, 10, 20)) == _utc(2026, 8, 22, 14, 0)
+
+
+def test_next_session_start_is_none_once_the_weekend_is_over():
+    assert next_session_start(DUTCH_SESSIONS, _utc(2026, 8, 23, 16, 0)) is None
+
+
+def test_next_session_start_skips_cancelled_sessions():
+    cancelled = [{**s, "is_cancelled": True} for s in DUTCH_SESSIONS]
+    assert next_session_start(cancelled, _utc(2026, 8, 20, 9, 0)) is None
+
+
+def test_next_session_start_ignores_unusable_timestamps():
+    assert next_session_start([{"date_start": None}], _utc(2026, 8, 20, 9, 0)) is None
 
 
 # --------------------------------------------------------------------------
@@ -219,28 +282,28 @@ def test_is_fresh_rejects_unusable_payloads(rows):
 
 
 def test_derive_session_state_is_standby_without_a_session():
-    assert derive_session_state(None, _utc(2026, 8, 22, 23, 28), has_fresh_data=False) == "standby"
+    assert derive_session_state(None, _utc(2026, 8, 22, 23, 28), has_session_data=False) == "standby"
 
 
-def test_derive_session_state_is_live_when_fresh_data_arrives_in_window():
+def test_derive_session_state_is_live_once_the_session_feed_opens():
     session = DUTCH_SESSIONS[4]
-    assert derive_session_state(session, _utc(2026, 8, 23, 13, 30), has_fresh_data=True) == "live"
+    assert derive_session_state(session, _utc(2026, 8, 23, 13, 30), has_session_data=True) == "live"
 
 
-def test_derive_session_state_is_standby_in_window_without_fresh_data():
+def test_derive_session_state_is_standby_in_window_before_the_feed_opens():
     """Never claim 'live' on the strength of the clock alone."""
     session = DUTCH_SESSIONS[4]
-    assert derive_session_state(session, _utc(2026, 8, 23, 13, 30), has_fresh_data=False) == "standby"
+    assert derive_session_state(session, _utc(2026, 8, 23, 13, 30), has_session_data=False) == "standby"
 
 
 def test_derive_session_state_is_standby_before_lights_out():
     session = DUTCH_SESSIONS[4]
-    assert derive_session_state(session, _utc(2026, 8, 23, 12, 0), has_fresh_data=False) == "standby"
+    assert derive_session_state(session, _utc(2026, 8, 23, 12, 0), has_session_data=False) == "standby"
 
 
 def test_derive_session_state_is_finished_after_the_window():
     session = DUTCH_SESSIONS[4]
-    assert derive_session_state(session, _utc(2026, 8, 23, 16, 0), has_fresh_data=True) == "finished"
+    assert derive_session_state(session, _utc(2026, 8, 23, 16, 0), has_session_data=True) == "finished"
 
 
 # --------------------------------------------------------------------------

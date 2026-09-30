@@ -13,7 +13,7 @@ import fastf1
 import pandas as pd
 import structlog
 
-from app.api.circuits import get_circuit_info
+from app.api.circuits import get_circuit_info, is_street_circuit
 from app.data.strategy import circuit_strategy_reference
 from app.data.weather import get_weather_for_circuit
 from app.services.predictions import get_cached_race_prediction, get_or_compute_race_prediction
@@ -37,6 +37,9 @@ RAIN_RISK_MODERATE = 20
 # Constructor championship point-gap cut-offs used to grade the rival-offset risk.
 RIVAL_GAP_HIGH = 25
 RIVAL_GAP_MODERATE = 60
+
+# Race distance assumed when the venue has no circuit metadata to supply one.
+DEFAULT_RACE_LAPS = 58
 
 
 def _offline_weather_block() -> dict:
@@ -294,7 +297,7 @@ def build_risk_register(
             "title": "Sprint format compression",
             "detail": "Reduced practice time increases setup and parc ferme decision pressure.",
         })
-    if event["circuit"] and event["circuit"].get("circuit_type") == "Street":
+    if is_street_circuit(event["circuit"]):
         risks.append({
             "level": "High",
             "title": "Safety car exposure",
@@ -587,9 +590,10 @@ def build_strategy_context(
     falls back to circuit-shape heuristics so the panel still renders.
     """
 
-    laps = safe_int((race or {}).get("circuit", {}).get("laps") if race else None, 58)
-    circuit_type = ((race or {}).get("circuit") or {}).get("circuit_type", "Permanent")
-    is_street = str(circuit_type).lower() == "street"
+    # An unmapped venue carries ``"circuit": None``, so fall back on the value, not the key.
+    circuit = (race or {}).get("circuit") or {}
+    laps = safe_int(circuit.get("laps"), DEFAULT_RACE_LAPS)
+    is_street = is_street_circuit(circuit)
     is_sprint = bool((race or {}).get("is_sprint"))
     podium = (predictions or {}).get("predictions", [])[:3]
     lead_prediction = podium[0] if podium else None

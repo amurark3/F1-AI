@@ -189,6 +189,22 @@ def test_strategy_segment_falls_back_to_heuristics_when_telemetry_fails(calls, m
     assert context["data_source"]["mode"] == "heuristic"
 
 
+def test_strategy_segment_survives_a_venue_with_no_circuit_metadata(calls, monkeypatch):
+    """An unmapped venue arrives as ``"circuit": None`` — present, not missing.
+
+    The 2026 Bahrain Grand Prix moved to Sepang before the circuit table knew
+    Kuala Lumpur, and the segment crashed instead of planning on heuristics.
+    """
+    unmapped = {**RACE, "location": "Nowhere, Atlantis", "circuit": None}
+    monkeypatch.setattr(rc, "season_events", lambda year: [unmapped])
+    monkeypatch.setattr(rc, "circuit_strategy_reference", lambda location, year: None)
+
+    context = rc.build_overview_strategy(YEAR)["strategy_context"]
+
+    assert context["data_source"]["mode"] == "heuristic"
+    assert context["stint_windows"]["total_laps"] == rc.DEFAULT_RACE_LAPS
+
+
 # -- composite --------------------------------------------------------------
 
 def test_composite_still_carries_every_segment(calls):

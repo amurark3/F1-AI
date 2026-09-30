@@ -65,7 +65,7 @@ Standings, Champions, Predictions, Live.
 | **Predictions** | Probabilistic finishing order with reasoning factors, snapshots, and post-mortems |
 | **Rulebook** | Semantic search of FIA regulations (with reranking) |
 | **Champions** | Every champion 1950→present, aggregate title leaderboards, per-season race winners |
-| **Live timing** | Real-time position/gap/lap tracking over WebSocket |
+| **Live timing** | Real-time position/gap/lap tracking over WebSocket, shown on the Command Center while a session is live |
 | **Calendar** | Full season schedule with circuit info and session countdown |
 | **Standings** | Live WDC and WCC tables |
 

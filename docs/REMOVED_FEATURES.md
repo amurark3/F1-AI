@@ -11,7 +11,7 @@ snapshots and picked the most newsworthy change: a safety car or red flag, a
 position change, or a pit stop. It then asked the LLM to narrate that change in
 two or three sentences, with a 30-second cooldown and a template fallback. Each
 entry went out over the live-timing WebSocket as a `{"type": "commentary"}`
-message. The web live page showed entries in a "Strategy Commentary" panel, and
+message. The web live page (itself removed on 2026-09-30, see below) showed entries in a "Strategy Commentary" panel, and
 the iOS Live tab showed them on a separate "Commentary" segment.
 
 **What was removed.**
@@ -47,4 +47,36 @@ feature:
 git show 2ea4835:backend/app/services/live_commentary.py
 git show 2ea4835:frontend/app/components/CommentaryPanel.tsx
 git show 2ea4835:ios/F1AI/Views/Live/CommentaryFeedView.swift
+```
+
+## Standalone Live Timing page (removed 2026-09-30)
+
+**What it was.** A web page at `/race-control/live` (also reached from `/live`)
+with a "Live Timing" entry in the Race Control sidebar and a tile on the landing
+page. While a session ran it showed the timing tower. The rest of the time,
+which is almost all of it, it showed a weekend countdown, a "Control Room Idle"
+notice and a link to the AI Engineer. The landing tile promised "sector deltas",
+which never existed.
+
+**What was removed.**
+
+| Area | Removed                                                                                                                                             |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web  | `frontend/app/race-control/live/` (`page.tsx`, `LiveView.tsx`, `WeekendCountdown.tsx`), `frontend/app/live/page.tsx`, the sidebar entry and the landing tile |
+
+**Where live timing is now.** The Command Center (`/race-control`) renders
+`LiveTimingPanel`, which shows the same timing tower only while the socket
+reports a `live` session and renders nothing otherwise. The header LIVE pill
+links there, and so does the "Live Control" workstream. `/live` and
+`/race-control/live` redirect to `/race-control` through `frontend/next.config.ts`.
+
+**What still works.** Everything outside that web page: the live-timing
+WebSocket, `LiveTimingTower`, `useLiveTiming`, the iOS Live tab and the Dynamic
+Island Live Activity.
+
+**Finding the old code.** Commit `abb924c` is the last one that contains the page:
+
+```bash
+git show abb924c:frontend/app/race-control/live/LiveView.tsx
+git show abb924c:frontend/app/race-control/live/WeekendCountdown.tsx
 ```

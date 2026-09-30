@@ -390,7 +390,7 @@ def build_workstreams(
             "owner": "Pit Wall",
             "priority": "P1",
             "status": _live_control_status(event),
-            "href": "/race-control/live",
+            "href": "/race-control",
         },
     ]
 

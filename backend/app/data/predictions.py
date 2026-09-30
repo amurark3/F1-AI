@@ -49,7 +49,7 @@ from app.data.f1db_standings import (
     driver_standings_detailed,
 )
 from app.data.session_entries import UNAVAILABLE as ENTRY_LIST_UNAVAILABLE
-from app.data.session_entries import load_weekend_entry_list
+from app.data.session_entries import WeekendEntryList, load_weekend_entry_list
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
 from app.data.weekend_grid import resolve_grid
 from app.ml.features import build_feature_row
@@ -70,7 +70,10 @@ ADAPTIVE_CORRECTION_WEIGHT = PREDICTION_ADAPTIVE_WEIGHT
 # v4: build the grid from the weekend's own entry list (plus curated
 #     availability adjustments) instead of the season championship table, so a
 #     withdrawn driver is no longer predicted for a race they are not in.
-PREDICTION_LOGIC_VERSION = 4
+# v5: before a weekend's entry list exists, carry over the previous weekend's
+#     lineup instead of the championship table, which lists a stand-in and the
+#     driver they replaced side by side (23 drivers for 22 seats).
+PREDICTION_LOGIC_VERSION = 5
 
 # ---------------------------------------------------------------------------
 # Prediction phases
@@ -1095,6 +1098,30 @@ def _weekend_has_started(event_row) -> bool:
     return True
 
 
+def _previous_started_round(schedule, round_num: int) -> int | None:
+    """The most recent round before ``round_num`` whose weekend has run.
+
+    Not simply ``round_num - 1``: for a race weeks away the rounds in between
+    have not run either, and asking FastF1 for their entry lists is a string of
+    slow failing loads.
+    """
+    if schedule is None:
+        return None
+    earlier = schedule[schedule["RoundNumber"] < round_num]
+    started = (
+        int(row["RoundNumber"]) for _, row in earlier.iterrows() if _weekend_has_started(row)
+    )
+    return max(started, default=None)
+
+
+def _previous_weekend_entry_list(schedule, year: int, round_num: int) -> WeekendEntryList:
+    """The latest run weekend's entry list — the provisional lineup for this one."""
+    previous_round = _previous_started_round(schedule, round_num)
+    if previous_round is None:
+        return ENTRY_LIST_UNAVAILABLE
+    return load_weekend_entry_list(year, previous_round)
+
+
 def _qualifying_has_occurred(event_row) -> bool:
     """Return True if this event's qualifying session is in the past (UTC).
 
@@ -1184,6 +1211,7 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     circuit_key = f"round_{round_num}"
     gp_name = f"Round {round_num}"
     event_row = None
+    schedule = None
     try:
         schedule = fastf1.get_event_schedule(year, include_testing=False)
         event = schedule[schedule["RoundNumber"] == round_num]
@@ -1276,11 +1304,17 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     entry_list = (
         load_weekend_entry_list(year, round_num) if weekend_started else ENTRY_LIST_UNAVAILABLE
     )
+    previous_entry_list = (
+        ENTRY_LIST_UNAVAILABLE
+        if entry_list.available
+        else _previous_weekend_entry_list(schedule, year, round_num)
+    )
     grid = resolve_grid(
         timed_drivers=timed_drivers,
         championship_roster=championship_roster,
         entry_list=entry_list,
         availability=load_weekend_availability(year, round_num),
+        previous_entry_list=previous_entry_list,
     )
     drivers_input: list[dict] = list(grid.drivers)
     warnings.extend(grid.warnings)

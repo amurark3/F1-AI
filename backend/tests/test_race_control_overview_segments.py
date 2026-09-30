@@ -179,6 +179,14 @@ def test_strategy_segment_carries_the_workstream_board(calls):
     ]
 
 
+def test_live_control_links_to_the_command_center(calls):
+    """The timing tower moved onto the command centre; /race-control/live is gone."""
+    segment = rc.build_overview_strategy(YEAR)
+
+    hrefs = {stream["id"]: stream["href"] for stream in segment["workstreams"]}
+    assert hrefs["live-control"] == "/race-control"
+
+
 def test_strategy_segment_falls_back_to_heuristics_when_telemetry_fails(calls, monkeypatch):
     def boom(location, year):
         raise RuntimeError("session load failed")

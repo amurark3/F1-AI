@@ -200,7 +200,7 @@ For reference, these were checked and genuinely derive from real data — no act
 - **Intel / Rival page** — `backend/app/services/race_control_standings.py:139` (from standings feed)
 - **Debriefs** — `backend/app/services/race_control_debriefs.py` (from race classification)
 - **Championship forecast** — `backend/app/services/race_control_championship.py`
-- **Live Timing** — `frontend/app/race-control/live/page.tsx` + `useLiveTiming` hook
+- **Live Timing** — `frontend/app/race-control/components/LiveTimingPanel.tsx` + `useLiveTiming` hook (the standalone `/race-control/live` page was removed 2026-09-30)
 
 ---
 

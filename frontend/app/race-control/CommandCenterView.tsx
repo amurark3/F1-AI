@@ -26,6 +26,7 @@ import {
   type RaceEvent,
   type StrategyContext,
 } from "./components/CommandCenterPanels";
+import { LiveTimingPanel } from "./components/LiveTimingPanel";
 import {
   InlineNotice,
   MetricCard,
@@ -246,6 +247,8 @@ export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
       />
 
       <div className="space-y-5">
+        <LiveTimingPanel year={year} race={race} />
+
         <SegmentSlot state={combined(shell, strategy)} title="Baseline strategy unavailable" height="h-[420px]">
           <BaselineStrategyPanel context={context} race={race} sessions={sessions} />
         </SegmentSlot>

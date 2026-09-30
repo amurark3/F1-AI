@@ -30,7 +30,6 @@ const NAV_GROUPS = [
     label: "Operations",
     items: [
       { href: "/race-control", label: "Command Center", icon: LayoutDashboard },
-      { href: "/race-control/live", label: "Live Timing", icon: Radio },
       { href: "/race-control/engineer", label: "AI Engineer", icon: Bot },
     ],
   },
@@ -328,11 +327,16 @@ function ShellHeader({ currentSection, nextSession, isLive, onOpenNav }: ShellHe
             </div>
           )}
 
+          {/* The timing tower lives on the command centre while a session runs. */}
           {isLive && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded border border-[#E10600]/30 bg-[#E10600]/8 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#E10600]">
+            <Link
+              href="/race-control"
+              aria-label="Live session — open the timing tower on the Command Center"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded border border-[#E10600]/30 bg-[#E10600]/8 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#E10600] hover:bg-[#E10600]/15 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-[#E10600] animate-pulse" />
               Live
-            </span>
+            </Link>
           )}
 
           {!isLive && !nextSession && (

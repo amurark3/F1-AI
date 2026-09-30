@@ -38,7 +38,6 @@ from app.api.routers.predictions import router as predictions_router
 from app.api.routers.race_control import router as race_control_router
 from app.api.routers.readiness import router as readiness_router
 from app.api.routers.season import router as season_router
-from app.services.live_commentary import next_commentary, reset_room
 from app.services.live_timing import SESSION_END_GRACE, derive_session_state
 from app.services.live_timing_client import (
     ActiveSession,
@@ -86,8 +85,6 @@ enable_fastf1_cache()
 # ---------------------------------------------------------------------------
 race_detail_cache: dict[tuple[int, int], dict] = {}
 
-
-# Per-room commentary state — keyed by "{year}-{round_num}"
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
@@ -571,7 +568,6 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
             active, next_start = lookup.active, lookup.next_start
             resolved_at = time.time()
             if active is None or active.session_key != previous_key:
-                reset_room(room)
                 last_lap = None
                 logger.info(
                     "live.session_resolved",
@@ -586,12 +582,6 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
         state = derive_session_state(active.raw if active else None, now, snapshot is not None)
 
         await _broadcast_state(websocket, active, snapshot, state, now)
-
-        if snapshot and active:
-            entry = await next_commentary(room, active.session_key, active.meeting_name, snapshot.rows)
-            if entry:
-                await websocket.send_json({"type": "commentary", "data": entry})
-                logger.info("commentary.broadcast", room=room, event_type=entry["event_type"])
 
         await asyncio.sleep(WS_POLL_INTERVAL if active else WS_IDLE_POLL_INTERVAL)
         await _drain_client(websocket)

@@ -55,7 +55,7 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       {
         href: "/race-control/live",
         label: "Live Timing",
-        description: "Timing tower, sector deltas, and session commentary while a session is running.",
+        description: "Timing tower and sector deltas while a session is running.",
         icon: Radio,
       },
       {

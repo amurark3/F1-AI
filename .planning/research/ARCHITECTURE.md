@@ -1,5 +1,7 @@
 # Architecture Patterns
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 **Domain:** F1 AI Race Engineer — three-platform companion app
 **Researched:** 2026-02-16
 **Confidence:** HIGH (based on direct codebase inspection)

@@ -27,6 +27,8 @@ metrics:
   files_changed: 3
 ---
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 # Phase 4 Plan 02: Live Activity Lifecycle Manager (iOS) Summary
 
 **One-liner:** `@Observable LiveActivityService` managing `Activity<RaceLiveActivityAttributes>` start/update/end, wired into LiveTab via onChange observers for positions and session status.

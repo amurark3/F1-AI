@@ -13,7 +13,6 @@ const PROMPTS = [
   "Build a race-week strategy brief for the next Grand Prix.",
   "Compare Ferrari and McLaren from a constructor strategy perspective.",
   "What regulation constraints matter for parc ferme decisions?",
-  "Give me a live-race commentary plan for safety car, pit stop, and undercut events.",
 ];
 
 export function EngineerView() {

@@ -65,7 +65,7 @@ Standings, Champions, Predictions, Live.
 | **Predictions** | Probabilistic finishing order with reasoning factors, snapshots, and post-mortems |
 | **Rulebook** | Semantic search of FIA regulations (with reranking) |
 | **Champions** | Every champion 1950→present, aggregate title leaderboards, per-season race winners |
-| **Live timing** | Real-time position/gap/lap tracking + AI commentary over WebSocket |
+| **Live timing** | Real-time position/gap/lap tracking over WebSocket |
 | **Calendar** | Full season schedule with circuit info and session countdown |
 | **Standings** | Live WDC and WCC tables |
 
@@ -178,7 +178,7 @@ All endpoints are mounted under `/api`.
 | `GET` | `/api/standings/constructors/{year}` | WCC standings |
 | `GET` | `/api/race/{year}/{round_num}` | Enriched race + qualifying + sprint detail |
 | `GET` | `/api/compare/{year}/{driver1}/{driver2}` | Season head-to-head comparison |
-| `WS` | `/api/live/{year}/{round_num}` | Real-time timing + commentary WebSocket |
+| `WS` | `/api/live/{year}/{round_num}` | Real-time timing WebSocket |
 | `GET` | `/api/health` | Liveness probe |
 
 ### Predictions

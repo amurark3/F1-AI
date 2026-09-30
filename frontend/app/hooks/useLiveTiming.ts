@@ -14,13 +14,6 @@ export interface LivePosition {
   pit_stops: number | null;
 }
 
-export interface CommentaryEntry {
-  id: string;
-  text: string;
-  event_type: string;
-  timestamp: string;
-}
-
 /**
  * `live` is only ever reported once the feed for *this* session has opened —
  * an open session window alone reports `standby`. A `standby` that still
@@ -49,16 +42,11 @@ export interface SessionStatus {
 type LiveMessage =
   | { type: "positions"; data: LivePosition[] }
   | { type: "session_status"; data: SessionStatus }
-  | { type: "commentary"; data: CommentaryEntry }
   | { type: "ping" };
-
-/** Max commentary entries retained in memory. */
-const MAX_COMMENTARY = 100;
 
 export function useLiveTiming(year: number, round: number) {
   const [positions, setPositions] = useState<LivePosition[]>([]);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
-  const [commentary, setCommentary] = useState<CommentaryEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -95,9 +83,6 @@ export function useLiveTiming(year: number, round: number) {
             setSessionStatus(msg.data);
             if (msg.data.status !== "live") setPositions([]);
             break;
-          case "commentary":
-            setCommentary((prev) => [msg.data, ...prev].slice(0, MAX_COMMENTARY));
-            break;
           case "ping":
             // ignore heartbeat
             break;
@@ -116,5 +101,5 @@ export function useLiveTiming(year: number, round: number) {
     };
   }, [year, round]);
 
-  return { positions, sessionStatus, commentary, isConnected };
+  return { positions, sessionStatus, isConnected };
 }

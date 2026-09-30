@@ -36,9 +36,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **LIVE-01**: Dynamic Island shows current driver position, gap to leader, current lap, and safety car status during active sessions
 - [ ] **LIVE-02**: Dynamic Island compact and expanded views update in real-time from existing WebSocket timing data
-- [ ] **LIVE-03**: AI commentary generates contextual insights when significant timing events occur (position changes, safety car, fastest lap, pit stops)
-- [ ] **LIVE-04**: AI commentary is rate-limited (30-second cooldown) to avoid Gemini API cost explosion during active sessions
-- [ ] **LIVE-05**: AI commentary appears in both iOS and web UIs as a dedicated commentary panel
+- [ ] **LIVE-03**: AI commentary generates contextual insights when significant timing events occur (position changes, safety car, fastest lap, pit stops) — **Removed 2026-09-29**, not a current feature; see [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md)
+- [ ] **LIVE-04**: AI commentary is rate-limited (30-second cooldown) to avoid Gemini API cost explosion during active sessions — **Removed 2026-09-29**, not a current feature; see [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md)
+- [ ] **LIVE-05**: AI commentary appears in both iOS and web UIs as a dedicated commentary panel — **Removed 2026-09-29**, not a current feature; see [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md)
 
 ### Push Infrastructure
 
@@ -112,9 +112,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLIENT-05 | Phase 3 | Pending |
 | LIVE-01 | Phase 4 | Pending |
 | LIVE-02 | Phase 4 | Pending |
-| LIVE-03 | Phase 4 | Pending |
-| LIVE-04 | Phase 4 | Pending |
-| LIVE-05 | Phase 4 | Pending |
+| LIVE-03 | Phase 4 | Removed 2026-09-29 |
+| LIVE-04 | Phase 4 | Removed 2026-09-29 |
+| LIVE-05 | Phase 4 | Removed 2026-09-29 |
 | PUSH-01 | Phase 5 | Pending |
 | PUSH-02 | Phase 5 | Pending |
 | PUSH-03 | Phase 5 | Pending |

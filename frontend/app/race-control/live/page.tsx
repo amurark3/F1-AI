@@ -17,7 +17,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "F1 Live Timing | F1 AI",
   description:
-    "Live Formula 1 timing tower, track positions, sector deltas, session state, and AI race commentary from the operations desk.",
+    "Live Formula 1 timing tower, track positions, sector deltas, and session state from the operations desk.",
 };
 
 export default async function RaceControlLivePage() {

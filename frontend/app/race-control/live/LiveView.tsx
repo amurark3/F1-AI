@@ -3,7 +3,6 @@
 import { Activity, RadioTower, Satellite } from "lucide-react";
 import Link from "next/link";
 
-import CommentaryPanel from "@/app/components/CommentaryPanel";
 import LiveTimingTower from "@/app/components/LiveTimingTower";
 import { useLiveTiming, type SessionStatus } from "@/app/hooks/useLiveTiming";
 
@@ -96,7 +95,7 @@ interface LiveViewProps {
  * supplies the ticking data.
  */
 export function LiveView({ year, liveRound }: LiveViewProps) {
-  const { positions, sessionStatus, commentary, isConnected } = useLiveTiming(
+  const { positions, sessionStatus, isConnected } = useLiveTiming(
     liveRound?.year ?? 0,
     liveRound?.round ?? 0,
   );
@@ -108,9 +107,9 @@ export function LiveView({ year, liveRound }: LiveViewProps) {
   return (
     <div>
       <SectionHeader
-        eyebrow="Live Timing & Commentary"
+        eyebrow="Live Timing"
         title={liveRound?.name ?? "Live Operations"}
-        description="Monitor active timing, track position, session state, and AI commentary from the race operations desk."
+        description="Monitor active timing, track position, and session state from the race operations desk."
       />
 
       <MetricRow>
@@ -131,12 +130,7 @@ export function LiveView({ year, liveRound }: LiveViewProps) {
           weekendName={liveRound?.name ?? null}
         />
       ) : (
-        <LiveActiveView
-          positions={positions}
-          sessionStatus={sessionStatus}
-          commentary={commentary}
-          isConnected={isConnected}
-        />
+        <LiveActiveView positions={positions} sessionStatus={sessionStatus} isConnected={isConnected} />
       )}
     </div>
   );
@@ -198,30 +192,21 @@ function LiveIdleView({ sessionName, sessions, weekendName }: LiveIdleViewProps)
 
 type LiveTimingState = ReturnType<typeof useLiveTiming>;
 
-function LiveActiveView({
-  positions,
-  sessionStatus,
-  commentary,
-  isConnected,
-}: Pick<LiveTimingState, "positions" | "sessionStatus" | "commentary" | "isConnected">) {
+function LiveActiveView({ positions, sessionStatus, isConnected }: LiveTimingState) {
   return (
-    <WorkspaceSplit className="xl:[&>*:first-child]:flex-1 xl:[&>*:last-child]:basis-[380px]">
-      <Panel className="p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#00FF78]" style={rcFont}>
-              Timing Tower
-            </p>
-            <h2 className="text-2xl font-black italic uppercase text-white" style={rcFont}>
-              Track Position
-            </h2>
-          </div>
-          <StatusPill color={isConnected ? "#00FF78" : "#FFF200"}>{isConnected ? "Connected" : "Linking"}</StatusPill>
+    <Panel className="p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#00FF78]" style={rcFont}>
+            Timing Tower
+          </p>
+          <h2 className="text-2xl font-black italic uppercase text-white" style={rcFont}>
+            Track Position
+          </h2>
         </div>
-        <LiveTimingTower positions={positions} sessionStatus={sessionStatus} isConnected={isConnected} />
-      </Panel>
-
-      <CommentaryPanel entries={commentary} />
-    </WorkspaceSplit>
+        <StatusPill color={isConnected ? "#00FF78" : "#FFF200"}>{isConnected ? "Connected" : "Linking"}</StatusPill>
+      </div>
+      <LiveTimingTower positions={positions} sessionStatus={sessionStatus} isConnected={isConnected} />
+    </Panel>
   );
 }

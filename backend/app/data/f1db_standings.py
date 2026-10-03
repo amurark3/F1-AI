@@ -221,6 +221,35 @@ def constructor_standings_detailed(year: int) -> list[dict]:
     ]
 
 
+def _round_before(year: int, round_num: int) -> int:
+    """The round whose closing table is the one going into ``round_num``.
+
+    The previous round, or the latest released one when f1db has not caught up
+    with it yet. Zero when f1db holds nothing for ``year``.
+    """
+    with connect() as conn:
+        return min(round_num - 1, _latest_round(conn, year))
+
+
+def driver_standings_before_round(year: int, round_num: int) -> dict[str, int]:
+    """Driver standings as they stood going into ``round_num``.
+
+    The season opener takes the previous season's final table — the only one
+    that exists yet. Empty when f1db does not have ``year`` at all, so a live
+    fallback can still answer for a season the dataset has not reached.
+    """
+    if round_num <= 1:
+        return current_driver_standings(year - 1)
+    return driver_standings_after_round(year, _round_before(year, round_num))
+
+
+def constructor_standings_before_round(year: int, round_num: int) -> list[dict]:
+    """Constructor standings going into ``round_num`` (see the driver variant)."""
+    if round_num <= 1:
+        return current_constructor_standings(year - 1)
+    return constructor_standings_after_round(year, _round_before(year, round_num))
+
+
 def current_driver_standings(year: int) -> dict[str, int]:
     """Latest available driver standings for a season (for live inference)."""
     with connect() as conn:

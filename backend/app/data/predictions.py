@@ -44,8 +44,8 @@ from app.config import (
 )
 from app.data.driver_availability import load_weekend_availability
 from app.data.f1db_standings import (
-    current_constructor_standings,
-    current_driver_standings,
+    constructor_standings_before_round,
+    driver_standings_before_round,
     driver_standings_detailed,
 )
 from app.data.session_entries import UNAVAILABLE as ENTRY_LIST_UNAVAILABLE
@@ -125,11 +125,11 @@ _recent_sprint_form_cache: dict[tuple[int,], dict[str, list[tuple[int, int]]]] =
 # (circuit_key, year) -> dict of driver_code -> list of past positions
 _circuit_history_cache: dict[tuple[str, int], dict[str, list[int]]] = {}
 
-# (year,) -> list of constructor standings dicts
-_constructor_cache: dict[tuple[int,], list[dict]] = {}
+# (year, round_num) -> constructor standings going into that round
+_constructor_cache: dict[tuple[int, int], list[dict]] = {}
 
-# (year,) -> driver_code -> championship position
-_driver_standings_cache: dict[tuple[int,], dict[str, int]] = {}
+# (year, round_num) -> driver_code -> championship position going into that round
+_driver_standings_cache: dict[tuple[int, int], dict[str, int]] = {}
 
 # (circuit_key,) -> dict of driver_code -> avg grid delta
 _grid_delta_cache: dict[tuple[str,], dict[str, float]] = {}
@@ -506,17 +506,19 @@ def _ergast_constructor_standings(year: int) -> list[dict]:
     return []
 
 
-def _load_constructor_standings(year: int) -> list[dict]:
-    """Constructor standings ([{constructor_name, position}]).
+def _load_constructor_standings(year: int, round_num: int) -> list[dict]:
+    """Constructor standings going into ``round_num`` ([{constructor_name, position}]).
 
-    Sourced from the local f1db dataset first (no rate limits); falls back to the
-    live Ergast API when f1db lacks the season (e.g. a brand-new in-progress round).
+    As of the round, not the latest table: a recomputed past race must not see
+    the championship that later rounds produced. Sourced from the local f1db
+    dataset first (no rate limits); falls back to the live Ergast API when f1db
+    lacks the season (e.g. a brand-new in-progress round).
     """
-    cache_key = (year,)
+    cache_key = (year, round_num)
     if cache_key in _constructor_cache:
         return _constructor_cache[cache_key]
 
-    standings = current_constructor_standings(year) or _ergast_constructor_standings(year)
+    standings = constructor_standings_before_round(year, round_num) or _ergast_constructor_standings(year)
     _constructor_cache[cache_key] = standings
     return standings
 
@@ -539,13 +541,16 @@ def _ergast_driver_standings(year: int) -> dict[str, int]:
     return {}
 
 
-def _load_driver_standings(year: int) -> dict[str, int]:
-    """Driver standings as {driver_code: position} — f1db first, Ergast fallback."""
-    cache_key = (year,)
+def _load_driver_standings(year: int, round_num: int) -> dict[str, int]:
+    """Driver standings going into ``round_num`` as {driver_code: position}.
+
+    f1db first, Ergast fallback — see :func:`_load_constructor_standings`.
+    """
+    cache_key = (year, round_num)
     if cache_key in _driver_standings_cache:
         return _driver_standings_cache[cache_key]
 
-    standings = current_driver_standings(year) or _ergast_driver_standings(year)
+    standings = driver_standings_before_round(year, round_num) or _ergast_driver_standings(year)
     _driver_standings_cache[cache_key] = standings
     return standings
 
@@ -762,17 +767,38 @@ def _load_recent_incidents(driver_code: str, year: int, current_round: int) -> d
     return profile
 
 
-def _adaptive_position_corrections() -> dict[str, dict[str, float]]:
+def _history_race(key: str) -> tuple[int, int] | None:
+    """The ``(year, round)`` of a prediction-history key, or None if malformed."""
+    try:
+        year, round_num = (int(part) for part in key.strip("()").split(","))
+    except ValueError:
+        return None
+    return year, round_num
+
+
+def _adaptive_position_corrections(year: int, round_num: int) -> dict[str, dict[str, float]]:
     """Learn small driver-specific corrections from evaluated prediction misses.
 
     Positive correction means the model has been too optimistic and the score
     should move worse. Negative correction means the driver has usually beaten
     the model and the score can improve slightly.
+
+    Only races before ``(year, round_num)`` count, oldest first: a recomputed
+    past race must not learn from its own result or any later one, and the
+    six-race window is the six most recent races, not the last six keys stored.
     """
     history = _load_prediction_history()
     corrections: dict[str, list[float]] = {}
+    earlier = sorted(
+        (
+            (race, entry)
+            for key, entry in history.items()
+            if (race := _history_race(key)) is not None and race < (year, round_num)
+        ),
+        key=lambda item: item[0],
+    )
 
-    for entry in history.values():
+    for _, entry in earlier:
         snapshots = entry.get("snapshots")
         if not snapshots:
             snapshots = [{
@@ -1255,13 +1281,13 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     # ------------------------------------------------------------------
     # 3. Load supporting data
     # ------------------------------------------------------------------
-    constructor_standings = _load_constructor_standings(year)
+    constructor_standings = _load_constructor_standings(year, round_num)
     if constructor_standings:
         data_sources.append("constructor_standings")
     else:
         warnings.append("Constructor standings unavailable")
 
-    driver_standings = _load_driver_standings(year)
+    driver_standings = _load_driver_standings(year, round_num)
     if driver_standings:
         data_sources.append("driver_standings")
 
@@ -1281,7 +1307,7 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     # matching the season accumulator used at training time.
     recent_sprint_form = _load_recent_sprint_form(year, round_num)
 
-    adaptive_corrections = _adaptive_position_corrections()
+    adaptive_corrections = _adaptive_position_corrections(year, round_num)
     if adaptive_corrections:
         data_sources.append("adaptive_history")
 

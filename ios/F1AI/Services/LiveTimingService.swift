@@ -6,7 +6,6 @@ final class LiveTimingService {
     var positions: [LivePosition] = []
     var sessionStatus: SessionStatus?
     var lastFlag: FlagEvent?
-    var commentaryEntries: [CommentaryEntry] = []
 
     private var webSocketTask: URLSessionWebSocketTask?
     private let session = URLSession(configuration: .default)
@@ -76,20 +75,6 @@ final class LiveTimingService {
         case .data(let d):
             data = d
         @unknown default:
-            return
-        }
-
-        guard let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let type = raw["type"] as? String else { return }
-
-        if type == "commentary" {
-            guard let dataObj = raw["data"],
-                  let dataData = try? JSONSerialization.data(withJSONObject: dataObj),
-                  let entry = try? JSONDecoder().decode(CommentaryEntry.self, from: dataData)
-            else { return }
-            Task { @MainActor in
-                self.commentaryEntries = ([entry] + self.commentaryEntries).prefix(100).map { $0 }
-            }
             return
         }
 

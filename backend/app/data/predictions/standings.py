@@ -5,15 +5,15 @@ from __future__ import annotations
 from fastf1.ergast import Ergast
 import structlog
 
-from app.data.f1db_standings import current_constructor_standings, current_driver_standings
+from app.data.f1db_standings import constructor_standings_before_round, driver_standings_before_round
 
 logger = structlog.get_logger()
 
-# (year,) -> list of constructor standings dicts
-_constructor_cache: dict[tuple[int,], list[dict]] = {}
+# (year, round_num) -> constructor standings going into that round
+_constructor_cache: dict[tuple[int, int], list[dict]] = {}
 
-# (year,) -> driver_code -> championship position
-_driver_standings_cache: dict[tuple[int,], dict[str, int]] = {}
+# (year, round_num) -> driver_code -> championship position going into that round
+_driver_standings_cache: dict[tuple[int, int], dict[str, int]] = {}
 
 
 def _ergast_constructor_standings(year: int) -> list[dict]:
@@ -34,17 +34,19 @@ def _ergast_constructor_standings(year: int) -> list[dict]:
     return []
 
 
-def _load_constructor_standings(year: int) -> list[dict]:
-    """Constructor standings ([{constructor_name, position}]).
+def _load_constructor_standings(year: int, round_num: int) -> list[dict]:
+    """Constructor standings going into ``round_num`` ([{constructor_name, position}]).
 
-    Sourced from the local f1db dataset first (no rate limits); falls back to the
-    live Ergast API when f1db lacks the season (e.g. a brand-new in-progress round).
+    As of the round, not the latest table: a recomputed past race must not see
+    the championship that later rounds produced. Sourced from the local f1db
+    dataset first (no rate limits); falls back to the live Ergast API when f1db
+    lacks the season (e.g. a brand-new in-progress round).
     """
-    cache_key = (year,)
+    cache_key = (year, round_num)
     if cache_key in _constructor_cache:
         return _constructor_cache[cache_key]
 
-    standings = current_constructor_standings(year) or _ergast_constructor_standings(year)
+    standings = constructor_standings_before_round(year, round_num) or _ergast_constructor_standings(year)
     _constructor_cache[cache_key] = standings
     return standings
 
@@ -67,12 +69,15 @@ def _ergast_driver_standings(year: int) -> dict[str, int]:
     return {}
 
 
-def _load_driver_standings(year: int) -> dict[str, int]:
-    """Driver standings as {driver_code: position} — f1db first, Ergast fallback."""
-    cache_key = (year,)
+def _load_driver_standings(year: int, round_num: int) -> dict[str, int]:
+    """Driver standings going into ``round_num`` as {driver_code: position}.
+
+    f1db first, Ergast fallback — see :func:`_load_constructor_standings`.
+    """
+    cache_key = (year, round_num)
     if cache_key in _driver_standings_cache:
         return _driver_standings_cache[cache_key]
 
-    standings = current_driver_standings(year) or _ergast_driver_standings(year)
+    standings = driver_standings_before_round(year, round_num) or _ergast_driver_standings(year)
     _driver_standings_cache[cache_key] = standings
     return standings

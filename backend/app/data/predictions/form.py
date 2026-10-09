@@ -12,12 +12,17 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
-from app.data.predictions.fastf1_lock import _fastf1_lock
+from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
     import pandas as pd
 
+
 logger = structlog.get_logger()
+
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # (driver_code, year, current_round) -> list of recent finishing positions
 _recent_form_cache: dict[tuple[str, int, int], list[int]] = {}

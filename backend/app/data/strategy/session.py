@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import threading
 from typing import Any
 
 import fastf1
 import pandas as pd
 import structlog
 
+from app.utils.fastf1_lock import FASTF1_LOCK
+
 logger = structlog.get_logger()
 
-# Only allow ONE FastF1 session load at a time — they are heavy I/O and FastF1
-# itself is not thread-safe for concurrent session loads. Same pattern as the
-# prediction engine.
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # (year, round_num) -> race session laps/results data
 _race_data_cache: dict[tuple[int, int], dict[str, Any]] = {}

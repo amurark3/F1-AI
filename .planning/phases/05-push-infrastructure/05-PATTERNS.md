@@ -1,5 +1,7 @@
 # Phase 5: Push Infrastructure - Pattern Map
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Parts of this phase were designed on top of it, reusing its event detection and using its text as the notification body. Those parts must be re-planned before Phase 5 is executed. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md).
+
 **Mapped:** 2026-05-01
 **Files analyzed:** 16 (10 backend + 6 iOS)
 **Analogs found:** 14 / 16 (2 are greenfield with no close analog)

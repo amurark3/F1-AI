@@ -5,10 +5,11 @@ module resolves the wrong release, writes something that is not a database, or
 hands out a *writable* connection, every downstream feature is silently wrong
 and the on-disk dataset can be mutated by a stray query.
 
-The risks covered here: release-tag resolution degrading to the pinned version
-when GitHub is unreachable, the zip extraction refusing an archive with no
+The risks covered here: the REST API fallback for release lookup degrading to
+"unknown" rather than raising, the zip extraction refusing an archive with no
 ``.db`` member instead of writing garbage, download-on-first-use, and the
-connection genuinely being read-only.
+connection genuinely being read-only. Release selection, the redirect lookup,
+throttling and the sync outcome are covered in ``test_f1db_source.py``.
 """
 
 from __future__ import annotations
@@ -73,64 +74,60 @@ def test_sqlite_url_for_targets_the_release_zip_asset(version):
     )
 
 
-@pytest.mark.unit
-def test_module_download_url_uses_the_pinned_version():
-    """The pinned tag and the URL constant must never drift apart."""
-    assert f1db_source.sqlite_url_for(f1db_source.F1DB_VERSION) == f1db_source.F1DB_SQLITE_URL
-
-
 # ---------------------------------------------------------------------------
-# latest_release_version
+# _latest_from_api — the backup release lookup
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-def test_latest_release_version_returns_the_tag_reported_by_github(monkeypatch):
+def test_the_api_lookup_returns_the_tag_reported_by_github(monkeypatch):
     calls = _stub_get(monkeypatch, _StubResponse(payload={"tag_name": "v2027.1.0"}))
 
-    assert f1db_source.latest_release_version() == "v2027.1.0"
+    assert f1db_source._latest_from_api() == "v2027.1.0"
     url, kwargs = calls[0]
     assert url == f1db_source.F1DB_RELEASES_API
     assert kwargs["timeout"] == f1db_source.DOWNLOAD_TIMEOUT_SECONDS
 
 
 @pytest.mark.unit
-def test_latest_release_version_omits_authorization_when_no_token_is_set(monkeypatch):
+def test_the_api_lookup_omits_authorization_when_no_token_is_set(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     calls = _stub_get(monkeypatch, _StubResponse(payload={"tag_name": "v2027.1.0"}))
 
-    f1db_source.latest_release_version()
+    f1db_source._latest_from_api()
 
     assert "Authorization" not in calls[0][1]["headers"]
 
 
 @pytest.mark.unit
-def test_latest_release_version_authenticates_when_a_github_token_is_set(monkeypatch):
+def test_the_api_lookup_authenticates_when_a_github_token_is_set(monkeypatch):
     """CI sets GITHUB_TOKEN purely to lift the anonymous API rate limit."""
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_secret")
     calls = _stub_get(monkeypatch, _StubResponse(payload={"tag_name": "v2027.1.0"}))
 
-    f1db_source.latest_release_version()
+    f1db_source._latest_from_api()
 
     assert calls[0][1]["headers"]["Authorization"] == "Bearer ghp_secret"
 
 
 @pytest.mark.unit
-def test_latest_release_version_falls_back_to_the_pinned_version_when_github_fails(monkeypatch, capsys):
-    _stub_get(monkeypatch, _StubResponse(error=RuntimeError("503 Service Unavailable")))
+def test_a_failed_api_lookup_reports_unknown_rather_than_raising(monkeypatch, capsys):
+    """Unknown is not the pinned version: the caller decides what to keep."""
+    _stub_get(
+        monkeypatch,
+        _StubResponse(error=f1db_source.requests.HTTPError("503 Service Unavailable")),
+    )
 
-    result = f1db_source.latest_release_version()
-
-    assert result == f1db_source.F1DB_VERSION
-    assert "f1db.latest_version_failed" in capsys.readouterr().out
+    assert f1db_source._latest_from_api() == ""
+    assert "f1db.latest_api_failed" in capsys.readouterr().out
 
 
 @pytest.mark.unit
-def test_latest_release_version_falls_back_when_the_payload_has_no_tag(monkeypatch):
+def test_a_payload_with_no_tag_reports_unknown(monkeypatch):
     """A schema change on GitHub's side must degrade, not raise."""
     _stub_get(monkeypatch, _StubResponse(payload={}))
 
-    assert f1db_source.latest_release_version() == f1db_source.F1DB_VERSION
+    assert f1db_source._latest_from_api() == ""
 
 
 # ---------------------------------------------------------------------------
@@ -144,11 +141,13 @@ def test_refresh_f1db_extracts_the_database_member_and_creates_its_directory(tmp
     calls = _stub_get(monkeypatch, _StubResponse(content=archive))
     dest = tmp_path / "nested" / "f1db.db"
 
-    result = f1db_source.refresh_f1db(url="https://example.test/f1db-sqlite.zip", dest=dest)
+    result = f1db_source.refresh_f1db("v2027.1.0", dest=dest)
 
     assert result == dest
     assert dest.read_bytes() == b"SQLite payload"
-    assert calls[0][0] == "https://example.test/f1db-sqlite.zip"
+    assert calls[0][0] == f1db_source.sqlite_url_for("v2027.1.0")
+    # The release is stamped beside the database, so the next check can compare.
+    assert (tmp_path / "nested" / "f1db.db.version").read_text().strip() == "v2027.1.0"
 
 
 @pytest.mark.integration
@@ -157,7 +156,7 @@ def test_refresh_f1db_overwrites_an_existing_database(tmp_path, monkeypatch):
     dest.write_bytes(b"stale release")
     _stub_get(monkeypatch, _StubResponse(content=_zip_bytes({"f1db.db": b"fresh release"})))
 
-    f1db_source.refresh_f1db(url="https://example.test/f1db-sqlite.zip", dest=dest)
+    f1db_source.refresh_f1db("v2027.1.0", dest=dest)
 
     assert dest.read_bytes() == b"fresh release"
 
@@ -169,7 +168,7 @@ def test_refresh_f1db_rejects_an_archive_with_no_database_member(tmp_path, monke
     dest = tmp_path / "f1db.db"
 
     with pytest.raises(ValueError, match=re.escape("No .db file found")):
-        f1db_source.refresh_f1db(url="https://example.test/f1db-sqlite.zip", dest=dest)
+        f1db_source.refresh_f1db("v2027.1.0", dest=dest)
 
     assert not dest.exists()
 
@@ -178,8 +177,12 @@ def test_refresh_f1db_rejects_an_archive_with_no_database_member(tmp_path, monke
 def test_refresh_f1db_propagates_a_download_failure(tmp_path, monkeypatch):
     _stub_get(monkeypatch, _StubResponse(error=RuntimeError("404 Not Found")))
 
+    dest = tmp_path / "f1db.db"
+
     with pytest.raises(RuntimeError, match="404 Not Found"):
-        f1db_source.refresh_f1db(url="https://example.test/missing.zip", dest=tmp_path / "f1db.db")
+        f1db_source.refresh_f1db("v2027.1.0", dest=dest)
+
+    assert not (tmp_path / "f1db.db.version").exists(), "a failed download must not claim a release"
 
 
 # ---------------------------------------------------------------------------
@@ -191,11 +194,12 @@ def test_refresh_f1db_propagates_a_download_failure(tmp_path, monkeypatch):
 def test_ensure_db_downloads_when_the_database_is_missing(tmp_path, monkeypatch, capsys):
     target = tmp_path / "absent.db"
     monkeypatch.setattr(f1db_source, "DB_PATH", target)
-    downloads: list[int] = []
-    monkeypatch.setattr(f1db_source, "refresh_f1db", lambda *a, **k: downloads.append(1))
+    monkeypatch.setattr(f1db_source, "target_version", lambda: "v2027.1.0")
+    downloads: list[str] = []
+    monkeypatch.setattr(f1db_source, "refresh_f1db", lambda version, *a, **k: downloads.append(version))
 
     assert f1db_source.ensure_db() == target
-    assert len(downloads) == 1
+    assert downloads == ["v2027.1.0"]
     assert "f1db.missing_downloading" in capsys.readouterr().out
 
 
@@ -238,5 +242,6 @@ def test_db_path_honours_the_f1db_path_environment_variable(monkeypatch, reload_
     reloaded = reload_module("app.data.f1db_source")
 
     assert str(reloaded.DB_PATH) == "/srv/data/custom-f1db.db"
+    assert str(reloaded.VERSION_PATH) == "/srv/data/custom-f1db.db.version", "the stamp lives beside the database"
     assert reloaded.DOWNLOAD_TIMEOUT_SECONDS == 7
-    assert reloaded.F1DB_SQLITE_URL.endswith("v2030.1.0/f1db-sqlite.zip")
+    assert reloaded.F1DB_VERSION == "v2030.1.0"

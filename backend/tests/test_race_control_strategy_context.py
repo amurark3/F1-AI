@@ -11,8 +11,10 @@ same shape. So each fallback is tested for the flag that distinguishes it
 loses its "modeled" marker is indistinguishable from a measurement.
 
 The dashboard half carries a different risk: session status ("in_progress")
-drives the live banner, the workstream board and the risk register, and it is
-derived purely from clock arithmetic over the FastF1 schedule.
+drives the workstream board and the risk register, and it is derived purely
+from clock arithmetic over the FastF1 schedule. "Live" is narrower — a weekend
+is in progress from Friday to Sunday, but only a session on track makes the
+desk live.
 """
 
 from __future__ import annotations
@@ -118,8 +120,8 @@ def test_dashboard_selects_the_live_session_over_the_next_race(monkeypatch):
         [
             _row(
                 RoundNumber=2,
-                Session1DateUtc=pd.Timestamp(_NOW - timedelta(hours=2)),
-                Session5DateUtc=pd.Timestamp(_NOW + timedelta(hours=1)),
+                Session1DateUtc=pd.Timestamp(_NOW - timedelta(days=2)),
+                Session5DateUtc=pd.Timestamp(_NOW - timedelta(minutes=30)),
             ),
             _upcoming_row(RoundNumber=3),
         ],
@@ -130,9 +132,30 @@ def test_dashboard_selects_the_live_session_over_the_next_race(monkeypatch):
 
     assert dashboard["race"]["round"] == 2
     assert dashboard["race"]["status"] == "in_progress"
-    assert dashboard["focus"] == "Live session control"
+    assert dashboard["focus"] == "Live session control", "the race is on track"
     # A live event has no countdown — the clock is already past lights out.
     assert dashboard["race"]["days_until"] is None
+
+
+@pytest.mark.unit
+def test_an_in_progress_weekend_between_sessions_is_not_live_control(monkeypatch):
+    """Saturday night: the weekend is under way, but nothing is on track."""
+    _stub_schedule(
+        monkeypatch,
+        [
+            _row(
+                RoundNumber=2,
+                Session1DateUtc=pd.Timestamp(_NOW - timedelta(hours=6)),
+                Session5DateUtc=pd.Timestamp(_NOW + timedelta(hours=12)),
+            ),
+        ],
+    )
+    _stub_standings(monkeypatch)
+
+    dashboard = module.build_strategy_dashboard(2026)
+
+    assert dashboard["race"]["status"] == "in_progress"
+    assert dashboard["focus"] != "Live session control"
 
 
 @pytest.mark.unit
@@ -410,8 +433,8 @@ def test_context_uses_measured_deltas_when_the_reference_ever_provides_them():
 @pytest.mark.unit
 @pytest.mark.parametrize(
     ("circuit_type", "pit_loss", "undercut"),
-    [("Street", 24, 1.6), ("street", 24, 1.6), ("Purpose-built", 21, 1.4)],
-    ids=["street", "lowercase-street", "permanent"],
+    [("Street circuit", 24, 1.6), ("Semi-street circuit", 21, 1.4), ("Purpose-built", 21, 1.4)],
+    ids=["street", "semi-street", "permanent"],
 )
 def test_context_derives_the_fallback_pit_model_from_circuit_shape(circuit_type, pit_loss, undercut):
     context = module.build_strategy_context(_race(circuit={"laps": 57, "circuit_type": circuit_type}), [], None)
@@ -421,17 +444,16 @@ def test_context_derives_the_fallback_pit_model_from_circuit_shape(circuit_type,
 
 
 @pytest.mark.unit
-def test_context_treats_a_real_street_circuit_as_permanent():
-    """Pins a live bug: the only circuit-type strings the app ever produces are
-    ``CIRCUIT_DATA``'s ``"Street circuit"`` / ``"Purpose-built"``, but the test
-    here is ``lower() == "street"``. Monaco therefore gets Monza's pit loss,
-    tyre windows and rejoin-traffic floor. Not fixed here — pinned so the fix
-    has a failing assertion to flip."""
+def test_context_plans_a_real_street_circuit_on_street_heuristics():
+    """Was a pinned bug: the check compared against ``"street"`` while
+    ``CIRCUIT_DATA`` only ever says ``"Street circuit"``, so Monaco got Monza's
+    pit loss, tyre windows and rejoin-traffic floor. Now classified by
+    ``is_street_circuit``, the same rule the risk register uses."""
     monaco = module.build_strategy_context(_race(circuit={"laps": 78, "circuit_type": "Street circuit"}), [], None)
     monza = module.build_strategy_context(_race(circuit={"laps": 78, "circuit_type": "Purpose-built"}), [], None)
 
-    assert monaco["pit_model"] == monza["pit_model"]
-    assert monaco["stint_windows"] == monza["stint_windows"]
+    assert monaco["pit_model"] != monza["pit_model"]
+    assert monaco["stint_windows"] != monza["stint_windows"]
 
 
 @pytest.mark.unit
@@ -532,14 +554,27 @@ def test_context_stint_plan_spans_the_full_race_distance():
     assert "Hold Soft surface temperatures" in context["stint_plan"][0]["target"]
 
 
+def _sessions_starting(offset: timedelta) -> dict[str, str]:
+    """A race session that started ``offset`` ago (negative: still to come)."""
+    start = datetime.now(timezone.utc) - offset
+    return {"Race": start.isoformat()}
+
+
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("status", "phase"),
-    [("in_progress", "Live race desk"), ("upcoming", "Pre-race build"), ("completed", "Pre-race build")],
-    ids=["live", "upcoming", "completed"],
+    ("status", "sessions", "phase"),
+    [
+        ("in_progress", _sessions_starting(timedelta(minutes=30)), "Live race desk"),
+        ("in_progress", _sessions_starting(timedelta(hours=-12)), "Pre-race build"),
+        ("upcoming", _sessions_starting(timedelta(days=-3)), "Pre-race build"),
+        ("completed", _sessions_starting(timedelta(days=3)), "Pre-race build"),
+    ],
+    ids=["live", "between-sessions", "upcoming", "completed"],
 )
-def test_context_phase_switches_to_the_race_desk_only_during_a_session(status, phase):
-    assert module.build_strategy_context(_race(status=status), [], None)["phase"] == phase
+def test_context_phase_switches_to_the_race_desk_only_during_a_session(status, sessions, phase):
+    race = _race(status=status, sessions=sessions)
+
+    assert module.build_strategy_context(race, [], None)["phase"] == phase
 
 
 @pytest.mark.unit
@@ -604,16 +639,18 @@ def test_context_returns_no_competitor_rows_without_a_standings_feed():
 
 
 # ---------------------------------------------------------------------------
-# known defect
+# unmapped venues
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-def test_context_crashes_on_an_event_whose_circuit_is_unmapped():
-    """Pins a live bug: ``build_strategy_dashboard`` sets ``circuit`` to None for
-    any venue missing from ``CIRCUIT_DATA`` (``get_circuit_info`` returns None),
-    and the lap-count read dereferences it without a guard — so the whole
-    command center 500s on an unmapped calendar entry. Not fixed here; the
-    following line documents the failure mode."""
-    with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'get'"):
-        module.build_strategy_context({"circuit": None, "status": "upcoming"}, [], None)
+def test_context_plans_an_unmapped_venue_on_heuristics():
+    """Was a pinned bug: ``build_strategy_dashboard`` sets ``circuit`` to None
+    for any venue missing from ``CIRCUIT_DATA``, and the lap-count read
+    dereferenced it without a guard — so the whole command center 500'd on an
+    unmapped calendar entry. It now falls back on the value, not the key."""
+    context = module.build_strategy_context({"circuit": None, "status": "upcoming"}, [], None)
+
+    assert context["data_source"]["mode"] == "heuristic"
+    assert context["stint_windows"]["total_laps"] == module.DEFAULT_RACE_LAPS
+    assert context["pit_model"]["pit_loss_seconds"] == 21, "an unknown venue is not assumed to be a street circuit"

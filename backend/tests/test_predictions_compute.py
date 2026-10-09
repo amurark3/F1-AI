@@ -10,11 +10,14 @@ failures:
 * **Weights must renormalise when a signal is missing.** They are shares of one
   whole; if a missing signal simply vanished, every score would shrink toward
   zero and the ranking would silently change character.
-* **No entered driver may be dropped.** A driver without a qualifying time is
-  back-filled from the championship entry list, flagged, and still predicted.
+* **The grid comes from the right lineup.** The weekend's own entry list once a
+  session has run, the previous weekend's before that — and a forced
+  pre-qualifying call never sees the qualifying result even when it exists.
 
 Every loader is stubbed at compute's own module namespace — this file tests the
-orchestration, not the loaders, which have their own suites.
+orchestration, not the loaders, which have their own suites. That includes
+``resolve_grid``: how a lineup becomes a grid is covered in
+``test_weekend_grid.py``; here it records what it was handed.
 """
 
 from __future__ import annotations
@@ -24,8 +27,11 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from app.data.predictions import compute as module
+from app.data.driver_availability import WeekendAvailability
+from app.data.predictions import compute as module, sessions as sessions_module
 from app.data.predictions.driver_score import DriverScore
+from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
+from app.data.weekend_grid import GridRoster
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -35,6 +41,13 @@ from app.data.predictions.driver_score import DriverScore
 def _schedule(rows: list[dict]) -> pd.DataFrame:
     """A schedule frame in the shape ``_load_event_context`` filters on."""
     return pd.DataFrame(rows, columns=["RoundNumber", "EventName", "Location"])
+
+
+def _entry_list(*codes: str, session: str = "Practice 1") -> WeekendEntryList:
+    return WeekendEntryList(
+        entries=tuple(EntryListDriver(code=code, name=f"{code} Driver", team="Team") for code in codes),
+        session=session,
+    )
 
 
 def _quali(code: str, position: int, *, team: str = "Red Bull") -> dict:
@@ -70,6 +83,7 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
     state: dict[str, Any] = {
         "schedule": _schedule([{"RoundNumber": 5, "EventName": "Monaco Grand Prix", "Location": "Monte Carlo"}]),
         "qualifying_has_occurred": True,
+        "weekend_started": True,
         "qualifying": [_quali("VER", 1), _quali("NOR", 2, team="McLaren")],
         "practice": [],
         "constructor_standings": [{"team": "Red Bull", "position": 1}],
@@ -80,6 +94,12 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
         "grid_deltas": {"VER": 1.5},
         "recent_sprint_form": {},
         "roster": [],
+        # Keyed by round: the weekend being predicted, and any earlier one the
+        # compute falls back to before this weekend's entry list exists.
+        "entry_lists": {},
+        "availability": WeekendAvailability(),
+        "grid": None,
+        "grid_calls": [],
         "risk_predictions": [{"driver_code": "VER", "dnf_risk": 0.1}],
         "accuracy": {"total": 3},
         "review": {"status": "ok"},
@@ -94,20 +114,35 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
             raise value
         return value(*args) if callable(value) else value
 
+    def _resolve_grid(**kwargs):
+        state["grid_calls"].append(kwargs)
+        if state["grid"] is not None:
+            return _resolve("grid")
+        # By default every timed driver makes the grid, with nothing to report.
+        return GridRoster(drivers=tuple(kwargs["timed_drivers"]), warnings=(), data_sources=())
+
     monkeypatch.setattr(module.fastf1, "get_event_schedule", lambda year, include_testing: _resolve("schedule"))
-    monkeypatch.setattr(module, "_qualifying_has_occurred", lambda row: _resolve("qualifying_has_occurred"))
+    # ``should_use_qualifying`` is a decision, not a loader, so it runs for real
+    # and consults the session clock where it resolves it.
+    monkeypatch.setattr(sessions_module, "_qualifying_has_occurred", lambda row: _resolve("qualifying_has_occurred"))
+    monkeypatch.setattr(module, "_weekend_has_started", lambda row: _resolve("weekend_started"))
     monkeypatch.setattr(module, "_load_qualifying", lambda year, rnd: _resolve("qualifying"))
     monkeypatch.setattr(module, "_load_practice", lambda year, rnd: _resolve("practice"))
-    monkeypatch.setattr(module, "_load_constructor_standings", lambda year: _resolve("constructor_standings"))
-    monkeypatch.setattr(module, "_load_driver_standings", lambda year: _resolve("driver_standings"))
+    monkeypatch.setattr(module, "_load_constructor_standings", lambda year, rnd: _resolve("constructor_standings"))
+    monkeypatch.setattr(module, "_load_driver_standings", lambda year, rnd: _resolve("driver_standings"))
     monkeypatch.setattr(module, "_load_circuit_history", lambda year, rnd, key: _resolve("circuit_history"))
     monkeypatch.setattr(module, "_load_sprint_result", lambda year, rnd: _resolve("sprint_result"))
-    monkeypatch.setattr(module, "_adaptive_position_corrections", lambda: _resolve("adaptive_corrections"))
+    monkeypatch.setattr(module, "_adaptive_position_corrections", lambda year, rnd: _resolve("adaptive_corrections"))
     monkeypatch.setattr(module, "_load_grid_to_finish_delta", lambda year, rnd, key: _resolve("grid_deltas"))
     monkeypatch.setattr(module, "_load_recent_sprint_form", lambda year, rnd: _resolve("recent_sprint_form"))
     monkeypatch.setattr(module, "driver_standings_detailed", lambda year: _resolve("roster"))
+    monkeypatch.setattr(module, "load_weekend_entry_list", lambda year, rnd: state["entry_lists"].get(rnd, UNAVAILABLE))
+    monkeypatch.setattr(module, "load_weekend_availability", lambda year, rnd: _resolve("availability"))
+    monkeypatch.setattr(module, "resolve_grid", _resolve_grid)
     monkeypatch.setattr(module, "get_accuracy_stats", lambda: _resolve("accuracy"))
-    monkeypatch.setattr(module, "get_prediction_review", lambda year, rnd: _resolve("review"))
+    monkeypatch.setattr(
+        module, "get_prediction_review", lambda year, rnd, phase=None: {**_resolve("review"), "phase": phase}
+    )
     monkeypatch.setattr(
         module,
         "_compute_risk_predictions",
@@ -185,12 +220,13 @@ def test_a_schedule_failure_degrades_to_round_identifiers_with_a_warning(pipelin
 
 @pytest.mark.unit
 def test_qualifying_is_used_when_it_has_run(pipeline):
-    session = module._load_session_data(2024, 5, event_row=object())
+    session = module._load_session_data(2024, 5, object(), False)
 
     assert session.quali_data == pipeline["qualifying"]
     assert session.is_pre_qualifying is False
     assert session.data_sources == ["qualifying"]
     assert session.warnings == []
+    assert session.weekend_started is True
 
 
 @pytest.mark.unit
@@ -198,7 +234,7 @@ def test_practice_pace_stands_in_for_a_missing_qualifying_session(pipeline):
     pipeline["qualifying"] = []
     pipeline["practice"] = [_quali("VER", 1)]
 
-    session = module._load_session_data(2024, 5, event_row=object())
+    session = module._load_session_data(2024, 5, object(), False)
 
     assert session.quali_data == pipeline["practice"]
     assert session.is_pre_qualifying is True
@@ -207,11 +243,24 @@ def test_practice_pace_stands_in_for_a_missing_qualifying_session(pipeline):
 
 
 @pytest.mark.unit
+def test_practice_pace_is_used_before_qualifying_has_run(pipeline):
+    """Practice exists from FP1, so it must not wait on qualifying."""
+    pipeline["qualifying_has_occurred"] = False
+    pipeline["qualifying"] = AssertionError("qualifying must not be loaded before it runs")
+    pipeline["practice"] = [_quali("VER", 1)]
+
+    session = module._load_session_data(2024, 5, object(), False)
+
+    assert session.quali_data == pipeline["practice"]
+    assert session.data_sources == ["practice"]
+
+
+@pytest.mark.unit
 def test_no_session_data_at_all_falls_back_to_history(pipeline):
     pipeline["qualifying"] = []
     pipeline["practice"] = []
 
-    session = module._load_session_data(2024, 5, event_row=object())
+    session = module._load_session_data(2024, 5, object(), False)
 
     assert session.quali_data is None
     assert session.is_pre_qualifying is True
@@ -222,12 +271,14 @@ def test_no_session_data_at_all_falls_back_to_history(pipeline):
 def test_a_weekend_that_has_not_started_is_never_probed(pipeline):
     """Probing FastF1 for an unrun session is a slow failure, so it is skipped."""
     pipeline["qualifying_has_occurred"] = False
+    pipeline["weekend_started"] = False
     pipeline["qualifying"] = AssertionError("qualifying must not be loaded")
     pipeline["practice"] = AssertionError("practice must not be loaded")
 
-    session = module._load_session_data(2024, 5, event_row=object())
+    session = module._load_session_data(2024, 5, object(), False)
 
     assert session.quali_data is None
+    assert session.weekend_started is False
     assert session.warnings == ["Race weekend has not started; using historical form only"]
 
 
@@ -235,10 +286,44 @@ def test_a_weekend_that_has_not_started_is_never_probed(pipeline):
 def test_without_an_event_row_the_sessions_are_attempted_anyway(pipeline):
     """No schedule row means no session time to check — try the load instead."""
     pipeline["qualifying_has_occurred"] = AssertionError("must not be consulted")
+    pipeline["weekend_started"] = AssertionError("must not be consulted")
 
-    session = module._load_session_data(2024, 5, event_row=None)
+    session = module._load_session_data(2024, 5, None, False)
 
     assert session.data_sources == ["qualifying"]
+    assert session.weekend_started is True
+
+
+@pytest.mark.unit
+def test_a_forced_pre_qualifying_call_ignores_a_qualifying_result_that_exists(pipeline):
+    pipeline["qualifying"] = AssertionError("a forced pre-qualifying call must not load qualifying")
+    pipeline["practice"] = [_quali("VER", 1)]
+
+    session = module._load_session_data(2024, 5, object(), True)
+
+    assert session.quali_data == pipeline["practice"]
+    assert session.is_pre_qualifying is True
+    assert session.warnings == ["Qualifying result deliberately excluded; using practice session pace"]
+
+
+@pytest.mark.unit
+def test_a_forced_call_with_no_practice_says_the_grid_was_excluded(pipeline):
+    pipeline["qualifying"] = AssertionError("a forced pre-qualifying call must not load qualifying")
+    pipeline["practice"] = []
+
+    session = module._load_session_data(2024, 5, object(), True)
+
+    assert session.warnings == ["Qualifying result deliberately excluded; using historical form only"]
+
+
+@pytest.mark.unit
+def test_a_forced_call_before_the_weekend_names_the_exclusion_not_the_calendar(pipeline):
+    pipeline["weekend_started"] = False
+    pipeline["practice"] = AssertionError("practice must not be loaded")
+
+    session = module._load_session_data(2024, 5, object(), True)
+
+    assert session.warnings == ["Qualifying result deliberately excluded; using historical form only"]
 
 
 # ---------------------------------------------------------------------------
@@ -285,84 +370,91 @@ def test_missing_constructor_standings_are_the_only_feed_that_warns(pipeline):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
-def test_a_driver_without_a_qualifying_time_is_added_behind_the_slowest_qualifier(pipeline):
-    pipeline["roster"] = [
-        {"code": "VER", "name": "Max Verstappen", "team": "Red Bull", "position": 1},
-        {"code": "NOR", "name": "Lando Norris", "team": "McLaren", "position": 2},
-        {"code": "LAW", "name": "Liam Lawson", "team": "RB", "position": 15},
-    ]
+def _event(*rounds: int) -> module.EventContext:
+    """An event context whose schedule holds ``rounds`` (none dated, so all run)."""
+    schedule = _schedule([{"RoundNumber": rnd, "EventName": f"Round {rnd}", "Location": "X"} for rnd in rounds])
+    return module.EventContext(gp_name="Round 5", circuit_key="X", event_row=object(), schedule=schedule)
 
-    roster = module._build_roster(2024, [_quali("VER", 1), _quali("NOR", 2)])
 
-    assert [driver["driver_code"] for driver in roster.drivers] == ["VER", "NOR", "LAW"]
-    assert roster.drivers[-1] == {
-        "driver_code": "LAW",
-        "driver_name": "Liam Lawson",
-        "team": "RB",
-        "position": 3,
-        "no_qualifying_time": True,
-    }
-    assert roster.warnings == [
-        "1 entered driver(s) had no qualifying time; included from championship entry list at back of grid"
-    ]
-    assert roster.data_sources == ["championship_position"]
+def _session_data(*, started: bool = True, quali: list[dict] | None = None) -> module.SessionData:
+    return module.SessionData(quali_data=quali, weekend_started=started)
 
 
 @pytest.mark.unit
-def test_back_filled_drivers_keep_championship_order(pipeline):
-    pipeline["roster"] = [
-        {"code": "LAW", "name": "Liam Lawson", "team": "RB", "position": 15},
-        {"code": "HUL", "name": "Nico Hulkenberg", "team": "Sauber", "position": 9},
-    ]
-
-    roster = module._build_roster(2024, [_quali("VER", 1)])
-
-    assert [driver["driver_code"] for driver in roster.drivers] == ["VER", "HUL", "LAW"]
-    assert [driver["position"] for driver in roster.drivers] == [1, 2, 3]
-
-
-@pytest.mark.unit
-def test_with_no_session_at_all_the_whole_roster_is_predicted_without_a_warning(pipeline):
-    pipeline["roster"] = [
-        {"code": "VER", "name": "Max Verstappen", "team": "Red Bull", "position": 1},
-        {"code": "NOR", "name": "Lando Norris", "team": "McLaren", "position": 2},
-    ]
-
-    roster = module._build_roster(2024, None)
-
-    assert [driver["position"] for driver in roster.drivers] == [1, 2]
-    assert roster.warnings == []
-    assert roster.data_sources == ["championship_position"]
-
-
-@pytest.mark.unit
-def test_a_complete_qualifying_field_needs_no_back_filling(pipeline):
+def test_the_weekend_entry_list_decides_the_grid_once_a_session_has_run(pipeline):
+    pipeline["entry_lists"] = {5: _entry_list("VER", "NOR"), 4: AssertionError("not needed")}
     pipeline["roster"] = [{"code": "VER", "name": "Max Verstappen", "team": "Red Bull", "position": 1}]
 
-    roster = module._build_roster(2024, [_quali("VER", 1)])
+    module._build_roster(2024, 5, _event(4, 5), _session_data(quali=[_quali("VER", 1)]))
 
-    assert [driver["driver_code"] for driver in roster.drivers] == ["VER"]
-    assert roster.warnings == []
-    assert roster.data_sources == []
-
-
-@pytest.mark.unit
-def test_an_empty_entry_list_leaves_the_session_field_untouched(pipeline):
-    pipeline["roster"] = []
-
-    roster = module._build_roster(2024, [_quali("VER", 1)])
-
-    assert [driver["driver_code"] for driver in roster.drivers] == ["VER"]
-    assert roster.warnings == []
+    [call] = pipeline["grid_calls"]
+    assert call["entry_lists"].current == _entry_list("VER", "NOR")
+    assert call["entry_lists"].previous == UNAVAILABLE, "a current entry list needs no stand-in"
+    assert call["timed_drivers"] == [_quali("VER", 1)]
+    assert call["championship_roster"] == pipeline["roster"]
+    assert call["availability"] == pipeline["availability"]
 
 
 @pytest.mark.unit
-def test_a_failing_entry_list_warns_but_keeps_the_qualifiers(pipeline):
+def test_before_the_weekend_the_previous_weekends_lineup_stands_in(pipeline):
+    """A weekend that has not started is never asked for its own entry list."""
+    pipeline["entry_lists"] = {4: _entry_list("VER", "LAW")}
+
+    module._build_roster(2024, 5, _event(3, 4, 5), _session_data(started=False))
+
+    [call] = pipeline["grid_calls"]
+    assert call["entry_lists"].current == UNAVAILABLE
+    assert call["entry_lists"].previous == _entry_list("VER", "LAW")
+    assert call["timed_drivers"] == []
+
+
+@pytest.mark.unit
+def test_an_unpublished_entry_list_also_falls_back_to_the_previous_weekend(pipeline):
+    pipeline["entry_lists"] = {5: UNAVAILABLE, 4: _entry_list("VER")}
+
+    module._build_roster(2024, 5, _event(4, 5), _session_data())
+
+    assert pipeline["grid_calls"][0]["entry_lists"].previous == _entry_list("VER")
+
+
+@pytest.mark.unit
+def test_a_season_opener_has_no_previous_weekend_to_borrow(pipeline):
+    module._build_roster(2024, 1, _event(1, 2), _session_data(started=False))
+
+    assert pipeline["grid_calls"][0]["entry_lists"].previous == UNAVAILABLE
+
+
+@pytest.mark.unit
+def test_without_a_schedule_there_is_no_previous_weekend_to_look_up(pipeline):
+    event = module.EventContext(gp_name="Round 5", circuit_key="round_5")
+
+    module._build_roster(2024, 5, event, _session_data(started=False))
+
+    assert pipeline["grid_calls"][0]["entry_lists"].previous == UNAVAILABLE
+
+
+@pytest.mark.unit
+def test_the_resolved_grid_and_its_provenance_reach_the_roster(pipeline):
+    pipeline["grid"] = GridRoster(
+        drivers=({"driver_code": "VER", "position": 1},),
+        warnings=("1 driver(s) with session times are not in the entry list and were excluded",),
+        data_sources=("weekend_entry_list",),
+    )
+
+    roster = module._build_roster(2024, 5, _event(5), _session_data())
+
+    assert roster.drivers == [{"driver_code": "VER", "position": 1}]
+    assert roster.warnings == ["1 driver(s) with session times are not in the entry list and were excluded"]
+    assert roster.data_sources == ["weekend_entry_list"]
+
+
+@pytest.mark.unit
+def test_a_failing_championship_roster_warns_and_resolves_without_it(pipeline):
     pipeline["roster"] = RuntimeError("f1db unavailable")
 
-    roster = module._build_roster(2024, [_quali("VER", 1)])
+    roster = module._build_roster(2024, 5, _event(5), _session_data(quali=[_quali("VER", 1)]))
 
+    assert pipeline["grid_calls"][0]["championship_roster"] == []
     assert [driver["driver_code"] for driver in roster.drivers] == ["VER"]
     assert roster.warnings == ["Could not load full-grid roster: f1db unavailable"]
 
@@ -484,14 +576,35 @@ def test_a_healthy_weekend_predicts_the_full_grid_and_saves_it(pipeline):
     assert result["grand_prix"] == "Monaco Grand Prix"
     assert result["logic_version"] == module.PREDICTION_LOGIC_VERSION
     assert result["accuracy"] == {"total": 3}
-    assert result["prediction_review"] == {"status": "ok"}
+    assert result["prediction_review"] == {"status": "ok", "phase": "post_qualifying"}
     assert [row["driver_code"] for row in result["predictions"]] == ["VER", "NOR"]
     assert result["prediction_phase"] == "post_qualifying"
     assert result["risk_predictions"] == pipeline["risk_predictions"]
     assert result["weather_impact"] == "dry"
     assert result["wet_scenario"] is None
     assert result["warnings"] is None
-    assert pipeline["saved"] == [(2024, 5, result)]
+    # The review is scored after the save, so it scores the call just stored.
+    saved = {key: value for key, value in result.items() if key != "prediction_review"}
+    assert pipeline["saved"] == [(2024, 5, saved)]
+
+
+@pytest.mark.unit
+def test_a_forced_pre_qualifying_call_is_stored_and_reviewed_as_that_phase(pipeline):
+    pipeline["qualifying"] = AssertionError("a forced pre-qualifying call must not load qualifying")
+    pipeline["practice"] = [_quali("VER", 1), _quali("NOR", 2, team="McLaren")]
+
+    result = module.compute_race_predictions(2024, 5, phase=module.PHASE_PRE_QUALIFYING)
+
+    assert result["prediction_phase"] == "pre_qualifying"
+    assert result["prediction_review"]["phase"] == "pre_qualifying"
+    assert pipeline["signals"][0].is_pre_qualifying is True
+
+
+@pytest.mark.unit
+def test_an_unknown_phase_lets_the_data_decide(pipeline):
+    result = module.compute_race_predictions(2024, 5, phase="during_qualifying")
+
+    assert result["prediction_phase"] == "post_qualifying"
 
 
 @pytest.mark.unit
@@ -534,7 +647,11 @@ def test_every_stage_warning_reaches_the_response(pipeline):
     pipeline["qualifying"] = []
     pipeline["practice"] = []
     pipeline["constructor_standings"] = []
-    pipeline["roster"] = [{"code": "VER", "name": "Max Verstappen", "team": "Red Bull", "position": 1}]
+    pipeline["grid"] = GridRoster(
+        drivers=({"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "position": 1},),
+        warnings=("Using the championship roster; no weekend entry list is available yet",),
+        data_sources=("championship_position",),
+    )
 
     result = module.compute_race_predictions(2024, 5)
 
@@ -542,6 +659,7 @@ def test_every_stage_warning_reaches_the_response(pipeline):
         "Could not load event schedule: network down",
         "No qualifying or practice data available; using historical data only",
         "Constructor standings unavailable",
+        "Using the championship roster; no weekend entry list is available yet",
     ]
     assert result["grand_prix"] == "Round 5"
     assert result["prediction_phase"] == "pre_qualifying"
@@ -559,7 +677,8 @@ def test_an_empty_grid_returns_an_explicit_no_data_response(pipeline):
     assert result["risk_predictions"] == []
     assert result["weather_impact"] == "unknown"
     assert result["warnings"][-1] == "No driver data available for predictions"
-    assert "prediction_phase" not in result
+    assert result["prediction_phase"] == "pre_qualifying"
+    assert result["prediction_review"] == {"status": "ok", "phase": None}
     assert pipeline["saved"] == []
 
 

@@ -1,34 +1,33 @@
 """The live-timing WebSocket endpoint.
 
-Polls OpenF1 and fans position/timing updates out to connected clients, adding
-commentary when a notable event is detected.
+Streams whichever session is running at a race weekend. Session resolution and
+OpenF1 polling live in :mod:`app.services.live_timing_client`; this module owns
+only the socket: when to re-resolve, how fast to poll, and what to send.
 """
 
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import structlog
 
-from app.api.live.commentary import (
-    COMMENTARY_COOLDOWN_SECONDS,
-    _commentary_state,
-    _generate_commentary,
-)
 from app.api.live.connections import ConnectionManager
-from app.api.live.events import Snapshot, _detect_event
-from app.api.live.openf1 import (
-    _fetch_current_lap,
-    _fetch_session_status,
-    _fetch_stint_counts,
-    _find_openf1_session,
-    _poll_openf1_positions,
+from app.config import (
+    SESSION_LOOKUP_INTERVAL,
+    WS_IDLE_POLL_INTERVAL,
+    WS_POLL_INTERVAL,
+    WS_RECEIVE_TIMEOUT,
 )
-from app.config import WS_POLL_INTERVAL, WS_RECEIVE_TIMEOUT
+from app.services.live_timing import SESSION_END_GRACE, derive_session_state
+from app.services.live_timing_client import (
+    ActiveSession,
+    TimingSnapshot,
+    poll_timing,
+    resolve_session_window,
+)
 
 logger = structlog.get_logger()
 
@@ -37,184 +36,20 @@ router = APIRouter()
 manager = ConnectionManager()
 
 
-@dataclass(frozen=True)
-class LiveSession:
-    """The OpenF1 session a socket is following, resolved once per connection."""
-
-    key: str | None
-    total_laps: int
-    room: str
-    race_name: str
-
-
-async def _resolve_session(year: int, round_num: int, room: str) -> LiveSession:
-    """Look the round up on OpenF1; a miss yields a session with no key."""
-    result = await _find_openf1_session(year, round_num)
-    key, total_laps = result or (None, 0)
-    return LiveSession(
-        key=key,
-        total_laps=total_laps,
-        room=room,
-        race_name=f"Round {round_num} {year}",  # fallback; sufficient for prompts
-    )
-
-
-def _room_state(room: str) -> dict:
-    """The per-room commentary state, created empty on first poll."""
-    return _commentary_state.setdefault(
-        room,
-        {
-            "last_time": 0.0,
-            "prev_positions": [],
-            "prev_session_status": "",
-            "prev_stints": {},
-        },
-    )
-
-
-def _stored_snapshot(state: dict) -> Snapshot:
-    """Rebuild the previous snapshot from the room's stored state."""
-    return Snapshot(
-        positions=state["prev_positions"],
-        session_status=state["prev_session_status"],
-        stints=state["prev_stints"],
-    )
-
-
-def _store_snapshot(state: dict, snapshot: Snapshot) -> None:
-    """Record ``snapshot`` as the baseline the next poll compares against."""
-    state["prev_positions"] = snapshot.positions
-    state["prev_session_status"] = snapshot.session_status
-    state["prev_stints"] = snapshot.stints
-
-
-async def _send_positions(websocket: WebSocket, positions: list[dict]) -> None:
-    """Broadcast the running order."""
-    await websocket.send_json({"type": "positions", "data": positions})
-    manager.touch(websocket)
-
-
-async def _send_session_status(websocket: WebSocket, session: LiveSession, last_known_lap: int) -> int:
-    """Broadcast lap and status, returning the lap number to carry forward.
-
-    The lap counter is sticky: OpenF1 briefly reports 0 between laps, and
-    resetting the client's display to nothing on every gap looks like a fault.
-    """
-    current_lap = await _fetch_current_lap(session.key)
-    lap = current_lap if current_lap > 0 else last_known_lap
-    await websocket.send_json(
-        {
-            "type": "session_status",
-            "data": {
-                "status": "started",
-                "lap": lap if lap > 0 else None,
-                "total_laps": session.total_laps if session.total_laps > 0 else None,
-            },
-        }
-    )
-    manager.touch(websocket)
-    return lap
-
-
-async def _send_commentary(websocket: WebSocket, session: LiveSession, event: dict, state: dict) -> None:
-    """Generate commentary for ``event`` and broadcast it if the LLM produced any."""
-    text = await _generate_commentary(event, session.race_name)
-    if not text:
-        return
-    await websocket.send_json(
-        {
-            "type": "commentary",
-            "data": {
-                "id": str(time.time()),
-                "text": text,
-                "event_type": event["type"],
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
-        }
-    )
-    state["last_time"] = time.time()
-    logger.info("commentary.broadcast", room=session.room, event_type=event["type"])
-
-
-async def _handle_commentary(websocket: WebSocket, session: LiveSession, current: Snapshot) -> None:
-    """Detect an event against the stored snapshot and commentate on it."""
-    state = _room_state(session.room)
-
-    if not state["prev_positions"]:
-        # First snapshot — store and skip detection to avoid false positives.
-        _store_snapshot(state, current)
-        return
-
-    if time.time() - state["last_time"] >= COMMENTARY_COOLDOWN_SECONDS:
-        event = _detect_event(_stored_snapshot(state), current)
-        if event:
-            await _send_commentary(websocket, session, event, state)
-
-    _store_snapshot(state, current)
-
-
-async def _poll_once(websocket: WebSocket, session: LiveSession, last_known_lap: int) -> int:
-    """Run one poll cycle, returning the lap number to carry into the next."""
-    positions = await _poll_openf1_positions(session.key)
-    if not positions:
-        return last_known_lap
-
-    await _send_positions(websocket, positions)
-    lap = await _send_session_status(websocket, session, last_known_lap)
-
-    # Auxiliary feeds for the event types the positions endpoint cannot report.
-    status, stints = await asyncio.gather(
-        _fetch_session_status(session.key),
-        _fetch_stint_counts(session.key),
-    )
-    await _handle_commentary(
-        websocket,
-        session,
-        Snapshot(positions=positions, session_status=status, stints=stints),
-    )
-    return lap
-
-
-async def _await_client_message(websocket: WebSocket) -> None:
-    """Consume a client keepalive if one arrives; silence is normal.
-
-    A real disconnect raises out of ``receive_text`` and propagates to the
-    caller's handler — only the timeout is swallowed.
-    """
-    try:
-        await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
-        manager.touch(websocket)
-    except asyncio.TimeoutError:
-        pass
-
-
 @router.websocket("/live/{year}/{round_num}")
 async def live_timing(websocket: WebSocket, year: int, round_num: int) -> None:
-    """WebSocket endpoint for live race timing data.
+    """Stream live timing for whichever session is running at a race weekend.
 
-    Uses ConnectionManager for heartbeat pings and stale connection cleanup.
+    The socket stays open across the weekend and re-resolves the active session
+    as practice gives way to qualifying and the race. It reports ``standby``
+    honestly between sessions rather than replaying finished classifications.
     """
     room = f"{year}-{round_num}"
     await manager.connect(room, websocket)
-
-    # Start heartbeat as a background task
     heartbeat_task = asyncio.create_task(manager.heartbeat(websocket))
 
     try:
-        session = await _resolve_session(year, round_num, room)
-        last_known_lap = 0
-
-        while True:
-            if manager.is_stale(websocket):
-                logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
-                break
-
-            if session.key:
-                last_known_lap = await _poll_once(websocket, session, last_known_lap)
-
-            await asyncio.sleep(WS_POLL_INTERVAL)
-            await _await_client_message(websocket)
-
+        await _run_live_loop(websocket, room, year, round_num)
     except WebSocketDisconnect:
         logger.info("ws.client_disconnected", year=year, round_num=round_num)
     except Exception:
@@ -224,3 +59,118 @@ async def live_timing(websocket: WebSocket, year: int, round_num: int) -> None:
     finally:
         heartbeat_task.cancel()
         manager.disconnect(room, websocket)
+
+
+async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: int) -> None:
+    """Poll the active session until the client goes away.
+
+    Idles cheaply between sessions: a socket left open across a race weekend
+    must not re-resolve the calendar every few seconds.
+    """
+    active: ActiveSession | None = None
+    next_start: datetime | None = None
+    last_lap: int | None = None
+    resolved_at = 0.0
+
+    while not manager.is_stale(websocket):
+        now = datetime.now(timezone.utc)
+
+        if _needs_resolution(active, now, resolved_at, next_start):
+            previous_key = active.session_key if active else None
+            lookup = await resolve_session_window(year, round_num, now=now)
+            active, next_start = lookup.active, lookup.next_start
+            resolved_at = time.time()
+            if active is None or active.session_key != previous_key:
+                last_lap = None
+                logger.info(
+                    "live.session_resolved",
+                    room=room,
+                    session=active.session_name if active else None,
+                    next_start=str(next_start),
+                )
+
+        snapshot = await poll_timing(active, now=now, last_lap=last_lap) if active else None
+        if snapshot:
+            last_lap = snapshot.lap
+        state = derive_session_state(active.raw if active else None, now, snapshot is not None)
+
+        await _broadcast_state(websocket, _session_status(active, snapshot, state, now), snapshot)
+
+        await asyncio.sleep(WS_POLL_INTERVAL if active else WS_IDLE_POLL_INTERVAL)
+        await _drain_client(websocket)
+
+    logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
+
+
+def _needs_resolution(
+    active: ActiveSession | None,
+    now: datetime,
+    resolved_at: float,
+    next_start: datetime | None = None,
+) -> bool:
+    """Whether the active session must be looked up again.
+
+    While nothing is on track the lookup is rate-limited: it costs a FastF1
+    schedule read plus two OpenF1 calls, and the answer changes at most once
+    per session. The calendar is the exception to that thrift — once it says a
+    session is due, waiting out the interval means reporting an empty track
+    into a running session for up to five minutes.
+    """
+    if active is not None:
+        return now > active.date_end + SESSION_END_GRACE
+    if next_start is not None and now >= next_start:
+        return True
+    return (time.time() - resolved_at) >= SESSION_LOOKUP_INTERVAL
+
+
+def _feed_age(snapshot: TimingSnapshot | None, now: datetime) -> int | None:
+    """Seconds since the newest sample, never negative.
+
+    OpenF1 stamps samples with its own clock, so a few seconds of skew against
+    ours can put the newest sample marginally in the future. "-3s ago" is not
+    a thing the desk should ever print.
+    """
+    if snapshot is None:
+        return None
+    return max(0, int((now - snapshot.sampled_at).total_seconds()))
+
+
+def _session_status(
+    active: ActiveSession | None,
+    snapshot: TimingSnapshot | None,
+    state: str,
+    now: datetime,
+) -> dict:
+    """The status frame for one poll.
+
+    ``feed_age_seconds`` lets the desk say how long the feed has been quiet.
+    A quiet feed is normal — the order simply held — so the tower keeps the
+    rows on screen and reports the age rather than blanking.
+    """
+    return {
+        "status": state,
+        "session_name": active.session_name if active else None,
+        "meeting_name": active.meeting_name if active else None,
+        "starts_at": active.date_start.isoformat() if active else None,
+        "lap": snapshot.lap if snapshot else None,
+        "feed_age_seconds": _feed_age(snapshot, now),
+    }
+
+
+async def _broadcast_state(websocket: WebSocket, status: dict, snapshot: TimingSnapshot | None) -> None:
+    """Send session status, and positions only when there is a live feed."""
+    await websocket.send_json({"type": "session_status", "data": status})
+    manager.touch(websocket)
+
+    if snapshot:
+        await websocket.send_json({"type": "positions", "data": snapshot.rows})
+        manager.touch(websocket)
+
+
+async def _drain_client(websocket: WebSocket) -> None:
+    """Consume any client message so liveness is tracked; silence is fine."""
+    try:
+        await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
+        manager.touch(websocket)
+    except asyncio.TimeoutError:
+        pass

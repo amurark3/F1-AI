@@ -14,15 +14,13 @@ logger = structlog.get_logger()
 
 @tool
 def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> str | None:
-    """
-    Compares the fastest Qualifying lap of two drivers, sector by sector.
+    """Compares two drivers' fastest Qualifying lap, sector by sector.
 
-    Accepts partial name matches so the model can pass 'Max' instead of 'VER'.
-    The lookup searches LastName, BroadcastName, and Abbreviation fields.
-
-    Returns a Markdown table showing total gap and per-sector deltas,
-    with green/red indicators for faster/slower relative to driver2.
+    Driver names may be partial ('Max' works as well as 'VER').
     """
+    # Lookup searches LastName, BroadcastName and Abbreviation. Returns a
+    # Markdown table of total gap and per-sector deltas, with green/red
+    # indicators relative to driver2.
     logger.info("tool.compare_drivers", driver1=driver1, driver2=driver2, grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "Q")
@@ -149,13 +147,10 @@ def get_race_results(year: int, grand_prix: str) -> str:
 
 @tool
 def get_race_anomalies(year: int, round_num: int) -> str:
-    """
-    Surfaces the notable stories from a completed race: biggest position
-    gains/losses vs the grid, one-sided teammate battles, and retirements.
+    """Notable stories from a completed race: biggest position gains/losses
+    vs the grid, one-sided teammate battles, and retirements.
 
-    Use when the user asks what was surprising, notable, or the standout
-    stories of a race — or proactively when discussing a race result, to add
-    colour beyond the raw classification.
+    Use for what was surprising or notable, or to add colour to a result.
     """
     logger.info("tool.race_anomalies", year=year, round_num=round_num)
     try:

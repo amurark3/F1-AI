@@ -1,1 +1,1 @@
-"""Live-timing WebSocket feed: connections, polling, events and commentary."""
+"""Live-timing WebSocket feed: connection tracking and the session loop."""

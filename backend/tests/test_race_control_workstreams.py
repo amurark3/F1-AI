@@ -12,13 +12,25 @@ not live data — so they are asserted as constants.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app.services.race_control import workstreams
 
 
-def _event(status: str = "upcoming", days_until: int | None = None) -> dict:
-    return {"status": status, "days_until": days_until}
+def _event(status: str = "upcoming", days_until: int | None = None, sessions: dict | None = None) -> dict:
+    return {"status": status, "days_until": days_until, "sessions": sessions or {}}
+
+
+def _on_track() -> dict[str, str]:
+    """A race that went green half an hour ago."""
+    return {"Race": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()}
+
+
+def _between_sessions() -> dict[str, str]:
+    """Saturday night: the race is still twelve hours away."""
+    return {"Race": (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat()}
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +43,8 @@ def _event(status: str = "upcoming", days_until: int | None = None) -> dict:
     ("event", "expected"),
     [
         (None, "Season review"),
-        (_event("in_progress"), "Live session control"),
+        (_event("in_progress", sessions=_on_track()), "Live session control"),
+        (_event("in_progress", 0, sessions=_between_sessions()), "Race-week strategy lock"),
         (_event("upcoming", 10), "Race-week strategy lock"),
         (_event("upcoming", 0), "Race-week strategy lock"),
         (_event("upcoming", 11), "Pre-race simulation build"),
@@ -41,6 +54,7 @@ def _event(status: str = "upcoming", days_until: int | None = None) -> dict:
     ids=[
         "no-event",
         "session-running",
+        "weekend-between-sessions",
         "race-week-boundary",
         "race-day",
         "outside-race-week",
@@ -144,7 +158,8 @@ def test_board_exposes_the_four_streams_with_stable_ids_and_priorities():
         "/race-control",
         "/race-control/predictions",
         "/race-control/teams",
-        "/race-control/live",
+        # The standalone live page was folded into the command centre.
+        "/race-control",
     ]
 
 

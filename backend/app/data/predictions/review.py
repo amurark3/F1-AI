@@ -8,6 +8,7 @@ import statistics
 import structlog
 
 from app.data.predictions.history import _load_prediction_history, record_actual_result
+from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
 from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
 
 logger = structlog.get_logger()
@@ -26,10 +27,16 @@ class ReviewLookups:
     risks: dict
 
 
-def _latest_prediction_snapshot(entry: dict) -> dict:
-    snapshots = entry.get("snapshots") or []
-    if snapshots:
-        return snapshots[-1]
+def _snapshots_for_phase(entry: dict, phase: str | None) -> list[dict]:
+    """Stored calls for one phase, oldest first — or all of them when phase is None."""
+    snapshots = [item for item in (entry.get("snapshots") or []) if isinstance(item, dict)]
+    if phase is None:
+        return snapshots
+    return [item for item in snapshots if item.get("prediction_phase") == phase]
+
+
+def _legacy_prediction_snapshot(entry: dict) -> dict:
+    """The flat fields written before snapshots were kept as a list."""
     return {
         "generated_at": entry.get("generated_at"),
         "prediction_phase": entry.get("prediction_phase"),
@@ -37,6 +44,46 @@ def _latest_prediction_snapshot(entry: dict) -> dict:
         "predicted_positions": entry.get("predicted_positions") or {},
         "risk_predictions": entry.get("risk_predictions") or {},
     }
+
+
+def _latest_prediction_snapshot(entry: dict, phase: str | None = None) -> dict:
+    """The most recent stored call, optionally restricted to one phase.
+
+    Asking for a phase that was never computed returns an empty snapshot rather
+    than the other phase's call — scoring a pre-qualifying prediction against a
+    post-qualifying request would silently misreport which model was right.
+    """
+    wanted = normalise_phase(phase)
+    matching = _snapshots_for_phase(entry, wanted)
+    if matching:
+        return matching[-1]
+
+    legacy = _legacy_prediction_snapshot(entry)
+    if wanted is None or legacy.get("prediction_phase") == wanted:
+        return legacy
+    return {"predicted_positions": {}, "risk_predictions": {}}
+
+
+def _accuracy_snapshot(entry: dict) -> dict:
+    """The most informed stored call for a race.
+
+    Rolling accuracy must not drop to a weaker number because the pre-qualifying
+    tab happened to be recomputed last, so the post-qualifying call wins
+    whenever both exist.
+    """
+    post_qualifying = _snapshots_for_phase(entry, PHASE_POST_QUALIFYING)
+    if post_qualifying:
+        return post_qualifying[-1]
+    return _latest_prediction_snapshot(entry)
+
+
+def _missing_prediction_reason(phase: str | None) -> str:
+    """Why a review has nothing to score, naming the phase when one was asked for."""
+    if phase == PHASE_PRE_QUALIFYING:
+        return "No stored pre-qualifying prediction for this race."
+    if phase == PHASE_POST_QUALIFYING:
+        return "No stored post-qualifying prediction for this race."
+    return "Stored prediction has no finishing order."
 
 
 def _position_value(value: object) -> int | None:
@@ -91,21 +138,22 @@ def _build_driver_results(predicted: dict, actual: dict, lookups: ReviewLookups)
     return rows
 
 
-def get_prediction_review(year: int, round_num: int) -> dict:
+def get_prediction_review(year: int, round_num: int, phase: str | None = None) -> dict:
     """Post-race review, loading the actual result first when it is missing.
 
     Use :func:`build_prediction_review` on request paths that must not pay for
     a FastF1 session load.
     """
     record_actual_result(year, round_num)
-    return build_prediction_review(year, round_num)
+    return build_prediction_review(year, round_num, phase=phase)
 
 
-def build_prediction_review(year: int, round_num: int) -> dict:
-    """Compare the latest saved prediction with the recorded race result.
+def build_prediction_review(year: int, round_num: int, phase: str | None = None) -> dict:
+    """Compare a saved prediction with the recorded race result.
 
-    Reads stored history only — never fetches the actual result — so it is safe
-    to call while serving a request.
+    Scores the latest call for ``phase``, or the latest of any phase when none
+    is given. Reads stored history only — never fetches the actual result — so
+    it is safe to call while serving a request.
     """
     key = f"({year},{round_num})"
 
@@ -114,11 +162,12 @@ def build_prediction_review(year: int, round_num: int) -> dict:
     if not entry:
         return {"evaluated": False, "reason": "No stored prediction snapshot for this race."}
 
-    snapshot = _latest_prediction_snapshot(entry)
+    wanted_phase = normalise_phase(phase)
+    snapshot = _latest_prediction_snapshot(entry, wanted_phase)
     predicted = snapshot.get("predicted_positions") or {}
     actual = entry.get("actual_positions") or {}
     if not predicted:
-        return {"evaluated": False, "reason": "Stored prediction has no finishing order."}
+        return {"evaluated": False, "reason": _missing_prediction_reason(wanted_phase)}
     if not actual:
         return {"evaluated": False, "reason": "Actual race result is not available yet."}
 

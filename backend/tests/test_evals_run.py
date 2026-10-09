@@ -41,18 +41,43 @@ class _Tool:
         return self.result
 
 
-def _scripted_agent(monkeypatch, responses: list[_Response]) -> list[list]:
-    """Replay ``responses`` turn by turn, recording the message list each time."""
-    seen: list[list] = []
-    queue = list(responses)
+TOOLS = frozenset({"f1db_query"})
 
-    async def fake_invoke(messages):
-        seen.append(list(messages))
-        return queue.pop(0)
 
-    monkeypatch.setattr(run, "_ainvoke_with_recovery", fake_invoke)
+class _Agent:
+    """Replays responses turn by turn, recording what each turn was sent.
+
+    ``turns`` names which entry point served each response — the tool-offering
+    loop or the no-tools final turn — and ``tool_sets`` what it was offered.
+    """
+
+    def __init__(self, responses: list[_Response]) -> None:
+        self.seen: list[list] = []
+        self.turns: list[str] = []
+        self.tool_sets: list[frozenset[str]] = []
+        self._queue = list(responses)
+
+    def _serve(self, kind: str, messages, tool_names):
+        self.seen.append(list(messages))
+        self.turns.append(kind)
+        self.tool_sets.append(tool_names)
+        return self._queue.pop(0)
+
+    async def invoke(self, messages, tool_names):
+        return self._serve("loop", messages, tool_names)
+
+    async def final(self, messages, tool_names):
+        return self._serve("final", messages, tool_names)
+
+
+def _scripted_agent(monkeypatch, responses: list[_Response]) -> _Agent:
+    """Drive the run with a scripted model and a fixed tool selection."""
+    agent = _Agent(responses)
+    monkeypatch.setattr(run, "_ainvoke_with_recovery", agent.invoke)
+    monkeypatch.setattr(run, "_ainvoke_final", agent.final)
+    monkeypatch.setattr(run, "select_tools", lambda question: TOOLS)
     monkeypatch.setattr(run, "build_system_prompt", lambda today: f"SYSTEM {today}")
-    return seen
+    return agent
 
 
 def _tool_call(name: str, args: dict | None = None, call_id: str = "call-1") -> dict:
@@ -61,19 +86,20 @@ def _tool_call(name: str, args: dict | None = None, call_id: str = "call-1") -> 
 
 @pytest.mark.unit
 async def test_a_direct_answer_short_circuits_the_tool_loop(monkeypatch):
-    seen = _scripted_agent(monkeypatch, [_Response("Max Verstappen")])
+    agent = _scripted_agent(monkeypatch, [_Response("Max Verstappen")])
 
     answer = await run._run_agent("Who won 2021?", today="July 20, 2026")
 
     assert answer == "Max Verstappen"
-    assert [m.content for m in seen[0]] == ["SYSTEM July 20, 2026", "Who won 2021?"]
+    assert [m.content for m in agent.seen[0]] == ["SYSTEM July 20, 2026", "Who won 2021?"]
+    assert agent.tool_sets == [TOOLS], "the eval offers the same routed subset the chat does"
 
 
 @pytest.mark.unit
 async def test_tool_results_are_fed_back_before_the_next_turn(monkeypatch):
     tool = _Tool("Senna, 6 wins")
     monkeypatch.setattr(run, "TOOL_MAP", {"f1db_query": tool})
-    seen = _scripted_agent(
+    agent = _scripted_agent(
         monkeypatch,
         [_Response(tool_calls=[_tool_call("f1db_query", {"sql": "SELECT 1"})]), _Response("Ayrton Senna")],
     )
@@ -82,26 +108,26 @@ async def test_tool_results_are_fed_back_before_the_next_turn(monkeypatch):
 
     assert answer == "Ayrton Senna"
     assert tool.calls == [{"sql": "SELECT 1"}]
-    assert seen[1][-1].content == "Senna, 6 wins"
+    assert agent.seen[1][-1].content == "Senna, 6 wins"
 
 
 @pytest.mark.unit
 async def test_an_unknown_tool_is_skipped_rather_than_crashing_the_run(monkeypatch):
     monkeypatch.setattr(run, "TOOL_MAP", {})
-    seen = _scripted_agent(monkeypatch, [_Response(tool_calls=[_tool_call("hallucinated_tool")]), _Response("final")])
+    agent = _scripted_agent(monkeypatch, [_Response(tool_calls=[_tool_call("hallucinated_tool")]), _Response("final")])
 
     assert await run._run_agent("q") == "final"
     # No ToolMessage was appended for a tool that does not exist.
-    assert len(seen[1]) == 3
+    assert len(agent.seen[1]) == 3
 
 
 @pytest.mark.unit
 async def test_a_failing_tool_is_reported_back_to_the_model_as_text(monkeypatch):
     monkeypatch.setattr(run, "TOOL_MAP", {"broken": _Tool(error=RuntimeError("sqlite is locked"))})
-    seen = _scripted_agent(monkeypatch, [_Response(tool_calls=[_tool_call("broken")]), _Response("recovered")])
+    agent = _scripted_agent(monkeypatch, [_Response(tool_calls=[_tool_call("broken")]), _Response("recovered")])
 
     assert await run._run_agent("q") == "recovered"
-    assert seen[1][-1].content == "Tool error: sqlite is locked"
+    assert agent.seen[1][-1].content == "Tool error: sqlite is locked"
 
 
 @pytest.mark.unit
@@ -109,10 +135,12 @@ async def test_the_tool_loop_is_bounded_by_max_agent_turns(monkeypatch):
     monkeypatch.setattr(run, "MAX_AGENT_TURNS", 2)
     monkeypatch.setattr(run, "TOOL_MAP", {"looping": _Tool()})
     looping = _Response("still looping", tool_calls=[_tool_call("looping")])
-    _scripted_agent(monkeypatch, [looping, looping, looping])
+    agent = _scripted_agent(monkeypatch, [looping, looping, _Response("answer from what it has")])
 
-    # A model that never stops calling tools must terminate, not hang the gate.
-    assert await run._run_agent("q") == "still looping"
+    # A model that never stops calling tools must terminate, not hang the gate,
+    # and the last turn is the same no-tools final turn the chat router forces.
+    assert await run._run_agent("q") == "answer from what it has"
+    assert agent.turns == ["loop", "loop", "final"]
 
 
 def _golden(qa_id: str = "wdc-2021") -> GoldenQA:

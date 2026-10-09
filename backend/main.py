@@ -4,9 +4,12 @@ F1 AI Backend — Entry Point
 Boots the FastAPI application, configures CORS, and mounts the API router.
 
 Environment variables (place in a .env file in this directory — see .env.example):
-  GROQ_API_KEY    — Groq API key (Llama 3.3 70B). REQUIRED — the LLM engine.
+  GROQ_API_KEY    — Groq API key. REQUIRED — authenticates the LLM engine.
   TAVILY_API_KEY  — Tavily web-search API key (optional).
   DATABASE_URL    — Postgres + pgvector for memory/durable store (optional).
+
+The Groq model itself is not an environment variable: it is defined in code as
+GROQ_MODEL_NAME in app/config.py.
 """
 
 from dotenv import load_dotenv
@@ -28,11 +31,13 @@ import structlog
 
 from app.api import race_detail, routes
 from app.config import (
+    F1DB_REFRESH_INTERVAL_SECONDS,
     PREFETCH_INTER_RACE_DELAY,
     PREFETCH_INTERVAL,
     PREFETCH_RACE_TIMEOUT_SECONDS,
     PREFETCH_STARTUP_DELAY,
 )
+from app.data.f1db_source import sync_to_latest
 from app.logging_config import setup_logging
 from app.services.readiness import run_warmup
 
@@ -122,11 +127,33 @@ async def _prefetch_race_details() -> None:
         await asyncio.sleep(PREFETCH_INTERVAL)
 
 
+async def _refresh_f1db_dataset() -> None:
+    """Background loop: keep the local f1db dataset on the newest release.
+
+    The boot-time check in the warm-up covers every cold start. This loop exists
+    for the container that *doesn't* cold start: the keep-warm ping can hold this
+    process up for days, and f1db publishes the round that just happened a day or
+    two after the race. Without a periodic check, a long-lived instance would
+    keep serving the dataset it happened to download on boot — which is how the
+    standings page spent four weeks a race behind.
+
+    Sleeps first: warm-up has just synced, so there is nothing to do yet.
+    """
+    while True:
+        await asyncio.sleep(F1DB_REFRESH_INTERVAL_SECONDS)
+        try:
+            outcome = await asyncio.to_thread(sync_to_latest)
+            if outcome.updated:
+                logger.info("f1db.refresh_loop.updated", version=outcome.version)
+        except Exception as e:
+            logger.exception("f1db.refresh_loop_error", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan: starts background tasks on boot, cancels on shutdown.
 
-    Two tasks run concurrently with request serving:
+    Three tasks run concurrently with request serving:
 
     * ``run_warmup`` pays the deferred import/model/database costs immediately, so
       the first visitor after a cold start is not the one who pays them. Progress
@@ -134,12 +161,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     * ``_prefetch_race_details`` backfills completed-race detail on a long loop.
       It waits ``PREFETCH_STARTUP_DELAY`` first, so warm-up gets the machine to
       itself rather than competing with it for the free tier's single worker.
+    * ``_refresh_f1db_dataset`` keeps the historical dataset current on a slow
+      loop, so freshness does not depend on the process restarting.
     """
     setup_logging()
     logger.info("server.starting")
     tasks = [
         asyncio.create_task(run_warmup()),
         asyncio.create_task(_prefetch_race_details()),
+        asyncio.create_task(_refresh_f1db_dataset()),
     ]
     yield
     for task in tasks:

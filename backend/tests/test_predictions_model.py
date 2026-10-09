@@ -228,6 +228,12 @@ def test_a_failing_explainer_costs_the_reasoning_not_the_prediction(trained_mode
 # ---------------------------------------------------------------------------
 
 
+# The race being predicted: after every race stored below, so all of them count.
+# Which races a recomputed past race may learn from is covered in
+# test_point_in_time_inputs.py.
+PREDICTING = (2026, 24)
+
+
 @pytest.fixture
 def stored_history(monkeypatch):
     """Serve prediction history to the adaptive learner without a store."""
@@ -238,7 +244,7 @@ def stored_history(monkeypatch):
 
 @pytest.mark.unit
 def test_no_history_means_no_corrections(stored_history):
-    assert _adaptive_position_corrections() == {}
+    assert _adaptive_position_corrections(*PREDICTING) == {}
 
 
 @pytest.mark.unit
@@ -248,7 +254,7 @@ def test_a_driver_who_keeps_finishing_worse_than_predicted_is_downgraded(stored_
         "actual_positions": {"VER": 4, "NOR": 3},
     }
 
-    corrections = _adaptive_position_corrections()
+    corrections = _adaptive_position_corrections(*PREDICTING)
 
     # Positive means "the model was too optimistic"; VER finished 3 places worse
     # than called, NOR 2 places better.
@@ -266,7 +272,7 @@ def test_a_legacy_entry_without_snapshots_still_teaches_a_correction(stored_hist
         "actual_positions": {"LEC": 6},
     }
 
-    assert _adaptive_position_corrections()["LEC"]["correction"] == 4.0
+    assert _adaptive_position_corrections(*PREDICTING)["LEC"]["correction"] == 4.0
 
 
 @pytest.mark.unit
@@ -276,7 +282,7 @@ def test_a_race_with_no_recorded_result_teaches_nothing(stored_history):
         "actual_positions": {},
     }
 
-    assert _adaptive_position_corrections() == {}
+    assert _adaptive_position_corrections(*PREDICTING) == {}
 
 
 @pytest.mark.unit
@@ -286,7 +292,7 @@ def test_a_driver_absent_from_the_result_is_skipped_rather_than_scored_as_zero(s
         "actual_positions": {"VER": 1},
     }
 
-    corrections = _adaptive_position_corrections()
+    corrections = _adaptive_position_corrections(*PREDICTING)
 
     assert "HUL" not in corrections
     assert corrections["VER"]["correction"] == 0.0
@@ -299,7 +305,7 @@ def test_an_unparsable_stored_position_is_skipped_rather_than_raising(stored_his
         "actual_positions": {"VER": 1, "NOR": 4},
     }
 
-    corrections = _adaptive_position_corrections()
+    corrections = _adaptive_position_corrections(*PREDICTING)
 
     assert "VER" not in corrections
     assert corrections["NOR"]["correction"] == 2.0
@@ -315,7 +321,7 @@ def test_a_single_catastrophic_miss_is_clamped(stored_history, predicted, actual
         "actual_positions": {"VER": actual},
     }
 
-    assert _adaptive_position_corrections()["VER"]["correction"] == expected
+    assert _adaptive_position_corrections(*PREDICTING)["VER"]["correction"] == expected
 
 
 @pytest.mark.unit
@@ -328,7 +334,7 @@ def test_only_the_last_six_races_of_evidence_are_averaged(stored_history):
             "actual_positions": {"VER": 1 + miss},
         }
 
-    correction = _adaptive_position_corrections()["VER"]
+    correction = _adaptive_position_corrections(*PREDICTING)["VER"]
 
     assert correction["samples"] == 6
     assert correction["correction"] == 0.0
@@ -346,4 +352,4 @@ def test_the_latest_snapshot_is_the_one_scored(stored_history):
         "actual_positions": {"VER": 5},
     }
 
-    assert _adaptive_position_corrections()["VER"]["correction"] == 3.0
+    assert _adaptive_position_corrections(*PREDICTING)["VER"]["correction"] == 3.0

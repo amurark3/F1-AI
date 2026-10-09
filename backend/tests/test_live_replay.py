@@ -1,0 +1,218 @@
+"""End-to-end replay of a real session through the live WebSocket loop.
+
+No live race required: recorded OpenF1 frames from the 2026 Belgian Grand Prix
+(`tests/fixtures/openf1_session_replay.json`) are replayed with their
+timestamps rewritten to now, so the whole stack runs — freshness guard and
+position builder — against real data shapes.
+
+This is the harness to reach for whenever a live session is not available.
+"""
+
+import asyncio
+from datetime import datetime, timedelta, timezone
+import json
+import pathlib
+
+from fastapi import WebSocketDisconnect
+import pytest
+
+from app.api.live import websocket as live_ws
+from app.services import live_timing_client as client
+from app.services.live_timing_client import ActiveSession, SessionLookup
+
+pytestmark = pytest.mark.unit
+
+FIXTURE = json.loads((pathlib.Path(__file__).parent / "fixtures" / "openf1_session_replay.json").read_text())
+
+
+class FakeWebSocket:
+    """Records what the loop sends and disconnects once the test has enough."""
+
+    def __init__(self, stop_after_polls: int):
+        self.sent: list[dict] = []
+        self.stop_after_polls = stop_after_polls
+
+    async def send_json(self, payload: dict) -> None:
+        self.sent.append(payload)
+
+    async def receive_text(self) -> str:
+        if self.status_count >= self.stop_after_polls:
+            raise WebSocketDisconnect(code=1000)
+        return ""
+
+    @property
+    def status_count(self) -> int:
+        return len(self.of_type("session_status"))
+
+    def of_type(self, kind: str) -> list[dict]:
+        return [m["data"] for m in self.sent if m["type"] == kind]
+
+
+class Replay:
+    """Serves recorded frames in order, restamped so they read as live."""
+
+    def __init__(self, frames: list[list[dict]], now: datetime):
+        self.frames = frames
+        self.now = now
+        self.index = 0
+
+    def current(self) -> list[dict]:
+        frame = self.frames[min(self.index, len(self.frames) - 1)]
+        self.index += 1
+        return [{**row, "date": self.now.isoformat()} for row in frame]
+
+
+def _session(now: datetime) -> ActiveSession:
+    return ActiveSession(
+        session_key="11334",
+        session_name="Race",
+        session_type="Race",
+        meeting_name="Belgian Grand Prix",
+        date_start=now - timedelta(minutes=30),
+        date_end=now + timedelta(hours=1),
+    )
+
+
+@pytest.fixture
+def replay_stack(monkeypatch):
+    """Wire the loop to recorded data and a fake socket."""
+    now = datetime.now(timezone.utc)
+    replay = Replay(FIXTURE["frames"], now)
+
+    async def fake_get_json(_client, path, _params):
+        # Branch rather than build a dict: only a position fetch may advance
+        # the replay, or the interval and driver lookups skip frames too.
+        if path == "position":
+            return replay.current()
+        if path == "intervals":
+            return FIXTURE["intervals"]
+        if path == "drivers":
+            return FIXTURE["drivers"]
+        if path == "laps":
+            return [{"lap_number": 14}]
+        return None
+
+    monkeypatch.setattr(client, "_get_json", fake_get_json)
+    client._driver_cache.clear()
+
+    async def fake_resolve(_year, _round, now=None):
+        return SessionLookup(active=_session(now or datetime.now(timezone.utc)), next_start=None)
+
+    monkeypatch.setattr(live_ws, "resolve_session_window", fake_resolve)
+    monkeypatch.setattr(live_ws, "WS_POLL_INTERVAL", 0)
+
+    return replay
+
+
+def _drive(ws: FakeWebSocket) -> None:
+    """Run the real loop until the fake client disconnects."""
+    live_ws.manager.touch(ws)
+    with pytest.raises(WebSocketDisconnect):
+        asyncio.run(live_ws._run_live_loop(ws, "2026-10", 2026, 10))
+
+
+def test_replay_reports_the_session_as_live(replay_stack):
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    status = ws.of_type("session_status")[0]
+    assert status["status"] == "live"
+    assert status["session_name"] == "Race"
+    assert status["meeting_name"] == "Belgian Grand Prix"
+    assert status["lap"] == 14
+
+
+def test_replay_streams_the_timing_tower(replay_stack):
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    rows = ws.of_type("positions")[0]
+    assert [r["position"] for r in rows] == [1, 2, 3, 4, 5, 6, 13]
+    assert rows[0]["driver"] == "ANT"
+    assert rows[0]["driver_number"] == 12
+    assert rows[0]["gap"] == "LEADER"
+
+
+def test_replay_follows_a_real_overtake(replay_stack):
+    """Frame two is a genuine swap for the lead at Spa: ANT loses P1 to VER."""
+    ws = FakeWebSocket(stop_after_polls=2)
+
+    _drive(ws)
+
+    before, after = ws.of_type("positions")
+    assert [r["driver"] for r in before[:2]] == ["ANT", "VER"]
+    assert [r["driver"] for r in after[:2]] == ["VER", "ANT"]
+
+
+def test_replay_goes_to_standby_for_a_previous_sessions_feed(monkeypatch, replay_stack):
+    """The same recorded frames at their original 19 July timestamps.
+
+    OpenF1 serves them forever, so the guard is that they predate the session
+    now on track — not that they are old in wall-clock terms.
+    """
+
+    async def stale_get_json(_client, path, _params):
+        if path == "position":
+            return FIXTURE["frames"][0]
+        if path == "intervals":
+            return FIXTURE["intervals"]
+        if path == "drivers":
+            return FIXTURE["drivers"]
+        return []
+
+    monkeypatch.setattr(client, "_get_json", stale_get_json)
+    client._driver_cache.clear()
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    assert ws.of_type("session_status")[0]["status"] == "standby"
+    assert ws.of_type("positions") == [], "a finished session was replayed as live"
+
+
+def test_replay_stays_live_through_a_quiet_feed(monkeypatch, replay_stack):
+    """Spain 2026: the position feed went 58 minutes without a new sample.
+
+    Nothing had changed on track, so the last frame is still the running order
+    and the tower must keep showing it. Judged on sample age instead, the desk
+    reported "Control Room Idle" for 39% of the Grand Prix.
+    """
+    quiet = datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    async def quiet_get_json(_client, path, _params):
+        if path == "position":
+            return [{**row, "date": quiet.isoformat()} for row in FIXTURE["frames"][0]]
+        if path == "intervals":
+            return FIXTURE["intervals"]
+        if path == "drivers":
+            return FIXTURE["drivers"]
+        return []
+
+    monkeypatch.setattr(client, "_get_json", quiet_get_json)
+    client._driver_cache.clear()
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    status = ws.of_type("session_status")[0]
+    assert status["status"] == "live"
+    assert status["feed_age_seconds"] >= 20 * 60
+    assert len(ws.of_type("positions")[0]) == 7
+
+
+def test_replay_reports_standby_when_no_session_is_running(monkeypatch, replay_stack):
+    async def no_session(_year, _round, now=None):
+        return SessionLookup(active=None, next_start=None)
+
+    monkeypatch.setattr(live_ws, "resolve_session_window", no_session)
+    monkeypatch.setattr(live_ws, "WS_IDLE_POLL_INTERVAL", 0)
+    ws = FakeWebSocket(stop_after_polls=1)
+
+    _drive(ws)
+
+    status = ws.of_type("session_status")[0]
+    assert status["status"] == "standby"
+    assert status["session_name"] is None
+    assert ws.of_type("positions") == []

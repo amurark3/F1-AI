@@ -8,22 +8,81 @@ from fastapi import APIRouter
 from app.api.errors import client_error
 from app.api.schemas.race_control import RulebookSearchRequest
 from app.services import rulebook
-from app.services.race_control import build_overview
+from app.services.race_control import (
+    build_overview,
+    build_overview_predictions,
+    build_overview_shell,
+    build_overview_strategy,
+    build_overview_weather,
+)
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
 from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
+from app.services.race_grid import build_starting_grid
+from app.services.race_strategy_board import build_race_strategy
+from app.services.weekend_sessions import build_weekend_sessions
 
 router = APIRouter(prefix="/race-control", tags=["race-control"])
 
 
 @router.get("/overview/{year}")
 async def get_overview(year: int) -> dict:
+    """Every segment in one response — slowest input decides the latency."""
     try:
         return await asyncio.to_thread(build_overview, year)
     except Exception as exc:
         return {"year": year, **client_error("api.race_control_overview.error", exc, year=year)}
+
+
+# The command centre fetches these four in parallel and renders each as it
+# lands, so a cold telemetry load no longer holds the whole page hostage.
+
+
+@router.get("/overview/{year}/shell")
+async def get_overview_shell(year: int) -> dict:
+    """Schedule, standings, and session state. Answers without telemetry."""
+    try:
+        return await asyncio.to_thread(build_overview_shell, year)
+    except Exception as exc:
+        return {"year": year, **client_error("api.race_control_overview_shell.error", exc, year=year)}
+
+
+@router.get("/overview/{year}/weather")
+async def get_overview_weather(year: int) -> dict:
+    try:
+        return await asyncio.to_thread(build_overview_weather, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "risk_register": [],
+            **client_error("api.race_control_overview_weather.error", exc, year=year),
+        }
+
+
+@router.get("/overview/{year}/predictions")
+async def get_overview_predictions(year: int) -> dict:
+    try:
+        return await asyncio.to_thread(build_overview_predictions, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "predicted_podium": [],
+            **client_error("api.race_control_overview_predictions.error", exc, year=year),
+        }
+
+
+@router.get("/overview/{year}/strategy")
+async def get_overview_strategy(year: int) -> dict:
+    try:
+        return await asyncio.to_thread(build_overview_strategy, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "workstreams": [],
+            **client_error("api.race_control_overview_strategy.error", exc, year=year),
+        }
 
 
 @router.get("/teams/{year}")
@@ -54,6 +113,57 @@ async def get_drivers(year: int) -> dict:
         return await asyncio.to_thread(get_driver_options, year)
     except Exception as exc:
         return {"year": year, "drivers": [], **client_error("api.race_control_drivers.error", exc, year=year)}
+
+
+@router.get("/grid/{year}/{round_num}")
+async def get_starting_grid(year: int, round_num: int) -> dict:
+    """The round's starting grid and any grid penalties applied to it."""
+    try:
+        return await asyncio.to_thread(build_starting_grid, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "provisional": False,
+            "grid": [],
+            "penalties": [],
+            **client_error("api.race_control_grid.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/sessions/{year}/{round_num}")
+async def get_weekend_sessions(year: int, round_num: int) -> dict:
+    """Every session the weekend ran — practice, and the sprint set if any."""
+    try:
+        return await asyncio.to_thread(build_weekend_sessions, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "is_sprint": False,
+            "sessions": [],
+            **client_error("api.race_control_sessions.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/stints/{year}/{round_num}")
+async def get_race_strategy(year: int, round_num: int) -> dict:
+    """Tyre stints and pit stops for the race."""
+    try:
+        return await asyncio.to_thread(build_race_strategy, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "available": False,
+            "has_stints": False,
+            "has_stops": False,
+            "drivers": [],
+            "stops": [],
+            **client_error("api.race_control_stints.error", exc, year=year, round=round_num),
+        }
 
 
 @router.get("/forecast/{year}")

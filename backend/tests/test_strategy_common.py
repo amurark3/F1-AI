@@ -108,12 +108,13 @@ def reset_strategy_caches() -> None:
     """Empty every module-global strategy cache.
 
     None of them is ever evicted in production, so a race loaded by one test
-    would otherwise be served to the next one from memory.
+    would otherwise be served to the next one from memory. The circuit
+    reference cache is durable rather than module-global; tests that reach it
+    substitute their own (see ``test_strategy_reference.py``).
     """
     session._race_data_cache.clear()
     history._historical_cache.clear()
     history._safety_car_cache.clear()
-    reference._circuit_reference_cache.clear()
 
 
 @pytest.fixture(autouse=True)

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+import threading
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -505,23 +506,46 @@ def test_an_empty_sprint_classification_is_reported_as_none(monkeypatch):
     assert build_race_detail(2026, 1)["sprint_results"] is None
 
 
+def _held_elsewhere(lock) -> bool:
+    """Whether a *different* thread would be kept out of ``lock`` right now.
+
+    The shared FastF1 lock is reentrant, so probing from the holding thread
+    always succeeds; only another thread can observe that it is held.
+    """
+    outcome: list[bool] = []
+
+    def probe():
+        acquired = lock.acquire(blocking=False)
+        if acquired:
+            lock.release()
+        outcome.append(not acquired)
+
+    thread = threading.Thread(target=probe)
+    thread.start()
+    thread.join(timeout=5)
+    return outcome[0]
+
+
 @pytest.mark.unit
 def test_the_session_loader_serialises_fastf1_work(monkeypatch):
     """FastF1 is not thread-safe for concurrent session loads."""
     loaded: list[tuple] = []
+    held_during_load: list[bool] = []
 
     class _FakeSession:
         results = "results-frame"
 
         def load(self, **kwargs):
             loaded.append(kwargs)
+            held_during_load.append(_held_elsewhere(rd._fastf1_lock))
 
     monkeypatch.setattr(rd.fastf1, "get_session", lambda *args: _FakeSession())
 
     assert rd._load_session_results(2026, 1, "R") == "results-frame"
     # Telemetry is the expensive part and is never needed for a classification.
     assert loaded == [{"telemetry": False, "laps": False, "weather": False}]
-    assert not rd._fastf1_lock.locked(), "the lock must be released after the load"
+    assert held_during_load == [True], "the load must run under the shared lock"
+    assert not _held_elsewhere(rd._fastf1_lock), "the lock must be released after the load"
 
 
 # ---------------------------------------------------------------------------

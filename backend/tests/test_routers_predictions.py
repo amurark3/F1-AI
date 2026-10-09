@@ -152,7 +152,7 @@ def test_a_compute_failure_returns_a_client_safe_error(client, monkeypatch):
 
 @pytest.mark.unit
 def test_snapshot_returns_the_stored_prediction(client, monkeypatch, no_review_refresh):
-    monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r: SNAPSHOT)
+    monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r, phase=None: SNAPSHOT)
 
     assert client.get("/predictions/2026/1/snapshot").json()["predictions"]
 
@@ -160,7 +160,7 @@ def test_snapshot_returns_the_stored_prediction(client, monkeypatch, no_review_r
 @pytest.mark.unit
 def test_snapshot_never_computes_on_a_miss(client, monkeypatch):
     """The whole contract of this route: no model work, ever."""
-    monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r: None)
+    monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r, phase=None: None)
     monkeypatch.setattr(
         predictions_router,
         "get_or_compute_race_prediction",
@@ -183,7 +183,7 @@ def test_snapshot_never_computes_on_a_miss(client, monkeypatch):
 def test_compute_forwards_an_allowed_reason(client, monkeypatch, reason):
     seen: list[str] = []
 
-    def compute(year, round_num, reason):
+    def compute(year, round_num, reason, phase=None):
         seen.append(reason)
         return {"year": year, "round": round_num}
 
@@ -199,7 +199,7 @@ def test_compute_clamps_an_unknown_reason(client, monkeypatch):
     """`reason` is stored as provenance, so arbitrary query text must not reach it."""
     seen: list[str] = []
 
-    def compute(year, round_num, reason):
+    def compute(year, round_num, reason, phase=None):
         seen.append(reason)
         return {}
 
@@ -216,7 +216,7 @@ def test_compute_defaults_to_manual(client, monkeypatch):
     monkeypatch.setattr(
         predictions_router,
         "compute_and_store_race_prediction",
-        lambda year, round_num, reason: seen.append(reason) or {},
+        lambda year, round_num, reason, phase=None: seen.append(reason) or {},
     )
 
     client.post("/predictions/2026/1/compute")
@@ -296,7 +296,7 @@ def test_postmortem_explains_why_it_is_unavailable(client, monkeypatch):
 
 @pytest.mark.unit
 async def test_review_refresh_scores_an_unevaluated_snapshot(monkeypatch):
-    monkeypatch.setattr(predictions_router, "get_prediction_review", lambda y, r: {"evaluated": True, "hits": 3})
+    monkeypatch.setattr(predictions_router, "get_prediction_review", lambda y, r, phase: {"evaluated": True, "hits": 3})
 
     result = await predictions_router._with_scored_review(dict(SNAPSHOT))
 
@@ -350,7 +350,7 @@ async def test_review_refresh_gives_up_after_its_short_budget(monkeypatch):
     """The page must stay fast; a slow load finishes in the background instead."""
     monkeypatch.setattr(predictions_router, "REVIEW_REFRESH_TIMEOUT_SECONDS", 0.01)
 
-    def slow(_year, _round):
+    def slow(_year, _round, _phase):
         import time
 
         time.sleep(0.3)
@@ -365,7 +365,7 @@ async def test_review_refresh_gives_up_after_its_short_budget(monkeypatch):
 
 @pytest.mark.unit
 async def test_review_refresh_swallows_a_scoring_failure(monkeypatch):
-    def explode(_year, _round):
+    def explode(_year, _round, _phase):
         raise RuntimeError("FastF1 session unavailable")
 
     monkeypatch.setattr(predictions_router, "get_prediction_review", explode)

@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import pytest
 
+from app.data.f1db_source import SyncOutcome
 from app.ml import promote as promote_module
 from app.ml.features import FEATURES, TARGET
 
@@ -65,7 +66,7 @@ class _Harness:
     """Records what the gate did to each mocked boundary."""
 
     def __init__(self) -> None:
-        self.refreshed_urls: list[str] = []
+        self.syncs: list[dict] = []
         self.trained_on: list[pd.DataFrame] = []
         self.backtest_calls: list[dict] = []
 
@@ -82,13 +83,11 @@ def _install(
     """Stub every boundary the gate reaches and point GITHUB_OUTPUT at a file."""
     harness = _Harness()
 
-    monkeypatch.setattr(module, "latest_release_version", lambda: "2026.11.0")
-    monkeypatch.setattr(module, "sqlite_url_for", lambda version: f"https://f1db.test/{version}.db")
+    def _sync(**kwargs) -> SyncOutcome:
+        harness.syncs.append(kwargs)
+        return SyncOutcome(version="v2026.11.0", updated=True, reason="downloaded", latest="v2026.11.0")
 
-    def _refresh(url: str) -> None:
-        harness.refreshed_urls.append(url)
-
-    monkeypatch.setattr(module, "refresh_f1db", _refresh)
+    monkeypatch.setattr(module, "sync_to_latest", _sync)
     monkeypatch.setattr(module, "collect_data", lambda: dataset)
 
     def _backtest(df, build_model, holdout_seasons):
@@ -162,12 +161,15 @@ def test_writing_an_output_outside_github_actions_is_a_silent_no_op(monkeypatch)
 @pytest.mark.unit
 def test_the_gate_refreshes_f1db_to_the_latest_release_first(tmp_path, monkeypatch, capsys):
     # Gating a challenger against a stale dataset would score it on races it was
-    # already trained on.
-    harness, _ = _install(monkeypatch, tmp_path, dataset=_dataset([2023, 2024, 2025, 2026]))
+    # already trained on. The refresh goes through the shared sync, forced, so
+    # the runner and production agree on what "latest" means.
+    harness, output = _install(monkeypatch, tmp_path, dataset=_dataset([2023, 2024, 2025, 2026]))
 
     promote_module.main()
 
-    assert harness.refreshed_urls == ["https://f1db.test/2026.11.0.db"]
+    assert harness.syncs == [{"force": True}]
+    assert "f1db dataset at v2026.11.0 — downloaded" in capsys.readouterr().out
+    assert _outputs(output)["f1db_version"] == "v2026.11.0"
 
 
 @pytest.mark.unit
@@ -254,7 +256,7 @@ def test_a_challenger_that_beats_the_baseline_is_promoted(tmp_path, monkeypatch,
     promote_module.main()
 
     assert len(harness.trained_on) == 1, "a promoted challenger was never refit"
-    assert _outputs(output) == {"promoted": "true", "f1db_version": "2026.11.0"}
+    assert _outputs(output) == {"promoted": "true", "f1db_version": "v2026.11.0"}
 
 
 @pytest.mark.unit

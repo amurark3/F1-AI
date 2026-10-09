@@ -17,20 +17,16 @@ logger = structlog.get_logger()
 
 @tool
 def consult_rulebook(query: str, year: int | None = None) -> str:
-    """
-    Searches the official FIA regulations (Sporting, Technical, Financial)
-    for text relevant to `query`.
-
-    The regulations are stored as vector embeddings in Postgres (pgvector),
-    populated by running `python -m app.rag.ingest`.
+    """Searches the official FIA regulations (Sporting, Technical, Financial).
 
     Args:
-        query: A natural-language question, e.g. "What is the penalty for
-               exceeding the pit-lane speed limit?"
-        year:  The season year to restrict results to (e.g. 2025).
-               Defaults intelligently to the current season; switches to the
-               next year's regulations in late December when available.
+        query: A natural-language question, e.g. "penalty for exceeding the
+            pit-lane speed limit?"
+        year: Season to restrict to, e.g. 2025. Defaults to the current season.
     """
+    # Regulations live as vector embeddings in Postgres (pgvector), populated by
+    # `python -m app.rag.ingest`. The year default switches to next season's
+    # regulations in late December once they are available.
     # --- Year resolution logic ---
     if year is None:
         now = datetime.now(timezone.utc)

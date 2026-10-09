@@ -12,7 +12,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
                                    │
                  ┌─────────────────┼──────────────────────────┐
                  ▼                 ▼                          ▼
-          Groq (Llama 3.3)   Supabase Postgres          FastF1 + f1db
+          Groq (GPT-OSS)     Supabase Postgres          FastF1 + f1db
           LLM + tools        + pgvector                 (F1 data; f1db.db
                              • prediction cache/history  downloaded on boot)
                              • conversation memory
@@ -20,7 +20,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
 ```
 
 - **Backend:** Python 3.10 / FastAPI, deployed on **Render** (`backend/` root).
-- **LLM:** **Groq** (Llama 3.3 70B). Built lazily on first chat request.
+- **LLM:** **Groq** (GPT-OSS 120B). Built lazily on first chat request.
 - **Data store:** **Supabase Postgres** (with the `vector`/pgvector extension) holds
   the durable prediction cache + accuracy history, conversation memory, and the
   FIA rulebook embeddings. Falls back to local JSON when `DATABASE_URL` is unset.
@@ -31,19 +31,20 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
 
 ## 2. Environment variables
 
-Set these in **Render → the service → Environment** (all `sync: false` in
-`render.yaml`, so their values live in the dashboard and survive Blueprint syncs).
+Set these in **Render → the service → Environment**. That dashboard is the only
+place they exist — `render.yaml` is not applied to this service (§4), so adding a
+variable there does nothing on its own.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | **Yes** | LLM engine (get a free key at console.groq.com) |
+| `GROQ_API_KEY` | **Yes** | Authenticates the LLM engine (get a free key at console.groq.com) |
 | `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
 | `TAVILY_API_KEY` | No | Web-search tool |
 | `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
 | `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
-| `ENABLE_LOCAL_MODELS` | Set in yaml | `false` on the free tier — see below |
-| `PYTHON_VERSION` | Set in yaml | Pinned to `3.10.12` |
+| `ENABLE_LOCAL_MODELS` | **Yes** | Must be `false` on the free tier — see below |
+| `PYTHON_VERSION` | **Yes** | Pinned to `3.10.12` |
 
 ### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
 
@@ -67,6 +68,12 @@ With the flag off (the default), nothing imports torch:
 
 Turn it on where the memory exists — local development, and the ingest job,
 which sets it explicitly because embedding the corpus is its entire purpose.
+
+Because the flag can never be on here, the deployed service does not install
+`sentence-transformers` at all (§3). Turning it on therefore takes more than the
+env var: the instance also needs `pip install -r requirements-ingest.txt`. With
+the flag on but the package missing, the lazy import raises, is caught, and
+embeddings return `None` — degraded, not crashed.
 
 Restoring rulebook search in production means getting the embedding out of the
 web process. The most promising route is a Supabase Edge Function using the
@@ -119,24 +126,69 @@ That endpoint round-trips Postgres, unlike `/api/health`, which touches nothing.
 
 ## 3. Build & start commands
 
-Defined in [`render.yaml`](render.yaml):
+Set in **Render → the service → Settings → Build & Deploy**. ([`render.yaml`](render.yaml)
+mirrors them for reference but is not applied — §4.)
 
 ```bash
 # Build
-pip install torch --index-url https://download.pytorch.org/whl/cpu && \
-pip install -r requirements.txt
+pip install --upgrade pip && pip install -r requirements.txt
 
 # Start
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
+**`--upgrade pip` is load-bearing.** Render's image ships **pip 23.0.1** (three
+years stale), and that — not torch — was the root cause of the outage described
+below. Upgrading is safe to do blindly here because every runtime dependency is
+`==` pinned: a newer pip changes resolution *mechanics*, never which versions get
+installed. It costs a few seconds.
+
 Why this build is fast:
-- **CPU-only torch** — installed first from the PyTorch CPU index so pip doesn't
-  pull the ~2 GB CUDA build via `sentence-transformers` (the biggest win).
-- **Lean runtime deps** — the PDF/RAG-ingest packages live in
-  `requirements-ingest.txt`, not in `requirements.txt`, so the web build skips them.
+- **No torch** — `sentence-transformers` lives in `requirements-ingest.txt`, not
+  `requirements.txt`. Every import of it is behind `ENABLE_LOCAL_MODELS` (§2),
+  which must stay `false` here, so installing it would mean downloading ~2 GB the
+  service never imports. This is the biggest win by a wide margin.
+- **Lean runtime deps** — the PDF/RAG-ingest packages are in that same file, so
+  the web build skips them too.
 - **No build-time vector DB** — the rulebook lives in pgvector, so there is no
   ~9-minute ChromaDB rebuild at deploy time.
+
+### The build that broke, and why
+
+The previous command was:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
+```
+
+It fetched CPU-only torch to dodge the ~2 GB CUDA build that `sentence-transformers`
+drags in from PyPI. It failed with **no repo change**, via three compounding steps:
+
+1. The **PyTorch index is a flat file listing**, so pip derived the project name
+   from the URL path (`/whl/cpu/typing-extensions/`) while the file's own metadata
+   said `typing_extensions`. **pip 23.0.1 compares those without normalizing**, so
+   it rejected the wheel: `has inconsistent Name: expected 'typing-extensions',
+   but metadata has 'typing_extensions'`.
+2. Having discarded the wheel, pip fell back to the **sdist**, which needs a build
+   backend (`flit_core`).
+3. `--index-url` **replaces** PyPI rather than adding to it, so `flit_core` was
+   searched for on the PyTorch index alone → `No matching distribution found`.
+
+Two things worth knowing, both verified against pip 23.0.1 on Python 3.10:
+
+- **Upgrading pip alone fixes that command.** Modern pip normalizes before
+  comparing, accepts the wheel, and never needs a build backend. The
+  `--extra-index-url` / `+cpu`-pin workarounds that were briefly added were
+  treating step 3 — a symptom, not the cause.
+- **The bug is specific to the PyTorch index, not to old pip generally.** pip
+  23.0.1 resolves the current `requirements.txt` from PyPI cleanly, including that
+  same `typing_extensions-4.16.0`. The pin above stays anyway, as insurance
+  against the next stale-pip incompatibility.
+
+**If torch is ever genuinely needed here again**, upgrade pip *and* keep PyPI in
+the search path — `--extra-index-url https://pypi.org/simple` plus a `==<ver>+cpu`
+pin, since the `+cpu` local version exists only on the PyTorch index and so PyPI
+cannot silently serve the CUDA build instead.
 
 Health check path: `/api/health` (returns 200 immediately).
 
@@ -145,20 +197,25 @@ Health check path: `/api/health` (returns 200 immediately).
 ## 4. How the service is configured (dashboard-managed)
 
 This is a **manually-created Render web service**, and the **Render dashboard is
-the source of truth** for its settings. `render.yaml` is kept in the repo as
-accurate reference documentation of the intended config, but Render does **not**
-apply it automatically to a manual service.
+the source of truth** for its settings. Render does **not** read `render.yaml` for
+a manual service — it is applied only to Blueprint-managed services, and
+**Blueprints require payment info on the account**, which this free-tier project
+does not have.
 
-> Render **Blueprints** (which *would* make `render.yaml` authoritative) require
-> payment info on the account, so this project does not use them. Everything
-> below is managed in the dashboard instead — no card needed.
+> **Editing `render.yaml` deploys nothing.** It is kept in the repo purely as
+> reference documentation of the intended config. Any change to a build/start
+> command or an environment variable must be **typed into the dashboard** to take
+> effect; a commit alone will not do it.
+>
+> Code pushes *do* still auto-deploy — that is the service's own Auto-Deploy
+> setting (below), which is unrelated to Blueprints.
 
 Keep these dashboard settings in sync with `render.yaml` (Render → the service →
 Settings):
 
 | Setting | Value |
 |---|---|
-| **Build Command** | the `uv` + CPU-torch command in §3 |
+| **Build Command** | the pip + CPU-torch command in §3 |
 | **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
 | **Root Directory** | `backend` |
 | **Health Check Path** | `/api/health` |
@@ -234,15 +291,79 @@ merge → the workflow re-ingests to Supabase on its own.
 ## 7. Model retraining — auto PRs
 
 [`.github/workflows/retrain.yml`](.github/workflows/retrain.yml) runs weekly (and
-on demand): it refreshes f1db, retrains the race-finish model, and **promotes a
-challenger only if it beats the grid-order baseline** (`app.ml.promote`). A
+on demand): it retrains the race-finish model and **promotes a challenger only if
+it beats the grid-order baseline** (`app.ml.promote`). It reads whatever release
+`app.data.f1db_source` says is current — it does **not** own dataset freshness.
+The running server keeps its own copy up to date (§8), so a rejected challenger
+never leaves production serving stale standings. A
 promoted model is opened as a PR, auto-approved (if a `RETRAIN_PAT` secret is set),
 and auto-merged — merging redeploys the model. Requires branch protection to allow
 Actions to open/merge PRs (0 required approvals, or a code-owner PAT).
 
 ---
 
-## 8. GitHub Actions secrets
+## 8. F1 dataset freshness (f1db)
+
+Standings, results, and championship history are read from the f1db SQLite dump,
+which f1db re-publishes as a tagged GitHub release within a day or two of every
+race. `app.data.f1db_source` keeps the local copy on the newest release:
+
+| When | What runs |
+|---|---|
+| Every boot | the readiness warm-up calls `sync_to_latest()` before serving |
+| Every 6 h | the `_refresh_f1db_dataset` loop in `main.py` re-checks |
+
+Both paths are cheap when nothing changed — one small request, no download. The
+newest tag is read from the redirect at
+`https://github.com/f1db/f1db/releases/latest` (→ `/releases/tag/<tag>`), which
+is **not** metered against the REST API's 60-requests/hour unauthenticated limit.
+The REST API is only a backup. Relying on it alone left production on the
+hardcoded `FALLBACK_F1DB_VERSION` (round 11) from round 12 to round 16: Render's
+shared egress IPs exhaust that limit, every check came back empty, and the
+server reported itself current. A new release is fetched to a temp file and
+moved into place with `os.replace`, so open reader connections are never
+overwritten underneath. The tag on disk is stamped in
+`backend/data/f1db.db.version`.
+
+`GET /api/ready` reports both the tag on disk (`f1db_version`) and the last
+release check (`f1db_sync`):
+
+```jsonc
+"f1db_sync": {
+  "version": "v2026.16.1",       // on disk
+  "latest": "v2026.16.1",        // what GitHub said is newest; null = check failed
+  "up_to_date": true,            // the field to alert on
+  "updated": true,
+  "reason": "updated from no dataset to v2026.16.1",
+  "checked_at": "2026-10-09T16:32:42+00:00"
+}
+```
+
+**`F1DB_VERSION` must stay unset in the Render dashboard.** Setting it pins the
+dataset to one release and disables all of the above. That is a deliberate
+escape hatch for reproducible training runs, not a production setting — a stale
+pin is what once left the standings page four weeks behind, serving pre-Hungary
+points on every cold start.
+
+If standings, results or the Grand Prix Hub grid ever look behind again (a
+"not in our dataset yet" grid warning on a finished round is the tell):
+
+```bash
+curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_sync
+```
+
+- `up_to_date: true` — the server has the newest release, so f1db has not
+  published the round yet. That is normal for a few hours after a race.
+- `latest: null` — the release check itself is failing. Look for
+  `f1db.latest_redirect_failed` / `f1db.latest_api_failed` /
+  `f1db.sync.check_failed` in the logs. Setting `GITHUB_TOKEN` in the dashboard
+  raises the API backup's limit to 5,000/hour.
+- `latest` set but different from `version` — the download is failing. Look for
+  `f1db.sync.failed`.
+
+---
+
+## 9. GitHub Actions secrets
 
 | Secret | Used by | Notes |
 |---|---|---|
@@ -254,7 +375,7 @@ Set at **GitHub → Settings → Secrets and variables → Actions**.
 
 ---
 
-## 9. Local development
+## 10. Local development
 
 ```bash
 cd backend
@@ -269,7 +390,7 @@ needs a database (local or Supabase) to answer.
 
 ---
 
-## 10. Deploy flow & troubleshooting
+## 11. Deploy flow & troubleshooting
 
 - **Auto-deploy** fires on every commit to `main` (Render "On Commit").
 - **First request after idle** is slow — free instance spins down (~50 s cold start).

@@ -6,9 +6,11 @@ of HTTP 429s during dataset collection). f1db carries per-round standings in
 collection (standings *before* a given race) and live inference (latest standings
 of a season) can be served from one local file with no API limits.
 
-Note on freshness: f1db is a pinned snapshot, so the current in-progress season is
-only as fresh as the last ``f1db_source`` refresh. Callers that need the very
-latest in-progress round should fall back to the live API when f1db lacks it.
+Note on freshness: ``f1db_source`` tracks the newest published release, checking
+on boot and on a slow background loop, so the in-progress season is current to
+the last release f1db cut — typically a day or two after the race. The Ergast
+fallback in the calling services covers the window between a race finishing and
+that release appearing.
 """
 
 from __future__ import annotations
@@ -110,6 +112,28 @@ def _season_wins_by_driver_code(conn: sqlite3.Connection, year: int) -> dict[str
     return {row["code"]: int(row["wins"]) for row in rows}
 
 
+def _latest_team_by_driver_id(conn: sqlite3.Connection, year: int) -> dict[str, str]:
+    """The team each driver raced for in their most recent start of ``year``.
+
+    ``season_entrant_driver`` has one row per team a driver raced for in the
+    season and nothing that orders them, so a driver who changed seats cannot be
+    placed from it. Their latest race start can.
+    """
+    rows = conn.execute(
+        """
+        SELECT rd.driver_id AS driver_id, con.name AS team
+        FROM race_data rd
+        JOIN race r ON r.id = rd.race_id
+        JOIN constructor con ON con.id = rd.constructor_id
+        WHERE r.year = ? AND rd.type = 'RACE_RESULT'
+        ORDER BY r.round
+        """,
+        (year,),
+    ).fetchall()
+    # Later rounds overwrite earlier ones, leaving each driver's latest team.
+    return {row["driver_id"]: row["team"] for row in rows}
+
+
 def driver_standings_detailed(year: int) -> list[dict]:
     """Rich latest-round driver standings for the UI.
 
@@ -138,6 +162,7 @@ def driver_standings_detailed(year: int) -> list[dict]:
             (year, latest),
         ).fetchall()
         wins_by_code = _season_wins_by_driver_code(conn, year)
+        latest_team = _latest_team_by_driver_id(conn, year)
 
     result: list[dict] = []
     seen: set[str] = set()
@@ -150,7 +175,8 @@ def driver_standings_detailed(year: int) -> list[dict]:
             {
                 "code": code,
                 "name": row["name"],
-                "team": row["team"] or "",
+                # The season entry is only a fallback for a driver with no start.
+                "team": latest_team.get(row["driver_id"]) or row["team"] or "",
                 "position": int(row["position"]),
                 "points": float(row["points"]) if row["points"] is not None else 0.0,
                 "wins": wins_by_code.get(code, 0),
@@ -199,6 +225,35 @@ def constructor_standings_detailed(year: int) -> list[dict]:
         }
         for row in rows
     ]
+
+
+def _round_before(year: int, round_num: int) -> int:
+    """The round whose closing table is the one going into ``round_num``.
+
+    The previous round, or the latest released one when f1db has not caught up
+    with it yet. Zero when f1db holds nothing for ``year``.
+    """
+    with connect() as conn:
+        return min(round_num - 1, _latest_round(conn, year))
+
+
+def driver_standings_before_round(year: int, round_num: int) -> dict[str, int]:
+    """Driver standings as they stood going into ``round_num``.
+
+    The season opener takes the previous season's final table — the only one
+    that exists yet. Empty when f1db does not have ``year`` at all, so a live
+    fallback can still answer for a season the dataset has not reached.
+    """
+    if round_num <= 1:
+        return current_driver_standings(year - 1)
+    return driver_standings_after_round(year, _round_before(year, round_num))
+
+
+def constructor_standings_before_round(year: int, round_num: int) -> list[dict]:
+    """Constructor standings going into ``round_num`` (see the driver variant)."""
+    if round_num <= 1:
+        return current_constructor_standings(year - 1)
+    return constructor_standings_after_round(year, _round_before(year, round_num))
 
 
 def current_driver_standings(year: int) -> dict[str, int]:

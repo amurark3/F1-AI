@@ -15,14 +15,20 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
-from app.data.predictions.fastf1_lock import _fastf1_lock
 from app.data.predictions.incidents import _classify_status
+from app.data.predictions.phases import trim_snapshots
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
+from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
     import pandas as pd
 
+
 logger = structlog.get_logger()
+
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 _history_file_lock = threading.Lock()
 
@@ -125,7 +131,7 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
             "actual_positions": existing.get("actual_positions"),
             "actual_statuses": existing.get("actual_statuses"),
             "actual_incidents": existing.get("actual_incidents"),
-            "snapshots": snapshots[-8:],
+            "snapshots": trim_snapshots(snapshots),
         }
         _save_prediction_history(history)
 

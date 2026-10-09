@@ -7,7 +7,12 @@ import structlog
 
 from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
-from app.data.predictions import get_prediction_review
+from app.data.predictions import (
+    PHASE_POST_QUALIFYING,
+    PHASE_PRE_QUALIFYING,
+    get_prediction_review,
+    normalise_phase,
+)
 from app.services.prediction_cache import prediction_snapshot_cache
 from app.services.predictions import (
     compute_and_store_race_prediction,
@@ -24,6 +29,17 @@ prediction_locks: dict[tuple[int, int], asyncio.Lock] = {}
 # snapshot as-is. Kept short: the page must stay fast, and a slower load still
 # finishes in the background and lands on the next request.
 REVIEW_REFRESH_TIMEOUT_SECONDS = 4.0
+
+
+_MISSING_SNAPSHOT_BY_PHASE = {
+    PHASE_PRE_QUALIFYING: "No stored pre-qualifying prediction. Run the model to create one.",
+    PHASE_POST_QUALIFYING: "No stored post-qualifying prediction. Run the model to create one.",
+}
+
+
+def _missing_snapshot_message(phase: str | None) -> str:
+    """Name the tab that is empty, so the client does not report both as missing."""
+    return _MISSING_SNAPSHOT_BY_PHASE.get(phase or "", "No stored prediction snapshot. Run the model to create one.")
 
 
 def _prediction_lock(cache_key: tuple[int, int]) -> asyncio.Lock:
@@ -61,7 +77,9 @@ async def _with_scored_review(result: dict) -> dict:
     if not year or not round_num:
         return result
 
-    task = asyncio.create_task(asyncio.to_thread(get_prediction_review, year, round_num))
+    task = asyncio.create_task(
+        asyncio.to_thread(get_prediction_review, year, round_num, result.get("prediction_phase"))
+    )
     done, _pending = await asyncio.wait({task}, timeout=REVIEW_REFRESH_TIMEOUT_SECONDS)
     if task not in done:
         task.add_done_callback(_log_late_review)
@@ -122,10 +140,20 @@ async def get_predictions(year: int, round_num: int) -> dict:
 
 
 @router.get("/predictions/{year}/{round_num}/snapshot")
-async def get_prediction_snapshot(year: int, round_num: int) -> dict:
-    """Return a stored prediction snapshot without generating a new one."""
+async def get_prediction_snapshot(
+    year: int,
+    round_num: int,
+    phase: str | None = Query(None),
+) -> dict:
+    """Return a stored prediction snapshot without generating a new one.
 
-    cached = get_cached_race_prediction(year, round_num)
+    ``phase`` selects one of the two stored calls for the race. Omitting it
+    returns the most recently stored one, which is what clients written before
+    phases existed expect.
+    """
+
+    wanted = normalise_phase(phase)
+    cached = get_cached_race_prediction(year, round_num, phase=wanted)
     if cached:
         return await _with_scored_review(cached)
     return {
@@ -133,7 +161,8 @@ async def get_prediction_snapshot(year: int, round_num: int) -> dict:
         "round": round_num,
         "predictions": [],
         "risk_predictions": [],
-        "error": "No stored prediction snapshot. Run the model to create one.",
+        "prediction_phase": wanted,
+        "error": _missing_snapshot_message(wanted),
         "cache": {"status": "missing", "policy": "stored_until_manual_recompute"},
     }
 
@@ -163,26 +192,33 @@ async def compute_predictions(
     year: int,
     round_num: int,
     reason: str = Query("manual_compute"),
+    phase: str | None = Query(None),
 ) -> dict:
-    """Compute and store a fresh prediction snapshot on explicit request."""
+    """Compute and store a fresh prediction snapshot on explicit request.
+
+    ``phase`` recomputes just that one of the race's two stored calls; the other
+    is left untouched, so refreshing one tab never clears the other.
+    """
 
     cache_key = (year, round_num)
     if reason not in {"manual_compute", "qualifying_recompute"}:
         reason = "manual_compute"
+    wanted = normalise_phase(phase)
 
     async with _prediction_lock(cache_key):
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(compute_and_store_race_prediction, year, round_num, reason=reason),
+                asyncio.to_thread(compute_and_store_race_prediction, year, round_num, reason=reason, phase=wanted),
                 timeout=FASTF1_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:
-            logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason)
+            logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason, phase=wanted)
             return {
                 "year": year,
                 "round": round_num,
                 "predictions": [],
                 "risk_predictions": [],
+                "prediction_phase": wanted,
                 "error": "Prediction data source timed out. Try again shortly.",
             }
         except Exception as exc:
@@ -191,6 +227,7 @@ async def compute_predictions(
                 "round": round_num,
                 "predictions": [],
                 "risk_predictions": [],
+                "prediction_phase": wanted,
                 **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason),
             }
 

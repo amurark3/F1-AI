@@ -1,5 +1,7 @@
 # Phase 5: Push Infrastructure - Research
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Parts of this phase were designed on top of it, reusing its event detection and using its text as the notification body. Those parts must be re-planned before Phase 5 is executed. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md).
+
 **Researched:** 2026-05-01
 **Domain:** Apple Push Notification service (APNs) for FastAPI/SwiftUI on Render.com + iOS 17, with PostgreSQL token persistence
 **Confidence:** HIGH (APNs library, iOS APIs, PostgreSQL stack) / MEDIUM (Render.com PostgreSQL operational details, certificate handling on Render)

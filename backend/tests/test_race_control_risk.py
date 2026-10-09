@@ -157,10 +157,15 @@ def test_register_adds_the_sprint_compression_risk_for_sprint_weekends():
 
 @pytest.mark.unit
 def test_register_adds_safety_car_exposure_only_for_street_circuits():
-    street = risk.build_risk_register(_event(circuit_type="Street"), None, [])
+    """Classified on ``CIRCUIT_DATA``'s own strings. The check used to compare
+    against ``"Street"``, which no real circuit carries, so the card never
+    appeared — not even for Monaco."""
+    street = risk.build_risk_register(_event(circuit_type="Street circuit"), None, [])
+    semi_street = risk.build_risk_register(_event(circuit_type="Semi-street circuit"), None, [])
     permanent = risk.build_risk_register(_event(circuit_type="Purpose-built"), None, [])
 
     assert "Safety car exposure" in [card["title"] for card in street]
+    assert "Safety car exposure" not in [card["title"] for card in semi_street]
     assert "Safety car exposure" not in [card["title"] for card in permanent]
 
 
@@ -174,7 +179,7 @@ def test_register_skips_the_street_risk_when_the_event_has_no_circuit_metadata()
 @pytest.mark.unit
 def test_register_stacks_every_earned_card_in_reading_order():
     register = risk.build_risk_register(
-        _event(is_sprint=True, circuit_type="Street"),
+        _event(is_sprint=True, circuit_type="Street circuit"),
         {"rain_risk": 55},
         [{"rank": 1, "team": "McLaren", "gap_to_leader": 0}, {"rank": 2, "team": "Ferrari", "gap_to_leader": 10}],
     )

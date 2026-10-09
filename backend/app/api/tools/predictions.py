@@ -13,17 +13,14 @@ logger = structlog.get_logger()
 
 @tool
 def get_race_predictions(year: int, round_num: int) -> str:
-    """
-    Predicts race finishing order for all 20 drivers with confidence ranges
-    and reasoning factors.
+    """Predicts race finishing order with confidence ranges and reasoning.
 
-    Use when user asks about race predictions, who will win, expected race
-    results, or finishing order.
-
-    Returns a rich race-engineer briefing with narrative reasoning,
-    driver-by-driver analysis for the top 5, summary table for positions
-    6-20, confidence ranges, and accuracy statistics.
+    Use for predictions, who will win, or expected finishing order.
     """
+    # Returns a full briefing: narrative reasoning, driver-by-driver analysis
+    # for the top 5, a summary table for 6-20, confidence ranges and accuracy
+    # stats. Kept out of the docstring — the model picks the tool on intent, and
+    # the description is re-sent on every turn of the agent loop.
     logger.info("tool.race_predictions", year=year, round_num=round_num)
     try:
         result = get_or_compute_race_prediction(year, round_num)
@@ -201,18 +198,13 @@ def _safety_car_lines(result: dict) -> list[str]:
 
 @tool
 def get_pit_strategy(year: int, round_num: int, driver_code: str | None = None) -> str:
-    """
-    Analyzes pit strategy including tyre stints, undercut/overcut opportunities,
-    and historical strategy data.
-
-    Use when user asks about pit strategy, tyre choices, undercut, overcut,
-    or stint analysis.
+    """Analyzes pit strategy: tyre stints, undercut/overcut, stint history.
 
     Args:
-        year: Season year (e.g. 2024).
+        year: Season year, e.g. 2024.
         round_num: Round number in the season.
-        driver_code: Optional 3-letter driver code (e.g. 'VER'). If omitted,
-                     returns circuit-level strategy overview.
+        driver_code: Optional 3-letter code, e.g. 'VER'. Omit for a
+            circuit-level overview.
     """
     logger.info("tool.pit_strategy", year=year, round_num=round_num, driver=driver_code)
     try:

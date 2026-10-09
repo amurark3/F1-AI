@@ -1,0 +1,146 @@
+{
+  "_source": "OpenF1 session_key 11334 (Belgian Grand Prix, 2026-07-19), trimmed to seven cars",
+  "drivers": [
+    {
+      "driver_number": 1,
+      "name_acronym": "NOR",
+      "team_name": "McLaren"
+    },
+    {
+      "driver_number": 3,
+      "name_acronym": "VER",
+      "team_name": "Red Bull Racing"
+    },
+    {
+      "driver_number": 12,
+      "name_acronym": "ANT",
+      "team_name": "Mercedes"
+    },
+    {
+      "driver_number": 16,
+      "name_acronym": "LEC",
+      "team_name": "Ferrari"
+    },
+    {
+      "driver_number": 44,
+      "name_acronym": "HAM",
+      "team_name": "Ferrari"
+    },
+    {
+      "driver_number": 63,
+      "name_acronym": "RUS",
+      "team_name": "Mercedes"
+    },
+    {
+      "driver_number": 81,
+      "name_acronym": "PIA",
+      "team_name": "McLaren"
+    }
+  ],
+  "frames": [
+    [
+      {
+        "driver_number": 12,
+        "position": 1,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 3,
+        "position": 2,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 63,
+        "position": 3,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 16,
+        "position": 4,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 44,
+        "position": 5,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 81,
+        "position": 6,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 1,
+        "position": 13,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      }
+    ],
+    [
+      {
+        "driver_number": 3,
+        "position": 1,
+        "date": "2026-07-19T13:04:12.223000+00:00"
+      },
+      {
+        "driver_number": 12,
+        "position": 2,
+        "date": "2026-07-19T13:04:12.223000+00:00"
+      },
+      {
+        "driver_number": 63,
+        "position": 3,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 16,
+        "position": 4,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 44,
+        "position": 5,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 81,
+        "position": 6,
+        "date": "2026-07-19T12:08:05.727000+00:00"
+      },
+      {
+        "driver_number": 1,
+        "position": 11,
+        "date": "2026-07-19T13:04:11.258000+00:00"
+      }
+    ]
+  ],
+  "intervals": [
+    {
+      "driver_number": 12,
+      "gap_to_leader": 0.0
+    },
+    {
+      "driver_number": 3,
+      "gap_to_leader": 11.586
+    },
+    {
+      "driver_number": 63,
+      "gap_to_leader": 0.635
+    },
+    {
+      "driver_number": 16,
+      "gap_to_leader": 1.952
+    },
+    {
+      "driver_number": 44,
+      "gap_to_leader": 17.245
+    },
+    {
+      "driver_number": 81,
+      "gap_to_leader": 18.988
+    },
+    {
+      "driver_number": 1,
+      "gap_to_leader": 24.014
+    }
+  ]
+}

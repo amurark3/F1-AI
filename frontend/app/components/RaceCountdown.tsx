@@ -17,15 +17,38 @@ interface RaceEvent {
 }
 
 /**
- * When the race actually starts.
+ * When the race actually starts, in epoch milliseconds.
  *
  * The schedule's `date` field is the event's calendar date at midnight UTC, not
  * a session time — counting down to it lands hours early (Hungary 2026: midnight
  * vs the 13:00Z start). The Race session carries the real lights-out time; `date`
  * is only a fallback for events whose sessions have not been published yet.
+ *
+ * Null when the backend published neither, or published a value the browser
+ * cannot parse as a date.
  */
-function raceStartTime(event: RaceEvent): string | null {
-  return event.sessions?.Race ?? event.date;
+function raceStartMs(event: RaceEvent): number | null {
+  const start = event.sessions?.Race ?? event.date;
+  if (!start) return null;
+  const ms = new Date(start).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * The next race still to be run.
+ *
+ * Selected by race start time, never by weekend status: a weekend turns
+ * `in_progress` the moment FP1 begins and stays that way until Sunday evening,
+ * so filtering on `status === "upcoming"` skipped the race that was minutes from
+ * starting and counted down to the *following* event instead.
+ */
+function findNextRace(schedule: RaceEvent[], nowMs: number): RaceEvent | null {
+  return (
+    schedule.find((event) => {
+      const startMs = raceStartMs(event);
+      return startMs !== null && startMs > nowMs;
+    }) ?? null
+  );
 }
 
 interface Countdown {
@@ -35,8 +58,8 @@ interface Countdown {
   seconds: number;
 }
 
-function calcCountdown(target: Date): Countdown {
-  const diff = target.getTime() - Date.now();
+function calcCountdown(targetMs: number, nowMs: number): Countdown {
+  const diff = targetMs - nowMs;
   if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   return {
     days: Math.floor(diff / 86_400_000),
@@ -48,6 +71,20 @@ function calcCountdown(target: Date): Countdown {
 
 const UNITS = ["DAYS", "HRS", "MIN", "SEC"] as const;
 
+/** Epoch milliseconds, ticking once a second. Null until the first tick lands. */
+function useNowMs(): number | null {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return now;
+}
+
 export default function RaceCountdown() {
   const year = new Date().getFullYear();
 
@@ -56,24 +93,16 @@ export default function RaceCountdown() {
     dedupingInterval: 300_000,
   });
 
-  const nextRace = schedule?.find((r) => r.status === "upcoming" || r.status === "next");
+  // One clock drives both halves: which race is next, and how long until it
+  // starts. Re-selecting on every tick lets the card roll over to the following
+  // event by itself the moment the current race goes green.
+  const now = useNowMs();
+  const nextRace = schedule && now !== null ? findNextRace(schedule, now) : null;
+  const startMs = nextRace ? raceStartMs(nextRace) : null;
 
-  const [countdown, setCountdown] = useState<Countdown | null>(null);
+  if (!nextRace || startMs === null || now === null) return null;
 
-  const startTime = nextRace ? raceStartTime(nextRace) : null;
-
-  useEffect(() => {
-    if (!startTime) return;
-    const target = new Date(startTime);
-
-    const tick = () => setCountdown(calcCountdown(target));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [startTime]);
-
-  if (!nextRace || !countdown) return null;
-
+  const countdown = calcCountdown(startMs, now);
   const values = [countdown.days, countdown.hours, countdown.minutes, countdown.seconds];
 
   return (

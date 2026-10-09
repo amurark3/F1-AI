@@ -207,6 +207,10 @@ ban-relative-imports = "all"
 # `os.getenv()` reads a populated environment. That ordering is the entry
 # point's job and cannot be expressed with imports at the top.
 "main.py" = ["E402"]
+# Same constraint for a script that writes to the shared store: the document
+# store picks its backend from ``DATABASE_URL`` at import time, so the app
+# imports have to follow ``load_dotenv()``.
+"scripts/backfill_predictions.py" = ["E402"]
 
 # Test suites: `assert` is the point (S101), fixtures legitimately shadow names,
 # and private access is how internals get tested.

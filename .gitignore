@@ -48,9 +48,17 @@ ios/**/xcuserdata/
 # Runtime data
 backend/data/prediction_history.json
 backend/data/prediction_cache.json
+# Pre-write copies of the prediction documents taken by scripts/backfill_predictions.py
+backend/data/backups/
+# Local fallback for the durable circuit strategy reference cache (Supabase in
+# production) — machine-local telemetry summaries, recreated on demand.
+backend/data/circuit_reference.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db
+# Records which f1db release the local database came from — written beside it
+# by f1db_source, and as machine-local as the database itself.
+backend/data/f1db.db.version
 backend/data/training_dataset.csv
 
 # Claude Code project data

@@ -51,6 +51,8 @@ duration: 1min
 completed: 2026-03-08
 ---
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 # Phase 4 Plan 04: Backend Commentary Engine Summary
 
 **Gemini-backed AI commentary engine integrated into the WebSocket live_timing handler, detecting position changes, safety car events, and pit stops with a 30-second per-room cooldown, broadcasting `{"type": "commentary"}` messages alongside existing `{"type": "positions"}` messages**

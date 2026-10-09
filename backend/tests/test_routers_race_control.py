@@ -261,3 +261,62 @@ def test_health_reports_the_service_name_and_a_utc_timestamp(client):
     assert body["service"] == "race-control"
     # An offset-naive stamp would be ambiguous for a client in another zone.
     assert body["time"].endswith("+00:00")
+
+
+# ---------------------------------------------------------------------------
+# Command-centre segments and weekend panels
+# ---------------------------------------------------------------------------
+# The command centre fetches these in parallel and renders each as it lands, so
+# a failure in one must degrade only its own panel — with the empty fields that
+# panel destructures, not a 500 that the page has to special-case.
+
+_SEGMENTS = [
+    # (path, service name, empty fields the panel destructures)
+    ("/race-control/overview/2026/shell", "build_overview_shell", {"year": 2026}),
+    ("/race-control/overview/2026/weather", "build_overview_weather", {"year": 2026, "risk_register": []}),
+    ("/race-control/overview/2026/predictions", "build_overview_predictions", {"year": 2026, "predicted_podium": []}),
+    ("/race-control/overview/2026/strategy", "build_overview_strategy", {"year": 2026, "workstreams": []}),
+    (
+        "/race-control/sessions/2026/14",
+        "build_weekend_sessions",
+        {"year": 2026, "round": 14, "available": False, "is_sprint": False, "sessions": []},
+    ),
+    (
+        "/race-control/stints/2026/14",
+        "build_race_strategy",
+        {
+            "year": 2026,
+            "round": 14,
+            "available": False,
+            "has_stints": False,
+            "has_stops": False,
+            "drivers": [],
+            "stops": [],
+        },
+    ),
+]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("path", "service", "_empty"), _SEGMENTS, ids=[row[1] for row in _SEGMENTS])
+def test_a_segment_returns_its_service_payload(client, monkeypatch, path, service, _empty):
+    monkeypatch.setattr(rc_router, service, lambda *args: {"served_by": service, "args": list(args)})
+
+    body = client.get(path).json()
+
+    assert body["served_by"] == service
+    assert body["args"][0] == 2026
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("path", "service", "empty"), _SEGMENTS, ids=[row[1] for row in _SEGMENTS])
+def test_a_failing_segment_degrades_to_its_empty_shape_with_an_error_id(client, monkeypatch, path, service, empty):
+    monkeypatch.setattr(rc_router, service, _boom)
+
+    response = client.get(path)
+    body = response.json()
+
+    assert response.status_code == 200
+    assert {key: body[key] for key in empty} == empty
+    assert "error_id" in body
+    assert "f1db unavailable" not in response.text, "exception text must not reach the client"

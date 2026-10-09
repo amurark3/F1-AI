@@ -1,5 +1,7 @@
 # Phase 4: Live Race Experience - Research
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 **Researched:** 2026-03-05
 **Domain:** iOS ActivityKit / Dynamic Island, AI commentary generation, real-time WebSocket fanout
 **Confidence:** HIGH (codebase), MEDIUM (ActivityKit constraints), HIGH (backend patterns)

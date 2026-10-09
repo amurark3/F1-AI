@@ -8,7 +8,7 @@ Assembles every endpoint of the F1 AI backend onto one router:
   GET  /api/race/{year}/{round_num}    — Enriched race detail (circuit, results, qualifying)
   GET  /api/standings/drivers/{year}   — World Drivers' Championship standings
   GET  /api/standings/constructors/{year} — World Constructors' Championship standings
-  WS   /api/live/{year}/{round_num}    — Live timing feed with commentary
+  WS   /api/live/{year}/{round_num}    — Live timing for whichever session is on track
   GET  /api/health                     — Liveness probe (is the process up?)
   GET  /api/ready                      — Readiness probe (has warm-up finished?)
 

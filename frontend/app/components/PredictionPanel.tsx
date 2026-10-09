@@ -5,11 +5,14 @@ import { AlertTriangle, BarChart3, ClipboardList, Gauge, Target } from "lucide-r
 import { useState } from "react";
 import useSWR from "swr";
 
+import { getTeamColor } from "@/app/lib/teamColors";
+
 import { API_BASE } from "../constants/api";
 import { firstNonBlank } from "../utils/errors";
 import { fetcher } from "../utils/fetcher";
 
-import { PredictionDriverCard, getTeamColor, type DriverPrediction } from "./PredictionDriverCard";
+
+import { PredictionDriverCard, type DriverPrediction } from "./PredictionDriverCard";
 import { Toast, useToast } from "./Toast";
 
 interface RaceEvent {

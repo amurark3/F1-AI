@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import structlog
 
+from app.api.circuits import is_street_circuit
+
 logger = structlog.get_logger()
 
 # Rain probability (%) cut-offs used to grade the live weather risk card.
@@ -110,7 +112,7 @@ def build_risk_register(
                 "detail": "Reduced practice time increases setup and parc ferme decision pressure.",
             }
         )
-    if event["circuit"] and event["circuit"].get("circuit_type") == "Street":
+    if is_street_circuit(event["circuit"]):
         risks.append(
             {
                 "level": "High",

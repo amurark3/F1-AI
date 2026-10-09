@@ -34,6 +34,7 @@ from app.data.predictions.sessions import (
     _load_qualifying,
     _load_sprint_result,
     _qualifying_has_occurred,
+    _weekend_has_started,
 )
 
 YEAR = 2026
@@ -403,3 +404,38 @@ def test_an_unknown_schedule_attempts_the_load_rather_than_assuming_the_weekend_
     # prediction for a race that has already been qualified for.
     assert _qualifying_has_occurred(_event(EventName="Unknown Grand Prix")) is True
     assert _qualifying_has_occurred(_event(Session4=None, EventDate=pd.NaT)) is True
+
+
+# ---------------------------------------------------------------------------
+# Has the weekend started?
+# ---------------------------------------------------------------------------
+# Practice pace and the entry list exist from FP1, so this gate is the earliest
+# session, not qualifying.
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("fp1_offset_hours", "expected"), [(-1, True), (6, False)])
+def test_the_earliest_scheduled_session_decides_whether_the_weekend_has_started(fp1_offset_hours, expected):
+    fp1_at = datetime.now(timezone.utc) + timedelta(hours=fp1_offset_hours)
+    event = _event(
+        Session1="Practice 1",
+        Session1DateUtc=pd.Timestamp(fp1_at.replace(tzinfo=None)),
+        Session5="Race",
+        Session5DateUtc=pd.Timestamp((fp1_at + timedelta(days=2)).replace(tzinfo=None)),
+    )
+
+    assert _weekend_has_started(event) is expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("days_to_race", "expected"), [(3, False), (1, True), (-1, True)])
+def test_without_session_times_the_race_date_minus_two_days_is_used(days_to_race, expected):
+    event = _event(EventDate=pd.Timestamp(datetime.now(timezone.utc) + timedelta(days=days_to_race)))
+
+    assert _weekend_has_started(event) is expected
+
+
+@pytest.mark.unit
+def test_an_undated_weekend_is_assumed_to_have_started():
+    """Attempting a load costs one failure; skipping it costs the whole session."""
+    assert _weekend_has_started(_event(EventName="Unknown Grand Prix", EventDate=pd.NaT)) is True

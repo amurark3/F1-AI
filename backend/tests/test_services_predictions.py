@@ -24,7 +24,7 @@ class _RecordingCache:
         self.stored = stored
         self.set_calls: list[tuple[int, int, dict, str]] = []
 
-    def get(self, year: int, round_num: int) -> dict | None:
+    def get(self, year: int, round_num: int, phase: str | None = None) -> dict | None:
         return self.stored
 
     def set(self, year: int, round_num: int, result: dict, *, reason: str) -> dict:
@@ -37,7 +37,7 @@ def cache(monkeypatch):
     """Install a recording cache and neutralise the review rebuild."""
     recording = _RecordingCache()
     monkeypatch.setattr(service, "prediction_snapshot_cache", recording)
-    monkeypatch.setattr(service, "build_prediction_review", lambda year, round_num: {"evaluated": False})
+    monkeypatch.setattr(service, "build_prediction_review", lambda year, round_num, phase=None: {"evaluated": False})
     return recording
 
 
@@ -74,7 +74,7 @@ def test_get_cached_enriches_the_stored_snapshot_without_recomputing(cache, monk
 
 @pytest.mark.unit
 def test_compute_and_store_writes_the_snapshot_with_the_given_reason(cache, monkeypatch):
-    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num: _snapshot())
+    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num, phase=None: _snapshot())
 
     result = service.compute_and_store_race_prediction(2026, 2, reason="qualifying_recompute")
 
@@ -85,7 +85,9 @@ def test_compute_and_store_writes_the_snapshot_with_the_given_reason(cache, monk
 
 @pytest.mark.unit
 def test_compute_and_store_refuses_to_store_an_empty_result(cache, monkeypatch):
-    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num: _snapshot(predictions=[]))
+    monkeypatch.setattr(
+        service, "compute_race_predictions", lambda year, round_num, phase=None: _snapshot(predictions=[])
+    )
 
     result = service.compute_and_store_race_prediction(2026, 2)
 
@@ -103,7 +105,7 @@ def test_get_or_compute_serves_the_cached_snapshot(cache, monkeypatch):
 
 @pytest.mark.unit
 def test_get_or_compute_records_first_compute_as_the_reason(cache, monkeypatch):
-    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num: _snapshot())
+    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num, phase=None: _snapshot())
 
     service.get_or_compute_race_prediction(2026, 2)
 

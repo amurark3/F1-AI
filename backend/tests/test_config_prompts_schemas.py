@@ -36,8 +36,8 @@ def test_defaults_are_usable_without_any_environment(reload_module, monkeypatch)
     cfg = reload_module("app.config")
 
     assert cfg.TOOL_TIMEOUT_SECONDS == 30
-    assert cfg.MAX_AGENT_TURNS == 5
-    assert cfg.GROQ_MODEL_NAME == "llama-3.3-70b-versatile"
+    assert cfg.MAX_AGENT_TURNS == 3
+    assert cfg.GROQ_MODEL_NAME == "openai/gpt-oss-120b"
     assert cfg.RULEBOOK_TOP_K == 6
     assert cfg.WEATHER_CACHE_TTL == 600
 
@@ -53,6 +53,17 @@ def test_numeric_settings_are_read_from_the_environment(reload_module, monkeypat
     assert cfg.TOOL_TIMEOUT_SECONDS == 90
     assert cfg.WS_RECEIVE_TIMEOUT == 0.5
     assert cfg.MAX_AGENT_TURNS == 12
+
+
+@pytest.mark.unit
+def test_the_groq_model_is_fixed_in_code_not_the_environment(reload_module, monkeypatch):
+    """Tool schemas and prompts are tuned to one model; an env override would
+    silently swap it underneath them."""
+    monkeypatch.setenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+
+    cfg = reload_module("app.config")
+
+    assert cfg.GROQ_MODEL_NAME == "openai/gpt-oss-120b"
 
 
 @pytest.mark.unit

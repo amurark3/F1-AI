@@ -9,6 +9,7 @@ on:
     paths:
       - "frontend/package-lock.json"
       - "frontend/package.json"
+      - "frontend/audit-ci.jsonc"
       - "backend/requirements*.txt"
       - ".github/workflows/dependency-audit.yml"
   push:
@@ -16,6 +17,7 @@ on:
     paths:
       - "frontend/package-lock.json"
       - "frontend/package.json"
+      - "frontend/audit-ci.jsonc"
       - "backend/requirements*.txt"
   schedule:
     - cron: "0 7 * * 1" # Mondays 07:00 UTC — catch newly disclosed advisories
@@ -44,8 +46,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       # Fail only on high/critical so low-severity advisories with no fix don't
       # block delivery. Tighten to `low` once the tree is clean.
+      # audit-ci runs `npm audit` with a path-scoped allowlist for advisories
+      # that have no published fix — see frontend/audit-ci.jsonc for each entry
+      # and why it is tolerated.
       - name: npm audit (high+)
-        run: npm audit --audit-level=high
+        run: npx --yes audit-ci@7.1.0 --config audit-ci.jsonc
 
   pip_audit:
     name: Backend pip-audit
@@ -63,8 +68,15 @@ jobs:
       # Resolves the full pinned dependency tree (including transitive deps) for
       # each manifest and checks every package against the PyPI advisory DB.
       # requirements-ingest.txt already pulls in requirements.txt via `-r`.
-      - name: pip-audit
-        run: |
-          pip-audit --progress-spinner off \
-            -r requirements-ingest.txt \
-            -r requirements-train.txt
+      #
+      # One resolve per manifest, because they are installed separately and may
+      # pin the same package differently: requests is held at 2.33.1 for FastF1
+      # in requirements.txt but is 2.34.2 in the FastF1-free training set. A
+      # single `-r ingest -r train` resolve is unsatisfiable and fails before
+      # auditing anything.
+      - name: pip-audit (runtime + ingest)
+        run: pip-audit --progress-spinner off -r requirements-ingest.txt
+      # Run even if the step above found something, so both manifests report.
+      - name: pip-audit (training)
+        if: ${{ !cancelled() }}
+        run: pip-audit --progress-spinner off -r requirements-train.txt

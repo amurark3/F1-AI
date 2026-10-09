@@ -1,6 +1,6 @@
-"""Recover malformed tool calls from Groq/Llama.
+"""Recover malformed tool calls from Groq.
 
-Llama models on Groq occasionally emit a tool call as inline text like
+Models on Groq occasionally emit a tool call as inline text like
 ``<function=NAME{...json...}>`` instead of a structured tool call — most often
 when an argument is a long string containing quotes (e.g. a SQL query).  Groq
 rejects these with a ``tool_use_failed`` (HTTP 400) error whose body carries the

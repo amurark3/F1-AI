@@ -1,5 +1,7 @@
 # Domain Pitfalls: F1 AI Race Engineer
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 **Domain:** Real-time sports AI companion — F1 data, predictions, push notifications, iOS
 **Researched:** 2026-02-16
 **Confidence:** MEDIUM (training data + codebase context; WebSearch unavailable in this session)

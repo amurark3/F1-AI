@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import structlog
 
+from app.services.race_control.live import live_session
+
 logger = structlog.get_logger()
 
 
 def focus_for_event(event: dict | None) -> str:
     if not event:
         return "Season review"
-    if event["status"] == "in_progress":
+    if live_session(event):
         return "Live session control"
     if event["days_until"] is not None and event["days_until"] <= 10:
         return "Race-week strategy lock"
@@ -96,6 +98,6 @@ def build_workstreams(
             "owner": "Pit Wall",
             "priority": "P1",
             "status": _live_control_status(event),
-            "href": "/race-control/live",
+            "href": "/race-control",
         },
     ]

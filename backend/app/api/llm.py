@@ -1,6 +1,6 @@
 """LLM provider — Groq.
 
-The agent runs on Groq (free, no card, Llama 3.3 70B), whose model supports the
+The agent runs on Groq (free, no card, GPT-OSS 120B), whose model supports the
 function calling the agentic loop depends on.  Get a free key at
 https://console.groq.com and set ``GROQ_API_KEY``.
 

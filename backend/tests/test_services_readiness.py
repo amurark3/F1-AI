@@ -79,15 +79,16 @@ def test_set_state_replaces_the_snapshot_rather_than_mutating_it():
 
 
 @pytest.mark.unit
-def test_warm_database_delegates_to_ensure_db(monkeypatch):
+def test_warm_database_syncs_to_the_newest_release(monkeypatch):
+    """Boot fetches the current release, not merely any file that is missing."""
     from app.data import f1db_source
 
-    calls: list[int] = []
-    monkeypatch.setattr(f1db_source, "ensure_db", lambda: calls.append(1))
+    calls: list[dict] = []
+    monkeypatch.setattr(f1db_source, "sync_to_latest", lambda **kwargs: calls.append(kwargs))
 
     readiness._warm_database()
 
-    assert len(calls) == 1
+    assert calls == [{}], "an unforced sync, so the throttle still applies"
 
 
 @pytest.mark.unit

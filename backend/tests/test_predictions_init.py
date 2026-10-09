@@ -1,7 +1,7 @@
 """Tests for the prediction package's public surface (app.data.predictions).
 
-The package was split into a stack of modules (sessions, form, standings,
-incidents, scoring, history, model, review, accuracy, compute) behind a
+The package was split into a stack of modules (phases, sessions, form,
+standings, incidents, scoring, history, model, review, accuracy, compute) behind a
 re-export shim, precisely so that ``from app.data.predictions import
 compute_race_predictions`` kept working for every existing caller — routers,
 services, the MCP server and the self-improvement loop.
@@ -28,16 +28,25 @@ _DEFINING_MODULE = {
     "ADAPTIVE_CORRECTION_WEIGHT": "app.data.predictions.compute",
     "ML_BLEND_WEIGHT": "app.data.predictions.compute",
     "MODEL_PATH": "app.data.predictions.model",
+    "PHASE_POST_QUALIFYING": "app.data.predictions.phases",
+    "PHASE_PRE_QUALIFYING": "app.data.predictions.phases",
     "PREDICTION_LOGIC_VERSION": "app.data.predictions.version",
+    "PREDICTION_PHASES": "app.data.predictions.phases",
+    "SNAPSHOT_HISTORY_LIMIT": "app.data.predictions.phases",
     "_latest_prediction_snapshot": "app.data.predictions.review",
     "_load_prediction_history": "app.data.predictions.history",
     "build_prediction_review": "app.data.predictions.review",
     "compute_race_predictions": "app.data.predictions.compute",
     "get_accuracy_stats": "app.data.predictions.accuracy",
     "get_prediction_review": "app.data.predictions.review",
+    "history_snapshot_phase": "app.data.predictions.phases",
+    "load_qualifying": "app.data.predictions.sessions",
+    "normalise_phase": "app.data.predictions.phases",
     "record_actual_result": "app.data.predictions.history",
     "safe_number": "app.data.predictions.scoring",
     "save_prediction": "app.data.predictions.history",
+    "should_use_qualifying": "app.data.predictions.sessions",
+    "trim_snapshots": "app.data.predictions.phases",
     "warm_model_cache": "app.data.predictions.model",
 }
 

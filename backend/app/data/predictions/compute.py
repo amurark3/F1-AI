@@ -24,6 +24,7 @@ from app.config import (
     RECENT_FORM_WEIGHT,
     TEAM_STRENGTH_WEIGHT,
 )
+from app.data.driver_availability import load_weekend_availability
 from app.data.f1db_standings import driver_standings_detailed
 from app.data.predictions.accuracy import get_accuracy_stats
 from app.data.predictions.driver_score import RaceSignals, score_driver
@@ -34,16 +35,21 @@ from app.data.predictions.form import (
 )
 from app.data.predictions.history import save_prediction
 from app.data.predictions.model import _adaptive_position_corrections
+from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
 from app.data.predictions.review import get_prediction_review
 from app.data.predictions.scoring import _compute_risk_predictions
 from app.data.predictions.sessions import (
     _load_practice,
     _load_qualifying,
     _load_sprint_result,
-    _qualifying_has_occurred,
+    _previous_started_round,
+    _weekend_has_started,
+    should_use_qualifying,
 )
 from app.data.predictions.standings import _load_constructor_standings, _load_driver_standings
 from app.data.predictions.version import PREDICTION_LOGIC_VERSION
+from app.data.session_entries import UNAVAILABLE as ENTRY_LIST_UNAVAILABLE, WeekendEntryList, load_weekend_entry_list
+from app.data.weekend_grid import EntryLists, resolve_grid
 
 logger = structlog.get_logger()
 
@@ -81,14 +87,18 @@ class EventContext(Stage):
     gp_name: str = ""
     circuit_key: str = ""
     event_row: Any = None
+    # The season schedule, kept for finding the previous weekend's lineup.
+    schedule: Any = None
 
 
 @dataclass(frozen=True)
 class SessionData(Stage):
-    """Qualifying or practice pace, and whether qualifying has actually run."""
+    """Qualifying or practice pace, and how far into the weekend we are."""
 
     quali_data: list[dict] | None = None
     is_pre_qualifying: bool = False
+    # Practice pace and the weekend entry list both exist from FP1 onward.
+    weekend_started: bool = True
 
 
 @dataclass(frozen=True)
@@ -130,6 +140,7 @@ def _load_event_context(year: int, round_num: int) -> EventContext:
                 gp_name=str(event_row.get("EventName", gp_name)),
                 circuit_key=str(event_row.get("Location", circuit_key)),
                 event_row=event_row,
+                schedule=schedule,
             )
     except Exception as exc:
         return EventContext(
@@ -137,36 +148,59 @@ def _load_event_context(year: int, round_num: int) -> EventContext:
             circuit_key=circuit_key,
             warnings=[f"Could not load event schedule: {exc}"],
         )
-    return EventContext(gp_name=gp_name, circuit_key=circuit_key)
+    return EventContext(gp_name=gp_name, circuit_key=circuit_key, schedule=schedule)
 
 
-def _load_session_data(year: int, round_num: int, event_row: Any) -> SessionData:
+def _pre_qualifying_warning(forced: bool, basis: str) -> str:
+    """Explain why a prediction has no grid behind it.
+
+    A forced pre-qualifying call is not missing the qualifying result — it is
+    ignoring it on purpose — so saying "unavailable" would misreport the model.
+    """
+    if forced:
+        return (
+            "Qualifying result deliberately excluded; using practice session pace"
+            if basis == "practice"
+            else "Qualifying result deliberately excluded; using historical form only"
+        )
+    if basis == "practice":
+        return "Qualifying data unavailable; using practice session pace as proxy"
+    return "No qualifying or practice data available; using historical data only"
+
+
+def _load_session_data(year: int, round_num: int, event_row: Any, forced_pre_qualifying: bool) -> SessionData:
     """Load qualifying, falling back to practice pace, then to history alone.
 
-    Sessions are only attempted once the weekend has run: probing FastF1 for an
+    Sessions are only attempted once they can exist: probing FastF1 for an
     upcoming race is a slow failure that eats the compute budget for nothing.
+    Qualifying is gated on qualifying having run, practice on the weekend
+    having started. A forced pre-qualifying call deliberately skips the grid,
+    so it takes the same practice/historical path a genuinely pre-qualifying
+    weekend takes.
     """
-    sessions_occurred = _qualifying_has_occurred(event_row) if event_row is not None else True
-    if sessions_occurred:
+    weekend_started = _weekend_has_started(event_row) if event_row is not None else True
+    if should_use_qualifying(event_row, forced_pre_qualifying):
         quali_data = _load_qualifying(year, round_num)
         if quali_data:
-            return SessionData(quali_data=quali_data, data_sources=["qualifying"])
+            return SessionData(quali_data=quali_data, data_sources=["qualifying"], weekend_started=weekend_started)
 
+    if weekend_started:
         practice = _load_practice(year, round_num)
         if practice:
             return SessionData(
                 quali_data=practice,
                 is_pre_qualifying=True,
                 data_sources=["practice"],
-                warnings=["Qualifying data unavailable; using practice session pace as proxy"],
+                warnings=[_pre_qualifying_warning(forced_pre_qualifying, "practice")],
+                weekend_started=weekend_started,
             )
 
     reason = (
-        "No qualifying or practice data available; using historical data only"
-        if sessions_occurred
+        _pre_qualifying_warning(forced_pre_qualifying, "history")
+        if forced_pre_qualifying or weekend_started
         else "Race weekend has not started; using historical form only"
     )
-    return SessionData(is_pre_qualifying=True, warnings=[reason])
+    return SessionData(is_pre_qualifying=True, warnings=[reason], weekend_started=weekend_started)
 
 
 def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> SupportingData:
@@ -174,13 +208,13 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
     warnings: list[str] = []
     data_sources: list[str] = []
 
-    constructor_standings = _load_constructor_standings(year)
+    constructor_standings = _load_constructor_standings(year, round_num)
     if constructor_standings:
         data_sources.append("constructor_standings")
     else:
         warnings.append("Constructor standings unavailable")
 
-    driver_standings = _load_driver_standings(year)
+    driver_standings = _load_driver_standings(year, round_num)
     if driver_standings:
         data_sources.append("driver_standings")
 
@@ -192,7 +226,7 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
     if sprint_data:
         data_sources.append("sprint_result")
 
-    adaptive_corrections = _adaptive_position_corrections()
+    adaptive_corrections = _adaptive_position_corrections(year, round_num)
     if adaptive_corrections:
         data_sources.append("adaptive_history")
 
@@ -212,55 +246,47 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
     )
 
 
-def _build_roster(year: int, quali_data: list[dict] | None) -> Roster:
-    """Return every entered driver, back-filling those without a session time.
+def _previous_weekend_entry_list(schedule: Any, year: int, round_num: int) -> WeekendEntryList:
+    """The latest run weekend's entry list — the provisional lineup for this one."""
+    previous_round = _previous_started_round(schedule, round_num)
+    if previous_round is None:
+        return ENTRY_LIST_UNAVAILABLE
+    return load_weekend_entry_list(year, previous_round)
 
-    A missing qualifying time (crash, DNS, no lap set) must NOT drop a driver
-    from the grid: unless the field is genuinely reduced, the full roster of
-    entered drivers should be predicted. The roster comes from the season's
-    championship entry list, which gives real names and teams from f1db with no
-    rate limits.
+
+def _build_roster(year: int, round_num: int, event: EventContext, session: SessionData) -> Roster:
+    """Return every driver *entered for this weekend*, and nobody else.
+
+    The weekend's own entry list is authoritative once a session has run.
+    Before that the previous weekend's lineup stands in, and only then the
+    season championship roster — which describes who has raced this season
+    rather than who is at this track. See :mod:`app.data.weekend_grid` for the
+    resolution order and for how drivers without a session time are placed.
     """
-    drivers: list[dict] = list(quali_data) if quali_data else []
-
+    warnings: list[str] = []
     try:
-        roster = driver_standings_detailed(year)
+        championship_roster = driver_standings_detailed(year)
     except Exception as exc:
-        return Roster(drivers=drivers, warnings=[f"Could not load full-grid roster: {exc}"])
+        championship_roster = []
+        warnings.append(f"Could not load full-grid roster: {exc}")
 
-    if not roster:
-        return Roster(drivers=drivers)
-
-    present = {d["driver_code"] for d in drivers}
-    missing = sorted((r for r in roster if r["code"] not in present), key=lambda r: r["position"])
-    if not missing:
-        return Roster(drivers=drivers)
-
-    # Back-filled drivers line up behind the slowest actual qualifier (or from
-    # P1 when there's no session yet), in championship order, so they start from
-    # a realistic slot rather than an arbitrary one.
-    next_pos = max((d.get("position", 0) for d in drivers), default=0) + 1
-    for entry in missing:
-        drivers.append(
-            {
-                "driver_code": entry["code"],
-                "driver_name": entry["name"],
-                "team": entry["team"],
-                "position": next_pos,
-                "no_qualifying_time": True,
-            }
-        )
-        next_pos += 1
-
-    warnings = (
-        [
-            f"{len(missing)} entered driver(s) had no qualifying time; "
-            "included from championship entry list at back of grid"
-        ]
-        if quali_data
-        else []
+    entry_list = load_weekend_entry_list(year, round_num) if session.weekend_started else ENTRY_LIST_UNAVAILABLE
+    previous_entry_list = (
+        ENTRY_LIST_UNAVAILABLE
+        if entry_list.available
+        else _previous_weekend_entry_list(event.schedule, year, round_num)
     )
-    return Roster(drivers=drivers, warnings=warnings, data_sources=["championship_position"])
+    grid = resolve_grid(
+        timed_drivers=list(session.quali_data) if session.quali_data else [],
+        championship_roster=championship_roster,
+        entry_lists=EntryLists(current=entry_list, previous=previous_entry_list),
+        availability=load_weekend_availability(year, round_num),
+    )
+    return Roster(
+        drivers=list(grid.drivers),
+        warnings=[*warnings, *grid.warnings],
+        data_sources=list(grid.data_sources),
+    )
 
 
 def _active_weights(session: SessionData, support: SupportingData) -> dict[str, float]:
@@ -324,27 +350,33 @@ def _response(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "logic_version": PREDICTION_LOGIC_VERSION,
         "accuracy": get_accuracy_stats(),
-        "prediction_review": get_prediction_review(year, round_num),
         **body,
     }
 
 
-def compute_race_predictions(year: int, round_num: int) -> dict:
+def compute_race_predictions(year: int, round_num: int, *, phase: str | None = None) -> dict:
     """Compute probabilistic race outcome predictions for all drivers.
 
     Args:
         year: Season year (e.g. 2025).
         round_num: Round number in the season calendar.
+        phase: Force a prediction phase. ``PHASE_PRE_QUALIFYING`` ignores the
+            qualifying result even when it exists, producing the form-and-history
+            call for comparison against the post-qualifying one. ``None`` (the
+            default) lets the available data decide, which is what every caller
+            did before phases existed.
 
     Returns:
         Dict matching the REST response shape with predictions for all
         drivers sorted by predicted finishing position, including
         confidence ranges and reasoning factors.
     """
+    forced_pre_qualifying = normalise_phase(phase) == PHASE_PRE_QUALIFYING
     event = _load_event_context(year, round_num)
-    session = _load_session_data(year, round_num, event.event_row)
+    session = _load_session_data(year, round_num, event.event_row, forced_pre_qualifying)
     support = _load_supporting_data(year, round_num, event.circuit_key)
-    roster = _build_roster(year, session.quali_data)
+    roster = _build_roster(year, round_num, event, session)
+    resolved_phase = PHASE_PRE_QUALIFYING if session.is_pre_qualifying else PHASE_POST_QUALIFYING
 
     stages = (event, session, support, roster)
     warnings = [warning for stage in stages for warning in stage.warnings]
@@ -360,6 +392,8 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
                 "data_sources": data_sources,
                 "predictions": [],
                 "risk_predictions": [],
+                "prediction_review": get_prediction_review(year, round_num),
+                "prediction_phase": resolved_phase,
                 "weather_impact": "unknown",
                 "wet_scenario": None,
                 "warnings": [*warnings, "No driver data available for predictions"],
@@ -403,7 +437,7 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
             "data_sources": sorted(set(data_sources)),
             "predictions": predictions,
             "risk_predictions": _compute_risk_predictions(predictions, scored_by_code, year, round_num),
-            "prediction_phase": "pre_qualifying" if session.is_pre_qualifying else "post_qualifying",
+            "prediction_phase": resolved_phase,
             "weather_impact": "dry",  # Weather module (Plan 02) will populate this
             "wet_scenario": None,
             "warnings": warnings or None,
@@ -414,6 +448,10 @@ def compute_race_predictions(year: int, round_num: int) -> dict:
         save_prediction(year, round_num, result)
     except Exception as exc:
         logger.warning("predictions.save_failed", error=str(exc))
+
+    # Scored after the save so a completed race reviews the call just made,
+    # not the previous snapshot of this phase.
+    result = {**result, "prediction_review": get_prediction_review(year, round_num, phase=resolved_phase)}
 
     logger.info(
         "predictions.computed",

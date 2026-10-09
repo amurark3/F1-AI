@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-import threading
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter
@@ -20,6 +19,7 @@ from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
 from app.utils.f1_values import utc_isoformat
+from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -34,7 +34,9 @@ race_detail_cache: dict[tuple[int, int], dict] = {}
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
-_fastf1_lock = threading.Lock()
+# Aliased to the process-wide lock: a per-module lock does not serialise
+# against the other modules sharing FastF1's SQLite cache.
+_fastf1_lock = FASTF1_LOCK
 
 # Per-request timeout for building race detail (seconds).
 # Generous because the lock means requests queue up sequentially.

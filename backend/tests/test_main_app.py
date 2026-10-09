@@ -294,12 +294,84 @@ def _stub_self_improvement(monkeypatch, replacement) -> None:
 
 
 # ---------------------------------------------------------------------------
+# f1db refresh loop
+# ---------------------------------------------------------------------------
+
+
+def _stub_sync(monkeypatch, outcome) -> list[int]:
+    """Serve ``outcome`` (or raise it) from the f1db sync; count the calls."""
+    calls: list[int] = []
+
+    def _sync():
+        calls.append(1)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(main, "sync_to_latest", _sync)
+    return calls
+
+
+@pytest.mark.unit
+async def test_the_refresh_loop_sleeps_before_its_first_check(monkeypatch, sleep_stub):
+    """Warm-up has just synced; checking again at boot would only spend the API quota."""
+    calls = _stub_sync(monkeypatch, AssertionError("must not sync before the first interval"))
+    delays = sleep_stub(stop_after=1)
+
+    with pytest.raises(_LoopEscape):
+        await main._refresh_f1db_dataset()
+
+    assert delays == [main.F1DB_REFRESH_INTERVAL_SECONDS]
+    assert calls == []
+
+
+@pytest.mark.unit
+async def test_a_new_release_is_logged_and_the_loop_carries_on(monkeypatch, sleep_stub, capsys):
+    from app.data.f1db_source import SyncOutcome
+
+    calls = _stub_sync(monkeypatch, SyncOutcome(version="v2026.17.0", updated=True, reason="downloaded"))
+    sleep_stub(stop_after=2)
+
+    with pytest.raises(_LoopEscape):
+        await main._refresh_f1db_dataset()
+
+    assert calls == [1]
+    assert "f1db.refresh_loop.updated" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+async def test_an_unchanged_dataset_is_not_reported_as_an_update(monkeypatch, sleep_stub, capsys):
+    from app.data.f1db_source import SyncOutcome
+
+    _stub_sync(monkeypatch, SyncOutcome(version="v2026.17.0", updated=False, reason="current"))
+    sleep_stub(stop_after=2)
+
+    with pytest.raises(_LoopEscape):
+        await main._refresh_f1db_dataset()
+
+    assert "f1db.refresh_loop.updated" not in capsys.readouterr().out
+
+
+@pytest.mark.unit
+async def test_a_failed_refresh_is_logged_and_retried_next_interval(monkeypatch, sleep_stub, capsys):
+    """A long-lived container must not lose its refresh loop to one bad check."""
+    calls = _stub_sync(monkeypatch, RuntimeError("github unreachable"))
+    sleep_stub(stop_after=3)
+
+    with pytest.raises(_LoopEscape):
+        await main._refresh_f1db_dataset()
+
+    assert calls == [1, 1]
+    assert "f1db.refresh_loop_error" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-async def test_lifespan_runs_both_background_tasks_and_cancels_them_on_shutdown(monkeypatch):
+async def test_lifespan_runs_every_background_task_and_cancels_them_on_shutdown(monkeypatch):
     events: list[str] = []
 
     def _make(name: str):
@@ -316,14 +388,15 @@ async def test_lifespan_runs_both_background_tasks_and_cancels_them_on_shutdown(
     monkeypatch.setattr(main, "setup_logging", lambda: events.append("logging.configured"))
     monkeypatch.setattr(main, "run_warmup", _make("warmup"))
     monkeypatch.setattr(main, "_prefetch_race_details", _make("prefetch"))
+    monkeypatch.setattr(main, "_refresh_f1db_dataset", _make("f1db_refresh"))
 
     async with main.lifespan(main.app):
         await asyncio.sleep(0)  # hand control to the freshly created tasks
-        assert events == ["logging.configured", "warmup.started", "prefetch.started"]
+        assert events == ["logging.configured", "warmup.started", "prefetch.started", "f1db_refresh.started"]
 
-    # Shutdown must reach both: a surviving prefetch loop keeps the worker busy
+    # Shutdown must reach every task: a surviving loop keeps the worker busy
     # long after the server has stopped answering.
-    assert events[-2:] == ["warmup.cancelled", "prefetch.cancelled"]
+    assert events[-3:] == ["warmup.cancelled", "prefetch.cancelled", "f1db_refresh.cancelled"]
 
 
 @pytest.mark.integration
@@ -336,11 +409,12 @@ def test_serving_through_the_asgi_lifespan_does_not_start_the_real_prefetch(monk
     monkeypatch.setattr(main, "setup_logging", lambda: None)
     monkeypatch.setattr(main, "run_warmup", _noop)
     monkeypatch.setattr(main, "_prefetch_race_details", _noop)
+    monkeypatch.setattr(main, "_refresh_f1db_dataset", _noop)
 
     with TestClient(main.app) as client:
         assert client.get("/").status_code == 200
 
-    assert started == ["called", "called"]
+    assert started == ["called", "called", "called"]
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This milestone transforms a working F1 AI companion into a portfolio-grade application. The work flows in dependency order: harden the existing infrastructure (ChromaDB, WebSocket, logging), build new backend data capabilities (predictions, strategy, weather), surface those capabilities in iOS and web clients, add live race experience features (Dynamic Island, AI commentary), and finally wire up APNs push infrastructure that depends on everything before it being stable. Every phase delivers a coherent, verifiable capability.
+This milestone transforms a working F1 AI companion into a portfolio-grade application. The work flows in dependency order: harden the existing infrastructure (ChromaDB, WebSocket, logging), build new backend data capabilities (predictions, strategy, weather), surface those capabilities in iOS and web clients, add live race experience features (Dynamic Island, and AI commentary, since removed), and finally wire up APNs push infrastructure that depends on everything before it being stable. Every phase delivers a coherent, verifiable capability.
 
 ## Phases
 
@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Infrastructure Hardening** - Fix production-blocking performance issues, remove dead code and stale README references, add structured logging
 - [ ] **Phase 2: Backend Data Features** - Build predictions, pit strategy, and weather tools as new backend capabilities
 - [ ] **Phase 3: Client Feature Surface** - Surface predictions, championship scenarios, and error handling in iOS and web UIs
-- [x] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions
+- [x] **Phase 4: Live Race Experience** - Add Dynamic Island live activities and real-time AI commentary during sessions *(AI commentary removed 2026-09-29)*
 - [ ] **Phase 5: Push Infrastructure** - Wire up APNs push notifications for live race events on physical iOS devices
 
 ## Phase Details
@@ -74,27 +74,31 @@ Plans:
 
 ### Phase 4: Live Race Experience
 **Goal**: During active sessions, users get live position tracking on Dynamic Island and AI-generated commentary that explains what is happening in real time
+
+> **Note (2026-09-29):** The AI commentary half of this phase (LIVE-03, LIVE-04, LIVE-05; plans 04-04, 04-05, 04-06) has been removed from the codebase and is not a current feature. The Dynamic Island, favorite-driver and lap-count work (04-01, 04-02, 04-03, 04-07) is unaffected. See [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md).
 **Depends on**: Phase 3
 **Requirements**: LIVE-01, LIVE-02, LIVE-03, LIVE-04, LIVE-05
 **Success Criteria** (what must be TRUE):
   1. Dynamic Island compact view shows selected driver position, gap to leader, and current lap during an active session
   2. Dynamic Island expanded view shows full timing data and updates in real-time from WebSocket feed
-  3. When a significant event occurs (position change, safety car, fastest lap, pit stop), AI commentary appears within 30 seconds explaining the context
-  4. AI commentary does not fire more than once every 30 seconds regardless of event frequency
-  5. Commentary panel is visible in both iOS and web UIs as a dedicated section during live sessions
+  3. When a significant event occurs (position change, safety car, fastest lap, pit stop), AI commentary appears within 30 seconds explaining the context *(removed 2026-09-29)*
+  4. AI commentary does not fire more than once every 30 seconds regardless of event frequency *(removed 2026-09-29)*
+  5. Commentary panel is visible in both iOS and web UIs as a dedicated section during live sessions *(removed 2026-09-29)*
 **Plans**: 04-01 through 04-07
 
 Plans:
 - [x] 04-01: ActivityKit Live Activity declaration (RaceLiveActivity views + widget bundle + NSSupportsLiveActivities)
 - [x] 04-02: Live Activity lifecycle manager (start/update/end wired to session detection + WebSocket data)
 - [x] 04-03: Favorite driver settings (driver picker in App Settings, UserDefaults key)
-- [x] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast)
-- [x] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot)
-- [x] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel)
+- [x] 04-04: Backend commentary engine (event detection, rate limiting, Gemini generation, WebSocket broadcast) *(removed 2026-09-29)*
+- [x] 04-05: iOS commentary UI (segmented picker + CommentaryFeedView with history + badge dot) *(removed 2026-09-29)*
+- [x] 04-06: Web live page + commentary sidebar (/live page, useLiveTiming hook, CommentaryPanel) *(removed 2026-09-29)*
 - [x] 04-07: Lap count integration (OpenF1 /v1/laps poll, session_status broadcast, Dynamic Island compact view)
 
 ### Phase 5: Push Infrastructure
 **Goal**: iOS users receive real-time push notifications for live race events on physical devices, with reliable token management
+
+> **Note (2026-09-29):** Phase 5 was planned on top of the Phase 4 commentary engine. `05-CONTEXT.md` reuses commentary text as the push body, and `05-03-PLAN.md` hooks dispatch into commentary event detection. That engine has been removed, so re-plan PUSH-02 event detection and notification text before executing this phase. See [docs/REMOVED_FEATURES.md](../docs/REMOVED_FEATURES.md).
 **Depends on**: Phase 4
 **Requirements**: PUSH-01, PUSH-02, PUSH-03, PUSH-04
 **Success Criteria** (what must be TRUE):

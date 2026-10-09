@@ -1,5 +1,7 @@
 # Phase 4: Live Race Experience - Context
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 **Gathered:** 2026-03-03
 **Status:** Ready for planning
 

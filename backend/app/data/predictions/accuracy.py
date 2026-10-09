@@ -8,7 +8,7 @@ import statistics
 import structlog
 
 from app.data.predictions.history import _load_prediction_history, record_actual_result
-from app.data.predictions.review import _latest_prediction_snapshot
+from app.data.predictions.review import _accuracy_snapshot
 from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
 
 logger = structlog.get_logger()
@@ -56,7 +56,7 @@ def _evaluated_entries(history: dict) -> list[dict]:
     """History entries that carry both a prediction and a recorded result."""
     evaluated = []
     for entry in history.values():
-        snapshot = _latest_prediction_snapshot(entry)
+        snapshot = _accuracy_snapshot(entry)
         predicted = snapshot.get("predicted_positions")
         actual = entry.get("actual_positions")
         if predicted and actual:

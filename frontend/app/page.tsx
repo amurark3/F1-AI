@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Gauge,
   LayoutDashboard,
-  Radio,
   Trophy,
   Users,
   type LucideIcon,
@@ -49,14 +48,9 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       {
         href: "/race-control",
         label: "Command Center",
-        description: "Race weekend overview — session timing, championship pressure, and the strategy baseline.",
+        description:
+          "Race weekend overview — session timing, championship pressure, the strategy baseline, and the timing tower while a session is live.",
         icon: LayoutDashboard,
-      },
-      {
-        href: "/race-control/live",
-        label: "Live Timing",
-        description: "Timing tower, sector deltas, and session commentary while a session is running.",
-        icon: Radio,
       },
       {
         href: "/race-control/engineer",
@@ -71,7 +65,7 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     accent: "#00FF78",
     items: [
       {
-        href: "/race-control/predictions",
+        href: "/race-control/grand-prix",
         label: "Race Predictions",
         description: "Model-ranked finishing order, with the reasoning behind each driver's placement.",
         icon: Gauge,

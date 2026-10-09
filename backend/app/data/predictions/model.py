@@ -90,17 +90,38 @@ def _ml_explanation(features: dict[str, float]) -> list[tuple[str, float]] | Non
         return None
 
 
-def _adaptive_position_corrections() -> dict[str, dict[str, float]]:
+def _history_race(key: str) -> tuple[int, int] | None:
+    """The ``(year, round)`` of a prediction-history key, or None if malformed."""
+    try:
+        year, round_num = (int(part) for part in key.strip("()").split(","))
+    except ValueError:
+        return None
+    return year, round_num
+
+
+def _adaptive_position_corrections(year: int, round_num: int) -> dict[str, dict[str, float]]:
     """Learn small driver-specific corrections from evaluated prediction misses.
 
     Positive correction means the model has been too optimistic and the score
     should move worse. Negative correction means the driver has usually beaten
     the model and the score can improve slightly.
+
+    Only races before ``(year, round_num)`` count, oldest first: a recomputed
+    past race must not learn from its own result or any later one, and the
+    six-race window is the six most recent races, not the last six keys stored.
     """
     history = _load_prediction_history()
     corrections: dict[str, list[float]] = {}
+    earlier = sorted(
+        (
+            (race, entry)
+            for key, entry in history.items()
+            if (race := _history_race(key)) is not None and race < (year, round_num)
+        ),
+        key=lambda item: item[0],
+    )
 
-    for entry in history.values():
+    for _, entry in earlier:
         snapshots = entry.get("snapshots")
         if not snapshots:
             snapshots = [

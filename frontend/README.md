@@ -43,20 +43,19 @@ Consumer, Calendar, Standings, Champions, Predictions, Live.
 | Route                                           | Purpose                                   |
 | ----------------------------------------------- | ----------------------------------------- |
 | `/`                                             | Redirects to `/race-control`              |
-| `/race-control`                                 | Operational season control board          |
+| `/race-control`                                 | Control board + live timing tower         |
 | `/race-control/engineer`                        | Streaming AI race-engineer chat           |
 | `/race-control/teams` · `/teams/[team]`         | Constructor breakdowns                    |
 | `/race-control/debriefs`                        | LLM post-race debriefs                    |
 | `/race-control/intel`                           | Per-team strategic intel                  |
 | `/race-control/predictions`                     | Race predictions + post-mortems           |
 | `/race-control/rulebook`                        | FIA regulation semantic search            |
-| `/race-control/live`                            | Live timing + AI commentary               |
 | `/race-control/champions` · `/champions/[year]` | Historical champions                      |
 | `/calendar`                                     | Season schedule with countdown            |
 | `/standings`                                    | WDC + WCC tables                          |
 | `/champions`                                    | Champions 1950→present                    |
 | `/predictions`                                  | Race predictions + championship scenarios |
-| `/live`                                         | Live timing                               |
+| `/live` · `/race-control/live`                  | Redirects to `/race-control`              |
 | `/consumer`                                     | Redirects to `/race-control/engineer`     |
 
 ## Stack

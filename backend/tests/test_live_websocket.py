@@ -1,55 +1,42 @@
-"""Tests for app.api.live.websocket — the live-timing endpoint's poll loop.
+"""Tests for app.api.live.websocket — the live-timing endpoint's lifecycle.
 
-``live_timing`` is an unbounded ``while True`` holding a socket, a heartbeat
-task and an entry in a process-wide registry. The risks are all lifecycle ones:
+``live_timing`` holds a socket, a heartbeat task and an entry in a process-wide
+registry for as long as a race weekend lasts. The risks are lifecycle ones:
 
 * **Every exit path must release everything.** A normal disconnect, a stale
-  connection, a bug in the poll loop and a bad OpenF1 response all have to end
-  with the heartbeat task cancelled and the socket out of the registry —
-  otherwise the process accumulates tasks pinging dead sockets.
-* **A degraded feed must not end the connection.** OpenF1 returning nothing is
-  the common case between sessions; the loop keeps its last known lap and
-  carries on rather than dropping the client.
-* **Commentary is rate-limited and never speculative.** The first poll of a room
-  has no baseline to compare against, and inside the cooldown window no model
-  call may happen at all.
+  connection and a bug in the loop all have to end with the heartbeat task
+  cancelled and the socket out of the registry — otherwise the process
+  accumulates tasks pinging dead sockets.
+* **A crash must not look like a disconnect.** Both used to land in the same
+  silent handler, which hid real bugs in the loop.
+* **Between sessions nothing is polled.** A round with no active session holds
+  the socket open and reports standby, without asking OpenF1 for timing.
 
-Timers are neutralised by patching ``WS_POLL_INTERVAL`` to zero and the receive
-timeout to milliseconds, and every fake client disconnects after a bounded
-number of reads, so no test here can hang.
+Session resolution and frame-by-frame behaviour are covered by
+``test_live_replay.py`` and ``test_live_loop_pacing.py``. Timers here are
+neutralised by patching both poll intervals to zero and the receive timeout to
+milliseconds, and every fake client disconnects after a bounded number of
+reads, so no test can hang.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import WebSocketDisconnect
 import pytest
 
 from app.api.live import websocket as ws_mod
-from app.api.live.commentary import _commentary_state
 from app.api.live.connections import ConnectionManager
-from app.api.live.events import Snapshot
+from app.services.live_timing_client import ActiveSession, SessionLookup, TimingSnapshot
 
 ROOM = "2026-4"
-POSITIONS = [
+ROWS = [
     {"position": 1, "driver": "VER", "gap": "LEADER"},
     {"position": 2, "driver": "NOR", "gap": "+1.200"},
 ]
-SWAPPED = [
-    {"position": 1, "driver": "NOR", "gap": "LEADER"},
-    {"position": 2, "driver": "VER", "gap": "+0.800"},
-]
-
-_FEED_DEFAULTS = {
-    "_find_openf1_session": ("9999", 57),
-    "_poll_openf1_positions": POSITIONS,
-    "_fetch_current_lap": 12,
-    "_fetch_session_status": "",
-    "_fetch_stint_counts": {},
-}
 
 
 class _FakeWebSocket:
@@ -58,7 +45,7 @@ class _FakeWebSocket:
     ``incoming`` may hold exceptions, which are raised instead of returned —
     that is how a mid-session disconnect or a transport error arrives. Once the
     queue empties every further read raises ``WebSocketDisconnect``, which is
-    what bounds the endpoint's ``while True``.
+    what bounds the endpoint's loop.
     """
 
     def __init__(self, *, incoming=(), send_error=None):
@@ -89,38 +76,36 @@ class _FakeWebSocket:
         return [payload["data"] for payload in self.sent if payload["type"] == kind]
 
 
-def _returning(value):
-    """An async stand-in that ignores its arguments and answers ``value``."""
-
-    async def _call(*_args):
-        return value
-
-    return _call
-
-
-def _raising(error):
-    async def _call(*_args):
-        raise error
-
-    return _call
+def _active(now: datetime) -> ActiveSession:
+    return ActiveSession(
+        session_key="9999",
+        session_name="Race",
+        session_type="Race",
+        meeting_name="Japanese Grand Prix",
+        date_start=now - timedelta(minutes=20),
+        date_end=now + timedelta(hours=1),
+    )
 
 
-def _patch_feeds(monkeypatch, **fields):
-    """Replace the OpenF1 calls ``websocket.py`` imported with fixed answers.
+def _serve(monkeypatch, *, active=True, poll=None):
+    """Answer session lookups and timing polls without touching OpenF1.
 
-    A value that is an exception instance is raised by the stand-in instead.
+    ``poll`` replaces the timing poll outright; by default every poll returns
+    the same two-car running order sampled a few seconds ago.
     """
-    for name, value in {**_FEED_DEFAULTS, **fields}.items():
-        stub = _raising(value) if isinstance(value, BaseException) else _returning(value)
-        monkeypatch.setattr(ws_mod, name, stub)
+    polls: list[str] = []
 
+    async def _resolve(_year, _round, now=None):
+        moment = now or datetime.now(timezone.utc)
+        return SessionLookup(active=_active(moment) if active else None, next_start=None)
 
-@pytest.fixture(autouse=True)
-def _clear_commentary_state():
-    """Per-room commentary state is a process global keyed by year-round."""
-    _commentary_state.clear()
-    yield
-    _commentary_state.clear()
+    async def _poll(session, now=None, last_lap=None):
+        polls.append(session.session_key)
+        return TimingSnapshot(rows=ROWS, sampled_at=now - timedelta(seconds=3), lap=12)
+
+    monkeypatch.setattr(ws_mod, "resolve_session_window", _resolve)
+    monkeypatch.setattr(ws_mod, "poll_timing", poll or _poll)
+    return polls
 
 
 @pytest.fixture
@@ -133,8 +118,9 @@ def manager(monkeypatch):
 
 @pytest.fixture
 def no_waiting(monkeypatch):
-    """Collapse the poll interval so the loop costs no wall time."""
+    """Collapse both poll intervals so the loop costs no wall time."""
     monkeypatch.setattr(ws_mod, "WS_POLL_INTERVAL", 0)
+    monkeypatch.setattr(ws_mod, "WS_IDLE_POLL_INTERVAL", 0)
 
 
 @pytest.fixture
@@ -152,11 +138,6 @@ def spied_tasks(monkeypatch):
     return created
 
 
-def _session(**fields):
-    defaults = {"key": "9999", "total_laps": 57, "room": ROOM, "race_name": "Round 4 2026"}
-    return ws_mod.LiveSession(**{**defaults, **fields})
-
-
 async def _drain(task):
     """Let a cancelled task finish so ``cancelled()`` is meaningful."""
     with contextlib.suppress(asyncio.CancelledError):
@@ -164,251 +145,7 @@ async def _drain(task):
 
 
 # ---------------------------------------------------------------------------
-# _resolve_session
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-async def test_a_known_round_resolves_to_its_openf1_session(monkeypatch):
-    _patch_feeds(monkeypatch)
-
-    session = await ws_mod._resolve_session(2026, 4, ROOM)
-
-    assert session == ws_mod.LiveSession(key="9999", total_laps=57, room=ROOM, race_name="Round 4 2026")
-
-
-@pytest.mark.unit
-async def test_an_unknown_round_resolves_to_a_keyless_session(monkeypatch):
-    """No key means the loop idles instead of polling a session that is not live."""
-    _patch_feeds(monkeypatch, _find_openf1_session=None)
-
-    session = await ws_mod._resolve_session(2030, 99, "2030-99")
-
-    assert session.key is None
-    assert session.total_laps == 0
-
-
-# ---------------------------------------------------------------------------
-# Per-room state
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_a_new_room_starts_with_no_commentary_history():
-    state = ws_mod._room_state(ROOM)
-
-    assert state == {"last_time": 0.0, "prev_positions": [], "prev_session_status": "", "prev_stints": {}}
-
-
-@pytest.mark.unit
-def test_a_room_keeps_the_same_state_object_across_polls():
-    """A fresh dict each poll would reset the cooldown and spam commentary."""
-    first = ws_mod._room_state(ROOM)
-    first["last_time"] = 123.0
-
-    assert ws_mod._room_state(ROOM) is first
-    assert ws_mod._room_state("2026-5") is not first
-
-
-@pytest.mark.unit
-def test_a_stored_snapshot_reads_back_unchanged():
-    state = ws_mod._room_state(ROOM)
-    snapshot = Snapshot(positions=POSITIONS, session_status="safety car", stints={"1": 2})
-
-    ws_mod._store_snapshot(state, snapshot)
-
-    assert ws_mod._stored_snapshot(state) == snapshot
-
-
-# ---------------------------------------------------------------------------
-# Outbound frames
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-async def test_the_running_order_is_broadcast_and_counts_as_activity(manager):
-    ws = _FakeWebSocket()
-    await manager.connect(ROOM, ws)
-    manager.last_activity[id(ws)] = 0.0
-
-    await ws_mod._send_positions(ws, POSITIONS)
-
-    assert ws.sent == [{"type": "positions", "data": POSITIONS}]
-    assert manager.is_stale(ws) is False, "a successful send must refresh the connection"
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("current_lap", "last_known_lap", "total_laps", "expected_lap", "expected_total"),
-    [
-        (12, 5, 57, 12, 57),
-        (0, 5, 57, 5, 57),
-        (0, 0, 57, None, 57),
-        (12, 0, 0, 12, None),
-    ],
-    ids=["fresh-lap", "sticky-across-a-gap", "race-not-started", "distance-unknown"],
-)
-async def test_the_lap_counter_holds_its_value_through_feed_gaps(
-    monkeypatch, manager, current_lap, last_known_lap, total_laps, expected_lap, expected_total
-):
-    """OpenF1 reports lap 0 between laps; blanking the display would look broken."""
-    _patch_feeds(monkeypatch, _fetch_current_lap=current_lap)
-    ws = _FakeWebSocket()
-
-    carried = await ws_mod._send_session_status(ws, _session(total_laps=total_laps), last_known_lap)
-
-    assert ws.payloads_of("session_status") == [
-        {"status": "started", "lap": expected_lap, "total_laps": expected_total}
-    ]
-    assert carried == (expected_lap or 0)
-
-
-@pytest.mark.unit
-async def test_commentary_is_broadcast_with_a_utc_timestamp(monkeypatch, manager):
-    monkeypatch.setattr(ws_mod, "_generate_commentary", _returning("Norris takes the lead!"))
-    monkeypatch.setattr(ws_mod.time, "time", lambda: 1_800_000.5)
-    ws = _FakeWebSocket()
-    state = ws_mod._room_state(ROOM)
-
-    await ws_mod._send_commentary(ws, _session(), {"type": "position_change"}, state)
-
-    (payload,) = ws.payloads_of("commentary")
-    assert payload["text"] == "Norris takes the lead!"
-    assert payload["event_type"] == "position_change"
-    assert payload["id"] == "1800000.5"
-    assert datetime.fromisoformat(payload["timestamp"]).utcoffset().total_seconds() == 0
-    assert state["last_time"] == 1_800_000.5, "the cooldown window starts when the line is sent"
-
-
-@pytest.mark.unit
-async def test_empty_commentary_is_not_broadcast(monkeypatch, manager):
-    """An unknown event type yields no copy; sending it would be a blank card."""
-    monkeypatch.setattr(ws_mod, "_generate_commentary", _returning(""))
-    ws = _FakeWebSocket()
-    state = ws_mod._room_state(ROOM)
-
-    await ws_mod._send_commentary(ws, _session(), {"type": "tyre_change"}, state)
-
-    assert ws.sent == []
-    assert state["last_time"] == 0.0, "a suppressed line must not consume the cooldown"
-
-
-# ---------------------------------------------------------------------------
-# _handle_commentary
-# ---------------------------------------------------------------------------
-
-
-def _record_commentary(monkeypatch, text="Big move!"):
-    """Replace the LLM layer with a recorder of the events it was asked about."""
-    seen: list[dict] = []
-
-    async def _generate(event, _race_name):
-        seen.append(event)
-        return text
-
-    monkeypatch.setattr(ws_mod, "_generate_commentary", _generate)
-    return seen
-
-
-@pytest.mark.unit
-async def test_the_first_poll_of_a_room_establishes_a_baseline_silently(monkeypatch, manager):
-    """With nothing to compare against, every driver looks like an overtake."""
-    seen = _record_commentary(monkeypatch)
-    ws = _FakeWebSocket()
-
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-
-    assert seen == []
-    assert ws.sent == []
-    assert ws_mod._room_state(ROOM)["prev_positions"] == POSITIONS
-
-
-@pytest.mark.unit
-async def test_an_overtake_after_the_cooldown_is_commentated(monkeypatch, manager):
-    seen = _record_commentary(monkeypatch, "Norris sweeps around the outside!")
-    ws = _FakeWebSocket()
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=SWAPPED))
-
-    assert seen == [{"type": "position_change", "driver": "NOR", "from_pos": 2, "to_pos": 1, "positions": SWAPPED}]
-    assert ws.payloads_of("commentary")[0]["text"] == "Norris sweeps around the outside!"
-    assert ws_mod._room_state(ROOM)["prev_positions"] == SWAPPED
-
-
-@pytest.mark.unit
-async def test_a_second_event_inside_the_cooldown_is_suppressed(monkeypatch, manager):
-    """The window is what stops a busy lap turning into a wall of commentary."""
-    seen = _record_commentary(monkeypatch)
-    ws = _FakeWebSocket()
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=SWAPPED))
-
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-
-    assert len(seen) == 1
-    assert len(ws.payloads_of("commentary")) == 1
-    # The baseline still advances, so the next window compares against now.
-    assert ws_mod._room_state(ROOM)["prev_positions"] == POSITIONS
-
-
-@pytest.mark.unit
-async def test_an_uneventful_poll_produces_no_commentary(monkeypatch, manager):
-    seen = _record_commentary(monkeypatch)
-    ws = _FakeWebSocket()
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-
-    await ws_mod._handle_commentary(ws, _session(), Snapshot(positions=POSITIONS))
-
-    assert seen == []
-    assert ws.sent == []
-
-
-# ---------------------------------------------------------------------------
-# _poll_once
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-async def test_one_poll_broadcasts_the_order_then_the_lap(monkeypatch, manager):
-    _patch_feeds(monkeypatch)
-    _record_commentary(monkeypatch)
-    ws = _FakeWebSocket()
-
-    lap = await ws_mod._poll_once(ws, _session(), 0)
-
-    assert [payload["type"] for payload in ws.sent] == ["positions", "session_status"]
-    assert lap == 12
-
-
-@pytest.mark.unit
-async def test_a_poll_with_no_positions_sends_nothing_and_keeps_the_lap(monkeypatch, manager):
-    """Between sessions OpenF1 returns nothing; that is not a reason to disturb the client."""
-    _patch_feeds(monkeypatch, _poll_openf1_positions=None)
-    ws = _FakeWebSocket()
-
-    lap = await ws_mod._poll_once(ws, _session(), 31)
-
-    assert ws.sent == []
-    assert lap == 31
-
-
-@pytest.mark.unit
-async def test_a_pit_stop_detected_from_the_stint_feed_is_commentated(monkeypatch, manager):
-    seen = _record_commentary(monkeypatch, "Verstappen boxes for softs!")
-    _patch_feeds(monkeypatch, _fetch_stint_counts={"VER": 1})
-    ws = _FakeWebSocket()
-    await ws_mod._poll_once(ws, _session(), 0)
-
-    _patch_feeds(monkeypatch, _fetch_stint_counts={"VER": 2})
-    await ws_mod._poll_once(ws, _session(), 12)
-
-    assert seen == [{"type": "pit_stop", "driver": "VER", "pit_count": 1, "position": 1}]
-    assert ws.payloads_of("commentary")[0]["text"] == "Verstappen boxes for softs!"
-
-
-# ---------------------------------------------------------------------------
-# _await_client_message
+# _drain_client
 # ---------------------------------------------------------------------------
 
 
@@ -418,7 +155,7 @@ async def test_a_client_keepalive_refreshes_the_connection(manager):
     await manager.connect(ROOM, ws)
     manager.last_activity[id(ws)] = 0.0
 
-    await ws_mod._await_client_message(ws)
+    await ws_mod._drain_client(ws)
 
     assert manager.is_stale(ws) is False
 
@@ -438,7 +175,7 @@ async def test_a_silent_client_is_not_treated_as_an_error(monkeypatch, manager):
     await manager.connect(ROOM, ws)
     before = manager.last_activity[id(ws)]
 
-    await ws_mod._await_client_message(ws)
+    await ws_mod._drain_client(ws)
 
     assert manager.last_activity[id(ws)] == before, "silence is not activity"
 
@@ -449,7 +186,7 @@ async def test_a_disconnect_while_reading_propagates_to_the_endpoint(manager):
     ws = _FakeWebSocket()
 
     with pytest.raises(WebSocketDisconnect):
-        await ws_mod._await_client_message(ws)
+        await ws_mod._drain_client(ws)
 
 
 # ---------------------------------------------------------------------------
@@ -459,14 +196,18 @@ async def test_a_disconnect_while_reading_propagates_to_the_endpoint(manager):
 
 @pytest.mark.unit
 async def test_a_session_streams_until_the_client_disconnects(monkeypatch, manager, no_waiting, spied_tasks):
-    _patch_feeds(monkeypatch)
-    _record_commentary(monkeypatch)
+    _serve(monkeypatch)
     ws = _FakeWebSocket(incoming=["keepalive", "keepalive"])
 
     await ws_mod.live_timing(ws, 2026, 4)
 
     assert ws.accepted is True
     assert len(ws.payloads_of("positions")) == 3, "one broadcast per loop iteration"
+    statuses = ws.payloads_of("session_status")
+    assert {status["status"] for status in statuses} == {"live"}
+    assert statuses[0]["session_name"] == "Race"
+    assert statuses[0]["lap"] == 12
+    assert statuses[0]["feed_age_seconds"] == 3
     assert manager.rooms == {}, "the socket must be out of the registry on exit"
     assert manager.last_activity == {}
     await _drain(spied_tasks[0])
@@ -474,23 +215,46 @@ async def test_a_session_streams_until_the_client_disconnects(monkeypatch, manag
 
 
 @pytest.mark.unit
-async def test_a_round_that_is_not_live_holds_the_socket_without_polling(monkeypatch, manager, no_waiting, spied_tasks):
-    polls = []
-    _patch_feeds(monkeypatch, _find_openf1_session=None)
-    monkeypatch.setattr(ws_mod, "_poll_openf1_positions", polls.append)
+async def test_a_round_with_no_session_on_track_holds_the_socket_without_polling(
+    monkeypatch, manager, no_waiting, spied_tasks
+):
+    polls = _serve(monkeypatch, active=False)
     ws = _FakeWebSocket(incoming=["keepalive"])
 
     await ws_mod.live_timing(ws, 2030, 99)
 
-    assert polls == [], "a session with no key must not be polled"
-    assert ws.sent == []
+    assert polls == [], "no active session means nothing to poll"
+    assert ws.payloads_of("positions") == []
+    assert [status["status"] for status in ws.payloads_of("session_status")] == ["standby", "standby"]
+    assert ws.payloads_of("session_status")[0]["session_name"] is None
     assert manager.rooms == {}
     await _drain(spied_tasks[0])
 
 
 @pytest.mark.unit
+async def test_a_quiet_feed_reports_status_without_positions(monkeypatch, manager, no_waiting, spied_tasks):
+    """An open session whose feed has not answered is standby, not live."""
+
+    async def _nothing(_session, now=None, last_lap=None):
+        return None
+
+    _serve(monkeypatch, poll=_nothing)
+    ws = _FakeWebSocket()
+
+    await ws_mod.live_timing(ws, 2026, 4)
+
+    [status] = ws.payloads_of("session_status")
+    assert status["status"] == "standby"
+    assert status["session_name"] == "Race", "the desk can still say which session is due"
+    assert status["lap"] is None
+    assert status["feed_age_seconds"] is None
+    assert ws.payloads_of("positions") == []
+    await _drain(spied_tasks[0])
+
+
+@pytest.mark.unit
 async def test_a_stale_connection_is_dropped_before_polling(monkeypatch, manager, no_waiting, spied_tasks, capsys):
-    _patch_feeds(monkeypatch)
+    _serve(monkeypatch)
     monkeypatch.setattr(manager, "is_stale", lambda _ws: True)
     ws = _FakeWebSocket(incoming=["keepalive"] * 3)
 
@@ -504,11 +268,15 @@ async def test_a_stale_connection_is_dropped_before_polling(monkeypatch, manager
 
 
 @pytest.mark.unit
-async def test_a_bug_in_the_poll_loop_is_logged_and_still_releases_the_socket(
+async def test_a_bug_in_the_loop_is_logged_and_still_releases_the_socket(
     monkeypatch, manager, no_waiting, spied_tasks, capsys
 ):
     """A crash used to be indistinguishable from a normal disconnect."""
-    _patch_feeds(monkeypatch, _poll_openf1_positions=TypeError("positions payload changed shape"))
+
+    async def _broken(_session, now=None, last_lap=None):
+        raise TypeError("positions payload changed shape")
+
+    _serve(monkeypatch, poll=_broken)
     ws = _FakeWebSocket()
 
     await ws_mod.live_timing(ws, 2026, 4)
@@ -525,7 +293,7 @@ async def test_a_bug_in_the_poll_loop_is_logged_and_still_releases_the_socket(
 async def test_a_disconnect_mid_broadcast_is_not_reported_as_a_crash(
     monkeypatch, manager, no_waiting, spied_tasks, capsys
 ):
-    _patch_feeds(monkeypatch)
+    _serve(monkeypatch)
     ws = _FakeWebSocket(send_error=WebSocketDisconnect(1006))
 
     await ws_mod.live_timing(ws, 2026, 4)
@@ -545,10 +313,24 @@ async def test_a_failed_handshake_leaves_nothing_behind(monkeypatch, manager, no
         async def accept(self):
             raise RuntimeError("handshake rejected")
 
-    _patch_feeds(monkeypatch)
+    _serve(monkeypatch)
 
     with pytest.raises(RuntimeError, match="handshake rejected"):
         await ws_mod.live_timing(_RejectingClient(), 2026, 4)
 
     assert manager.rooms == {}
     assert spied_tasks == []
+
+
+# ---------------------------------------------------------------------------
+# _feed_age
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_feed_age_is_never_negative_under_clock_skew():
+    now = datetime(2026, 4, 5, 6, 0, tzinfo=timezone.utc)
+    ahead = TimingSnapshot(rows=ROWS, sampled_at=now + timedelta(seconds=3), lap=1)
+
+    assert ws_mod._feed_age(ahead, now) == 0
+    assert ws_mod._feed_age(None, now) is None

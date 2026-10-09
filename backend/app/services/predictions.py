@@ -2,14 +2,34 @@
 
 from __future__ import annotations
 
-from app.data.predictions import build_prediction_review, compute_race_predictions
+import threading
+
+from app.data.predictions import (
+    PHASE_POST_QUALIFYING,
+    build_prediction_review,
+    compute_race_predictions,
+    normalise_phase,
+)
 from app.services.prediction_cache import prediction_snapshot_cache
 
+# One compute lock per race. Computing a snapshot costs a stack of FastF1
+# session loads, so two requests arriving together for the same race — two tabs,
+# or the command centre's own segments — must not both pay for it. The second
+# waits on the first and then reads the snapshot it stored.
+_compute_locks: dict[tuple[int, int], threading.Lock] = {}
+_compute_locks_guard = threading.Lock()
 
-def get_cached_race_prediction(year: int, round_num: int) -> dict | None:
+
+def _compute_lock(year: int, round_num: int) -> threading.Lock:
+    """Return the shared compute lock for one race, creating it on first use."""
+    with _compute_locks_guard:
+        return _compute_locks.setdefault((year, round_num), threading.Lock())
+
+
+def get_cached_race_prediction(year: int, round_num: int, phase: str | None = None) -> dict | None:
     """Return a stored race prediction snapshot without computing a new one."""
 
-    cached = prediction_snapshot_cache.get(year, round_num)
+    cached = prediction_snapshot_cache.get(year, round_num, phase=phase)
     return enrich_prediction_result(cached) if cached else None
 
 
@@ -18,13 +38,33 @@ def compute_and_store_race_prediction(
     round_num: int,
     *,
     reason: str = "manual_compute",
+    phase: str | None = None,
 ) -> dict:
-    """Compute a fresh race prediction snapshot and store it as the active version."""
+    """Compute a fresh race prediction snapshot and store it as the active version.
 
-    result = compute_race_predictions(year, round_num)
-    if result.get("predictions"):
-        return enrich_prediction_result(prediction_snapshot_cache.set(year, round_num, result, reason=reason))
-    return enrich_prediction_result(result)
+    ``phase`` targets one of the two stored calls. Storing is per phase, so
+    recomputing the pre-qualifying prediction leaves the post-qualifying one
+    exactly as it was, and vice versa.
+    """
+
+    wanted = normalise_phase(phase)
+    result = compute_race_predictions(year, round_num, phase=wanted)
+    if not result.get("predictions"):
+        return enrich_prediction_result(result)
+
+    if wanted == PHASE_POST_QUALIFYING and result.get("prediction_phase") != PHASE_POST_QUALIFYING:
+        # Qualifying has not run, so there is no grid to predict from. Storing
+        # this would file a pre-qualifying call under the post-qualifying tab.
+        return enrich_prediction_result(
+            {
+                **result,
+                "predictions": [],
+                "risk_predictions": [],
+                "error": "Qualifying has not run yet, so there is no post-qualifying prediction to compute.",
+            }
+        )
+
+    return enrich_prediction_result(prediction_snapshot_cache.set(year, round_num, result, reason=reason))
 
 
 def get_or_compute_race_prediction(year: int, round_num: int) -> dict:
@@ -34,7 +74,15 @@ def get_or_compute_race_prediction(year: int, round_num: int) -> dict:
     if cached:
         return enrich_prediction_result(cached)
 
-    return compute_and_store_race_prediction(year, round_num, reason="first_compute")
+    with _compute_lock(year, round_num):
+        # A request that was already computing this race may have finished
+        # while we waited for the lock — take its snapshot instead of repeating
+        # the work.
+        cached = prediction_snapshot_cache.get(year, round_num)
+        if cached:
+            return enrich_prediction_result(cached)
+
+        return compute_and_store_race_prediction(year, round_num, reason="first_compute")
 
 
 def enrich_prediction_result(result: dict) -> dict:
@@ -134,6 +182,7 @@ def enrich_prediction_result(result: dict) -> dict:
         enriched["prediction_review"] = build_prediction_review(
             int(enriched.get("year", 0)),
             int(enriched.get("round", 0)),
+            phase=enriched.get("prediction_phase"),
         )
     return enriched
 

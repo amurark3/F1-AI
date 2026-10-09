@@ -11,6 +11,11 @@ the thing to guard:
   avoid.
 * **The answer is cached per (circuit, season), including the misses**, so a
   missing circuit is not re-searched across a decade of schedules every call.
+  The cache is durable (see ``test_circuit_reference_cache.py``); here it is an
+  in-memory stand-in with the same contract.
+* **Only an edition that has been raced is loaded.** The schedules below date
+  every race in the past; ``test_circuit_strategy_reference.py`` covers the
+  unraced case.
 """
 
 from __future__ import annotations
@@ -18,16 +23,39 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from app.data.circuit_reference_cache import CachedReference
 from app.data.strategy import reference as module
 from tests.strategy_fixture import laps_frame, schedule_frame, stint_rows
 
+# Long enough ago that every edition below has been run.
+_RACED_ON = pd.Timestamp("2018-03-25 13:00:00")
+
+
+class _MemoryCache:
+    """The durable reference cache's contract, held in a dict."""
+
+    def __init__(self) -> None:
+        self.entries: dict[tuple[str, int], CachedReference] = {}
+
+    def get(self, city: str, year: int) -> CachedReference | None:
+        return self.entries.get((city, year))
+
+    def set(self, city: str, year: int, reference: dict | None) -> None:
+        source_year = (reference or {}).get("source_year")
+        self.entries[(city, year)] = CachedReference(reference=reference, source_year=source_year, stored_at=None)
+
 
 @pytest.fixture(autouse=True)
-def _clear_cache():
-    """The reference memoises per (circuit, season) for the process lifetime."""
-    module._circuit_reference_cache.clear()
-    yield
-    module._circuit_reference_cache.clear()
+def cache(monkeypatch: pytest.MonkeyPatch) -> _MemoryCache:
+    """A fresh cache per test, so no answer leaks between them."""
+    fake = _MemoryCache()
+    monkeypatch.setattr(module, "circuit_reference_cache", fake)
+    return fake
+
+
+def _raced(events: list[tuple[int, str]]) -> pd.DataFrame:
+    """A schedule whose every race has already been run."""
+    return schedule_frame(events).assign(EventDate=_RACED_ON)
 
 
 def _stub_seasons(
@@ -223,7 +251,7 @@ def test_a_single_stint_driver_contributes_no_finishing_compound():
 def test_a_location_string_is_reduced_to_its_city(monkeypatch: pytest.MonkeyPatch):
     seen = _stub_seasons(
         monkeypatch,
-        schedules={2024: schedule_frame([(12, "Budapest")])},
+        schedules={2024: _raced([(12, "Budapest")])},
         races={2024: {"laps": _field_race()}},
     )
 
@@ -246,7 +274,7 @@ def test_an_empty_location_is_rejected_before_any_lookup(monkeypatch: pytest.Mon
 def test_the_search_walks_backwards_to_the_most_recent_usable_edition(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    schedule = schedule_frame([(12, "Budapest")])
+    schedule = _raced([(12, "Budapest")])
     seen = _stub_seasons(
         monkeypatch,
         schedules={2024: schedule, 2023: schedule, 2022: schedule},
@@ -264,7 +292,7 @@ def test_the_search_walks_backwards_to_the_most_recent_usable_edition(
 def test_a_renamed_circuit_is_matched_by_substring(monkeypatch: pytest.MonkeyPatch):
     _stub_seasons(
         monkeypatch,
-        schedules={2024: schedule_frame([(1, "Sakhir"), (12, "Budapest, Hungary")])},
+        schedules={2024: _raced([(1, "Sakhir"), (12, "Budapest, Hungary")])},
         races={2024: {"laps": _field_race()}},
     )
 
@@ -276,8 +304,8 @@ def test_a_season_the_circuit_is_absent_from_is_skipped(monkeypatch: pytest.Monk
     seen = _stub_seasons(
         monkeypatch,
         schedules={
-            2024: schedule_frame([(1, "Sakhir")]),
-            2023: schedule_frame([(12, "Budapest")]),
+            2024: _raced([(1, "Sakhir")]),
+            2023: _raced([(12, "Budapest")]),
         },
         races={2023: {"laps": _field_race()}},
     )
@@ -292,7 +320,7 @@ def test_a_season_the_circuit_is_absent_from_is_skipped(monkeypatch: pytest.Monk
 def test_a_season_whose_schedule_fails_to_load_is_skipped(monkeypatch: pytest.MonkeyPatch):
     _stub_seasons(
         monkeypatch,
-        schedules={2024: RuntimeError("network down"), 2023: schedule_frame([(12, "Budapest")])},
+        schedules={2024: RuntimeError("network down"), 2023: _raced([(12, "Budapest")])},
         races={2023: {"laps": _field_race()}},
     )
 
@@ -301,7 +329,7 @@ def test_a_season_whose_schedule_fails_to_load_is_skipped(monkeypatch: pytest.Mo
 
 @pytest.mark.unit
 def test_an_edition_whose_summary_raises_is_skipped(monkeypatch: pytest.MonkeyPatch):
-    schedule = schedule_frame([(12, "Budapest")])
+    schedule = _raced([(12, "Budapest")])
     _stub_seasons(
         monkeypatch,
         schedules={2024: schedule, 2023: schedule},
@@ -324,7 +352,7 @@ def test_a_circuit_with_no_usable_edition_returns_nothing(monkeypatch: pytest.Mo
 def test_a_repeat_request_is_served_from_the_cache(monkeypatch: pytest.MonkeyPatch):
     seen = _stub_seasons(
         monkeypatch,
-        schedules={2024: schedule_frame([(12, "Budapest")])},
+        schedules={2024: _raced([(12, "Budapest")])},
         races={2024: {"laps": _field_race()}},
     )
 
@@ -347,8 +375,8 @@ def test_a_miss_is_cached_too_so_the_search_is_not_repeated(
 
 
 @pytest.mark.unit
-def test_each_season_gets_its_own_cache_entry(monkeypatch: pytest.MonkeyPatch):
-    schedule = schedule_frame([(12, "Budapest")])
+def test_each_season_gets_its_own_cache_entry(monkeypatch: pytest.MonkeyPatch, cache: _MemoryCache):
+    schedule = _raced([(12, "Budapest")])
     _stub_seasons(
         monkeypatch,
         schedules={2024: schedule, 2023: schedule},
@@ -358,4 +386,26 @@ def test_each_season_gets_its_own_cache_entry(monkeypatch: pytest.MonkeyPatch):
     module.circuit_strategy_reference("Budapest", 2024)
     module.circuit_strategy_reference("Budapest", 2023)
 
-    assert set(module._circuit_reference_cache) == {"Budapest_2024", "Budapest_2023"}
+    assert set(cache.entries) == {("Budapest", 2024), ("Budapest", 2023)}
+
+
+# ---------------------------------------------------------------------------
+# Has an edition been raced?
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_the_scheduled_race_session_decides_whether_an_edition_has_run():
+    race_at = pd.Timestamp("2025-08-31 13:00:00")
+    event = pd.Series({"Session1": "Practice 1", "Session5": "Race", "Session5DateUtc": race_at})
+
+    assert module._edition_race_finished(event, race_at.to_pydatetime() + pd.Timedelta(hours=4)) is True
+    assert module._edition_race_finished(event, race_at.to_pydatetime() + pd.Timedelta(hours=1)) is False
+
+
+@pytest.mark.unit
+def test_an_edition_with_no_date_at_all_is_never_treated_as_raced():
+    """Loading it would fail anyway; skipping costs nothing."""
+    event = pd.Series({"RoundNumber": 12, "Location": "Budapest", "EventDate": pd.NaT})
+
+    assert module._edition_race_finished(event, pd.Timestamp("2030-01-01").to_pydatetime()) is False

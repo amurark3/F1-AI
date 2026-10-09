@@ -6,6 +6,8 @@ score: 5/5 must-haves verified
 re_verification: false
 ---
 
+> **Removed feature (2026-09-29):** Live AI race commentary no longer exists in this codebase: not in the backend, web app or iOS app. Anything this document says about commentary describes removed code, not a current feature. See [docs/REMOVED_FEATURES.md](../../../docs/REMOVED_FEATURES.md) for what was removed and how to find the old code.
+
 # Phase 4: Live Race Experience Verification Report
 
 **Phase Goal:** During active sessions, users get live position tracking on Dynamic Island and AI-generated commentary that explains what is happening in real time

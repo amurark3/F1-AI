@@ -118,11 +118,12 @@ interface DriverChampionshipEntry {
 }
 
 export function DriverChampionshipChart({ data, height = 280 }: { data: DriverChampionshipEntry[]; height?: number }) {
-  const top10 = [...data].sort((a, b) => a.position - b.position).slice(0, 10);
+  // Presentational only: callers decide which drivers are in frame.
+  const sorted = [...data].sort((a, b) => a.position - b.position);
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={top10} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
+      <BarChart data={sorted} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
         <XAxis
           dataKey="code"
@@ -133,7 +134,7 @@ export function DriverChampionshipChart({ data, height = 280 }: { data: DriverCh
         <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 10 }} axisLine={false} tickLine={false} width={36} />
         <Tooltip content={<PointsStandingTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Bar dataKey="points" radius={[3, 3, 0, 0]} maxBarSize={28}>
-          {top10.map((entry) => (
+          {sorted.map((entry) => (
             <Cell key={entry.code} fill={entry.color} fillOpacity={0.9} />
           ))}
         </Bar>

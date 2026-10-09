@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 
 from fastapi import APIRouter
 import structlog
@@ -14,10 +13,6 @@ from app.config import FASTF1_TIMEOUT_SECONDS
 logger = structlog.get_logger()
 
 router = APIRouter()
-
-# Comparison loads a session too, so it shares the same serialisation rule as
-# race detail: one FastF1 load at a time.
-_fastf1_lock = threading.Lock()
 
 FASTF1_TIMEOUT = FASTF1_TIMEOUT_SECONDS
 

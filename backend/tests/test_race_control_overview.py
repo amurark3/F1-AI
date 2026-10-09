@@ -14,6 +14,8 @@ the wiring — which feed reaches which block, and what survives when one dies.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app.services.race_control import overview as module, weather as weather_module
@@ -48,7 +50,7 @@ def _dashboard(**fields) -> dict:
         "status": "upcoming",
         "days_until": 3,
         "is_sprint": False,
-        "circuit": {"laps": 78, "circuit_type": "Street"},
+        "circuit": {"laps": 78, "circuit_type": "Street circuit"},
     }
     base = {
         "year": 2026,
@@ -223,7 +225,7 @@ def test_overview_skips_both_lookups_when_the_season_has_no_selected_race(monkey
     assert payload["predicted_podium"] == []
     assert payload["weather"] == weather_module._offline_weather_block()
     assert payload["risk_register"] == [], "no event means nothing to grade a risk against"
-    assert payload["live_status"] == {"connected": False, "label": "Standby"}
+    assert payload["live_status"] == {"connected": False, "label": "Standby", "session": None}
 
 
 @pytest.mark.unit
@@ -271,16 +273,35 @@ def test_overview_reports_an_empty_championship_as_no_competitors(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+def _race_started(offset: timedelta) -> dict[str, str]:
+    """A race session that started ``offset`` ago (negative: still to come)."""
+    return {"Race": (datetime.now(timezone.utc) - offset).isoformat()}
+
+
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("status", "connected", "label"),
-    [("in_progress", True, "Live session active"), ("upcoming", False, "Standby"), ("completed", False, "Standby")],
-    ids=["live", "upcoming", "completed"],
+    ("status", "sessions", "live_status"),
+    [
+        (
+            "in_progress",
+            _race_started(timedelta(minutes=30)),
+            {"connected": True, "label": "Race in progress", "session": "Race"},
+        ),
+        (
+            "in_progress",
+            _race_started(timedelta(hours=-12)),
+            {"connected": False, "label": "Standby", "session": None},
+        ),
+        ("upcoming", _race_started(timedelta(days=-3)), {"connected": False, "label": "Standby", "session": None}),
+        ("completed", _race_started(timedelta(days=3)), {"connected": False, "label": "Standby", "session": None}),
+    ],
+    ids=["live", "between-sessions", "upcoming", "completed"],
 )
-def test_overview_connects_the_live_banner_only_during_a_session(status, connected, label, monkeypatch):
-    _patch_feeds(monkeypatch, dashboard=_dashboard(race={**_dashboard()["race"], "status": status}))
+def test_overview_connects_the_live_banner_only_during_a_session(status, sessions, live_status, monkeypatch):
+    race = {**_dashboard()["race"], "status": status, "sessions": sessions}
+    _patch_feeds(monkeypatch, dashboard=_dashboard(race=race))
 
     payload = module.build_overview(2026)
 
-    assert payload["live_status"] == {"connected": connected, "label": label}
-    assert payload["strategy_context"]["phase"] == ("Live race desk" if connected else "Pre-race build")
+    assert payload["live_status"] == live_status
+    assert payload["strategy_context"]["phase"] == ("Live race desk" if live_status["connected"] else "Pre-race build")

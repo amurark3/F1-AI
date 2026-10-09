@@ -54,15 +54,13 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
 
 @tool
 def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
-    """
-    Fetches SPRINT QUALIFYING (Shootout) results broken into SQ1 / SQ2 / SQ3.
+    """Fetches SPRINT QUALIFYING (Shootout) results, split SQ1/SQ2/SQ3.
 
-    ALWAYS use this tool if the user mentions 'Sprint Qualifying', 'Shootout',
-    'SQ', or 'Sprint Quali'.  Do NOT use get_qualifying_results for this.
-
-    Note: FastF1 uses column names Q1/Q2/Q3 even for sprint shootout data;
-    laps=True is required because Ergast often lacks SQ split times.
+    Use for 'Sprint Qualifying', 'Shootout', 'SQ' or 'Sprint Quali' — NOT
+    get_qualifying_results.
     """
+    # FastF1 labels the columns Q1/Q2/Q3 even for shootout data, and laps=True
+    # is required because Ergast often lacks SQ split times.
     logger.info("tool.sprint_qualifying", grand_prix=grand_prix, year=year)
     try:
         session = fastf1.get_session(year, grand_prix, "SQ")

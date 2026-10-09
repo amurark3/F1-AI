@@ -8,16 +8,21 @@ import fastf1
 import pandas as pd
 import structlog
 
-from app.api.circuits import get_circuit_info
+from app.api.circuits import get_circuit_info, is_street_circuit
+from app.services.race_control.live import live_session
+from app.services.race_control.risk import RIVAL_GAP_MODERATE
 from app.services.race_control.workstreams import focus_for_event
 from app.services.race_control_common import get_standings_snapshot, safe_int
 from app.utils.f1_values import utc_isoformat
 
 logger = structlog.get_logger()
 
+# Race distance assumed when the venue has no circuit metadata to supply one.
+DEFAULT_RACE_LAPS = 58
 
-def build_strategy_dashboard(year: int) -> dict:
-    """Build the command-center shell from schedule and standings data."""
+
+def season_events(year: int) -> list[dict]:
+    """Build the season's event list from the schedule, with derived status."""
 
     schedule = fastf1.get_event_schedule(year=year, include_testing=False)
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -75,9 +80,25 @@ def build_strategy_dashboard(year: int) -> dict:
             }
         )
 
+    return events
+
+
+def select_event(events: list[dict]) -> dict | None:
+    """Pick the event the command centre should be planning right now.
+
+    A weekend that is under way wins; otherwise the next one on the calendar;
+    otherwise the last race of a finished season.
+    """
     active_event = next((event for event in events if event["status"] == "in_progress"), None)
     next_event = next((event for event in events if event["status"] == "upcoming"), None)
-    selected_event = active_event or next_event or (events[-1] if events else None)
+    return active_event or next_event or (events[-1] if events else None)
+
+
+def build_strategy_dashboard(year: int) -> dict:
+    """Build the command-center shell from schedule and standings data."""
+
+    events = season_events(year)
+    selected_event = select_event(events)
     drivers, constructors = get_standings_snapshot(year)
 
     return {
@@ -128,6 +149,32 @@ def derive_traffic_threshold(reference: dict, is_street: bool) -> tuple[str, boo
     return ("high" if is_street else "medium"), True
 
 
+def build_competitor_rows(constructors: list[dict]) -> list[dict]:
+    """Rank the top constructors by championship gap, with an operating read."""
+
+    leader_points = constructors[0]["points"] if constructors else 0
+    rows = []
+    for index, team in enumerate(constructors[:5], start=1):
+        gap = max(0, leader_points - team["points"])
+        rows.append(
+            {
+                "rank": index,
+                "team": team["team"],
+                "points": team["points"],
+                "gap_to_leader": round(gap, 1),
+                "threat": "Primary" if index == 1 else "High" if gap <= RIVAL_GAP_MODERATE else "Monitor",
+                "operating_read": (
+                    "Benchmark car; protect against clean-air extensions."
+                    if index == 1
+                    else "Undercut exposure if they qualify within one pit-loss window."
+                    if gap <= RIVAL_GAP_MODERATE
+                    else "Scenario dependent; watch safety-car offsets."
+                ),
+            }
+        )
+    return rows
+
+
 def build_strategy_context(
     race: dict | None,
     constructors: list[dict],
@@ -142,9 +189,10 @@ def build_strategy_context(
     falls back to circuit-shape heuristics so the panel still renders.
     """
 
-    laps = safe_int((race or {}).get("circuit", {}).get("laps") if race else None, 58)
-    circuit_type = ((race or {}).get("circuit") or {}).get("circuit_type", "Permanent")
-    is_street = str(circuit_type).lower() == "street"
+    # An unmapped venue carries ``"circuit": None``, so fall back on the value, not the key.
+    circuit = (race or {}).get("circuit") or {}
+    laps = safe_int(circuit.get("laps"), DEFAULT_RACE_LAPS)
+    is_street = is_street_circuit(circuit)
     is_sprint = bool((race or {}).get("is_sprint"))
     podium = (predictions or {}).get("predictions", [])[:3]
     lead_prediction = podium[0] if podium else None
@@ -200,29 +248,10 @@ def build_strategy_context(
             "Tyre windows are planning heuristics — no completed edition of this circuit was available for telemetry.",
         ]
 
-    competitor_rows = []
-    leader_points = constructors[0]["points"] if constructors else 0
-    for index, team in enumerate(constructors[:5], start=1):
-        gap = max(0, leader_points - team["points"])
-        competitor_rows.append(
-            {
-                "rank": index,
-                "team": team["team"],
-                "points": team["points"],
-                "gap_to_leader": round(gap, 1),
-                "threat": "Primary" if index == 1 else "High" if gap <= 60 else "Monitor",
-                "operating_read": (
-                    "Benchmark car; protect against clean-air extensions."
-                    if index == 1
-                    else "Undercut exposure if they qualify within one pit-loss window."
-                    if gap <= 60
-                    else "Scenario dependent; watch safety-car offsets."
-                ),
-            }
-        )
+    competitor_rows = build_competitor_rows(constructors)
 
     return {
-        "phase": "Live race desk" if race and race.get("status") == "in_progress" else "Pre-race build",
+        "phase": "Live race desk" if live_session(race) else "Pre-race build",
         "primary_call": {
             "title": "Base race plan",
             "summary": primary_summary,

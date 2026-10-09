@@ -35,8 +35,12 @@ SOURCE_OFFICIAL_GRID = "official_grid"
 SOURCE_QUALIFYING = "qualifying_classification"
 SOURCE_NONE = "unavailable"
 
+# Says only what the code knows: the sheet is missing from *our* dataset. That
+# is true whether f1db has not released the round or this server is reading an
+# old release — and the old wording ("has not been published") hid the second
+# case for five rounds.
 PROVISIONAL_WARNING = (
-    "The official grid sheet for this round has not been published yet. The "
+    "The official grid sheet for this round is not in our dataset yet. The "
     "order shown is the qualifying classification, so any grid penalty is not "
     "applied to it."
 )

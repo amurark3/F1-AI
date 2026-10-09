@@ -12,6 +12,7 @@ import io
 import zipfile
 
 import pytest
+import requests
 
 from app.data import f1db_source
 
@@ -24,16 +25,32 @@ def zip_bytes(payload: bytes = b"sqlite-dataset") -> bytes:
     return buffer.getvalue()
 
 
+RELEASE_PAGE = "https://github.com/f1db/f1db/releases"
+
+
 class FakeResponse:
-    def __init__(self, content: bytes = b"", payload: dict | None = None):
+    def __init__(
+        self,
+        content: bytes = b"",
+        payload: dict | None = None,
+        status_code: int = 200,
+        headers: dict | None = None,
+    ):
         self.content = content
         self._payload = payload or {}
+        self.status_code = status_code
+        self.headers = headers or {}
 
     def raise_for_status(self) -> None:
         return None
 
     def json(self) -> dict:
         return self._payload
+
+
+def redirect_to(location: str) -> FakeResponse:
+    """The release page's answer: a 302 pointing at the newest tag."""
+    return FakeResponse(status_code=302, headers={"Location": location})
 
 
 @pytest.fixture
@@ -44,6 +61,7 @@ def dataset(tmp_path, monkeypatch):
     monkeypatch.setattr(f1db_source, "VERSION_PATH", tmp_path / "f1db.db.version")
     monkeypatch.setattr(f1db_source, "F1DB_VERSION", "")
     monkeypatch.setattr(f1db_source, "_last_check_at", None)
+    monkeypatch.setattr(f1db_source, "_last_outcome", None)
     return db_path
 
 
@@ -53,24 +71,43 @@ def install(dataset_path, version: str, payload: bytes = b"old-dataset") -> None
     f1db_source.VERSION_PATH.write_text(version)
 
 
-def fake_github(monkeypatch, *, latest: str | None = None, asset: bytes | None = None):
-    """Stub requests.get for both the releases API and the asset download.
+def fake_github(
+    monkeypatch,
+    *,
+    latest: str | None = None,
+    api_latest: str | None = None,
+    asset: bytes | None = None,
+    redirect: FakeResponse | None = None,
+):
+    """Stub the release-page redirect, the releases API and the asset download.
 
-    ``latest=None`` makes the API call fail, standing in for GitHub being
-    unreachable or rate-limited.
+    ``latest`` is what the release page redirects to; ``None`` makes that lookup
+    fail. ``api_latest`` is what the releases API reports; ``None`` (the default)
+    makes it fail too, standing in for the rate limit Render's shared egress IPs
+    run into. Both ``None`` is GitHub being unreachable. ``redirect`` overrides
+    the release page's response outright, for malformed answers.
     """
     calls: list[str] = []
+
+    def _head(url, **_kwargs):
+        calls.append(url)
+        if redirect is not None:
+            return redirect
+        if latest is None:
+            raise requests.ConnectionError("github unreachable")
+        return redirect_to(f"{RELEASE_PAGE}/tag/{latest}")
 
     def _get(url, **_kwargs):
         calls.append(url)
         if url == f1db_source.F1DB_RELEASES_API:
-            if latest is None:
-                raise RuntimeError("github unreachable")
-            return FakeResponse(payload={"tag_name": latest})
+            if api_latest is None:
+                raise requests.HTTPError("403 API rate limit exceeded")
+            return FakeResponse(payload={"tag_name": api_latest})
         if asset is None:
             raise RuntimeError("download failed")
         return FakeResponse(content=asset)
 
+    monkeypatch.setattr(f1db_source.requests, "head", _head)
     monkeypatch.setattr(f1db_source.requests, "get", _get)
     return calls
 
@@ -121,6 +158,63 @@ def test_unreachable_github_with_no_dataset_uses_the_fallback(dataset, monkeypat
     fake_github(monkeypatch, latest=None)
 
     assert f1db_source.target_version() == f1db_source.FALLBACK_F1DB_VERSION
+
+
+# ---------------------------------------------------------------------------
+# Finding the newest release
+#
+# Production sat on the hardcoded fallback for five rounds because the only
+# lookup was the REST API, whose unauthenticated limit (60/hour per IP) Render's
+# shared egress addresses exhaust on their own. The release page's redirect is
+# not metered against that limit, so it is asked first.
+# ---------------------------------------------------------------------------
+
+
+def test_the_newest_release_is_read_from_the_release_page_redirect(dataset, monkeypatch):
+    calls = fake_github(monkeypatch, latest="v2026.16.1", api_latest="v2026.15.0")
+
+    assert f1db_source.latest_release_version() == "v2026.16.1"
+    assert calls == [f1db_source.F1DB_LATEST_RELEASE_URL], "the API is only a backup"
+
+
+def test_a_failed_redirect_falls_back_to_the_releases_api(dataset, monkeypatch):
+    fake_github(monkeypatch, latest=None, api_latest="v2026.16.1")
+
+    assert f1db_source.latest_release_version() == "v2026.16.1"
+
+
+def test_a_response_that_is_not_a_redirect_falls_back_to_the_releases_api(
+    dataset, monkeypatch
+):
+    fake_github(
+        monkeypatch,
+        api_latest="v2026.16.1",
+        redirect=FakeResponse(status_code=429),
+    )
+
+    assert f1db_source.latest_release_version() == "v2026.16.1"
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        f"{RELEASE_PAGE}/tag/",
+        f"{RELEASE_PAGE}/tag/v2026.16.1/../../evil",
+        f"{RELEASE_PAGE}/tag/v2026.16.1?next=elsewhere",
+        "https://github.com/login",
+    ],
+)
+def test_a_redirect_without_a_usable_tag_is_not_trusted(dataset, monkeypatch, location):
+    """The tag is spliced into a download URL and a file on disk — validate it."""
+    fake_github(monkeypatch, redirect=redirect_to(location))
+
+    assert f1db_source.latest_release_version() == ""
+
+
+def test_a_malformed_tag_from_the_api_is_not_trusted(dataset, monkeypatch):
+    fake_github(monkeypatch, latest=None, api_latest="../v2026.16.1")
+
+    assert f1db_source.latest_release_version() == ""
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +276,112 @@ def test_a_failed_download_keeps_the_previous_dataset_serving(dataset, monkeypat
     assert "download failed" in outcome.reason
 
 
+def test_a_failed_download_is_not_reported_as_up_to_date(dataset, monkeypatch):
+    install(dataset, "v2026.10.0")
+    fake_github(monkeypatch, latest="v2026.11.0", asset=None)
+
+    outcome = f1db_source.sync_to_latest()
+
+    assert outcome.latest == "v2026.11.0"
+    assert outcome.up_to_date is False
+
+
+# ---------------------------------------------------------------------------
+# A failed release check must say so
+#
+# It used to resolve to the installed release and report "already on the
+# newest release" — which is how a server stranded on the fallback described
+# itself as current on every check for five rounds.
+# ---------------------------------------------------------------------------
+
+
+def test_a_failed_release_check_is_not_reported_as_current(dataset, monkeypatch):
+    install(dataset, "v2026.11.0", payload=b"untouched")
+    fake_github(monkeypatch, latest=None)
+
+    outcome = f1db_source.sync_to_latest()
+
+    assert outcome.updated is False
+    assert outcome.version == "v2026.11.0"
+    assert outcome.latest is None
+    assert outcome.up_to_date is False
+    assert "release check failed" in outcome.reason
+    assert "newest" not in outcome.reason
+    assert dataset.read_bytes() == b"untouched"
+
+
+def test_a_failed_check_on_an_empty_disk_says_the_fallback_was_installed(
+    dataset, monkeypatch
+):
+    fallback = f1db_source.FALLBACK_F1DB_VERSION
+    fake_github(monkeypatch, latest=None, asset=zip_bytes(b"fallback"))
+
+    outcome = f1db_source.sync_to_latest()
+
+    assert outcome.updated is True
+    assert outcome.version == fallback
+    assert outcome.up_to_date is False
+    assert "release check failed" in outcome.reason
+    assert fallback in outcome.reason
+
+
+def test_a_successful_check_is_up_to_date(dataset, monkeypatch):
+    install(dataset, "v2026.16.1")
+    fake_github(monkeypatch, latest="v2026.16.1")
+
+    outcome = f1db_source.sync_to_latest()
+
+    assert outcome.latest == "v2026.16.1"
+    assert outcome.up_to_date is True
+
+
+def test_a_pinned_release_counts_as_up_to_date(dataset, monkeypatch):
+    monkeypatch.setattr(f1db_source, "F1DB_VERSION", "v2026.9.0")
+    install(dataset, "v2026.9.0")
+    fake_github(monkeypatch, latest="v2026.16.1")
+
+    assert f1db_source.sync_to_latest().up_to_date is True
+
+
+# ---------------------------------------------------------------------------
+# The last check is kept for /api/ready
+# ---------------------------------------------------------------------------
+
+
+def test_no_outcome_is_recorded_before_the_first_check(dataset):
+    assert f1db_source.last_sync_outcome() is None
+
+
+def test_the_last_check_is_recorded_with_its_time(dataset, monkeypatch):
+    install(dataset, "v2026.11.0")
+    fake_github(monkeypatch, latest=None)
+
+    returned = f1db_source.sync_to_latest()
+    recorded = f1db_source.last_sync_outcome()
+
+    assert recorded == returned
+    assert recorded.checked_at is not None
+    assert recorded.as_dict() == {
+        "version": "v2026.11.0",
+        "latest": None,
+        "up_to_date": False,
+        "updated": False,
+        "reason": "release check failed, kept v2026.11.0",
+        "checked_at": recorded.checked_at,
+    }
+
+
+def test_a_throttled_call_does_not_overwrite_the_last_check(dataset, monkeypatch):
+    install(dataset, "v2026.11.0")
+    fake_github(monkeypatch, latest=None)
+
+    first = f1db_source.sync_to_latest()
+    throttled = f1db_source.sync_to_latest()
+
+    assert throttled.reason == "checked recently"
+    assert f1db_source.last_sync_outcome() == first
+
+
 def test_a_failed_download_with_no_dataset_raises(dataset, monkeypatch):
     fake_github(monkeypatch, latest="v2026.11.0", asset=None)
 
@@ -230,7 +430,7 @@ def test_the_first_sync_of_a_process_is_never_throttled(dataset, monkeypatch):
     outcome = f1db_source.sync_to_latest()
 
     assert outcome.updated is True, "a fresh process must check before it throttles"
-    assert f1db_source.F1DB_RELEASES_API in calls
+    assert f1db_source.F1DB_LATEST_RELEASE_URL in calls
 
 
 def test_a_missing_dataset_is_never_throttled(dataset, monkeypatch):

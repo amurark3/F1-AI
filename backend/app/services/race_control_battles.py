@@ -10,13 +10,19 @@ from app.services.race_control_common import (
 )
 
 
-def battle_fact(key: str, label: str, driver1: dict, driver2: dict, value1: str, value2: str) -> dict:
+def battle_fact(key: str, label: str, drivers: tuple[dict, dict], values: tuple[str, str]) -> dict:
+    """One comparison row: the same metric read against both drivers.
+
+    Drivers and values travel as pairs so the two sides cannot drift apart —
+    as six flat arguments, swapping a value between drivers was a silent edit.
+    """
+    first, second = drivers
     return {
         "key": key,
         "label": label,
         "values": {
-            driver1["code"]: value1,
-            driver2["code"]: value2,
+            first["code"]: values[0],
+            second["code"]: values[1],
         },
     }
 
@@ -91,22 +97,16 @@ def build_driver_battle(year: int, driver1: str, driver2: str) -> dict:
     close_call = points_gap < 10 and position_gap <= 1 and wins_gap <= 1
     priority_confidence = "Low" if close_call else "High" if points_gap >= 50 or position_gap >= 5 else "Medium"
 
+    pair = (d1, d2)
     facts = [
-        battle_fact("wdc_position", "Championship position", d1, d2, f"P{d1['position']}", f"P{d2['position']}"),
-        battle_fact("points", "Championship points", d1, d2, f"{d1['points']:g}", f"{d2['points']:g}"),
-        battle_fact("wins", "Race wins", d1, d2, pluralise(d1["wins"], "win"), pluralise(d2["wins"], "win")),
-        battle_fact("team_share", "Share of team points", d1, d2, f"{team_share(d1):.1f}%", f"{team_share(d2):.1f}%"),
+        battle_fact("wdc_position", "Championship position", pair, (f"P{d1['position']}", f"P{d2['position']}")),
+        battle_fact("points", "Championship points", pair, (f"{d1['points']:g}", f"{d2['points']:g}")),
+        battle_fact("wins", "Race wins", pair, (pluralise(d1["wins"], "win"), pluralise(d2["wins"], "win"))),
+        battle_fact("team_share", "Share of team points", pair, (f"{team_share(d1):.1f}%", f"{team_share(d2):.1f}%")),
     ]
     if completed_races and d1_rate is not None and d2_rate is not None:
         facts.append(
-            battle_fact(
-                "points_per_race",
-                "Points per completed GP",
-                d1,
-                d2,
-                f"{d1_rate:.1f}",
-                f"{d2_rate:.1f}",
-            )
+            battle_fact("points_per_race", "Points per completed GP", pair, (f"{d1_rate:.1f}", f"{d2_rate:.1f}"))
         )
 
     decision_factors = [
@@ -115,19 +115,21 @@ def build_driver_battle(year: int, driver1: str, driver2: str) -> dict:
         f"Wins gap: {wins_gap} race win{'s' if wins_gap != 1 else ''}.",
     ]
     if same_team:
-        decision_factors.append("Same team comparison: this is useful for first pit call, upgrade priority, and avoiding a strategy split that hurts constructor points.")
+        decision_factors.append(
+            "Same team comparison: this is useful for first pit call, upgrade priority, and avoiding a strategy split that hurts constructor points."
+        )
     else:
-        decision_factors.append("Rival comparison: this is useful for deciding which car to cover when pit windows overlap.")
+        decision_factors.append(
+            "Rival comparison: this is useful for deciding which car to cover when pit windows overlap."
+        )
     if completed_races:
-        decision_factors.append(f"Scoring rate uses {completed_races} completed Grand Prix event{'s' if completed_races != 1 else ''}.")
+        decision_factors.append(
+            f"Scoring rate uses {completed_races} completed Grand Prix event{'s' if completed_races != 1 else ''}."
+        )
 
     if close_call:
-        summary = (
-            f"{d1['name']} and {d2['name']} are close enough that standings alone should not decide priority."
-        )
-        recommendation = (
-            "Do not assign priority from standings alone. Wait for qualifying, tyre degradation, and live track-position data before splitting strategy."
-        )
+        summary = f"{d1['name']} and {d2['name']} are close enough that standings alone should not decide priority."
+        recommendation = "Do not assign priority from standings alone. Wait for qualifying, tyre degradation, and live track-position data before splitting strategy."
     else:
         summary = f"{raw_leader['name']} has the stronger standings case: P{raw_leader['position']} with {raw_leader['points']:g} points versus P{raw_chaser['position']} with {raw_chaser['points']:g}."
         if same_team:

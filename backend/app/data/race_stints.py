@@ -41,15 +41,19 @@ per-module pattern used by :mod:`app.data.session_entries` and
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import math
 import threading
 import time
-from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import fastf1
 import structlog
 
 from app.utils.fastf1_lock import FASTF1_LOCK
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = structlog.get_logger()
 
@@ -99,19 +103,19 @@ class Stint:
     ended_under_red_flag: bool
 
 
-def _clean_compound(value) -> str | None:
+def _clean_compound(value: object) -> str | None:
     text = str(value or "").strip().upper()
     if not text or text in {"NAN", "NONE", UNKNOWN_COMPOUND}:
         return None
     return text
 
 
-def _is_missing(value) -> bool:
+def _is_missing(value: object) -> bool:
     """True for None and for the NaN pandas leaves in unset numeric cells."""
     return value is None or (isinstance(value, float) and math.isnan(value))
 
 
-def _bool_or_none(value) -> bool | None:
+def _bool_or_none(value: object) -> bool | None:
     # FastF1 leaves this as NaN where the tyre history is incomplete, and NaN
     # is truthy — coercing it straight to bool would claim every unknown set
     # was fresh.
@@ -120,13 +124,13 @@ def _bool_or_none(value) -> bool | None:
     return bool(value)
 
 
-def _int_or_none(value) -> int | None:
+def _int_or_none(value: object) -> int | None:
     if _is_missing(value):
         return None
     return int(value)
 
 
-def _stints_from_laps(laps, driver_codes: dict[str, str]) -> tuple[Stint, ...]:
+def _stints_from_laps(laps: pd.DataFrame, driver_codes: dict[str, str]) -> tuple[Stint, ...]:
     """Collapse a lap frame into one row per (driver, stint)."""
     frame = laps.dropna(subset=["Stint", "LapNumber"])
     if frame.empty:

@@ -20,6 +20,7 @@ from app.data.weekend_grid import (
     SOURCE_ENTRY_LIST,
     SOURCE_MANUAL_ADJUSTMENT,
     SOURCE_PREVIOUS_ENTRY_LIST,
+    EntryLists,
     resolve_grid,
 )
 
@@ -71,7 +72,7 @@ class TestBeforeAnySessionRuns:
     """No entry list exists yet, so the grid is provisional and says so."""
 
     def test_falls_back_to_championship_and_flags_it(self):
-        grid = resolve_grid([], CHAMPIONSHIP, UNAVAILABLE, WeekendAvailability())
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(UNAVAILABLE), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "HAM", "HAD", "LIN"]
         assert grid.provisional is True
@@ -79,7 +80,7 @@ class TestBeforeAnySessionRuns:
         assert any("provisional lineup" in warning for warning in grid.warnings)
 
     def test_curated_withdrawal_removes_the_driver(self):
-        grid = resolve_grid([], CHAMPIONSHIP, UNAVAILABLE, withdrawal("HAD"))
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(UNAVAILABLE), withdrawal("HAD"))
 
         assert "HAD" not in codes(grid)
         assert SOURCE_MANUAL_ADJUSTMENT in grid.data_sources
@@ -87,8 +88,7 @@ class TestBeforeAnySessionRuns:
 
     def test_named_replacement_takes_the_seat(self):
         grid = resolve_grid(
-            [], CHAMPIONSHIP, UNAVAILABLE,
-            withdrawal("HAD", "DUN", "Ayumu Iwasa", "Red Bull"),
+            [], CHAMPIONSHIP, EntryLists(UNAVAILABLE), withdrawal("HAD", "DUN", "Ayumu Iwasa", "Red Bull")
         )
 
         assert "HAD" not in codes(grid)
@@ -99,15 +99,14 @@ class TestBeforeAnySessionRuns:
 
     def test_replacement_already_racing_is_not_duplicated(self):
         grid = resolve_grid(
-            [], CHAMPIONSHIP, UNAVAILABLE,
-            withdrawal("HAD", "LIN", "Arvid Lindblad", "Racing Bulls"),
+            [], CHAMPIONSHIP, EntryLists(UNAVAILABLE), withdrawal("HAD", "LIN", "Arvid Lindblad", "Racing Bulls")
         )
 
         assert codes(grid).count("LIN") == 1
 
     def test_unreadable_adjustments_are_reported_not_ignored(self):
         availability = WeekendAvailability(ok=False, error="connection refused")
-        grid = resolve_grid([], CHAMPIONSHIP, UNAVAILABLE, availability)
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(UNAVAILABLE), availability)
 
         assert any("could not be read" in warning for warning in grid.warnings)
 
@@ -127,17 +126,13 @@ class TestCarriedOverFromThePreviousWeekend:
             {"code": "TSU", "name": "Yuki Tsunoda", "team": "Racing Bulls", "position": 20},
         ]
         previous = entry_list("ANT", "HAM", "HAD", "LIN", session="Q")
-        grid = resolve_grid(
-            [], championship_with_stand_in, UNAVAILABLE, WeekendAvailability(),
-            previous_entry_list=previous,
-        )
+        grid = resolve_grid([], championship_with_stand_in, EntryLists(UNAVAILABLE, previous), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "HAM", "HAD", "LIN"]
 
     def test_carried_over_grid_is_provisional_and_says_where_it_came_from(self):
         grid = resolve_grid(
-            [], CHAMPIONSHIP, UNAVAILABLE, WeekendAvailability(),
-            previous_entry_list=entry_list("ANT", "HAM", session="Q"),
+            [], CHAMPIONSHIP, EntryLists(UNAVAILABLE, entry_list("ANT", "HAM", session="Q")), WeekendAvailability()
         )
 
         assert grid.provisional is True
@@ -147,8 +142,10 @@ class TestCarriedOverFromThePreviousWeekend:
 
     def test_this_weekends_entry_list_wins_over_the_previous_one(self):
         grid = resolve_grid(
-            [], CHAMPIONSHIP, entry_list("ANT", "HAM", "LIN"), WeekendAvailability(),
-            previous_entry_list=entry_list("ANT", "HAM", "HAD", session="Q"),
+            [],
+            CHAMPIONSHIP,
+            EntryLists(entry_list("ANT", "HAM", "LIN"), entry_list("ANT", "HAM", "HAD", session="Q")),
+            WeekendAvailability(),
         )
 
         assert codes(grid) == ["ANT", "HAM", "LIN"]
@@ -157,19 +154,17 @@ class TestCarriedOverFromThePreviousWeekend:
 
     def test_curated_withdrawal_applies_to_the_carried_over_lineup(self):
         grid = resolve_grid(
-            [], CHAMPIONSHIP, UNAVAILABLE,
+            [],
+            CHAMPIONSHIP,
+            EntryLists(UNAVAILABLE, entry_list("ANT", "HAM", "HAD", "LIN", session="Q")),
             withdrawal("HAD", "TSU", "Yuki Tsunoda", "Racing Bulls"),
-            previous_entry_list=entry_list("ANT", "HAM", "HAD", "LIN", session="Q"),
         )
 
         assert "HAD" not in codes(grid)
         assert "TSU" in codes(grid)
 
     def test_championship_is_the_fallback_when_neither_entry_list_exists(self):
-        grid = resolve_grid(
-            [], CHAMPIONSHIP, UNAVAILABLE, WeekendAvailability(),
-            previous_entry_list=UNAVAILABLE,
-        )
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(UNAVAILABLE, UNAVAILABLE), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "HAM", "HAD", "LIN"]
         assert SOURCE_CHAMPIONSHIP in grid.data_sources
@@ -179,7 +174,7 @@ class TestOnceASessionHasRun:
     """The weekend's own entry list is authoritative over the season table."""
 
     def test_championship_entrant_absent_from_entry_list_is_not_back_filled(self):
-        grid = resolve_grid([], CHAMPIONSHIP, entry_list("ANT", "HAM", "LIN"), WeekendAvailability())
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAM", "LIN")), WeekendAvailability())
 
         assert "HAD" not in codes(grid)
         assert grid.provisional is False
@@ -187,7 +182,7 @@ class TestOnceASessionHasRun:
 
     def test_entered_driver_without_a_time_still_gets_predicted(self):
         timed = [{"driver_code": "ANT", "driver_name": "Kimi Antonelli", "team": "Mercedes", "position": 1}]
-        grid = resolve_grid(timed, CHAMPIONSHIP, entry_list("ANT", "HAM", "LIN"), WeekendAvailability())
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAM", "LIN")), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "HAM", "LIN"]
         back_filled = [d for d in grid.drivers if d.get("no_qualifying_time")]
@@ -198,24 +193,24 @@ class TestOnceASessionHasRun:
             {"driver_code": "ANT", "driver_name": "Kimi Antonelli", "team": "Mercedes", "position": 1},
             {"driver_code": "HAM", "driver_name": "Lewis Hamilton", "team": "Ferrari", "position": 2},
         ]
-        grid = resolve_grid(timed, CHAMPIONSHIP, entry_list("ANT", "HAM", "LIN"), WeekendAvailability())
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAM", "LIN")), WeekendAvailability())
 
         assert [d["position"] for d in grid.drivers] == [1, 2, 3]
 
     def test_back_fill_order_follows_championship_position(self):
         roster = entry_list("LIN", "HAM", "ANT")
-        grid = resolve_grid([], CHAMPIONSHIP, roster, WeekendAvailability())
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(roster), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "HAM", "LIN"]
 
     def test_driver_with_no_championship_entry_sorts_last(self):
-        grid = resolve_grid([], CHAMPIONSHIP, entry_list("DUN", "ANT"), WeekendAvailability())
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(entry_list("DUN", "ANT")), WeekendAvailability())
 
         assert codes(grid) == ["ANT", "DUN"]
 
     def test_entry_list_team_wins_over_a_stale_session_team(self):
         timed = [{"driver_code": "HAM", "driver_name": "Lewis Hamilton", "team": "Mercedes", "position": 1}]
-        grid = resolve_grid(timed, CHAMPIONSHIP, entry_list("HAM"), WeekendAvailability())
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entry_list("HAM")), WeekendAvailability())
 
         assert grid.drivers[0]["team"] == "Ferrari"
 
@@ -224,7 +219,7 @@ class TestOnceASessionHasRun:
             {"driver_code": "ANT", "driver_name": "Kimi Antonelli", "team": "Mercedes", "position": 1},
             {"driver_code": "HAD", "driver_name": "Isack Hadjar", "team": "Red Bull", "position": 2},
         ]
-        grid = resolve_grid(timed, CHAMPIONSHIP, entry_list("ANT", "HAD"), withdrawal("HAD"))
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAD")), withdrawal("HAD"))
 
         assert "HAD" not in codes(grid)
         assert any("not in the entry list and were excluded" in w for w in grid.warnings)
@@ -233,14 +228,14 @@ class TestOnceASessionHasRun:
 class TestNoRosterAtAll:
     def test_timed_drivers_are_still_scored_and_the_gap_reported(self):
         timed = [{"driver_code": "ANT", "driver_name": "Kimi Antonelli", "team": "Mercedes", "position": 1}]
-        grid = resolve_grid(timed, [], UNAVAILABLE, WeekendAvailability())
+        grid = resolve_grid(timed, [], EntryLists(UNAVAILABLE), WeekendAvailability())
 
         assert codes(grid) == ["ANT"]
         assert grid.provisional is True
         assert any("No entry list or championship roster" in w for w in grid.warnings)
 
     def test_empty_everything_yields_an_empty_grid(self):
-        grid = resolve_grid([], [], UNAVAILABLE, WeekendAvailability())
+        grid = resolve_grid([], [], EntryLists(UNAVAILABLE), WeekendAvailability())
 
         assert grid.drivers == ()
 
@@ -260,3 +255,25 @@ class TestEntryListValueObject:
         assert resolved.available is True
         assert resolved.codes == {"ANT", "HAM"}
         assert resolved.by_code()["HAM"].team == "Ferrari"
+
+
+class TestAdjustmentsThatWithdrawNobody:
+    def test_an_adjustment_that_is_not_a_withdrawal_leaves_the_roster_whole(self):
+        """Only ``out`` is a status today. A future one (say, a doubtful driver)
+        must be reported without quietly removing anyone from the grid."""
+        doubtful = WeekendAvailability(
+            adjustments=(
+                DriverAdjustment(
+                    driver_code="HAM",
+                    status="doubtful",
+                    reason="illness",
+                    source="https://example.test/announcement",
+                    noted_at="2026-08-20T09:00:00+00:00",
+                ),
+            )
+        )
+
+        grid = resolve_grid([], CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAM", "LIN")), doubtful)
+
+        assert codes(grid) == ["ANT", "HAM", "LIN"]
+        assert SOURCE_MANUAL_ADJUSTMENT in grid.data_sources

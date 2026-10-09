@@ -16,9 +16,14 @@ Key f1db facts this relies on (verified against schema v2026.10.0):
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 
 from app.data.f1db_source import connect
+
+if TYPE_CHECKING:
+    import sqlite3
 
 logger = structlog.get_logger()
 
@@ -33,7 +38,7 @@ def _rounds_count(rounds_text: str | None) -> int:
     return len([r for r in str(rounds_text).split(";") if r.strip()])
 
 
-def _champion_team(conn, year: int, driver_id: str) -> str | None:
+def _champion_team(conn: sqlite3.Connection, year: int, driver_id: str) -> str | None:
     """The constructor a driver raced most rounds for in a season (their title team)."""
     rows = conn.execute(
         """
@@ -49,7 +54,7 @@ def _champion_team(conn, year: int, driver_id: str) -> str | None:
     return max(rows, key=lambda r: _rounds_count(r["rounds"]))["team"]
 
 
-def _driver_wins(conn, year: int, driver_id: str) -> int:
+def _driver_wins(conn: sqlite3.Connection, year: int, driver_id: str) -> int:
     return conn.execute(
         """
         SELECT COUNT(*) FROM race_data rd
@@ -61,7 +66,7 @@ def _driver_wins(conn, year: int, driver_id: str) -> int:
     ).fetchone()[0]
 
 
-def _driver_champion(conn, year: int) -> dict | None:
+def _driver_champion(conn: sqlite3.Connection, year: int) -> dict | None:
     row = conn.execute(
         """
         SELECT d.id, d.full_name, d.abbreviation, sds.points, sds.championship_won,
@@ -86,7 +91,7 @@ def _driver_champion(conn, year: int) -> dict | None:
     }
 
 
-def _constructor_champion(conn, year: int) -> dict | None:
+def _constructor_champion(conn: sqlite3.Connection, year: int) -> dict | None:
     row = conn.execute(
         """
         SELECT con.name, scs.points, scs.championship_won
@@ -122,9 +127,7 @@ def list_champions() -> list[dict]:
                     "is_in_progress": bool(driver and not driver["title_decided"]),
                     "driver_champion": driver,
                     "constructor_champion": _constructor_champion(conn, year),
-                    "round_count": conn.execute(
-                        "SELECT COUNT(*) FROM race WHERE year = ?", (year,)
-                    ).fetchone()[0],
+                    "round_count": conn.execute("SELECT COUNT(*) FROM race WHERE year = ?", (year,)).fetchone()[0],
                 }
             )
 
@@ -176,11 +179,7 @@ def get_season_detail(year: int) -> dict:
         "is_in_progress": bool(driver and not driver["title_decided"]),
         "driver_champion": driver,
         "constructor_champion": constructor,
-        "runner_up": (
-            {"name": runner_up["name"], "points": float(runner_up["points"])}
-            if runner_up
-            else None
-        ),
+        "runner_up": ({"name": runner_up["name"], "points": float(runner_up["points"])} if runner_up else None),
         "race_winners": [
             {
                 "round": w["round"],
@@ -228,9 +227,7 @@ def get_champion_stats() -> dict:
 
     stats = {
         "most_driver_titles": [{"name": r["name"], "titles": r["titles"]} for r in driver_titles],
-        "most_constructor_titles": [
-            {"name": r["name"], "titles": r["titles"]} for r in constructor_titles
-        ],
+        "most_constructor_titles": [{"name": r["name"], "titles": r["titles"]} for r in constructor_titles],
     }
     _cache["stats"] = stats
     return stats

@@ -1,14 +1,17 @@
-"""Tests for the post-race prediction review (app.data.predictions).
+"""Tests for the post-race prediction review (app.data.predictions.review).
 
 The behaviour under test: a stored prediction is compared driver by driver
 against the recorded result, and a snapshot frozen before the race is scored
 once the result exists rather than staying "not available yet" forever.
+
+History loading is stubbed on the ``review`` module rather than the package,
+because that is the namespace ``build_prediction_review`` resolves the name in.
 """
 
 import pytest
 
-from app.data import predictions as predictions_module
-from app.data.predictions import build_prediction_review
+from app.data.predictions import review as review_module
+from app.data.predictions.review import build_prediction_review
 from app.services.predictions import enrich_prediction_result
 
 YEAR = 2026
@@ -44,7 +47,7 @@ HISTORY = {
 @pytest.fixture
 def stored_history(monkeypatch):
     """Serve a fixed prediction history without touching the document store."""
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: HISTORY)
+    monkeypatch.setattr(review_module, "_load_prediction_history", lambda: HISTORY)
     return HISTORY
 
 
@@ -90,7 +93,7 @@ def test_review_keeps_drivers_present_on_only_one_side(stored_history):
 
 def test_review_without_a_result_is_not_evaluated(monkeypatch):
     monkeypatch.setattr(
-        predictions_module,
+        review_module,
         "_load_prediction_history",
         lambda: {KEY: {**HISTORY[KEY], "actual_positions": {}}},
     )

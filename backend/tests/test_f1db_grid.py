@@ -121,8 +121,7 @@ def test_pit_lane_start_holds_no_grid_slot(grid_db):
 
 def test_missing_qualifying_position_yields_no_delta(grid_db):
     grid_db.execute(
-        "UPDATE race_data SET starting_grid_position_qualification_position_number = NULL "
-        "WHERE driver_id = 'gasly'"
+        "UPDATE race_data SET starting_grid_position_qualification_position_number = NULL WHERE driver_id = 'gasly'"
     )
 
     assert by_code(starting_grid(2026, 13))["GAS"].places_lost is None
@@ -146,8 +145,7 @@ def test_sprint_grid_is_read_through_the_same_reader(grid_db):
     penalties were surfaced by different code — and drift from it.
     """
     grid_db.execute(
-        "INSERT INTO race_data VALUES (1, 'SPRINT_STARTING_GRID_POSITION', 1, 6, '6', "
-        "'piastri', 'mclaren', 3, '3', 3)"
+        "INSERT INTO race_data VALUES (1, 'SPRINT_STARTING_GRID_POSITION', 1, 6, '6', 'piastri', 'mclaren', 3, '3', 3)"
     )
 
     sprint = starting_grid(2026, 13, f1db_grid.TYPE_SPRINT_GRID)

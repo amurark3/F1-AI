@@ -12,25 +12,28 @@ store and exposed via the intel API + the proactive background loop.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 
 from app.data.f1db_source import connect
 
+if TYPE_CHECKING:
+    import sqlite3
+
 logger = structlog.get_logger()
 
 # Thresholds for what counts as "notable".
-BIG_MOVE_POSITIONS = 5          # gained/lost this many places vs grid
-LOPSIDED_TEAMMATE_GAP = 6       # finishing-position gap between teammates
+BIG_MOVE_POSITIONS = 5  # gained/lost this many places vs grid
+LOPSIDED_TEAMMATE_GAP = 6  # finishing-position gap between teammates
 
 
-def _race_id(conn, year: int, round_num: int) -> str | None:
-    row = conn.execute(
-        "SELECT id FROM race WHERE year = ? AND round = ?", (year, round_num)
-    ).fetchone()
+def _race_id(conn: sqlite3.Connection, year: int, round_num: int) -> str | None:
+    row = conn.execute("SELECT id FROM race WHERE year = ? AND round = ?", (year, round_num)).fetchone()
     return row["id"] if row else None
 
 
-def _race_result_rows(conn, race_id: str) -> list[dict]:
+def _race_result_rows(conn: sqlite3.Connection, race_id: str) -> list[dict]:
     rows = conn.execute(
         """
         SELECT d.driver_id, dr.name AS driver, d.constructor_id AS team,
@@ -56,15 +59,17 @@ def _big_movers(rows: list[dict]) -> list[dict]:
             continue
         delta = int(grid) - int(finish)  # positive = gained places
         if abs(delta) >= BIG_MOVE_POSITIONS:
-            anomalies.append({
-                "kind": "big_gain" if delta > 0 else "big_loss",
-                "driver": r["driver"],
-                "detail": (
-                    f"{r['driver']} {'gained' if delta > 0 else 'lost'} {abs(delta)} places "
-                    f"(P{int(grid)} → P{int(finish)})"
-                ),
-                "magnitude": abs(delta),
-            })
+            anomalies.append(
+                {
+                    "kind": "big_gain" if delta > 0 else "big_loss",
+                    "driver": r["driver"],
+                    "detail": (
+                        f"{r['driver']} {'gained' if delta > 0 else 'lost'} {abs(delta)} places "
+                        f"(P{int(grid)} → P{int(finish)})"
+                    ),
+                    "magnitude": abs(delta),
+                }
+            )
     return anomalies
 
 
@@ -74,22 +79,24 @@ def _teammate_battles(rows: list[dict]) -> list[dict]:
         if r.get("finish") is not None:
             by_team.setdefault(r["team"], []).append(r)
     anomalies = []
-    for team, drivers in by_team.items():
+    for drivers in by_team.values():
         if len(drivers) < 2:
             continue
         drivers.sort(key=lambda r: int(r["finish"]))
         best, worst = drivers[0], drivers[-1]
         gap = int(worst["finish"]) - int(best["finish"])
         if gap >= LOPSIDED_TEAMMATE_GAP:
-            anomalies.append({
-                "kind": "teammate_gap",
-                "driver": best["driver"],
-                "detail": (
-                    f"{best['driver']} beat teammate {worst['driver']} by {gap} places "
-                    f"(P{int(best['finish'])} vs P{int(worst['finish'])})"
-                ),
-                "magnitude": gap,
-            })
+            anomalies.append(
+                {
+                    "kind": "teammate_gap",
+                    "driver": best["driver"],
+                    "detail": (
+                        f"{best['driver']} beat teammate {worst['driver']} by {gap} places "
+                        f"(P{int(best['finish'])} vs P{int(worst['finish'])})"
+                    ),
+                    "magnitude": gap,
+                }
+            )
     return anomalies
 
 
@@ -98,12 +105,14 @@ def _retirements(rows: list[dict]) -> list[dict]:
     if not dnfs:
         return []
     names = ", ".join(f"{r['driver']} ({r['retired']})" for r in dnfs[:6])
-    return [{
-        "kind": "retirements",
-        "driver": None,
-        "detail": f"{len(dnfs)} retirement(s): {names}",
-        "magnitude": len(dnfs),
-    }]
+    return [
+        {
+            "kind": "retirements",
+            "driver": None,
+            "detail": f"{len(dnfs)} retirement(s): {names}",
+            "magnitude": len(dnfs),
+        }
+    ]
 
 
 def detect_race_anomalies(year: int, round_num: int) -> dict:

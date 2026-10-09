@@ -1,3 +1,9 @@
-# Test-only dependencies. Not installed in the deployed web service —
+# Test- and lint-only dependencies. Not installed in the deployed web service —
 # see requirements.txt for runtime pins.
 pytest==9.0.3
+pytest-cov==7.1.0
+pytest-asyncio==1.4.0
+
+# Lint + format gate, configured in ruff.toml. The per-module line budget ruff
+# cannot express lives in tools/check_module_size.py, which is dependency-free.
+ruff==0.16.1

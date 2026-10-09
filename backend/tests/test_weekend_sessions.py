@@ -44,11 +44,83 @@ CREATE TABLE race_data (
 """
 
 COLUMNS = (
-    "race_id, type, position_display_order, position_number, position_text, driver_id, constructor_id,"
-    "practice_time, practice_gap, practice_laps, qualifying_q1, qualifying_q2, qualifying_q3, qualifying_gap,"
-    "race_time, race_gap, race_laps, race_points, race_grid_position_number, race_reason_retired,"
-    "starting_grid_position_qualification_position_number, starting_grid_position_grid_penalty,"
+    "race_id",
+    "type",
+    "position_display_order",
+    "position_number",
+    "position_text",
+    "driver_id",
+    "constructor_id",
+    "practice_time",
+    "practice_gap",
+    "practice_laps",
+    "qualifying_q1",
+    "qualifying_q2",
+    "qualifying_q3",
+    "qualifying_gap",
+    "race_time",
+    "race_gap",
+    "race_laps",
+    "race_points",
+    "race_grid_position_number",
+    "race_reason_retired",
+    "starting_grid_position_qualification_position_number",
+    "starting_grid_position_grid_penalty",
+    "starting_grid_position_grid_penalty_positions",
+)
+
+# Written out rather than formatted from COLUMNS: SQL assembled by string
+# formatting is what the injection lint exists to catch, test or not.
+INSERT_RACE_DATA = (
+    "INSERT INTO race_data ("
+    "race_id, "
+    "type, "
+    "position_display_order, "
+    "position_number, "
+    "position_text, "
+    "driver_id, "
+    "constructor_id, "
+    "practice_time, "
+    "practice_gap, "
+    "practice_laps, "
+    "qualifying_q1, "
+    "qualifying_q2, "
+    "qualifying_q3, "
+    "qualifying_gap, "
+    "race_time, "
+    "race_gap, "
+    "race_laps, "
+    "race_points, "
+    "race_grid_position_number, "
+    "race_reason_retired, "
+    "starting_grid_position_qualification_position_number, "
+    "starting_grid_position_grid_penalty, "
     "starting_grid_position_grid_penalty_positions"
+    ") VALUES ("
+    ":race_id, "
+    ":type, "
+    ":position_display_order, "
+    ":position_number, "
+    ":position_text, "
+    ":driver_id, "
+    ":constructor_id, "
+    ":practice_time, "
+    ":practice_gap, "
+    ":practice_laps, "
+    ":qualifying_q1, "
+    ":qualifying_q2, "
+    ":qualifying_q3, "
+    ":qualifying_gap, "
+    ":race_time, "
+    ":race_gap, "
+    ":race_laps, "
+    ":race_points, "
+    ":race_grid_position_number, "
+    ":race_reason_retired, "
+    ":starting_grid_position_qualification_position_number, "
+    ":starting_grid_position_grid_penalty, "
+    ":starting_grid_position_grid_penalty_positions"
+    ")"
 )
 
 
@@ -77,20 +149,22 @@ def db(monkeypatch):
     conn.execute("INSERT INTO constructor VALUES ('mercedes', 'Mercedes')")
 
     def add(race_id, rtype, **cols):
-        row = {name.strip(): None for name in COLUMNS.split(",")}
-        row.update({
-            "race_id": race_id, "type": rtype, "position_display_order": cols.get("order", 1),
-            "position_number": cols.get("pos", 1), "position_text": cols.get("ptext", "1"),
-            "driver_id": cols.get("driver", "leclerc"), "constructor_id": cols.get("team", "ferrari"),
-        })
+        row = dict.fromkeys(COLUMNS)
+        row.update(
+            {
+                "race_id": race_id,
+                "type": rtype,
+                "position_display_order": cols.get("order", 1),
+                "position_number": cols.get("pos", 1),
+                "position_text": cols.get("ptext", "1"),
+                "driver_id": cols.get("driver", "leclerc"),
+                "constructor_id": cols.get("team", "ferrari"),
+            }
+        )
         for key, value in cols.items():
             if key in row:
                 row[key] = value
-        names = [name.strip() for name in COLUMNS.split(",")]
-        conn.execute(
-            f"INSERT INTO race_data ({COLUMNS}) VALUES ({','.join('?' * len(names))})",
-            [row[name] for name in names],
-        )
+        conn.execute(INSERT_RACE_DATA, row)
 
     monkeypatch.setattr(f1db_sessions, "connect", lambda: conn)
     monkeypatch.setattr(f1db_grid, "connect", lambda: conn)
@@ -99,6 +173,7 @@ def db(monkeypatch):
 
 
 # --- session classification ------------------------------------------------
+
 
 def test_practice_entry_carries_time_gap_and_laps(db):
     db.add(13, TYPE_PRACTICE_1, practice_time="1:23.008", practice_gap="+0.173", practice_laps=29)
@@ -127,8 +202,16 @@ def test_driver_knocked_out_early_shows_their_last_set_time(db):
 
 
 def test_race_entry_carries_points_grid_and_retirement(db):
-    db.add(12, TYPE_SPRINT_RACE, race_time="30:25.318", race_gap="+1.360", race_laps=24,
-           race_points=8.0, race_grid_position_number=3, race_reason_retired="Collision")
+    db.add(
+        12,
+        TYPE_SPRINT_RACE,
+        race_time="30:25.318",
+        race_gap="+1.360",
+        race_laps=24,
+        race_points=8.0,
+        race_grid_position_number=3,
+        race_reason_retired="Collision",
+    )
 
     entry = session_classification(2026, 12, TYPE_SPRINT_RACE, KIND_RACE)[0]
 
@@ -162,6 +245,7 @@ def test_rows_without_a_driver_code_are_dropped(db):
 
 # --- weekend assembly ------------------------------------------------------
 
+
 def test_conventional_weekend_offers_three_practice_sessions_and_no_sprint(db):
     for rtype in ("FREE_PRACTICE_1_RESULT", "FREE_PRACTICE_2_RESULT", "FREE_PRACTICE_3_RESULT"):
         db.add(13, rtype, practice_time="1:23.0")
@@ -175,14 +259,16 @@ def test_conventional_weekend_offers_three_practice_sessions_and_no_sprint(db):
 def test_sprint_weekend_offers_one_practice_plus_the_sprint_set(db):
     db.add(12, "FREE_PRACTICE_1_RESULT", practice_time="1:20.0")
     db.add(12, TYPE_SPRINT_QUALIFYING, qualifying_q3="1:11.5")
-    db.add(12, "SPRINT_STARTING_GRID_POSITION",
-           starting_grid_position_qualification_position_number=1)
+    db.add(12, "SPRINT_STARTING_GRID_POSITION", starting_grid_position_qualification_position_number=1)
     db.add(12, TYPE_SPRINT_RACE, race_points=8.0)
 
     payload = build_weekend_sessions(2026, 12)
 
     assert [session["id"] for session in payload["sessions"]] == [
-        "fp1", "sprint_qualifying", "sprint_grid", "sprint",
+        "fp1",
+        "sprint_qualifying",
+        "sprint_grid",
+        "sprint",
     ]
     # FP2 and FP3 are not offered, because a sprint weekend does not run them.
     assert payload["is_sprint"] is True
@@ -204,10 +290,15 @@ def test_a_cancelled_session_simply_does_not_appear(db):
 
 
 def test_sprint_grid_reports_its_own_penalties(db):
-    db.add(12, "SPRINT_STARTING_GRID_POSITION", pos=6, ptext="6",
-           starting_grid_position_qualification_position_number=3,
-           starting_grid_position_grid_penalty="3",
-           starting_grid_position_grid_penalty_positions=3)
+    db.add(
+        12,
+        "SPRINT_STARTING_GRID_POSITION",
+        pos=6,
+        ptext="6",
+        starting_grid_position_qualification_position_number=3,
+        starting_grid_position_grid_penalty="3",
+        starting_grid_position_grid_penalty_positions=3,
+    )
 
     grid = build_weekend_sessions(2026, 12)["sessions"][0]
 

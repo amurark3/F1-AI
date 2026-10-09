@@ -183,9 +183,7 @@ def test_a_failed_redirect_falls_back_to_the_releases_api(dataset, monkeypatch):
     assert f1db_source.latest_release_version() == "v2026.16.1"
 
 
-def test_a_response_that_is_not_a_redirect_falls_back_to_the_releases_api(
-    dataset, monkeypatch
-):
+def test_a_response_that_is_not_a_redirect_falls_back_to_the_releases_api(dataset, monkeypatch):
     fake_github(
         monkeypatch,
         api_latest="v2026.16.1",
@@ -310,9 +308,7 @@ def test_a_failed_release_check_is_not_reported_as_current(dataset, monkeypatch)
     assert dataset.read_bytes() == b"untouched"
 
 
-def test_a_failed_check_on_an_empty_disk_says_the_fallback_was_installed(
-    dataset, monkeypatch
-):
+def test_a_failed_check_on_an_empty_disk_says_the_fallback_was_installed(dataset, monkeypatch):
     fallback = f1db_source.FALLBACK_F1DB_VERSION
     fake_github(monkeypatch, latest=None, asset=zip_bytes(b"fallback"))
 
@@ -423,9 +419,7 @@ def test_the_first_sync_of_a_process_is_never_throttled(dataset, monkeypatch):
     """
     monkeypatch.setattr(f1db_source.time, "monotonic", lambda: 5.0)
     install(dataset, "v2026.10.0")
-    calls = fake_github(
-        monkeypatch, latest="v2026.11.0", asset=zip_bytes(b"with-hungary")
-    )
+    calls = fake_github(monkeypatch, latest="v2026.11.0", asset=zip_bytes(b"with-hungary"))
 
     outcome = f1db_source.sync_to_latest()
 
@@ -475,7 +469,7 @@ def test_refresh_rejects_an_archive_with_no_database(dataset, monkeypatch):
         archive.writestr("README.md", "no database here")
     fake_github(monkeypatch, latest="v2026.11.0", asset=empty.getvalue())
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"No \.db file found"):
         f1db_source.refresh_f1db("v2026.11.0")
 
     assert not dataset.exists()

@@ -59,16 +59,36 @@ def test_parse_iso_returns_none_for_unusable_input(value):
 # Arabian round that FastF1's schedule omits, so OpenF1's ordering runs two
 # ahead. Indexing by round number lands on Belgium when asked for the Dutch GP.
 MEETINGS_2026 = [
-    {"meeting_key": 1279, "meeting_name": "Australian Grand Prix", "location": "Melbourne",
-     "date_start": "2026-03-06T01:30:00+00:00"},
-    {"meeting_key": 1282, "meeting_name": "Bahrain Grand Prix", "location": "Sakhir",
-     "date_start": "2026-04-10T11:30:00+00:00"},
-    {"meeting_key": 1283, "meeting_name": "Saudi Arabian Grand Prix", "location": "Jeddah",
-     "date_start": "2026-04-17T13:30:00+00:00"},
-    {"meeting_key": 1290, "meeting_name": "Belgian Grand Prix", "location": "Spa-Francorchamps",
-     "date_start": "2026-07-17T10:30:00+00:00"},
-    {"meeting_key": 1292, "meeting_name": "Dutch Grand Prix", "location": "Zandvoort",
-     "date_start": "2026-08-21T10:30:00+00:00"},
+    {
+        "meeting_key": 1279,
+        "meeting_name": "Australian Grand Prix",
+        "location": "Melbourne",
+        "date_start": "2026-03-06T01:30:00+00:00",
+    },
+    {
+        "meeting_key": 1282,
+        "meeting_name": "Bahrain Grand Prix",
+        "location": "Sakhir",
+        "date_start": "2026-04-10T11:30:00+00:00",
+    },
+    {
+        "meeting_key": 1283,
+        "meeting_name": "Saudi Arabian Grand Prix",
+        "location": "Jeddah",
+        "date_start": "2026-04-17T13:30:00+00:00",
+    },
+    {
+        "meeting_key": 1290,
+        "meeting_name": "Belgian Grand Prix",
+        "location": "Spa-Francorchamps",
+        "date_start": "2026-07-17T10:30:00+00:00",
+    },
+    {
+        "meeting_key": 1292,
+        "meeting_name": "Dutch Grand Prix",
+        "location": "Zandvoort",
+        "date_start": "2026-08-21T10:30:00+00:00",
+    },
 ]
 
 
@@ -94,8 +114,14 @@ def test_match_meeting_does_not_shift_when_calendars_disagree():
 
 
 def test_match_meeting_falls_back_to_the_event_date_window():
-    renamed = [{"meeting_key": 1292, "meeting_name": "Dutch Grand Prix",
-                "location": "Circuit Zandvoort", "date_start": "2026-08-21T10:30:00+00:00"}]
+    renamed = [
+        {
+            "meeting_key": 1292,
+            "meeting_name": "Dutch Grand Prix",
+            "location": "Circuit Zandvoort",
+            "date_start": "2026-08-21T10:30:00+00:00",
+        }
+    ]
     match = match_meeting(renamed, "Zandvoort", _utc(2026, 8, 23))
     assert match["meeting_key"] == 1292
 
@@ -108,6 +134,11 @@ def test_match_meeting_returns_none_for_an_empty_calendar():
     assert match_meeting([], "Zandvoort", _utc(2026, 8, 23)) is None
 
 
+def test_match_meeting_without_a_location_match_or_a_date_finds_nothing():
+    """No date means no window to fall back on — not a guess at the nearest."""
+    assert match_meeting(MEETINGS_2026, "Nowhere") is None
+
+
 # --------------------------------------------------------------------------
 # select_active_session
 # --------------------------------------------------------------------------
@@ -115,16 +146,41 @@ def test_match_meeting_returns_none_for_an_empty_calendar():
 # The real Zandvoort 2026 weekend — a sprint weekend, so two sessions carry
 # session_type "Race" and the Sprint sorts first.
 DUTCH_SESSIONS = [
-    {"session_key": 11343, "session_type": "Practice", "session_name": "Practice 1",
-     "date_start": "2026-08-21T10:30:00+00:00", "date_end": "2026-08-21T11:30:00+00:00"},
-    {"session_key": 11344, "session_type": "Qualifying", "session_name": "Sprint Qualifying",
-     "date_start": "2026-08-21T14:30:00+00:00", "date_end": "2026-08-21T15:14:00+00:00"},
-    {"session_key": 11348, "session_type": "Race", "session_name": "Sprint",
-     "date_start": "2026-08-22T10:00:00+00:00", "date_end": "2026-08-22T10:44:00+00:00"},
-    {"session_key": 11349, "session_type": "Qualifying", "session_name": "Qualifying",
-     "date_start": "2026-08-22T14:00:00+00:00", "date_end": "2026-08-22T15:00:00+00:00"},
-    {"session_key": 11353, "session_type": "Race", "session_name": "Race",
-     "date_start": "2026-08-23T13:00:00+00:00", "date_end": "2026-08-23T15:00:00+00:00"},
+    {
+        "session_key": 11343,
+        "session_type": "Practice",
+        "session_name": "Practice 1",
+        "date_start": "2026-08-21T10:30:00+00:00",
+        "date_end": "2026-08-21T11:30:00+00:00",
+    },
+    {
+        "session_key": 11344,
+        "session_type": "Qualifying",
+        "session_name": "Sprint Qualifying",
+        "date_start": "2026-08-21T14:30:00+00:00",
+        "date_end": "2026-08-21T15:14:00+00:00",
+    },
+    {
+        "session_key": 11348,
+        "session_type": "Race",
+        "session_name": "Sprint",
+        "date_start": "2026-08-22T10:00:00+00:00",
+        "date_end": "2026-08-22T10:44:00+00:00",
+    },
+    {
+        "session_key": 11349,
+        "session_type": "Qualifying",
+        "session_name": "Qualifying",
+        "date_start": "2026-08-22T14:00:00+00:00",
+        "date_end": "2026-08-22T15:00:00+00:00",
+    },
+    {
+        "session_key": 11353,
+        "session_type": "Race",
+        "session_name": "Race",
+        "date_start": "2026-08-23T13:00:00+00:00",
+        "date_end": "2026-08-23T15:00:00+00:00",
+    },
 ]
 
 
@@ -306,6 +362,12 @@ def test_derive_session_state_is_finished_after_the_window():
     assert derive_session_state(session, _utc(2026, 8, 23, 16, 0), has_session_data=True) == "finished"
 
 
+def test_derive_session_state_is_standby_when_the_window_is_unreadable():
+    """A session with no usable end time cannot be placed, so it is not live."""
+    session = {**DUTCH_SESSIONS[4], "date_end": None}
+    assert derive_session_state(session, _utc(2026, 8, 23, 13, 30), has_session_data=True) == "standby"
+
+
 # --------------------------------------------------------------------------
 # build_positions
 # --------------------------------------------------------------------------
@@ -390,6 +452,19 @@ def test_scheduled_session_now_is_none_between_sessions():
 def test_scheduled_session_now_uses_a_shorter_window_for_practice():
     assert scheduled_session_now(SCHEDULE, _utc(2026, 8, 21, 11, 15)) == "Practice 1"
     assert scheduled_session_now(SCHEDULE, _utc(2026, 8, 21, 12, 30)) is None
+
+
+def test_scheduled_session_now_gives_an_unrecognised_session_the_default_window():
+    sessions = {"Demonstration run": "2026-08-23T10:00:00+00:00"}
+
+    assert scheduled_session_now(sessions, _utc(2026, 8, 23, 11, 10)) == "Demonstration run"
+    assert scheduled_session_now(sessions, _utc(2026, 8, 23, 11, 20)) is None
+
+
+def test_scheduled_session_now_skips_a_session_with_no_usable_start():
+    sessions = {"Practice 1": "TBC", "Race": "2026-08-23T13:00:00+00:00"}
+
+    assert scheduled_session_now(sessions, _utc(2026, 8, 23, 13, 30)) == "Race"
 
 
 def test_scheduled_session_now_handles_an_empty_schedule():

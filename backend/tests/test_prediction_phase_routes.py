@@ -96,9 +96,7 @@ def test_a_recompute_targets_only_the_requested_phase(monkeypatch):
 
     monkeypatch.setattr(router_module, "compute_and_store_race_prediction", _compute)
 
-    asyncio.run(
-        compute_predictions(YEAR, ROUND, reason="qualifying_recompute", phase=PHASE_POST_QUALIFYING)
-    )
+    asyncio.run(compute_predictions(YEAR, ROUND, reason="qualifying_recompute", phase=PHASE_POST_QUALIFYING))
 
     assert seen == [{"reason": "qualifying_recompute", "phase": PHASE_POST_QUALIFYING}]
 
@@ -130,9 +128,7 @@ def test_a_failed_recompute_still_names_the_tab_it_was_for(monkeypatch):
 
 
 def test_a_served_snapshot_is_scored_against_the_phase_being_viewed(monkeypatch, reviewed_phases):
-    monkeypatch.setattr(
-        router_module, "get_cached_race_prediction", lambda *a, **k: _stored(PHASE_PRE_QUALIFYING)
-    )
+    monkeypatch.setattr(router_module, "get_cached_race_prediction", lambda *a, **k: _stored(PHASE_PRE_QUALIFYING))
 
     result = asyncio.run(get_prediction_snapshot(YEAR, ROUND, phase=PHASE_PRE_QUALIFYING))
 

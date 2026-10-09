@@ -10,7 +10,8 @@ import pytest
 
 from app.data import driver_availability as availability_module
 from app.data.driver_availability import (
-    InvalidAdjustment,
+    InvalidAdjustmentError,
+    Withdrawal,
     clear_driver_adjustment,
     load_weekend_availability,
     record_driver_out,
@@ -128,7 +129,7 @@ class TestLoad:
 
 class TestRecord:
     def test_records_a_withdrawal_with_attribution(self, store):
-        result = record_driver_out(YEAR, ROUND, "had", "wrist injury", "https://example.test/x")
+        result = record_driver_out(YEAR, ROUND, Withdrawal("had", "wrist injury", "https://example.test/x"))
 
         assert result.ok is True
         row = store.payload["rounds"][round_key(YEAR, ROUND)][0]
@@ -137,8 +138,8 @@ class TestRecord:
         assert row["noted_at"]
 
     def test_re_recording_supersedes_rather_than_duplicates(self, store):
-        record_driver_out(YEAR, ROUND, "HAD", "wrist injury", "https://example.test/x")
-        record_driver_out(YEAR, ROUND, "HAD", "hand surgery", "https://example.test/y")
+        record_driver_out(YEAR, ROUND, Withdrawal("HAD", "wrist injury", "https://example.test/x"))
+        record_driver_out(YEAR, ROUND, Withdrawal("HAD", "hand surgery", "https://example.test/y"))
 
         rows = store.payload["rounds"][round_key(YEAR, ROUND)]
         assert len(rows) == 1
@@ -147,14 +148,14 @@ class TestRecord:
     def test_other_rounds_survive_a_write(self, store):
         store.payload = {"rounds": {round_key(YEAR, 16): [stored("ALO")]}}
 
-        record_driver_out(YEAR, ROUND, "HAD", "wrist injury", "https://example.test/x")
+        record_driver_out(YEAR, ROUND, Withdrawal("HAD", "wrist injury", "https://example.test/x"))
 
         assert store.payload["rounds"][round_key(YEAR, 16)]
 
     def test_a_write_on_top_of_a_failed_read_is_refused(self, store):
         store.readable = False
 
-        result = record_driver_out(YEAR, ROUND, "HAD", "wrist injury", "https://example.test/x")
+        result = record_driver_out(YEAR, ROUND, Withdrawal("HAD", "wrist injury", "https://example.test/x"))
 
         assert result.ok is False
         assert store.writes == []
@@ -178,8 +179,8 @@ class TestRecord:
             "source": "https://example.test/x",
             **kwargs,
         }
-        with pytest.raises(InvalidAdjustment):
-            record_driver_out(YEAR, ROUND, **args)
+        with pytest.raises(InvalidAdjustmentError):
+            record_driver_out(YEAR, ROUND, Withdrawal(**args))
 
         assert store.writes == []
 
@@ -201,5 +202,5 @@ class TestClear:
         assert store.writes == []
 
     def test_rejects_an_invalid_code(self, store):
-        with pytest.raises(InvalidAdjustment):
+        with pytest.raises(InvalidAdjustmentError):
             clear_driver_adjustment(YEAR, ROUND, "NOPE")

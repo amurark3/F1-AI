@@ -33,10 +33,14 @@ is complete, so the grid for a round still being run is simply absent here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
 from app.data.f1db_source import connect
+
+if TYPE_CHECKING:
+    import sqlite3
 
 logger = structlog.get_logger()
 
@@ -108,19 +112,15 @@ class GridSlot:
         return self.position - self.qualifying_position
 
 
-def _slot_from_row(row) -> GridSlot:
+def _slot_from_row(row: sqlite3.Row) -> GridSlot:
     penalty = row["penalty"]
     return GridSlot(
         driver_code=row["code"],
         driver_name=row["name"],
         team=row["team"],
         position=None if row["position"] is None else int(row["position"]),
-        qualifying_position=(
-            None if row["qualifying_position"] is None else int(row["qualifying_position"])
-        ),
-        penalty_positions=(
-            None if row["penalty_positions"] is None else int(row["penalty_positions"])
-        ),
+        qualifying_position=(None if row["qualifying_position"] is None else int(row["qualifying_position"])),
+        penalty_positions=(None if row["penalty_positions"] is None else int(row["penalty_positions"])),
         start_from_back=penalty == PENALTY_START_FROM_BACK,
         pit_lane=row["position_text"] == POSITION_TEXT_PIT_LANE,
     )

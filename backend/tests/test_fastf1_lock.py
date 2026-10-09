@@ -12,13 +12,26 @@ import threading
 
 import pytest
 
-from app.api import routes
-from app.data import predictions, race_stints, session_entries, strategy
+from app.api import race_detail
+from app.data import race_stints, session_entries
+from app.data.predictions import form, history, sessions
+from app.data.strategy import history as strategy_history, session as strategy_session
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 pytestmark = pytest.mark.unit
 
-FASTF1_MODULES = [routes, predictions, race_stints, session_entries, strategy]
+# Every module that loads a FastF1 session itself. The prediction and strategy
+# packages hold the lock in the submodules that do the loading.
+FASTF1_MODULES = [
+    race_detail,
+    form,
+    history,
+    sessions,
+    race_stints,
+    session_entries,
+    strategy_history,
+    strategy_session,
+]
 
 
 @pytest.mark.parametrize("module", FASTF1_MODULES, ids=lambda m: m.__name__)

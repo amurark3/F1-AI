@@ -60,13 +60,13 @@ def judge_answer(question: str, answer: str, rubric: str, must_include: list[str
         from app.api.llm import build_chat_llm
 
         judge_llm = build_chat_llm()
-        prompt = (
-            f"QUESTION:\n{question}\n\nANSWER:\n{answer}\n\nRUBRIC:\n{rubric}"
+        prompt = f"QUESTION:\n{question}\n\nANSWER:\n{answer}\n\nRUBRIC:\n{rubric}"
+        response = judge_llm.invoke(
+            [
+                SystemMessage(content=_JUDGE_INSTRUCTIONS),
+                HumanMessage(content=prompt),
+            ]
         )
-        response = judge_llm.invoke([
-            SystemMessage(content=_JUDGE_INSTRUCTIONS),
-            HumanMessage(content=prompt),
-        ])
         score, reason = _parse_score(str(response.content))
         return {"score": score, "reason": reason, "method": "llm_judge"}
     except Exception as exc:

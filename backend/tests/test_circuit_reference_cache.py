@@ -17,7 +17,7 @@ from app.data.circuit_reference_cache import (
     MISS_TTL_SECONDS,
     SUPERSEDED_TTL_SECONDS,
     CircuitReferenceCache,
-    CircuitReferenceCacheUnavailable,
+    CircuitReferenceCacheUnavailableError,
 )
 from app.data.store_types import ReadResult, WriteResult
 
@@ -178,7 +178,7 @@ def test_write_is_refused_while_the_store_cannot_be_read(store):
     store.readable = False
     cache = CircuitReferenceCache()
 
-    with pytest.raises(CircuitReferenceCacheUnavailable):
+    with pytest.raises(CircuitReferenceCacheUnavailableError):
         cache.set(CITY, YEAR, REFERENCE)
 
     assert store.writes == []
@@ -246,3 +246,15 @@ def test_a_non_durable_write_is_reported_not_hidden(store):
     assert write.durable is False
     # The reference is still usable in this process.
     assert cache.get(CITY, YEAR) is not None
+
+
+def test_an_entry_with_an_unreadable_timestamp_is_treated_as_expired(store):
+    """An undatable entry cannot prove it is fresh, so it is not trusted forever."""
+    store.payload = {
+        "schema_version": CACHE_SCHEMA_VERSION,
+        "entries": {
+            f"{CITY.lower()}:{YEAR}": {"reference": REFERENCE, "source_year": 2025, "stored_at": "last tuesday"},
+        },
+    }
+
+    assert CircuitReferenceCache().get(CITY, YEAR) is None

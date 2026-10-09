@@ -11,12 +11,11 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
-from app.data import strategy as strategy_module
 from app.data.circuit_reference_cache import (
     CachedReference,
-    CircuitReferenceCacheUnavailable,
+    CircuitReferenceCacheUnavailableError,
 )
-from app.data.strategy import circuit_strategy_reference
+from app.data.strategy import circuit_strategy_reference, reference as strategy_module
 
 pytestmark = pytest.mark.unit
 
@@ -30,23 +29,27 @@ NOW = datetime(2026, 8, 21, 12, 0, tzinfo=timezone.utc)
 
 def schedule_for(year: int, race_day: str) -> pd.DataFrame:
     """One-event season schedule shaped like FastF1's."""
-    return pd.DataFrame([{
-        "RoundNumber": 15,
-        "Location": CITY,
-        "Country": "Netherlands",
-        "EventName": "Dutch Grand Prix",
-        "EventDate": pd.Timestamp(race_day),
-        "Session1": "Practice 1",
-        "Session1DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=2),
-        "Session2": "Qualifying",
-        "Session2DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=1),
-        "Session3": "Race",
-        "Session3DateUtc": pd.Timestamp(race_day),
-        "Session4": None,
-        "Session4DateUtc": pd.NaT,
-        "Session5": None,
-        "Session5DateUtc": pd.NaT,
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "RoundNumber": 15,
+                "Location": CITY,
+                "Country": "Netherlands",
+                "EventName": "Dutch Grand Prix",
+                "EventDate": pd.Timestamp(race_day),
+                "Session1": "Practice 1",
+                "Session1DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=2),
+                "Session2": "Qualifying",
+                "Session2DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=1),
+                "Session3": "Race",
+                "Session3DateUtc": pd.Timestamp(race_day),
+                "Session4": None,
+                "Session4DateUtc": pd.NaT,
+                "Session5": None,
+                "Session5DateUtc": pd.NaT,
+            }
+        ]
+    )
 
 
 RACE_DAYS = {
@@ -68,7 +71,7 @@ class FakeCache:
 
     def set(self, city, year, reference):
         if not self.available:
-            raise CircuitReferenceCacheUnavailable("store unreachable")
+            raise CircuitReferenceCacheUnavailableError("store unreachable")
         self.writes.append((city, year, reference))
 
 
@@ -92,7 +95,7 @@ def loaded(monkeypatch):
     class _Clock(datetime):
         @classmethod
         def now(cls, tz=None):
-            return NOW
+            return NOW.astimezone(tz) if tz else NOW
 
     monkeypatch.setattr(strategy_module.fastf1, "get_event_schedule", fake_schedule)
     monkeypatch.setattr(strategy_module, "_load_race_data", fake_load_race_data)
@@ -121,7 +124,8 @@ def test_the_planning_season_edition_is_used_once_its_race_is_run(loaded, cache,
     class _Clock(datetime):
         @classmethod
         def now(cls, tz=None):
-            return datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc)
+            moment = datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc)
+            return moment.astimezone(tz) if tz else moment
 
     monkeypatch.setattr(strategy_module, "datetime", _Clock)
 

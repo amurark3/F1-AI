@@ -12,8 +12,13 @@ unset or the DB is unreachable.
 
 from __future__ import annotations
 
-import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import psycopg
+
 from dataclasses import dataclass, field
+import os
 
 import structlog
 
@@ -58,7 +63,7 @@ class RulebookHit:
     similarity: float = 0.0
 
 
-def _connect():
+def _connect() -> psycopg.Connection:
     import psycopg
 
     return psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
@@ -83,7 +88,7 @@ def count() -> int:
         return 0
 
 
-def ensure_schema_conn(conn) -> None:
+def ensure_schema_conn(conn: psycopg.Connection) -> None:
     conn.execute(_SCHEMA_SQL)
 
 
@@ -112,7 +117,7 @@ def replace_all(chunks: list[dict]) -> int:
             c["content"],
             to_pgvector_literal(vec),
         )
-        for c, vec in zip(chunks, embeddings)
+        for c, vec in zip(chunks, embeddings, strict=False)
     ]
 
     with _connect() as conn:
@@ -128,6 +133,28 @@ def replace_all(chunks: list[dict]) -> int:
     return len(rows)
 
 
+# Both search statements, written out rather than assembled from a WHERE
+# fragment, so no SQL is built at runtime. The only difference is the optional
+# doc-type predicate.
+_SEARCH_ALL_CATEGORIES = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s
+    ORDER BY embedding <=> %s::vector
+    LIMIT %s
+"""
+
+_SEARCH_BY_CATEGORY = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s AND doc_type = %s
+    ORDER BY embedding <=> %s::vector
+    LIMIT %s
+"""
+
+
 def search(query: str, year: int, *, category: str | None = None, k: int = 24) -> list[RulebookHit]:
     """Return the ``k`` chunks most similar to ``query`` for a season.
 
@@ -141,28 +168,19 @@ def search(query: str, year: int, *, category: str | None = None, k: int = 24) -
         return []
     literal = to_pgvector_literal(vector)
 
-    where = "source_year = %s"
-    params: list = [literal, str(year)]
+    # Params in statement order: similarity vector, year, [category], ORDER BY
+    # vector, limit.
     if category and category.lower() != "all":
-        where += " AND doc_type = %s"
-        params.append(category)
-    params.append(literal)  # ORDER BY vector
-    params.append(k)
+        statement = _SEARCH_BY_CATEGORY
+        params: list = [literal, str(year), category, literal, k]
+    else:
+        statement = _SEARCH_ALL_CATEGORIES
+        params = [literal, str(year), literal, k]
 
     try:
         with _connect() as conn:
             ensure_schema_conn(conn)
-            rows = conn.execute(
-                f"""
-                SELECT content, doc_type, filename, page,
-                       1 - (embedding <=> %s::vector) AS similarity
-                FROM rulebook_chunk
-                WHERE {where}
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
-                """,
-                params,
-            ).fetchall()
+            rows = conn.execute(statement, params).fetchall()
     except Exception as exc:
         logger.warning("rulebook_pg.search_failed", year=year, error=str(exc))
         return []

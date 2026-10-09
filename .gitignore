@@ -2,6 +2,10 @@
 .DS_Store
 Thumbs.db
 
+# Bytecode, wherever it lands. `.githooks/` gets a __pycache__ because the hook
+# reporter is imported by tests/test_githooks_ruff_gate_report.py.
+__pycache__/
+
 # Python Backend
 backend/venv/
 backend/.venv/
@@ -9,6 +13,14 @@ backend/**/__pycache__/
 backend/*.pyc
 backend/.env
 backend/f1_cache/
+backend/.pytest_cache/
+backend/.ruff_cache/
+# Coverage artefacts. The `.coverage` data file is a binary SQLite database
+# rewritten on every run, so tracking it means a spurious diff per test run;
+# `reports/` holds the XML/HTML renderings configured in .coveragerc.
+backend/.coverage
+backend/.coverage.*
+backend/reports/
 # Local ChromaDB is obsolete — rulebook vectors now live in Postgres/pgvector.
 # Any leftover local build is ignored.
 backend/data/chroma/

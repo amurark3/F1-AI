@@ -48,12 +48,14 @@ def _biggest_misses(predicted: dict, actual: dict, limit: int = 6) -> list[dict]
     for code in set(predicted) & set(actual):
         delta = int(actual[code]) - int(predicted[code])
         if abs(delta) >= MISS_THRESHOLD:
-            misses.append({
-                "driver": code,
-                "predicted": int(predicted[code]),
-                "actual": int(actual[code]),
-                "delta": delta,  # positive = finished worse than predicted
-            })
+            misses.append(
+                {
+                    "driver": code,
+                    "predicted": int(predicted[code]),
+                    "actual": int(actual[code]),
+                    "delta": delta,  # positive = finished worse than predicted
+                }
+            )
     misses.sort(key=lambda m: abs(m["delta"]), reverse=True)
     return misses[:limit]
 
@@ -178,9 +180,8 @@ def run_self_improvement_pass(year: int) -> dict:
         if entry.get("predicted_positions") and not entry.get("actual_positions"):
             record_actual_result(y, r)
             recorded += 1
-        if not get_postmortem(y, r):
-            if generate_miss_postmortem(y, r):
-                postmortems += 1
+        if not get_postmortem(y, r) and generate_miss_postmortem(y, r):
+            postmortems += 1
 
     summary = {"year": year, "actuals_recorded": recorded, "postmortems_generated": postmortems}
     logger.info("self_improvement.pass_complete", **summary)
@@ -188,6 +189,6 @@ def run_self_improvement_pass(year: int) -> dict:
 
 
 if __name__ == "__main__":
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    print(run_self_improvement_pass(datetime.now().year))
+    print(run_self_improvement_pass(datetime.now(timezone.utc).year))

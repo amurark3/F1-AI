@@ -84,7 +84,11 @@ async def _get_json(client: httpx.AsyncClient, path: str, params: dict) -> list 
     return payload if isinstance(payload, list) else None
 
 
-def _event_identity(year: int, round_num: int) -> tuple[str, datetime, str] | None:
+# A round's circuit location, scheduled date and event name, as FastF1 has it.
+EventIdentity = tuple[str, datetime, str]
+
+
+def _event_identity(year: int, round_num: int) -> EventIdentity | None:
     """Resolve a round to its circuit location, date and name via FastF1.
 
     Blocking — callers wrap this in a thread.
@@ -126,10 +130,10 @@ async def _weekend_sessions(
     client: httpx.AsyncClient,
     year: int,
     round_num: int,
-    location: str,
-    event_date: datetime,
+    identity: EventIdentity,
 ) -> tuple[list[dict], dict] | None:
     """The OpenF1 session list and meeting for a round, or None if unresolved."""
+    location, event_date, _ = identity
     meetings = await _get_json(client, "meetings", {"year": year})
     if not meetings:
         return None
@@ -175,11 +179,11 @@ async def resolve_session_window(
     identity = await asyncio.to_thread(_event_identity, year, round_num)
     if identity is None:
         return EMPTY_LOOKUP
-    location, event_date, event_name = identity
+    event_name = identity[2]
 
     moment = now or datetime.now(timezone.utc)
     async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-        weekend = await _weekend_sessions(client, year, round_num, location, event_date)
+        weekend = await _weekend_sessions(client, year, round_num, identity)
     if weekend is None:
         return EMPTY_LOOKUP
     sessions, meeting = weekend
@@ -198,11 +202,7 @@ async def _fetch_drivers(client: httpx.AsyncClient, session_key: str) -> dict[in
         return _driver_cache[session_key]
 
     rows = await _get_json(client, "drivers", {"session_key": session_key})
-    drivers = {
-        row["driver_number"]: row
-        for row in (rows or [])
-        if row.get("driver_number") is not None
-    }
+    drivers = {row["driver_number"]: row for row in (rows or []) if row.get("driver_number") is not None}
     if drivers:
         _driver_cache[session_key] = drivers
     return drivers
@@ -255,11 +255,13 @@ async def poll_timing(
             _get_json(client, "laps", _recent(key, moment, LAP_FEED_WINDOW, key="date_start")),
         )
 
-    sampled_at = newest_feed_sample([
-        (positions, "date"),
-        (intervals, "date"),
-        (laps, "date_start"),
-    ])
+    sampled_at = newest_feed_sample(
+        [
+            (positions, "date"),
+            (intervals, "date"),
+            (laps, "date_start"),
+        ]
+    )
     if not feed_belongs_to_session(sampled_at, session.date_start):
         logger.info("openf1.feed_not_open", session_key=key, newest=str(sampled_at))
         return None

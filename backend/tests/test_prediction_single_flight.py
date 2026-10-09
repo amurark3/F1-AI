@@ -23,7 +23,13 @@ ROUND = 15
 
 SNAPSHOT = {
     "predictions": [
-        {"driver_code": "NOR", "driver_name": "Lando Norris", "team": "McLaren", "confidence_low": 60, "confidence_high": 80},
+        {
+            "driver_code": "NOR",
+            "driver_name": "Lando Norris",
+            "team": "McLaren",
+            "confidence_low": 60,
+            "confidence_high": 80,
+        },
     ],
     "data_sources": ["trained_ml_model"],
 }

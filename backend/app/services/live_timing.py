@@ -126,11 +126,7 @@ def next_session_start(sessions: list[dict], now: datetime) -> datetime | None:
     every session: a page opened at 12:58 still reported "no session on track"
     two minutes into the race.
     """
-    starts = [
-        parse_iso(session.get("date_start"))
-        for session in sessions
-        if not session.get("is_cancelled")
-    ]
+    starts = [parse_iso(session.get("date_start")) for session in sessions if not session.get("is_cancelled")]
     upcoming = [start for start in starts if start is not None and start > now]
     return min(upcoming) if upcoming else None
 
@@ -226,11 +222,7 @@ def build_positions(
     drivers: dict[int, dict],
 ) -> list[dict]:
     """Build the timing-tower rows from raw OpenF1 payloads."""
-    intervals = {
-        row["driver_number"]: row
-        for row in interval_rows
-        if row.get("driver_number") is not None
-    }
+    intervals = {row["driver_number"]: row for row in interval_rows if row.get("driver_number") is not None}
     latest = _latest_per_driver(position_rows)
 
     return [

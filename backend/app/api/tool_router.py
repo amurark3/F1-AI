@@ -29,9 +29,7 @@ CORE_TOOLS = frozenset({"get_season_schedule"})
 
 # Used when nothing else matches: a general-purpose set that can answer or
 # research almost anything, including the SQL escape hatch.
-FALLBACK_TOOLS = frozenset(
-    {"query_f1_database", "get_race_results", "perform_web_search"}
-)
+FALLBACK_TOOLS = frozenset({"query_f1_database", "get_race_results", "perform_web_search"})
 
 # Tools a selection reliably drags in with it. Observed against the live model:
 # asked for a penalty, it searched the rulebook and then reached for the web to
@@ -236,9 +234,7 @@ def _compile(phrases: tuple[str, ...]) -> re.Pattern[str]:
     )
 
 
-_PATTERNS: dict[str, re.Pattern[str]] = {
-    name: _compile(phrases) for name, phrases in TOOL_KEYWORDS.items()
-}
+_PATTERNS: dict[str, re.Pattern[str]] = {name: _compile(phrases) for name, phrases in TOOL_KEYWORDS.items()}
 
 
 def select_tools(user_text: str) -> frozenset[str]:
@@ -251,15 +247,9 @@ def select_tools(user_text: str) -> frozenset[str]:
     if not user_text or not user_text.strip():
         return CORE_TOOLS | FALLBACK_TOOLS
 
-    matched = frozenset(
-        name for name, pattern in _PATTERNS.items() if pattern.search(user_text)
-    )
+    matched = frozenset(name for name, pattern in _PATTERNS.items() if pattern.search(user_text))
     if matched:
-        companions = frozenset(
-            companion
-            for name in matched
-            for companion in COMPANION_TOOLS.get(name, frozenset())
-        )
+        companions = frozenset(companion for name in matched for companion in COMPANION_TOOLS.get(name, frozenset()))
         selected = matched | companions | CORE_TOOLS
     else:
         selected = CORE_TOOLS | FALLBACK_TOOLS

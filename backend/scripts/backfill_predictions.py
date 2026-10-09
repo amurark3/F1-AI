@@ -27,10 +27,11 @@ so an interrupted run resumes where it stopped. ``--recompute`` redoes those.
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
@@ -55,6 +56,9 @@ from app.services.prediction_cache import prediction_snapshot_cache
 from app.services.predictions import compute_and_store_race_prediction
 from app.utils.fastf1_cache import enable_fastf1_cache
 
+if TYPE_CHECKING:
+    import pandas as pd
+
 REASON = "backfill"
 DEFAULT_BACKUP_DIR = Path("data/backups")
 
@@ -67,7 +71,7 @@ class PlannedCall:
     existing: bool
 
 
-def _first_session(row) -> datetime | None:
+def _first_session(row: pd.Series) -> datetime | None:
     stamps = [row.get(f"Session{i}DateUtc") for i in range(1, 6)]
     valid = [stamp for stamp in stamps if stamp is not None and str(stamp) != "NaT"]
     if not valid:
@@ -76,7 +80,7 @@ def _first_session(row) -> datetime | None:
     return first.replace(tzinfo=timezone.utc) if first.tzinfo is None else first
 
 
-def _current_round(schedule) -> int:
+def _current_round(schedule: pd.DataFrame) -> int:
     """The latest round whose weekend has started — the current race."""
     now = datetime.now(timezone.utc)
     started = [
@@ -141,9 +145,7 @@ def _describe(result: dict) -> str:
 def _run(year: int, calls: list[PlannedCall]) -> int:
     failures = 0
     for call in calls:
-        result = compute_and_store_race_prediction(
-            year, call.round_num, reason=REASON, phase=call.phase
-        )
+        result = compute_and_store_race_prediction(year, call.round_num, reason=REASON, phase=call.phase)
         summary = _describe(result)
         failures += summary.startswith("FAILED") or "NOT DURABLE" in summary
         print(f"  R{call.round_num:>2} {call.phase:<16} {summary}", flush=True)
@@ -153,12 +155,8 @@ def _run(year: int, calls: list[PlannedCall]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, default=datetime.now(timezone.utc).year)
-    parser.add_argument(
-        "--through-round", type=int, help="last round to compute (default: the current race)"
-    )
-    parser.add_argument(
-        "--recompute", action="store_true", help="also redo phases with a current snapshot"
-    )
+    parser.add_argument("--through-round", type=int, help="last round to compute (default: the current race)")
+    parser.add_argument("--recompute", action="store_true", help="also redo phases with a current snapshot")
     parser.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
     parser.add_argument("--apply", action="store_true", help="compute and write")
     args = parser.parse_args()

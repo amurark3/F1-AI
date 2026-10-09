@@ -8,13 +8,16 @@ never disturb, evict or mis-score the other.
 
 import pytest
 
-from app.data import predictions as predictions_module
 from app.data.predictions import (
     PHASE_POST_QUALIFYING,
     PHASE_PRE_QUALIFYING,
+    accuracy as accuracy_module,
     build_prediction_review,
+    compute as compute_module,
     get_accuracy_stats,
     normalise_phase,
+    review as review_module,
+    sessions as sessions_module,
     should_use_qualifying,
     trim_snapshots,
 )
@@ -57,6 +60,16 @@ def _history(*snapshots: dict) -> dict:
     }
 
 
+def _serve_history(monkeypatch, history: dict) -> None:
+    """Serve ``history`` to both readers of it.
+
+    Review scoring and rolling accuracy each resolve the loader in their own
+    module, so stubbing the package attribute would reach neither.
+    """
+    for module in (review_module, accuracy_module):
+        monkeypatch.setattr(module, "_load_prediction_history", lambda: history)
+
+
 @pytest.fixture
 def both_phases_stored(monkeypatch):
     """History holding both calls, with the pre-qualifying one written last."""
@@ -64,13 +77,14 @@ def both_phases_stored(monkeypatch):
         _history_snapshot(PHASE_POST_QUALIFYING, POST_QUALI_POSITIONS),
         _history_snapshot(PHASE_PRE_QUALIFYING, PRE_QUALI_POSITIONS),
     )
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
+    _serve_history(monkeypatch, history)
     return history
 
 
 # ---------------------------------------------------------------------------
 # Phase parsing
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("phase", [PHASE_PRE_QUALIFYING, PHASE_POST_QUALIFYING])
 def test_a_known_phase_survives_normalisation(phase):
@@ -86,20 +100,21 @@ def test_an_unknown_phase_means_let_the_data_decide(value):
 # Forcing the pre-qualifying phase
 # ---------------------------------------------------------------------------
 
+
 def test_a_forced_pre_qualifying_call_ignores_a_qualifying_result_that_exists(monkeypatch):
-    monkeypatch.setattr(predictions_module, "_qualifying_has_occurred", lambda row: True)
+    monkeypatch.setattr(sessions_module, "_qualifying_has_occurred", lambda row: True)
 
     assert should_use_qualifying(object(), forced_pre_qualifying=True) is False
 
 
 def test_an_unforced_call_still_uses_qualifying_once_it_has_run(monkeypatch):
-    monkeypatch.setattr(predictions_module, "_qualifying_has_occurred", lambda row: True)
+    monkeypatch.setattr(sessions_module, "_qualifying_has_occurred", lambda row: True)
 
     assert should_use_qualifying(object(), forced_pre_qualifying=False) is True
 
 
 def test_an_unforced_call_skips_qualifying_before_the_session(monkeypatch):
-    monkeypatch.setattr(predictions_module, "_qualifying_has_occurred", lambda row: False)
+    monkeypatch.setattr(sessions_module, "_qualifying_has_occurred", lambda row: False)
 
     assert should_use_qualifying(object(), forced_pre_qualifying=False) is False
 
@@ -109,21 +124,22 @@ def test_an_unknown_schedule_attempts_the_qualifying_load():
 
 
 def test_a_deliberately_excluded_grid_is_not_reported_as_missing_data():
-    forced = predictions_module._pre_qualifying_warning(True, "practice")
-    unavailable = predictions_module._pre_qualifying_warning(False, "practice")
+    forced = compute_module._pre_qualifying_warning(True, "practice")
+    unavailable = compute_module._pre_qualifying_warning(False, "practice")
 
     assert "deliberately excluded" in forced
     assert "unavailable" in unavailable
 
 
 def test_a_forced_call_with_no_session_data_says_why_it_has_none():
-    assert "deliberately excluded" in predictions_module._pre_qualifying_warning(True, "history")
-    assert "No qualifying or practice data" in predictions_module._pre_qualifying_warning(False, "history")
+    assert "deliberately excluded" in compute_module._pre_qualifying_warning(True, "history")
+    assert "No qualifying or practice data" in compute_module._pre_qualifying_warning(False, "history")
 
 
 # ---------------------------------------------------------------------------
 # Per-phase review scoring
 # ---------------------------------------------------------------------------
+
 
 def test_each_phase_is_scored_against_its_own_call(both_phases_stored):
     pre = build_prediction_review(YEAR, ROUND, phase=PHASE_PRE_QUALIFYING)
@@ -137,7 +153,7 @@ def test_each_phase_is_scored_against_its_own_call(both_phases_stored):
 
 def test_a_phase_that_was_never_computed_is_not_scored_from_the_other_one(monkeypatch):
     history = _history(_history_snapshot(PHASE_PRE_QUALIFYING, PRE_QUALI_POSITIONS))
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
+    _serve_history(monkeypatch, history)
 
     review = build_prediction_review(YEAR, ROUND, phase=PHASE_POST_QUALIFYING)
 
@@ -147,7 +163,7 @@ def test_a_phase_that_was_never_computed_is_not_scored_from_the_other_one(monkey
 
 def test_a_missing_pre_qualifying_call_names_its_own_phase(monkeypatch):
     history = _history(_history_snapshot(PHASE_POST_QUALIFYING, POST_QUALI_POSITIONS))
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
+    _serve_history(monkeypatch, history)
 
     review = build_prediction_review(YEAR, ROUND, phase=PHASE_PRE_QUALIFYING)
 
@@ -170,7 +186,7 @@ def test_a_legacy_entry_without_a_snapshot_list_is_still_scored_by_phase(monkeyp
             "actual_incidents": {},
         }
     }
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
+    _serve_history(monkeypatch, history)
 
     assert build_prediction_review(YEAR, ROUND, phase=PHASE_POST_QUALIFYING)["evaluated"] is True
     assert build_prediction_review(YEAR, ROUND, phase=PHASE_PRE_QUALIFYING)["evaluated"] is False
@@ -179,6 +195,7 @@ def test_a_legacy_entry_without_a_snapshot_list_is_still_scored_by_phase(monkeyp
 # ---------------------------------------------------------------------------
 # Rolling accuracy
 # ---------------------------------------------------------------------------
+
 
 def test_rolling_accuracy_scores_the_post_qualifying_call_whichever_was_stored_last(
     both_phases_stored,
@@ -193,7 +210,7 @@ def test_rolling_accuracy_scores_the_post_qualifying_call_whichever_was_stored_l
 
 def test_rolling_accuracy_falls_back_to_whatever_phase_exists(monkeypatch):
     history = _history(_history_snapshot(PHASE_PRE_QUALIFYING, PRE_QUALI_POSITIONS))
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
+    _serve_history(monkeypatch, history)
 
     stats = get_accuracy_stats()
 
@@ -204,6 +221,7 @@ def test_rolling_accuracy_falls_back_to_whatever_phase_exists(monkeypatch):
 # ---------------------------------------------------------------------------
 # Snapshot retention
 # ---------------------------------------------------------------------------
+
 
 def test_a_short_snapshot_list_is_kept_whole():
     snapshots = [{"prediction_phase": PHASE_PRE_QUALIFYING} for _ in range(3)]

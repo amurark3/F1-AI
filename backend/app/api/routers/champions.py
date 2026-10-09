@@ -10,7 +10,7 @@ router = APIRouter(tags=["champions"])
 
 
 @router.get("/champions")
-async def get_champions():
+async def get_champions() -> dict:
     """Returns every season 1950→present with its driver and constructor champions."""
     try:
         return {"seasons": list_champions()}
@@ -19,7 +19,7 @@ async def get_champions():
 
 
 @router.get("/champions/stats")
-async def get_champions_stats():
+async def get_champions_stats() -> dict:
     """Returns aggregate leaderboards (most driver/constructor titles)."""
     try:
         return get_champion_stats()
@@ -28,7 +28,7 @@ async def get_champions_stats():
 
 
 @router.get("/champions/{year}")
-async def get_champion_season(year: int):
+async def get_champion_season(year: int) -> dict:
     """Returns champions plus every race winner for a single season."""
     try:
         return get_season_detail(year)

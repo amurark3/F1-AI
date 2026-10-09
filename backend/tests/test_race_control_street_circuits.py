@@ -33,10 +33,7 @@ def _race_at(location: str) -> dict:
 
 
 def _risk_titles(location: str) -> list[str]:
-    return [
-        risk["title"]
-        for risk in rc.build_risk_register(_race_at(location), OFFLINE_WEATHER, [])
-    ]
+    return [risk["title"] for risk in rc.build_risk_register(_race_at(location), OFFLINE_WEATHER, [])]
 
 
 def _pit_model(location: str) -> dict:

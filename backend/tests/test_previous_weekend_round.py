@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-from app.data.predictions import _previous_started_round
+from app.data.predictions.sessions import _previous_started_round
 
 NOW = datetime.now(timezone.utc)
 

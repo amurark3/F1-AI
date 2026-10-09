@@ -1,13 +1,16 @@
 """AI chat router and agent orchestration."""
 
 import asyncio
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from datetime import datetime, timezone
 import threading
-from datetime import datetime
 
-import structlog
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import Runnable
+import structlog
 
 from app.api.errors import client_error_text
 from app.api.llm import build_chat_llm
@@ -33,11 +36,11 @@ router = APIRouter(tags=["chat"])
 # Keyed by tool subset: every distinct selection from tool_router needs its own
 # bound model, and binding is pure setup, so they are cached rather than rebuilt
 # per request. The number of distinct subsets is bounded by the keyword table.
-_llm_cache: dict[frozenset[str], object] = {}
+_llm_cache: dict[frozenset[str], Runnable] = {}
 _llm_lock = threading.Lock()
 
 
-def _get_llm(tool_names: frozenset[str]):
+def _get_llm(tool_names: frozenset[str]) -> Runnable:
     """Return a model bound to exactly ``tool_names`` (unbound if empty)."""
     global _llm_cache
     cached = _llm_cache.get(tool_names)
@@ -48,11 +51,7 @@ def _get_llm(tool_names: frozenset[str]):
         cached = _llm_cache.get(tool_names)
         if cached is None:
             base = build_chat_llm()
-            cached = (
-                base.bind_tools([TOOL_MAP[name] for name in sorted(tool_names)])
-                if tool_names
-                else base
-            )
+            cached = base.bind_tools([TOOL_MAP[name] for name in sorted(tool_names)]) if tool_names else base
             _llm_cache = {**_llm_cache, tool_names: cached}
     return cached
 
@@ -64,7 +63,7 @@ FINAL_TURN_DIRECTIVE = (
 )
 
 
-async def _ainvoke_final(messages, tool_names: frozenset[str]):
+async def _ainvoke_final(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
     """Force a text answer out of the model on the last permitted turn.
 
     Binding no tools is the cheap path — it drops the entire schema payload from
@@ -88,7 +87,7 @@ async def _ainvoke_final(messages, tool_names: frozenset[str]):
         return await _get_llm(tool_names).bind(tool_choice="none").ainvoke(guided)
 
 
-async def _ainvoke_with_recovery(messages, tool_names: frozenset[str]):
+async def _ainvoke_with_recovery(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
     """Invoke the model, recovering from Groq malformed tool calls.
 
     When the model emits a tool call as inline text (``<function=...>``), Groq
@@ -117,7 +116,7 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
 
     TOOL USAGE:
     - **CRITICAL:** If the user asks for "last race", "next race", or "schedule",
-      ALWAYS call `get_season_schedule({today.split(',')[-1].strip()})` FIRST to
+      ALWAYS call `get_season_schedule({today.rsplit(",", maxsplit=1)[-1].strip()})` FIRST to
       identify the correct Grand Prix name before calling any results tool.
     - Use 'get_race_results' for final race classifications.
     - Use 'compare_drivers' for specific lap-time comparisons.
@@ -136,7 +135,7 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
     """
 
 
-def build_langchain_messages(request: ChatRequest, today: str, memory_context: str = ""):
+def build_langchain_messages(request: ChatRequest, today: str, memory_context: str = "") -> list[BaseMessage]:
     messages = [SystemMessage(content=build_system_prompt(today, memory_context))]
     for msg in request.messages:
         if msg["role"] == "user":
@@ -153,11 +152,127 @@ def _latest_user_text(request: ChatRequest) -> str:
     return ""
 
 
+@dataclass(frozen=True)
+class _Conversation:
+    """Whose thread a reply belongs to — anonymous chats are never saved."""
+
+    user_id: str | None
+    thread_id: str
+
+
+async def _save_reply(conversation: _Conversation, content: object) -> None:
+    """Persist an assistant turn; an empty turn carries nothing worth recalling."""
+    if conversation.user_id and content:
+        await asyncio.to_thread(save_message, conversation.user_id, conversation.thread_id, "assistant", str(content))
+
+
+async def _invoke_tool(tool_call: dict) -> str:
+    """Run one tool and return what the model should read back.
+
+    A timeout or an exception becomes text the model can route around rather
+    than an error that ends the stream.
+    """
+    name = tool_call["name"]
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(TOOL_MAP[name].invoke, tool_call["args"]),
+            timeout=TOOL_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
+        return f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
+    except Exception as exc:
+        logger.exception("tool.error", tool=name, error=str(exc))
+        return f"Error executing tool '{name}': {exc}"
+    return str(result)
+
+
+async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
+    """Execute every known tool the model asked for, bracketing each with markers.
+
+    The markers drive the client's "running a tool" indicator. An unknown tool
+    is skipped rather than invented.
+    """
+    for tool_call in response.tool_calls:
+        name = tool_call["name"]
+        if name not in TOOL_MAP:
+            continue
+        friendly = name.replace("_", " ").title()
+        yield f"[TOOL_START]{friendly}[/TOOL_START]"
+        result = await _invoke_tool(tool_call)
+        messages.append(ToolMessage(tool_call_id=tool_call["id"], content=result, name=name))
+        yield f"[TOOL_END]{friendly}[/TOOL_END]"
+
+
+async def _next_response(messages: list[BaseMessage], tool_names: frozenset[str], turn: int) -> AIMessage:
+    """Ask for the next turn, offering no tools on the last one permitted.
+
+    Without tools the model answers from what it already has, which saves the
+    schema payload and turns what used to be a dead-end error into an answer.
+    """
+    if turn == MAX_AGENT_TURNS:
+        return await _ainvoke_final(messages, tool_names)
+    return await _ainvoke_with_recovery(messages, tool_names)
+
+
+async def _agent_stream(
+    messages: list[BaseMessage],
+    tool_names: frozenset[str],
+    conversation: _Conversation,
+) -> AsyncGenerator[str, None]:
+    """Drive the tool-use loop, streaming markers and then the final answer."""
+    response = await _ainvoke_with_recovery(messages, tool_names)
+
+    for turn in range(1, MAX_AGENT_TURNS + 1):
+        if not response.tool_calls:
+            logger.info("agent.generating_response")
+            await _save_reply(conversation, response.content)
+            yield response.content
+            return
+
+        logger.info("agent.turn", turn=turn, tool_count=len(response.tool_calls))
+        messages.append(response)
+        async for marker in _run_tool_calls(response, messages):
+            yield marker
+        response = await _next_response(messages, tool_names, turn)
+
+    # Loop exhausted. The last invocation had no tools bound, so this is prose;
+    # the notice remains only for a model that returns nothing.
+    if response.content:
+        logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
+        await _save_reply(conversation, response.content)
+        yield response.content
+        return
+
+    yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
+
+
+def _failure_text(exc: Exception) -> str:
+    """What the user sees when the loop dies — a quota gets its own message."""
+    if "rate limit" in str(exc).lower() or "429" in str(exc):
+        logger.warning("agent.rate_limited", error=str(exc))
+        return "**Box, box:** The engine is rate-limited right now (free tier). Give it a few seconds and try again."
+    return f"**System Error:** {client_error_text('agent.critical_error', exc)}"
+
+
+async def _guarded_stream(
+    messages: list[BaseMessage],
+    tool_names: frozenset[str],
+    conversation: _Conversation,
+) -> AsyncGenerator[str, None]:
+    """The agent stream, with any failure rendered through the client-safe path."""
+    try:
+        async for chunk in _agent_stream(messages, tool_names, conversation):
+            yield chunk
+    except Exception as exc:
+        yield _failure_text(exc)
+
+
 @router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
     """Streaming chat endpoint that drives the F1 tool-use loop."""
 
-    today = datetime.now().strftime("%B %d, %Y")
+    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     user_id = request.user_id
     thread_id = request.thread_id or "default"
     latest_user_text = _latest_user_text(request)
@@ -165,90 +280,18 @@ async def chat_endpoint(request: ChatRequest):
     # Personalisation + semantic recall (no-op without a user_id or database).
     memory_context = ""
     if user_id:
-        memory_context = await asyncio.to_thread(
-            build_memory_context, user_id, latest_user_text, thread_id
-        )
+        memory_context = await asyncio.to_thread(build_memory_context, user_id, latest_user_text, thread_id)
         if latest_user_text:
-            await asyncio.to_thread(
-                save_message, user_id, thread_id, "user", latest_user_text
-            )
+            await asyncio.to_thread(save_message, user_id, thread_id, "user", latest_user_text)
 
     langchain_messages = build_langchain_messages(request, today, memory_context)
 
     # Only the tools this question plausibly needs — the full set costs ~2,100
     # prompt tokens on every turn of the loop. See app/api/tool_router.py.
     tool_names = select_tools(latest_user_text)
+    conversation = _Conversation(user_id=user_id, thread_id=thread_id)
 
-    async def generate():
-        try:
-            current_response = await _ainvoke_with_recovery(langchain_messages, tool_names)
-
-            for turn_count in range(1, MAX_AGENT_TURNS + 1):
-                if not current_response.tool_calls:
-                    logger.info("agent.generating_response")
-                    if user_id and current_response.content:
-                        await asyncio.to_thread(
-                            save_message, user_id, thread_id, "assistant",
-                            str(current_response.content),
-                        )
-                    yield current_response.content
-                    return
-
-                logger.info("agent.turn", turn=turn_count, tool_count=len(current_response.tool_calls))
-                langchain_messages.append(current_response)
-
-                for tool_call in current_response.tool_calls:
-                    tool_name = tool_call["name"]
-                    tool_args = tool_call["args"]
-                    tool_id = tool_call["id"]
-
-                    if tool_name not in TOOL_MAP:
-                        continue
-
-                    friendly = tool_name.replace("_", " ").title()
-                    yield f"[TOOL_START]{friendly}[/TOOL_START]"
-                    try:
-                        tool_result = await asyncio.wait_for(
-                            asyncio.to_thread(TOOL_MAP[tool_name].invoke, tool_args),
-                            timeout=TOOL_TIMEOUT_SECONDS,
-                        )
-                    except asyncio.TimeoutError:
-                        tool_result = f"Tool '{tool_name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
-                        logger.warning("tool.timeout", tool=tool_name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
-                    except Exception as exc:
-                        tool_result = f"Error executing tool '{tool_name}': {exc}"
-                        logger.error("tool.error", tool=tool_name, error=str(exc))
-
-                    langchain_messages.append(ToolMessage(tool_call_id=tool_id, content=str(tool_result), name=tool_name))
-                    yield f"[TOOL_END]{friendly}[/TOOL_END]"
-
-                # On the final permitted turn, stop offering tools: the model
-                # answers from what it already has, which saves the schema
-                # payload and turns what used to be a dead-end error into a
-                # real answer.
-                if turn_count == MAX_AGENT_TURNS:
-                    current_response = await _ainvoke_final(langchain_messages, tool_names)
-                else:
-                    current_response = await _ainvoke_with_recovery(langchain_messages, tool_names)
-
-            # Loop exhausted. The last invocation had no tools bound, so this is
-            # prose; the notice remains only for a model that returns nothing.
-            if current_response.content:
-                logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
-                if user_id:
-                    await asyncio.to_thread(
-                        save_message, user_id, thread_id, "assistant",
-                        str(current_response.content),
-                    )
-                yield current_response.content
-                return
-
-            yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
-        except Exception as exc:
-            if "rate limit" in str(exc).lower() or "429" in str(exc):
-                logger.warning("agent.rate_limited", error=str(exc))
-                yield "**Box, box:** The engine is rate-limited right now (free tier). Give it a few seconds and try again."
-                return
-            yield f"**System Error:** {client_error_text('agent.critical_error', exc)}"
-
-    return StreamingResponse(generate(), media_type="text/plain")
+    return StreamingResponse(
+        _guarded_stream(langchain_messages, tool_names, conversation),
+        media_type="text/plain",
+    )

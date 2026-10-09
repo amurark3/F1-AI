@@ -35,17 +35,17 @@ says so in its outcome, which ``/api/ready`` publishes as ``f1db_sync``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 import io
 import os
+from pathlib import Path
 import re
 import shutil
 import sqlite3
 import threading
 import time
 import zipfile
-from dataclasses import dataclass, replace
-from datetime import datetime, timezone
-from pathlib import Path
 
 import requests
 import structlog
@@ -175,9 +175,7 @@ def _latest_from_api() -> str:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        response = requests.get(
-            F1DB_RELEASES_API, headers=headers, timeout=DOWNLOAD_TIMEOUT_SECONDS
-        )
+        response = requests.get(F1DB_RELEASES_API, headers=headers, timeout=DOWNLOAD_TIMEOUT_SECONDS)
         response.raise_for_status()
         tag = str(response.json()["tag_name"])
     # ValueError covers a body that is not JSON; KeyError/TypeError one that is
@@ -279,11 +277,7 @@ def refresh_f1db(version: str, dest: Path | None = None) -> Path:
 
 
 def _write_version_stamp(version: str, destination: Path) -> None:
-    stamp = (
-        VERSION_PATH
-        if destination == DB_PATH
-        else destination.with_name(f"{destination.name}.version")
-    )
+    stamp = VERSION_PATH if destination == DB_PATH else destination.with_name(f"{destination.name}.version")
     staging = stamp.with_name(f"{stamp.name}.incoming")
     staging.write_text(version)
     os.replace(staging, stamp)
@@ -329,11 +323,7 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
         _last_check_at = time.monotonic()
         published = _published_version() or None
         wanted = published or current or FALLBACK_F1DB_VERSION
-        outcome = (
-            _keep(current, published)
-            if current == wanted
-            else _download(wanted, current, published)
-        )
+        outcome = _keep(current, published) if current == wanted else _download(wanted, current, published)
         _last_outcome = replace(outcome, checked_at=datetime.now(timezone.utc).isoformat())
         return _last_outcome
 
@@ -352,20 +342,16 @@ def _download(wanted: str, current: str | None, published: str | None) -> SyncOu
     try:
         refresh_f1db(wanted)
     except Exception as exc:
-        logger.error("f1db.sync.failed", target=wanted, installed=current, error=str(exc))
+        logger.exception("f1db.sync.failed", target=wanted, installed=current, error=str(exc))
         if current:
-            return SyncOutcome(
-                current, False, f"download failed, kept {current}: {exc}", latest=published
-            )
+            return SyncOutcome(current, False, f"download failed, kept {current}: {exc}", latest=published)
         raise
 
     logger.info("f1db.sync.updated", version=wanted, previous=current)
     if published is None:
         logger.error("f1db.sync.check_failed", installed=wanted)
         return SyncOutcome(wanted, True, f"release check failed, installed fallback {wanted}")
-    return SyncOutcome(
-        wanted, True, f"updated from {current or 'no dataset'} to {wanted}", latest=published
-    )
+    return SyncOutcome(wanted, True, f"updated from {current or 'no dataset'} to {wanted}", latest=published)
 
 
 def ensure_db() -> Path:

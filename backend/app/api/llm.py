@@ -10,6 +10,11 @@ client directly.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
+
 import os
 
 import structlog
@@ -19,7 +24,7 @@ from app.config import GROQ_MODEL_NAME, LLM_TEMPERATURE
 logger = structlog.get_logger()
 
 
-def build_chat_llm():
+def build_chat_llm() -> BaseChatModel:
     """Construct the Groq chat model.
 
     Raises a clear error if ``GROQ_API_KEY`` is missing so misconfiguration

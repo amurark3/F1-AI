@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services.race_control import build_live_status, focus_for_event
+from app.services.race_control import build_live_status, focus_for_event, live
 
 pytestmark = pytest.mark.unit
 
@@ -26,16 +26,16 @@ DUTCH_WEEKEND = {
 
 @pytest.fixture
 def at(monkeypatch):
-    """Freeze the clock the service reads."""
-    def _at(moment: datetime):
-        import app.services.race_control as rc
+    """Freeze the clock the service reads — ``live`` is the only module that does."""
 
+    def _at(moment: datetime):
         class _Clock(datetime):
             @classmethod
             def now(cls, tz=None):
-                return moment
+                return moment.astimezone(tz) if tz else moment
 
-        monkeypatch.setattr(rc, "datetime", _Clock)
+        monkeypatch.setattr(live, "datetime", _Clock)
+
     return _at
 
 

@@ -19,16 +19,18 @@ without a schedule lookup — see ``SUPERSEDED_TTL_SECONDS``.
 from __future__ import annotations
 
 import copy
-import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
+import threading
+import time
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from app.data.store import DOCUMENT_CIRCUIT_REFERENCE, document_store
-from app.data.store_types import WriteResult
+
+if TYPE_CHECKING:
+    from app.data.store_types import WriteResult
 
 logger = structlog.get_logger()
 
@@ -53,7 +55,7 @@ MISS_TTL_SECONDS = 24 * 60 * 60
 RELOAD_BACKOFF_SECONDS = 30.0
 
 
-class CircuitReferenceCacheUnavailable(RuntimeError):
+class CircuitReferenceCacheUnavailableError(RuntimeError):
     """Raised when the store cannot be read, so writing would destroy entries.
 
     Persisting on top of a failed load would upload a document holding only
@@ -151,7 +153,7 @@ class CircuitReferenceCache:
     def set(self, city: str, year: int, reference: dict | None) -> WriteResult:
         """Store a reference (or a remembered miss) for this city and season."""
         if not self._ensure_loaded():
-            raise CircuitReferenceCacheUnavailable(
+            raise CircuitReferenceCacheUnavailableError(
                 "Circuit reference store is unreachable; refusing to overwrite "
                 "stored references with an incomplete set. Try again shortly."
             )
@@ -207,9 +209,7 @@ class CircuitReferenceCache:
                 return True
 
             self._entries = {
-                str(key): value
-                for key, value in (payload.get("entries") or {}).items()
-                if isinstance(value, dict)
+                str(key): value for key, value in (payload.get("entries") or {}).items() if isinstance(value, dict)
             }
             self._loaded = True
             logger.info("circuit_reference_cache.loaded", entries=len(self._entries))

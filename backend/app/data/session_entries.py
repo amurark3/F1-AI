@@ -19,14 +19,18 @@ per-module pattern used by ``app.data.predictions`` and ``app.data.strategy``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import threading
 import time
-from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import fastf1
 import structlog
 
 from app.utils.fastf1_lock import FASTF1_LOCK
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = structlog.get_logger()
 
@@ -97,7 +101,7 @@ _cache: dict[tuple[int, int], _CacheEntry] = {}
 _cache_lock = threading.Lock()
 
 
-def _entries_from_results(results) -> tuple[EntryListDriver, ...]:
+def _entries_from_results(results: pd.DataFrame | None) -> tuple[EntryListDriver, ...]:
     """Extract entered drivers from a FastF1 results frame.
 
     Every row is kept regardless of classification or lap time — a driver who
@@ -115,11 +119,13 @@ def _entries_from_results(results) -> tuple[EntryListDriver, ...]:
             continue
         seen.add(code)
         name = f"{row.get('FirstName', '') or ''} {row.get('LastName', '') or ''}".strip()
-        entries.append(EntryListDriver(
-            code=code,
-            name=name or code,
-            team=str(row.get("TeamName", "") or "").strip(),
-        ))
+        entries.append(
+            EntryListDriver(
+                code=code,
+                name=name or code,
+                team=str(row.get("TeamName", "") or "").strip(),
+            )
+        )
     return tuple(entries)
 
 
@@ -133,7 +139,10 @@ def _load_from_session(year: int, round_num: int, session_name: str) -> WeekendE
     except Exception as exc:
         logger.debug(
             "entry_list.session_unavailable",
-            year=year, round=round_num, session=session_name, error=str(exc),
+            year=year,
+            round=round_num,
+            session=session_name,
+            error=str(exc),
         )
         return UNAVAILABLE
 
@@ -174,8 +183,10 @@ def load_weekend_entry_list(year: int, round_num: int) -> WeekendEntryList:
             _store(key, entry_list)
             logger.info(
                 "entry_list.loaded",
-                year=year, round=round_num,
-                session=session_name, drivers=len(entry_list.entries),
+                year=year,
+                round=round_num,
+                session=session_name,
+                drivers=len(entry_list.entries),
             )
             return entry_list
 

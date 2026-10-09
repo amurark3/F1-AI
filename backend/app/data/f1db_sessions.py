@@ -29,10 +29,14 @@ once the round is complete, so a weekend still being run returns nothing here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
 from app.data.f1db_source import connect
+
+if TYPE_CHECKING:
+    import sqlite3
 
 logger = structlog.get_logger()
 
@@ -107,11 +111,11 @@ class SessionEntry:
     retired: str | None = None
 
 
-def _int_or_none(value) -> int | None:
+def _int_or_none(value: object) -> int | None:
     return None if value is None else int(value)
 
 
-def _text_or_none(value) -> str | None:
+def _text_or_none(value: object) -> str | None:
     """Normalise f1db's empty strings to ``None``.
 
     An unset time arrives as ``''`` rather than NULL for some rows, and an
@@ -121,7 +125,7 @@ def _text_or_none(value) -> str | None:
     return text or None
 
 
-def _practice_entry(row) -> SessionEntry:
+def _practice_entry(row: sqlite3.Row) -> SessionEntry:
     return SessionEntry(
         driver_code=row["code"],
         driver_name=row["name"],
@@ -134,7 +138,7 @@ def _practice_entry(row) -> SessionEntry:
     )
 
 
-def _qualifying_entry(row) -> SessionEntry:
+def _qualifying_entry(row: sqlite3.Row) -> SessionEntry:
     # The headline time is the best segment the driver reached, which is the
     # last one they set — a driver knocked out in Q1 has no Q2 or Q3 time.
     q1, q2, q3 = (_text_or_none(row["q1"]), _text_or_none(row["q2"]), _text_or_none(row["q3"]))
@@ -153,7 +157,7 @@ def _qualifying_entry(row) -> SessionEntry:
     )
 
 
-def _race_entry(row) -> SessionEntry:
+def _race_entry(row: sqlite3.Row) -> SessionEntry:
     return SessionEntry(
         driver_code=row["code"],
         driver_name=row["name"],

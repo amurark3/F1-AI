@@ -88,9 +88,7 @@ def standings_db(monkeypatch):
         "INSERT INTO race_data VALUES (?, 'RACE_RESULT', NULL, ?, ?)",
         [(round_num, driver, team) for round_num, driver, team in STARTS],
     )
-    conn.executemany(
-        "INSERT INTO season_entrant_driver VALUES (2026, ?, ?, ?, ?)", SEASON_ENTRIES
-    )
+    conn.executemany("INSERT INTO season_entrant_driver VALUES (2026, ?, ?, ?, ?)", SEASON_ENTRIES)
     conn.executemany(
         "INSERT INTO race_driver_standing VALUES (3, ?, ?, ?)",
         [

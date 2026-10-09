@@ -32,9 +32,7 @@ def test_rulebook_question_also_binds_web_search():
     """Regression: the live model answered a penalty question by consulting the
     rulebook and then reaching for the web. A tool it wants but wasn't given is
     a hard 400 from Groq, not a graceful fallback."""
-    selected = select_tools(
-        "What is the penalty for exceeding the pit lane speed limit?"
-    )
+    selected = select_tools("What is the penalty for exceeding the pit lane speed limit?")
     assert "consult_rulebook" in selected
     assert "perform_web_search" in selected
 
@@ -68,27 +66,25 @@ def test_core_tools_always_bound():
     """The system prompt mandates resolving the schedule before results tools,
     so the loop cannot chain if the schedule tool is ever dropped."""
     for question in ["Who won Monaco?", "What are the rules on DRS?", "zzz"]:
-        assert CORE_TOOLS <= select_tools(question)
+        assert select_tools(question) >= CORE_TOOLS
 
 
 def test_unmatched_question_falls_back_rather_than_binding_nothing():
     """An unrecognised phrasing must degrade to 'costs more', never to
     'no tools bound and a hallucinated answer'."""
     selected = select_tools("Tell me something interesting")
-    assert FALLBACK_TOOLS <= selected
+    assert selected >= FALLBACK_TOOLS
     assert "query_f1_database" in selected
 
 
 @pytest.mark.parametrize("blank", ["", "   ", "\n"])
 def test_blank_input_falls_back(blank):
-    assert FALLBACK_TOOLS <= select_tools(blank)
+    assert select_tools(blank) >= FALLBACK_TOOLS
 
 
 def test_matching_is_whole_word_not_substring():
     """'sq' inside 'square' must not pull in the sprint shootout tool."""
-    assert "get_sprint_qualifying_results" not in select_tools(
-        "Describe the square layout of the paddock"
-    )
+    assert "get_sprint_qualifying_results" not in select_tools("Describe the square layout of the paddock")
 
 
 def test_routing_actually_shrinks_the_bound_set():

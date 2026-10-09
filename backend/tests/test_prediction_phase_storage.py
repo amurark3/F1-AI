@@ -9,8 +9,7 @@ import pytest
 
 from app.data.predictions import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING
 from app.data.store_types import ReadResult, WriteResult
-from app.services import prediction_cache as cache_module
-from app.services import predictions as service_module
+from app.services import prediction_cache as cache_module, predictions as service_module
 from app.services.prediction_cache import (
     PREDICTION_LOGIC_VERSION,
     PredictionSnapshotCache,
@@ -67,6 +66,7 @@ def _winner(snapshot: dict | None) -> str | None:
 # Reading each phase
 # ---------------------------------------------------------------------------
 
+
 def test_each_phase_is_served_from_its_own_snapshot(cache):
     cache.set(YEAR, ROUND, _result(PHASE_PRE_QUALIFYING, "VER"))
     cache.set(YEAR, ROUND, _result(PHASE_POST_QUALIFYING, "NOR"))
@@ -121,6 +121,7 @@ def test_a_race_never_predicted_has_no_stored_phases(cache):
 # ---------------------------------------------------------------------------
 # Recomputing one phase
 # ---------------------------------------------------------------------------
+
 
 def test_recomputing_one_phase_leaves_the_other_untouched(cache, monkeypatch):
     cache.set(YEAR, ROUND, _result(PHASE_PRE_QUALIFYING, "VER"))

@@ -14,8 +14,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
-from app.data import f1db_pitstops
-from app.data import race_stints as stints_module
+from app.data import f1db_pitstops, race_stints as stints_module
 from app.data.f1db_pitstops import race_pit_stops
 from app.data.race_stints import Stint, race_stints
 from app.services import race_strategy_board
@@ -57,6 +56,7 @@ def pit_db(monkeypatch):
 
 
 # --- pit stops -------------------------------------------------------------
+
 
 def test_reads_stops_in_lap_order(pit_db):
     pit_db("leclerc", 1, 19, "21.825", 21825)
@@ -105,6 +105,7 @@ def test_race_with_no_stops_returns_nothing(pit_db):
 
 # --- stints ----------------------------------------------------------------
 
+
 class FakeSession:
     def __init__(self, laps, results=None):
         self.laps = laps
@@ -115,7 +116,9 @@ class FakeSession:
 
 
 def lap_frame(rows):
-    return pd.DataFrame(rows, columns=["Driver", "LapNumber", "Stint", "Compound", "TyreLife", "FreshTyre", "Team", "TrackStatus"])
+    return pd.DataFrame(
+        rows, columns=["Driver", "LapNumber", "Stint", "Compound", "TyreLife", "FreshTyre", "Team", "TrackStatus"]
+    )
 
 
 @pytest.fixture
@@ -136,11 +139,15 @@ def fake_fastf1(monkeypatch):
 
 
 def test_collapses_laps_into_one_row_per_stint(fake_fastf1):
-    fake_fastf1["session"] = FakeSession(lap_frame([
-        ("LEC", 1, 1.0, "MEDIUM", 1, True, "Ferrari", "1"),
-        ("LEC", 2, 1.0, "MEDIUM", 2, True, "Ferrari", "1"),
-        ("LEC", 3, 2.0, "HARD", 1, True, "Ferrari", "1"),
-    ]))
+    fake_fastf1["session"] = FakeSession(
+        lap_frame(
+            [
+                ("LEC", 1, 1.0, "MEDIUM", 1, True, "Ferrari", "1"),
+                ("LEC", 2, 1.0, "MEDIUM", 2, True, "Ferrari", "1"),
+                ("LEC", 3, 2.0, "HARD", 1, True, "Ferrari", "1"),
+            ]
+        )
+    )
 
     result = race_stints(2024, 6)
 
@@ -167,7 +174,9 @@ def test_reports_a_scrubbed_set_as_not_fresh(fake_fastf1):
 def test_missing_tyre_history_is_unknown_not_fresh(fake_fastf1):
     # NaN is truthy: coercing it straight to bool would claim an unrecorded
     # set was new.
-    fake_fastf1["session"] = FakeSession(lap_frame([("PIA", 1, 1.0, "HARD", float("nan"), float("nan"), "Ferrari", "1")]))
+    fake_fastf1["session"] = FakeSession(
+        lap_frame([("PIA", 1, 1.0, "HARD", float("nan"), float("nan"), "Ferrari", "1")])
+    )
 
     stint = race_stints(2024, 6)[0]
 
@@ -197,10 +206,12 @@ def test_a_results_row_without_an_abbreviation_is_skipped(fake_fastf1):
     """
     fake_fastf1["session"] = FakeSession(
         lap_frame([("16", 1, 1.0, "HARD", 1, True, "Ferrari", "1")]),
-        pd.DataFrame([
-            {"Abbreviation": "", "DriverNumber": "99"},
-            {"Abbreviation": "LEC", "DriverNumber": "16"},
-        ]),
+        pd.DataFrame(
+            [
+                {"Abbreviation": "", "DriverNumber": "99"},
+                {"Abbreviation": "LEC", "DriverNumber": "16"},
+            ]
+        ),
     )
 
     assert race_stints(2024, 6)[0].driver_code == "LEC"
@@ -276,10 +287,19 @@ def test_an_empty_result_is_retried_rather_than_pinned(fake_fastf1):
 
 # --- the joined board ------------------------------------------------------
 
+
 def stint(code, number, start, end, red_flag=False):
     return Stint(
-        driver_code=code, team="Ferrari", stint=number, compound="HARD", start_lap=start, end_lap=end,
-        laps=end - start + 1, tyre_life_start=0, fresh=True, ended_under_red_flag=red_flag,
+        driver_code=code,
+        team="Ferrari",
+        stint=number,
+        compound="HARD",
+        start_lap=start,
+        end_lap=end,
+        laps=end - start + 1,
+        tyre_life_start=0,
+        fresh=True,
+        ended_under_red_flag=red_flag,
     )
 
 

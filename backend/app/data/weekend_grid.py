@@ -26,11 +26,14 @@ limited to it, so an entry list that shrinks actually shrinks the grid.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
-from app.data.driver_availability import WeekendAvailability
 from app.data.session_entries import UNAVAILABLE, WeekendEntryList
+
+if TYPE_CHECKING:
+    from app.data.driver_availability import WeekendAvailability
 
 logger = structlog.get_logger()
 
@@ -52,6 +55,18 @@ class RosterDriver:
     name: str
     team: str
     championship_position: int = UNRANKED_POSITION
+
+
+@dataclass(frozen=True)
+class EntryLists:
+    """The observed lineups for a weekend: its own, and the previous one's.
+
+    ``previous`` is only a provisional stand-in while ``current`` is
+    unavailable — before the weekend's first session has produced timing data.
+    """
+
+    current: WeekendEntryList = UNAVAILABLE
+    previous: WeekendEntryList = UNAVAILABLE
 
 
 @dataclass(frozen=True)
@@ -172,11 +187,10 @@ def _timed_entry(driver: dict, roster_by_code: dict[str, RosterDriver]) -> dict:
     """A driver with a session position, with entry-list name/team preferred.
 
     The entry list carries the seat a driver is in *this* weekend, which the
-    championship join can get wrong after a mid-season move.
+    championship join can get wrong after a mid-season move. Only called for
+    drivers already in the roster — the caller drops the rest and says so.
     """
-    known = roster_by_code.get(driver["driver_code"])
-    if known is None:
-        return dict(driver)
+    known = roster_by_code[driver["driver_code"]]
     return {
         **driver,
         "driver_name": known.name or driver.get("driver_name", ""),
@@ -187,25 +201,24 @@ def _timed_entry(driver: dict, roster_by_code: dict[str, RosterDriver]) -> dict:
 def resolve_grid(
     timed_drivers: list[dict],
     championship_roster: list[dict],
-    entry_list: WeekendEntryList,
+    entry_lists: EntryLists,
     availability: WeekendAvailability,
-    previous_entry_list: WeekendEntryList = UNAVAILABLE,
 ) -> GridRoster:
     """Build the driver list a prediction should score.
 
     Args:
         timed_drivers: Drivers with a qualifying/practice position, in order.
         championship_roster: ``driver_standings_detailed`` rows for the season.
-        entry_list: The weekend's observed entry list, possibly unavailable.
+        entry_lists: The weekend's observed entry list, possibly unavailable,
+            and the most recent weekend's, used as the provisional lineup
+            while the weekend's own is unavailable.
         availability: Curated adjustments recorded for this round.
-        previous_entry_list: The most recent weekend's entry list, used as the
-            provisional lineup while ``entry_list`` is unavailable.
 
     Returns:
         The resolved grid, plus the warnings and data sources that make its
         provenance visible to the caller.
     """
-    base = _base_roster(entry_list, previous_entry_list, championship_roster)
+    base = _base_roster(entry_lists.current, entry_lists.previous, championship_roster)
     roster = base.drivers
     provisional = base.provisional
     data_sources: list[str] = [base.source] if base.source else []
@@ -213,8 +226,7 @@ def resolve_grid(
 
     if not availability.ok:
         warnings.append(
-            "Driver availability adjustments could not be read; a recorded "
-            "withdrawal may not be reflected in this grid"
+            "Driver availability adjustments could not be read; a recorded withdrawal may not be reflected in this grid"
         )
     elif availability.adjustments:
         roster = _apply_adjustments(roster, availability)
@@ -233,9 +245,7 @@ def resolve_grid(
 
     roster_by_code = {driver.code: driver for driver in roster}
     kept_timed = [
-        _timed_entry(driver, roster_by_code)
-        for driver in timed_drivers
-        if driver["driver_code"] in roster_by_code
+        _timed_entry(driver, roster_by_code) for driver in timed_drivers if driver["driver_code"] in roster_by_code
     ]
     dropped = len(timed_drivers) - len(kept_timed)
     if dropped:
@@ -250,24 +260,23 @@ def resolve_grid(
     next_pos = max((driver.get("position", 0) for driver in kept_timed), default=0) + 1
     back_filled: list[dict] = []
     for driver in missing:
-        back_filled.append({
-            "driver_code": driver.code,
-            "driver_name": driver.name,
-            "team": driver.team,
-            "position": next_pos,
-            "no_qualifying_time": True,
-        })
+        back_filled.append(
+            {
+                "driver_code": driver.code,
+                "driver_name": driver.name,
+                "team": driver.team,
+                "position": next_pos,
+                "no_qualifying_time": True,
+            }
+        )
         next_pos += 1
 
     if back_filled and kept_timed:
-        warnings.append(
-            f"{len(back_filled)} entered driver(s) had no session time; "
-            "included at the back of the grid"
-        )
+        warnings.append(f"{len(back_filled)} entered driver(s) had no session time; included at the back of the grid")
 
     logger.info(
         "weekend_grid.resolved",
-        entry_list_session=entry_list.session,
+        entry_list_session=entry_lists.current.session,
         roster_source=base.source,
         provisional=provisional,
         timed=len(kept_timed),

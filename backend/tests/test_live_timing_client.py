@@ -7,6 +7,8 @@ pytest alone, so async-marked tests would pass locally and skip in CI.
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import httpx
+import pandas as pd
 import pytest
 
 from app.services import live_timing_client as client
@@ -20,17 +22,35 @@ def _utc(*args) -> datetime:
 
 
 MEETINGS = [
-    {"meeting_key": 1290, "meeting_name": "Belgian Grand Prix", "location": "Spa-Francorchamps",
-     "date_start": "2026-07-17T10:30:00+00:00"},
-    {"meeting_key": 1292, "meeting_name": "Dutch Grand Prix", "location": "Zandvoort",
-     "date_start": "2026-08-21T10:30:00+00:00"},
+    {
+        "meeting_key": 1290,
+        "meeting_name": "Belgian Grand Prix",
+        "location": "Spa-Francorchamps",
+        "date_start": "2026-07-17T10:30:00+00:00",
+    },
+    {
+        "meeting_key": 1292,
+        "meeting_name": "Dutch Grand Prix",
+        "location": "Zandvoort",
+        "date_start": "2026-08-21T10:30:00+00:00",
+    },
 ]
 
 SESSIONS = [
-    {"session_key": 11348, "session_type": "Race", "session_name": "Sprint",
-     "date_start": "2026-08-22T10:00:00+00:00", "date_end": "2026-08-22T10:44:00+00:00"},
-    {"session_key": 11353, "session_type": "Race", "session_name": "Race",
-     "date_start": "2026-08-23T13:00:00+00:00", "date_end": "2026-08-23T15:00:00+00:00"},
+    {
+        "session_key": 11348,
+        "session_type": "Race",
+        "session_name": "Sprint",
+        "date_start": "2026-08-22T10:00:00+00:00",
+        "date_end": "2026-08-22T10:44:00+00:00",
+    },
+    {
+        "session_key": 11353,
+        "session_type": "Race",
+        "session_name": "Race",
+        "date_start": "2026-08-23T13:00:00+00:00",
+        "date_end": "2026-08-23T15:00:00+00:00",
+    },
 ]
 
 RACE_START = _utc(2026, 8, 23, 13, 0)
@@ -43,8 +63,9 @@ def _clear_driver_cache():
     client._driver_cache.clear()
 
 
-def _stub_openf1(monkeypatch, *, meetings=MEETINGS, sessions=SESSIONS,
-                 positions=None, intervals=None, laps=None, drivers=None):
+def _stub_openf1(
+    monkeypatch, *, meetings=MEETINGS, sessions=SESSIONS, positions=None, intervals=None, laps=None, drivers=None
+):
     """Replace OpenF1 HTTP access with canned payloads, recording each call."""
     calls: list[tuple[str, dict]] = []
     payloads = {
@@ -187,10 +208,17 @@ def test_resolve_is_empty_when_the_session_list_is_empty(monkeypatch):
 
 def test_resolve_is_empty_when_the_session_has_unusable_timestamps(monkeypatch):
     _stub_event(monkeypatch)
-    _stub_openf1(monkeypatch, sessions=[
-        {"session_key": 1, "session_name": "Race",
-         "date_start": "2026-08-23T13:00:00+00:00", "date_end": "2026-08-23T15:00:00+00:00"},
-    ])
+    _stub_openf1(
+        monkeypatch,
+        sessions=[
+            {
+                "session_key": 1,
+                "session_name": "Race",
+                "date_start": "2026-08-23T13:00:00+00:00",
+                "date_end": "2026-08-23T15:00:00+00:00",
+            },
+        ],
+    )
     monkeypatch.setattr(client, "select_active_session", lambda *_a, **_k: {"session_key": 1})
 
     assert asyncio.run(client.resolve_session_window(2026, 12, now=_utc(2026, 8, 23, 13, 30))).active is None
@@ -434,3 +462,97 @@ def test_poll_timing_reads_the_whole_position_feed(monkeypatch):
     asyncio.run(client.poll_timing(_race(), now=now))
 
     assert _params(calls, "position") == {"session_key": "11353"}
+
+
+# --------------------------------------------------------------------------
+# _get_json — every unusable OpenF1 answer becomes None, never an exception
+# --------------------------------------------------------------------------
+
+
+def _openf1(handler) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+def _get(handler, path="position", params=None):
+    async def _run():
+        async with _openf1(handler) as http:
+            return await client._get_json(http, path, params or {"session_key": "11353"})
+
+    return asyncio.run(_run())
+
+
+def test_get_json_returns_the_list_openf1_sent():
+    seen = []
+
+    def handler(request):
+        seen.append(request.url)
+        return httpx.Response(200, json=[{"position": 1}])
+
+    assert _get(handler) == [{"position": 1}]
+    assert str(seen[0]).startswith(f"{client.OPENF1_BASE}/position")
+    assert seen[0].params["session_key"] == "11353"
+
+
+def test_get_json_treats_a_transport_failure_as_no_data():
+    def handler(request):
+        raise httpx.ConnectError("openf1 unreachable", request=request)
+
+    assert _get(handler) is None
+
+
+def test_get_json_treats_a_non_200_as_no_data():
+    assert _get(lambda request: httpx.Response(429, json={"detail": "slow down"})) is None
+
+
+def test_get_json_treats_a_body_that_is_not_json_as_no_data():
+    assert _get(lambda request: httpx.Response(200, content=b"<html>maintenance</html>")) is None
+
+
+def test_get_json_treats_a_json_object_as_no_data():
+    """Every feed the loop reads is a list; an error object must not be iterated."""
+    assert _get(lambda request: httpx.Response(200, json={"detail": "not found"})) is None
+
+
+# --------------------------------------------------------------------------
+# _event_identity — round number to location, date and name via FastF1
+# --------------------------------------------------------------------------
+
+
+def _schedule_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "RoundNumber": 15,
+                "Location": "Zandvoort",
+                "EventName": "Dutch Grand Prix",
+                "EventDate": pd.Timestamp("2026-08-23"),
+            }
+        ]
+    )
+
+
+def test_event_identity_reads_the_round_from_the_schedule(monkeypatch):
+    monkeypatch.setattr(client.fastf1, "get_event_schedule", lambda **_kwargs: _schedule_frame())
+
+    location, event_date, name = client._event_identity(2026, 15)
+
+    assert (location, name) == ("Zandvoort", "Dutch Grand Prix")
+    assert event_date == _utc(2026, 8, 23)
+
+
+def test_event_identity_is_none_for_a_round_not_on_the_calendar(monkeypatch):
+    monkeypatch.setattr(client.fastf1, "get_event_schedule", lambda **_kwargs: _schedule_frame())
+
+    assert client._event_identity(2026, 99) is None
+
+
+@pytest.mark.parametrize("error", [OSError("connection reset"), ValueError("bad year"), KeyError("RoundNumber")])
+def test_event_identity_survives_a_schedule_failure(monkeypatch, error):
+    """A transient FastF1 failure must not take the socket down with it."""
+
+    def _explode(**_kwargs):
+        raise error
+
+    monkeypatch.setattr(client.fastf1, "get_event_schedule", _explode)
+
+    assert client._event_identity(2026, 15) is None

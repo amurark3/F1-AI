@@ -44,10 +44,7 @@ PROVISIONAL_WARNING = (
     "order shown is the qualifying classification, so any grid penalty is not "
     "applied to it."
 )
-UNAVAILABLE_REASON = (
-    "No grid for this round yet — qualifying has not run, or its results are "
-    "not available."
-)
+UNAVAILABLE_REASON = "No grid for this round yet — qualifying has not run, or its results are not available."
 PENALTY_SOURCE_NOTE = (
     "Grid penalties are read from the published grid sheet, which records the "
     "places dropped but not the offence behind them."

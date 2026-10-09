@@ -1,7 +1,5 @@
 """Request schemas for chat endpoints."""
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
@@ -14,6 +12,6 @@ class ChatRequest(BaseModel):
     original stateless behaviour.
     """
 
-    messages: List[dict]
-    user_id: Optional[str] = None
-    thread_id: Optional[str] = None
+    messages: list[dict]
+    user_id: str | None = None
+    thread_id: str | None = None

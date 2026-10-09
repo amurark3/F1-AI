@@ -2,9 +2,18 @@
 #
 # Blocks a commit when a local quality gate fails.
 #
+# Frontend (staged frontend/**/*.{ts,tsx,js,jsx,mjs,cjs}):
 #   lint gate   — ESLint (correctness, type hygiene, imports, style)
 #   sonar gate  — the sonarjs rules and complexity budgets from the same run
+#
+# Backend (staged backend/**/*.py):
+#   format gate — ruff format --check
+#   lint gate   — Ruff (correctness, type hygiene, imports, style)
+#   sonar gate  — the code-smell rules and complexity budgets from the same run
+#   size gate   — per-module line budget (tools/check_module_size.py)
 #   test gate   — backend pytest suite
+#   coverage gate — literal 100% of app/, main, mcp_server, scripts and tools
+#                   (fail_under in .coveragerc; needs --cov to be evaluated)
 #
 # Gates are skipped when the commit touches none of their files, so a
 # frontend-only commit does not pay for pytest and vice versa.
@@ -89,25 +98,79 @@ else
   echo "  ${YELLOW}⊘${RESET} lint/sonar gates skipped — no frontend sources staged." >&2
 fi
 
-# --- test gate ----------------------------------------------------------------
+# --- backend gates ------------------------------------------------------------
+# Resolves a backend tool from the project venv first, then PATH, so a clone
+# without an activated venv still works if the tool is installed globally.
+backend_tool() {
+  if [[ -x "$BACKEND_DIR/.venv/bin/$1" ]]; then
+    echo "$BACKEND_DIR/.venv/bin/$1"
+  elif command -v "$1" >/dev/null 2>&1; then
+    command -v "$1"
+  fi
+}
+
 if has_staged_match '^backend/.*\.py$'; then
-  if [[ -x "$BACKEND_DIR/.venv/bin/pytest" ]]; then
-    PYTEST="$BACKEND_DIR/.venv/bin/pytest"
-  elif command -v pytest >/dev/null 2>&1; then
-    PYTEST="$(command -v pytest)"
+  RUFF="$(backend_tool ruff)"
+  PYTEST="$(backend_tool pytest)"
+  PYTHON="$(backend_tool python3)"
+  [[ -z "$PYTHON" ]] && PYTHON="$(command -v python3 || true)"
+
+  # --- format gate ------------------------------------------------------------
+  if [[ -z "$RUFF" ]]; then
+    fail_gate "backend format/lint/sonar gates: ruff not found — install backend/requirements-dev.txt."
   else
-    PYTEST=""
+    if (cd "$BACKEND_DIR" && "$RUFF" format --check . >/dev/null 2>&1); then
+      pass_gate "format gate"
+    else
+      fail_gate "format gate: run 'ruff format .' in backend/."
+      (cd "$BACKEND_DIR" && "$RUFF" format --check . 2>&1 | head -20) >&2
+    fi
+
+    # --- lint + sonar gates ---------------------------------------------------
+    # One Ruff pass feeds both gates; the reporter splits and attributes it.
+    # `.` matches CI exactly rather than linting staged files only, so the hook
+    # cannot pass on a diff that CI would reject.
+    ruff_report="$(cd "$BACKEND_DIR" && "$RUFF" check . --output-format json 2>/tmp/f1-ruff-stderr.$$)"
+    ruff_status=$?
+
+    if [[ $ruff_status -gt 1 ]]; then
+      # Exit >1 means Ruff itself failed (bad config, parse error), which is not
+      # a rule violation the reporter can describe.
+      fail_gate "backend lint/sonar gates: Ruff failed to run."
+      cat "/tmp/f1-ruff-stderr.$$" >&2
+    elif printf '%s' "$ruff_report" | "$PYTHON" "$HOOK_DIR/ruff-gate-report.py" "$BACKEND_DIR"; then
+      pass_gate "backend lint gate + sonar gate"
+    else
+      fail_gate "backend lint gate and/or sonar gate"
+    fi
+    rm -f "/tmp/f1-ruff-stderr.$$"
   fi
 
-  if [[ -z "$PYTEST" ]]; then
-    fail_gate "test gate: pytest not found — create backend/.venv and install requirements-dev.txt."
-  elif (cd "$BACKEND_DIR" && "$PYTEST" -q); then
-    pass_gate "test gate"
+  # --- size gate --------------------------------------------------------------
+  # Ruff has no per-module line budget, so this is a separate check rather than
+  # part of the Ruff run above.
+  if [[ -z "$PYTHON" ]]; then
+    fail_gate "size gate: python3 not found."
+  elif (cd "$BACKEND_DIR" && "$PYTHON" -m tools.check_module_size >/dev/null); then
+    pass_gate "size gate"
   else
-    fail_gate "test gate"
+    fail_gate "size gate"
+  fi
+
+  # --- test + coverage gates --------------------------------------------------
+  # `--cov` is passed explicitly rather than set in pytest.ini `addopts`: the
+  # 100% `fail_under` in .coveragerc would otherwise trip on every single-file
+  # run during development. The flag has to be here and in CI, or the coverage
+  # gate is configured but never evaluated.
+  if [[ -z "$PYTEST" ]]; then
+    fail_gate "test/coverage gates: pytest not found — create backend/.venv and install requirements-dev.txt."
+  elif (cd "$BACKEND_DIR" && "$PYTEST" -q --cov --cov-report=term-missing); then
+    pass_gate "test gate + coverage gate"
+  else
+    fail_gate "test gate and/or coverage gate"
   fi
 else
-  echo "  ${YELLOW}⊘${RESET} test gate skipped — no backend sources staged." >&2
+  echo "  ${YELLOW}⊘${RESET} backend gates skipped — no backend sources staged." >&2
 fi
 
 # --- verdict ------------------------------------------------------------------
@@ -118,7 +181,8 @@ if [[ ${#FAILED_GATES[@]} -gt 0 ]]; then
     echo "${RED}  • $gate${RESET}" >&2
   done
   echo "" >&2
-  echo "Reproduce:  ${BOLD}cd frontend && npm run lint${RESET}   ${BOLD}cd backend && .venv/bin/pytest${RESET}" >&2
+  echo "Reproduce:  ${BOLD}cd frontend && npm run lint${RESET}" >&2
+  echo "            ${BOLD}cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . && .venv/bin/python -m tools.check_module_size && .venv/bin/pytest --cov${RESET}" >&2
   echo "Bypass:     ${BOLD}git commit --no-verify${RESET}" >&2
   exit 1
 fi

@@ -4,12 +4,12 @@ A socket stays open across a whole race weekend, so the idle path must be
 cheap without letting the connection look dead.
 """
 
-import time
 from datetime import datetime, timedelta, timezone
+import time
 
 import pytest
 
-from app.api.routes import _needs_resolution
+from app.api.live.websocket import _needs_resolution
 from app.config import SESSION_LOOKUP_INTERVAL, WS_IDLE_POLL_INTERVAL, WS_STALE_TIMEOUT
 from app.services.live_timing_client import ActiveSession
 

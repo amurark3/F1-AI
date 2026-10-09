@@ -16,6 +16,7 @@ from app.api.routers import race_control as race_control_router
 from app.api.routers.race_control import get_starting_grid
 from app.data import predictions
 from app.data.f1db_grid import GridSlot
+from app.data.predictions import sessions as prediction_sessions
 from app.services import race_grid
 from app.services.race_grid import (
     PROVISIONAL_WARNING,
@@ -180,6 +181,6 @@ class TestGridRoute:
 
 def test_load_qualifying_exposes_the_cached_classification(monkeypatch):
     """The provisional source reuses the prediction module's cached session load."""
-    monkeypatch.setattr(predictions, "_load_qualifying", lambda year, rnd: [{"driver_code": "VER"}])
+    monkeypatch.setattr(prediction_sessions, "_load_qualifying", lambda year, rnd: [{"driver_code": "VER"}])
 
     assert predictions.load_qualifying(2026, 14) == [{"driver_code": "VER"}]

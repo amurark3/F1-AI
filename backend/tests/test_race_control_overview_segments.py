@@ -13,8 +13,27 @@ still contains everything the segments do.
 import pytest
 
 from app.services import race_control as rc
+from app.services.race_control import overview, strategy_context
 
 pytestmark = pytest.mark.unit
+
+# Each name is stubbed in every module that resolves it: the segments read
+# through ``overview``, while the shell builds its dashboard in
+# ``strategy_context``. Patching the package facade would reach neither.
+_RESOLVED_IN = {
+    "season_events": (overview, strategy_context),
+    "get_standings_snapshot": (overview, strategy_context),
+    "get_or_compute_race_prediction": (overview,),
+    "get_cached_race_prediction": (overview,),
+    "circuit_strategy_reference": (overview,),
+    "build_weather_block": (overview,),
+}
+
+
+def _stub(monkeypatch, name, value):
+    for module in _RESOLVED_IN[name]:
+        monkeypatch.setattr(module, name, value)
+
 
 YEAR = 2026
 
@@ -40,10 +59,34 @@ CONSTRUCTORS = [
 
 PREDICTIONS = {
     "predictions": [
-        {"driver_code": "NOR", "driver_name": "Lando Norris", "team": "McLaren", "confidence_low": 60, "confidence_high": 80},
-        {"driver_code": "PIA", "driver_name": "Oscar Piastri", "team": "McLaren", "confidence_low": 50, "confidence_high": 70},
-        {"driver_code": "LEC", "driver_name": "Charles Leclerc", "team": "Ferrari", "confidence_low": 40, "confidence_high": 60},
-        {"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "confidence_low": 30, "confidence_high": 50},
+        {
+            "driver_code": "NOR",
+            "driver_name": "Lando Norris",
+            "team": "McLaren",
+            "confidence_low": 60,
+            "confidence_high": 80,
+        },
+        {
+            "driver_code": "PIA",
+            "driver_name": "Oscar Piastri",
+            "team": "McLaren",
+            "confidence_low": 50,
+            "confidence_high": 70,
+        },
+        {
+            "driver_code": "LEC",
+            "driver_name": "Charles Leclerc",
+            "team": "Ferrari",
+            "confidence_low": 40,
+            "confidence_high": 60,
+        },
+        {
+            "driver_code": "VER",
+            "driver_name": "Max Verstappen",
+            "team": "Red Bull",
+            "confidence_low": 30,
+            "confidence_high": 50,
+        },
     ],
     "data_sources": ["trained_ml_model"],
 }
@@ -93,16 +136,17 @@ def calls(monkeypatch):
         recorder.weather += 1
         return WEATHER
 
-    monkeypatch.setattr(rc, "season_events", lambda year: [RACE])
-    monkeypatch.setattr(rc, "get_standings_snapshot", lambda year: (DRIVERS, CONSTRUCTORS))
-    monkeypatch.setattr(rc, "get_or_compute_race_prediction", compute)
-    monkeypatch.setattr(rc, "get_cached_race_prediction", read)
-    monkeypatch.setattr(rc, "circuit_strategy_reference", reference)
-    monkeypatch.setattr(rc, "build_weather_block", weather)
+    _stub(monkeypatch, "season_events", lambda year: [RACE])
+    _stub(monkeypatch, "get_standings_snapshot", lambda year: (DRIVERS, CONSTRUCTORS))
+    _stub(monkeypatch, "get_or_compute_race_prediction", compute)
+    _stub(monkeypatch, "get_cached_race_prediction", read)
+    _stub(monkeypatch, "circuit_strategy_reference", reference)
+    _stub(monkeypatch, "build_weather_block", weather)
     return recorder
 
 
 # -- shell ------------------------------------------------------------------
+
 
 def test_shell_answers_without_telemetry_or_the_race_model(calls):
     shell = rc.build_overview_shell(YEAR)
@@ -116,6 +160,7 @@ def test_shell_answers_without_telemetry_or_the_race_model(calls):
 
 
 # -- weather ----------------------------------------------------------------
+
 
 def test_weather_segment_carries_the_forecast_and_its_risk_register(calls):
     segment = rc.build_overview_weather(YEAR)
@@ -137,6 +182,7 @@ def test_weather_segment_grades_rival_risk_without_building_strategy_context(cal
 
 # -- predictions ------------------------------------------------------------
 
+
 def test_predictions_segment_returns_the_projected_podium(calls):
     segment = rc.build_overview_predictions(YEAR)
 
@@ -148,12 +194,13 @@ def test_predictions_segment_survives_a_model_failure(calls, monkeypatch):
     def boom(year, round_num):
         raise RuntimeError("model unavailable")
 
-    monkeypatch.setattr(rc, "get_or_compute_race_prediction", boom)
+    _stub(monkeypatch, "get_or_compute_race_prediction", boom)
 
     assert rc.build_overview_predictions(YEAR)["predicted_podium"] == []
 
 
 # -- strategy ---------------------------------------------------------------
+
 
 def test_strategy_segment_reads_the_stored_prediction_rather_than_computing_one(calls):
     """Computing here would queue this segment behind a model run it barely uses."""
@@ -191,7 +238,7 @@ def test_strategy_segment_falls_back_to_heuristics_when_telemetry_fails(calls, m
     def boom(location, year):
         raise RuntimeError("session load failed")
 
-    monkeypatch.setattr(rc, "circuit_strategy_reference", boom)
+    _stub(monkeypatch, "circuit_strategy_reference", boom)
 
     context = rc.build_overview_strategy(YEAR)["strategy_context"]
     assert context["data_source"]["mode"] == "heuristic"
@@ -204,8 +251,8 @@ def test_strategy_segment_survives_a_venue_with_no_circuit_metadata(calls, monke
     Kuala Lumpur, and the segment crashed instead of planning on heuristics.
     """
     unmapped = {**RACE, "location": "Nowhere, Atlantis", "circuit": None}
-    monkeypatch.setattr(rc, "season_events", lambda year: [unmapped])
-    monkeypatch.setattr(rc, "circuit_strategy_reference", lambda location, year: None)
+    _stub(monkeypatch, "season_events", lambda year: [unmapped])
+    _stub(monkeypatch, "circuit_strategy_reference", lambda location, year: None)
 
     context = rc.build_overview_strategy(YEAR)["strategy_context"]
 
@@ -214,6 +261,7 @@ def test_strategy_segment_survives_a_venue_with_no_circuit_metadata(calls, monke
 
 
 # -- composite --------------------------------------------------------------
+
 
 def test_composite_still_carries_every_segment(calls):
     overview = rc.build_overview(YEAR)
@@ -234,7 +282,7 @@ def test_composite_still_carries_every_segment(calls):
 
 
 def test_a_season_with_no_events_still_produces_every_segment(calls, monkeypatch):
-    monkeypatch.setattr(rc, "season_events", lambda year: [])
+    _stub(monkeypatch, "season_events", lambda year: [])
 
     assert rc.build_overview_shell(YEAR)["race"] is None
     assert rc.build_overview_predictions(YEAR)["predicted_podium"] == []

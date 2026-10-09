@@ -49,7 +49,7 @@ def main() -> None:
     version = outcome.version
     print(f"f1db dataset at {version} — {outcome.reason}")
 
-    df = collect_data().dropna(subset=FEATURES + [TARGET])
+    df = collect_data().dropna(subset=[*FEATURES, TARGET])
     if df.empty:
         print("No data collected — aborting without touching the model.")
         _set_github_output("promoted", "false")
@@ -66,7 +66,9 @@ def main() -> None:
 
     print(f"\nGate backtest over seasons {holdout} ({results['_meta']['n_races']} races):")
     for metric in ("spearman", "podium_hit_rate", "winner_accuracy", "points_accuracy", "mae"):
-        print(f"  {metric:<18} model {model_m.get(metric, float('nan')):.3f}  vs grid {grid_m.get(metric, float('nan')):.3f}")
+        print(
+            f"  {metric:<18} model {model_m.get(metric, float('nan')):.3f}  vs grid {grid_m.get(metric, float('nan')):.3f}"
+        )
     print(
         f"\nDecision: challenger {PRIMARY_METRIC} {model_score:.3f} "
         f"{'>=' if promote else '<'} grid {grid_score:.3f} → "

@@ -9,14 +9,14 @@ This is the harness to reach for whenever a live session is not available.
 """
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 import json
 import pathlib
-from datetime import datetime, timedelta, timezone
 
-import pytest
 from fastapi import WebSocketDisconnect
+import pytest
 
-from app.api import routes
+from app.api.live import websocket as live_ws
 from app.services import live_timing_client as client
 from app.services.live_timing_client import ActiveSession, SessionLookup
 
@@ -98,17 +98,17 @@ def replay_stack(monkeypatch):
     async def fake_resolve(_year, _round, now=None):
         return SessionLookup(active=_session(now or datetime.now(timezone.utc)), next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_session_window", fake_resolve)
-    monkeypatch.setattr(routes, "WS_POLL_INTERVAL", 0)
+    monkeypatch.setattr(live_ws, "resolve_session_window", fake_resolve)
+    monkeypatch.setattr(live_ws, "WS_POLL_INTERVAL", 0)
 
     return replay
 
 
 def _drive(ws: FakeWebSocket) -> None:
     """Run the real loop until the fake client disconnects."""
-    routes.manager.touch(ws)
+    live_ws.manager.touch(ws)
     with pytest.raises(WebSocketDisconnect):
-        asyncio.run(routes._run_live_loop(ws, "2026-10", 2026, 10))
+        asyncio.run(live_ws._run_live_loop(ws, "2026-10", 2026, 10))
 
 
 def test_replay_reports_the_session_as_live(replay_stack):
@@ -152,6 +152,7 @@ def test_replay_goes_to_standby_for_a_previous_sessions_feed(monkeypatch, replay
     OpenF1 serves them forever, so the guard is that they predate the session
     now on track — not that they are old in wall-clock terms.
     """
+
     async def stale_get_json(_client, path, _params):
         if path == "position":
             return FIXTURE["frames"][0]
@@ -205,8 +206,8 @@ def test_replay_reports_standby_when_no_session_is_running(monkeypatch, replay_s
     async def no_session(_year, _round, now=None):
         return SessionLookup(active=None, next_start=None)
 
-    monkeypatch.setattr(routes, "resolve_session_window", no_session)
-    monkeypatch.setattr(routes, "WS_IDLE_POLL_INTERVAL", 0)
+    monkeypatch.setattr(live_ws, "resolve_session_window", no_session)
+    monkeypatch.setattr(live_ws, "WS_IDLE_POLL_INTERVAL", 0)
     ws = FakeWebSocket(stop_after_polls=1)
 
     _drive(ws)

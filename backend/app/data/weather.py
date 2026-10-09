@@ -16,8 +16,8 @@ Uses httpx.AsyncClient for async HTTP calls.  Falls back from One Call 3.0
 to 2.5 current weather API when the premium subscription is not available.
 """
 
-import time
 from datetime import datetime, timezone
+import time
 
 import httpx
 import structlog
@@ -38,8 +38,22 @@ _weather_cache: dict[str, tuple[float, dict]] = {}
 # Wind direction helper
 # ---------------------------------------------------------------------------
 _WIND_DIRECTIONS = [
-    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
 ]
 
 
@@ -76,8 +90,16 @@ _DESERT_CIRCUITS = {"Sakhir", "Lusail", "Yas Island", "Abu Dhabi", "Yas Marina",
 
 # Circuits considered "coastal" for wind context
 _COASTAL_CIRCUITS = {
-    "Melbourne", "Jeddah", "Miami", "Miami Gardens", "Marina Bay", "Singapore",
-    "Baku", "Monte Carlo", "Monaco", "Zandvoort",
+    "Melbourne",
+    "Jeddah",
+    "Miami",
+    "Miami Gardens",
+    "Marina Bay",
+    "Singapore",
+    "Baku",
+    "Monte Carlo",
+    "Monaco",
+    "Zandvoort",
 }
 
 # High-altitude circuits (elevation > 2000m)
@@ -99,8 +121,7 @@ def _get_track_context(location: str) -> str:
 
     if location in _HIGH_ALTITUDE_CIRCUITS:
         contexts.append(
-            "High altitude (2,240m) reduces air density -- affects engine "
-            "performance and aerodynamic downforce"
+            "High altitude (2,240m) reduces air density -- affects engine performance and aerodynamic downforce"
         )
 
     if location in _DESERT_CIRCUITS:
@@ -110,10 +131,7 @@ def _get_track_context(location: str) -> str:
         )
 
     if location in _COASTAL_CIRCUITS and not contexts:
-        contexts.append(
-            "Coastal location -- wind direction can change significantly "
-            "during the session"
-        )
+        contexts.append("Coastal location -- wind direction can change significantly during the session")
 
     if not contexts:
         return ""
@@ -142,18 +160,15 @@ def _assess_strategy_impact(hourly_forecasts: list[dict]) -> str:
 
     if max_rain >= 0.4:
         return "High rain probability -- dual dry/wet strategy scenarios recommended"
-    elif max_rain >= 0.2:
+    if max_rain >= 0.2:
         return "Moderate rain risk -- teams may prepare intermediate tyres as backup"
-    else:
-        return "Low rain probability -- standard dry strategy expected"
+    return "Low rain probability -- standard dry strategy expected"
 
 
 # ---------------------------------------------------------------------------
 # OpenWeatherMap API calls
 # ---------------------------------------------------------------------------
-async def _fetch_onecall(
-    lat: float, lon: float, client: httpx.AsyncClient
-) -> dict | None:
+async def _fetch_onecall(lat: float, lon: float, client: httpx.AsyncClient) -> dict | None:
     """Try One Call 3.0 API (requires subscription)."""
     url = "https://api.openweathermap.org/data/3.0/onecall"
     params = {
@@ -179,9 +194,7 @@ async def _fetch_onecall(
     return None
 
 
-async def _fetch_current_weather(
-    lat: float, lon: float, client: httpx.AsyncClient
-) -> dict | None:
+async def _fetch_current_weather(lat: float, lon: float, client: httpx.AsyncClient) -> dict | None:
     """Fallback to 2.5 current weather API (free tier)."""
     url = "https://api.openweathermap.org/data/2.5/weather"
     params = {
@@ -209,7 +222,7 @@ async def _fetch_current_weather(
 # ---------------------------------------------------------------------------
 # Response builders
 # ---------------------------------------------------------------------------
-def _build_from_onecall(data: dict, location: str) -> dict:
+def _build_from_onecall(data: dict, _location: str) -> dict:
     """Build weather response from One Call 3.0 API data."""
     current = data.get("current", {})
     hourly_raw = data.get("hourly", [])
@@ -248,18 +261,20 @@ def _build_from_onecall(data: dict, location: str) -> dict:
         h_wind = round(h.get("wind_speed", 0.0) * 3.6, 1)
         h_pop = h.get("pop", 0.0)
 
-        hourly_forecast.append({
-            "time": dt.strftime("%H:%M"),
-            "temp_c": round(h.get("temp", 0.0), 1),
-            "rain_probability_pct": round(h_pop * 100),
-            "wind_speed_kph": h_wind,
-            "conditions": h_desc.capitalize(),
-        })
+        hourly_forecast.append(
+            {
+                "time": dt.strftime("%H:%M"),
+                "temp_c": round(h.get("temp", 0.0), 1),
+                "rain_probability_pct": round(h_pop * 100),
+                "wind_speed_kph": h_wind,
+                "conditions": h_desc.capitalize(),
+            }
+        )
 
     return current_conditions, hourly_forecast
 
 
-def _build_from_current(data: dict, location: str) -> tuple[dict, list[dict]]:
+def _build_from_current(data: dict, _location: str) -> tuple[dict, list[dict]]:
     """Build weather response from 2.5 current weather API (no hourly forecast)."""
     main = data.get("main", {})
     wind = data.get("wind", {})
@@ -335,8 +350,8 @@ async def get_weather_for_circuit(location: str) -> dict:
         return {
             "location": location,
             "error": "OpenWeatherMap API key not configured. "
-                     "Set OPENWEATHERMAP_API_KEY environment variable. "
-                     "Get a key at https://home.openweathermap.org/api_keys",
+            "Set OPENWEATHERMAP_API_KEY environment variable. "
+            "Get a key at https://home.openweathermap.org/api_keys",
         }
 
     # Look up GPS coordinates
@@ -348,7 +363,7 @@ async def get_weather_for_circuit(location: str) -> dict:
             return {
                 "location": location,
                 "error": f"Circuit '{location}' not found in circuit database. "
-                         f"Available locations: {', '.join(sorted(CIRCUIT_DATA.keys()))}",
+                f"Available locations: {', '.join(sorted(CIRCUIT_DATA.keys()))}",
             }
 
     lat, lon = coords
@@ -361,25 +376,21 @@ async def get_weather_for_circuit(location: str) -> dict:
         onecall_data = await _fetch_onecall(lat, lon, client)
 
         if onecall_data:
-            current_conditions, hourly_forecast = _build_from_onecall(
-                onecall_data, location
-            )
+            current_conditions, hourly_forecast = _build_from_onecall(onecall_data, location)
             logger.info("weather.onecall_success", location=location)
         else:
             # Fallback to 2.5 current weather
             current_data = await _fetch_current_weather(lat, lon, client)
 
             if current_data:
-                current_conditions, hourly_forecast = _build_from_current(
-                    current_data, location
-                )
+                current_conditions, hourly_forecast = _build_from_current(current_data, location)
                 logger.info("weather.current_fallback", location=location)
             else:
                 return {
                     "location": location,
                     "circuit_name": circuit_name,
                     "error": "Failed to fetch weather data from OpenWeatherMap. "
-                             "Please check your API key and network connection.",
+                    "Please check your API key and network connection.",
                 }
 
     # Build response

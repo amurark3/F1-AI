@@ -15,11 +15,11 @@ import sqlite3
 import pytest
 
 from app.data import f1db_standings
-from app.data import predictions as predictions_module
 from app.data.f1db_standings import (
     constructor_standings_before_round,
     driver_standings_before_round,
 )
+from app.data.predictions import model as model_module, standings as standings_module
 
 pytestmark = pytest.mark.unit
 
@@ -53,9 +53,7 @@ def standings_db(monkeypatch):
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     conn.executemany("INSERT INTO race VALUES (?, ?, ?)", RACES)
-    conn.executemany(
-        "INSERT INTO driver VALUES (?, ?)", [("verstappen", "VER"), ("norris", "NOR")]
-    )
+    conn.executemany("INSERT INTO driver VALUES (?, ?)", [("verstappen", "VER"), ("norris", "NOR")])
     conn.executemany(
         "INSERT INTO constructor VALUES (?, ?)",
         [("red-bull", "Red Bull"), ("mclaren", "McLaren")],
@@ -74,8 +72,8 @@ def standings_db(monkeypatch):
     monkeypatch.setattr(f1db_standings, "connect", lambda: conn)
     monkeypatch.setattr(f1db_standings, "_driver_cache", {})
     monkeypatch.setattr(f1db_standings, "_constructor_cache", {})
-    monkeypatch.setattr(predictions_module, "_driver_standings_cache", {})
-    monkeypatch.setattr(predictions_module, "_constructor_cache", {})
+    monkeypatch.setattr(standings_module, "_driver_standings_cache", {})
+    monkeypatch.setattr(standings_module, "_constructor_cache", {})
     yield conn
     conn.close()
 
@@ -87,6 +85,7 @@ def leader(standings: dict[str, int]) -> str:
 # ---------------------------------------------------------------------------
 # Standings going into a round
 # ---------------------------------------------------------------------------
+
 
 def test_standings_going_into_a_round_are_those_after_the_previous_round(standings_db):
     assert leader(driver_standings_before_round(2026, 3)) == "VER"
@@ -124,15 +123,16 @@ def test_constructor_standings_for_the_season_opener(standings_db):
 
 
 def test_prediction_loaders_read_standings_as_of_the_round(standings_db):
-    assert leader(predictions_module._load_driver_standings(2026, 2)) == "NOR"
-    assert leader(predictions_module._load_driver_standings(2026, 3)) == "VER"
-    assert predictions_module._load_constructor_standings(2026, 2)[0]["constructor_name"] == "McLaren"
-    assert predictions_module._load_constructor_standings(2026, 3)[0]["constructor_name"] == "Red Bull"
+    assert leader(standings_module._load_driver_standings(2026, 2)) == "NOR"
+    assert leader(standings_module._load_driver_standings(2026, 3)) == "VER"
+    assert standings_module._load_constructor_standings(2026, 2)[0]["constructor_name"] == "McLaren"
+    assert standings_module._load_constructor_standings(2026, 3)[0]["constructor_name"] == "Red Bull"
 
 
 # ---------------------------------------------------------------------------
 # Adaptive corrections learn only from earlier races
 # ---------------------------------------------------------------------------
+
 
 def _evaluated(predicted: int, actual: int) -> dict:
     return {
@@ -142,8 +142,8 @@ def _evaluated(predicted: int, actual: int) -> dict:
 
 
 def _corrections(monkeypatch, history: dict, year: int, round_num: int) -> dict:
-    monkeypatch.setattr(predictions_module, "_load_prediction_history", lambda: history)
-    return predictions_module._adaptive_position_corrections(year, round_num)
+    monkeypatch.setattr(model_module, "_load_prediction_history", lambda: history)
+    return model_module._adaptive_position_corrections(year, round_num)
 
 
 def test_adaptive_correction_ignores_the_race_being_predicted(monkeypatch):

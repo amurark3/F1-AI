@@ -20,9 +20,9 @@ everything it covers — an adjustment left behind is redundant, not harmful.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+import re
 
 import structlog
 
@@ -45,7 +45,7 @@ _DRIVER_CODE_PATTERN = re.compile(r"^[A-Z]{3}$")
 _UNFILLED_PLACEHOLDER = re.compile(r"[<>]")
 
 
-class InvalidAdjustment(ValueError):
+class InvalidAdjustmentError(ValueError):
     """Raised when an adjustment fails validation at the write boundary."""
 
 
@@ -125,18 +125,17 @@ def round_key(year: int, round_num: int) -> str:
 def _normalise_code(value: str, field: str) -> str:
     code = str(value or "").strip().upper()
     if not _DRIVER_CODE_PATTERN.match(code):
-        raise InvalidAdjustment(f"{field} must be a three-letter driver code, got {value!r}")
+        raise InvalidAdjustmentError(f"{field} must be a three-letter driver code, got {value!r}")
     return code
 
 
 def _require_text(value: str, field: str) -> str:
     text = str(value or "").strip()
     if not text:
-        raise InvalidAdjustment(f"{field} is required")
+        raise InvalidAdjustmentError(f"{field} is required")
     if _UNFILLED_PLACEHOLDER.search(text):
-        raise InvalidAdjustment(
-            f"{field} still contains an unfilled placeholder ({text!r}); "
-            "replace it with the real value"
+        raise InvalidAdjustmentError(
+            f"{field} still contains an unfilled placeholder ({text!r}); replace it with the real value"
         )
     return text
 
@@ -184,43 +183,50 @@ def load_weekend_availability(year: int, round_num: int) -> WeekendAvailability:
     rounds = payload.get("rounds")
     rows = rounds.get(round_key(year, round_num), []) if isinstance(rounds, dict) else []
     adjustments = tuple(
-        adjustment
-        for adjustment in (_adjustment_from_payload(row) for row in rows)
-        if adjustment is not None
+        adjustment for adjustment in (_adjustment_from_payload(row) for row in rows) if adjustment is not None
     )
     return WeekendAvailability(adjustments=adjustments)
 
 
-def record_driver_out(
-    year: int,
-    round_num: int,
-    driver_code: str,
-    reason: str,
-    source: str,
-    replacement_code: str = "",
-    replacement_name: str = "",
-    replacement_team: str = "",
-) -> WriteResult:
+@dataclass(frozen=True)
+class Withdrawal:
+    """An operator's report that a driver is out, as typed — validated on write."""
+
+    driver_code: str
+    reason: str
+    source: str
+    replacement_code: str = ""
+    replacement_name: str = ""
+    replacement_team: str = ""
+
+
+def _adjustment_from_withdrawal(withdrawal: Withdrawal) -> DriverAdjustment:
+    """Validate a reported withdrawal into the adjustment that gets stored."""
+    adjustment = DriverAdjustment(
+        driver_code=_normalise_code(withdrawal.driver_code, "driver_code"),
+        status=STATUS_OUT,
+        reason=_require_text(withdrawal.reason, "reason"),
+        source=_require_text(withdrawal.source, "source"),
+        noted_at=datetime.now(timezone.utc).isoformat(),
+    )
+    if not withdrawal.replacement_code:
+        return adjustment
+    return replace(
+        adjustment,
+        replacement_code=_normalise_code(withdrawal.replacement_code, "replacement_code"),
+        replacement_name=str(withdrawal.replacement_name or "").strip(),
+        replacement_team=str(withdrawal.replacement_team or "").strip(),
+    )
+
+
+def record_driver_out(year: int, round_num: int, withdrawal: Withdrawal) -> WriteResult:
     """Record that a driver is out for one round, optionally naming a replacement.
 
     Replaces any existing adjustment for the same driver and round rather than
     appending a second one, so a corrected entry supersedes the stale one.
     """
-    code = _normalise_code(driver_code, "driver_code")
-    adjustment = DriverAdjustment(
-        driver_code=code,
-        status=STATUS_OUT,
-        reason=_require_text(reason, "reason"),
-        source=_require_text(source, "source"),
-        noted_at=datetime.now(timezone.utc).isoformat(),
-    )
-    if replacement_code:
-        adjustment = replace(
-            adjustment,
-            replacement_code=_normalise_code(replacement_code, "replacement_code"),
-            replacement_name=str(replacement_name or "").strip(),
-            replacement_team=str(replacement_team or "").strip(),
-        )
+    adjustment = _adjustment_from_withdrawal(withdrawal)
+    code = adjustment.driver_code
 
     payload, ok, error = _read_document()
     if not ok:
@@ -232,7 +238,8 @@ def record_driver_out(
     rounds = payload.get("rounds")
     existing = list(rounds.get(key, [])) if isinstance(rounds, dict) else []
     kept = [
-        row for row in existing
+        row
+        for row in existing
         if not (isinstance(row, dict) and str(row.get("driver_code", "")).strip().upper() == code)
     ]
     next_payload = {
@@ -247,7 +254,9 @@ def record_driver_out(
     result = document_store.write(DOCUMENT_DRIVER_AVAILABILITY, next_payload)
     logger.info(
         "driver_availability.recorded",
-        year=year, round=round_num, driver=code,
+        year=year,
+        round=round_num,
+        driver=code,
         replacement=adjustment.replacement_code or None,
         durable=result.durable,
     )
@@ -265,7 +274,8 @@ def clear_driver_adjustment(year: int, round_num: int, driver_code: str) -> Writ
     rounds = payload.get("rounds")
     existing = list(rounds.get(key, [])) if isinstance(rounds, dict) else []
     kept = [
-        row for row in existing
+        row
+        for row in existing
         if not (isinstance(row, dict) and str(row.get("driver_code", "")).strip().upper() == code)
     ]
     next_payload = {

@@ -28,8 +28,12 @@ there is no need to clear it after the weekend runs.
 from __future__ import annotations
 
 import argparse
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from app.data.store_types import WriteResult
 
 # The service loads its environment in main.py, which this CLI does not import.
 # Without this the script would silently fall back to the local JSON file and
@@ -41,7 +45,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _print_result(result) -> int:
+def _print_result(result: WriteResult) -> int:
     if not result.ok:
         print(f"ERROR: write failed: {result.error}")
         return 1
@@ -68,31 +72,30 @@ def _list(args: argparse.Namespace) -> int:
 
 
 def _out(args: argparse.Namespace) -> int:
-    from app.data.driver_availability import InvalidAdjustment, record_driver_out
+    from app.data.driver_availability import InvalidAdjustmentError, Withdrawal, record_driver_out
 
+    withdrawal = Withdrawal(
+        driver_code=args.driver,
+        reason=args.reason,
+        source=args.source,
+        replacement_code=args.replacement_code,
+        replacement_name=args.replacement_name,
+        replacement_team=args.replacement_team,
+    )
     try:
-        result = record_driver_out(
-            year=args.year,
-            round_num=args.round,
-            driver_code=args.driver,
-            reason=args.reason,
-            source=args.source,
-            replacement_code=args.replacement_code,
-            replacement_name=args.replacement_name,
-            replacement_team=args.replacement_team,
-        )
-    except InvalidAdjustment as exc:
+        result = record_driver_out(args.year, args.round, withdrawal)
+    except InvalidAdjustmentError as exc:
         print(f"ERROR: {exc}")
         return 1
     return _print_result(result)
 
 
 def _clear(args: argparse.Namespace) -> int:
-    from app.data.driver_availability import InvalidAdjustment, clear_driver_adjustment
+    from app.data.driver_availability import InvalidAdjustmentError, clear_driver_adjustment
 
     try:
         result = clear_driver_adjustment(args.year, args.round, args.driver)
-    except InvalidAdjustment as exc:
+    except InvalidAdjustmentError as exc:
         print(f"ERROR: {exc}")
         return 1
     return _print_result(result)

@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import argparse
 import copy
-import json
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
@@ -121,9 +121,7 @@ def main() -> int:
         print("\ndry run — re-run with --apply to write.")
         return 0
 
-    result = document_store.write(
-        DOCUMENT_PREDICTION_CACHE, {**payload, "entries": updated}
-    )
+    result = document_store.write(DOCUMENT_PREDICTION_CACHE, {**payload, "entries": updated})
     if not result.ok:
         print(f"\nERROR writing prediction cache: {result.error}")
         return 1

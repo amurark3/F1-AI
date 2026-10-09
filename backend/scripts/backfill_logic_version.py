@@ -96,8 +96,7 @@ def _plan(entries: dict, include_old: bool) -> tuple[dict, list[str]]:
         new_snapshots = list(snapshots)
         new_snapshots[index] = _stamp(active)
         changes.append(
-            f"{key}: active snapshot {active.get('id')} "
-            f"(v{_snapshot_version(active)} -> v{PREDICTION_LOGIC_VERSION})"
+            f"{key}: active snapshot {active.get('id')} (v{_snapshot_version(active)} -> v{PREDICTION_LOGIC_VERSION})"
         )
         updated[key] = {**entry, "snapshots": new_snapshots}
 
@@ -140,9 +139,7 @@ def main() -> int:
         print("\ndry run — re-run with --apply to write.")
         return 0
 
-    result = document_store.write(
-        DOCUMENT_PREDICTION_CACHE, {**payload, "entries": updated}
-    )
+    result = document_store.write(DOCUMENT_PREDICTION_CACHE, {**payload, "entries": updated})
     if not result.ok:
         print(f"\nERROR writing prediction cache: {result.error}")
         return 1

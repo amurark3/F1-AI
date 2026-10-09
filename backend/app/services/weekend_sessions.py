@@ -146,11 +146,7 @@ def _load_session(year: int, round_num: int, spec: SessionSpec) -> dict | None:
 
 def build_weekend_sessions(year: int, round_num: int) -> dict:
     """Every session f1db holds a classification for, in running order."""
-    sessions = [
-        payload
-        for spec in WEEKEND_SESSIONS
-        if (payload := _load_session(year, round_num, spec)) is not None
-    ]
+    sessions = [payload for spec in WEEKEND_SESSIONS if (payload := _load_session(year, round_num, spec)) is not None]
     # A sprint weekend is one that actually ran a sprint, not one a calendar
     # flag says was scheduled to.
     is_sprint = any(session["id"] == "sprint" for session in sessions)

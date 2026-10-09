@@ -3,12 +3,27 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import fastf1
 import pandas as pd
 
 from app.services.race_control_common import safe_float, safe_int
+
+
+@dataclass(frozen=True)
+class DebriefSections:
+    """The derived views of a classification that the race control notes read.
+
+    All four are computed from the same results list, so they are built once and
+    passed together rather than threaded through as parallel arguments.
+    """
+
+    podium: list[dict]
+    movers: list[dict]
+    constructor_impact: list[dict]
+    reliability: list[dict]
 
 
 def build_race_debrief(year: int, round_num: int) -> dict:
@@ -23,8 +38,7 @@ def build_race_debrief(year: int, round_num: int) -> dict:
     )[:3]
     constructor_impact = build_constructor_impact(results)
     reliability = [
-        row for row in results
-        if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
+        row for row in results if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
     ]
 
     return {
@@ -34,9 +48,7 @@ def build_race_debrief(year: int, round_num: int) -> dict:
         "location": detail.get("location", ""),
         "podium": podium,
         "headline": (
-            build_debrief_headline(detail, winner, results)
-            if winner
-            else "Race classification is not available yet."
+            build_debrief_headline(detail, winner, results) if winner else "Race classification is not available yet."
         ),
         "strategy_winners": movers,
         "takeaways": build_debrief_takeaways(results, podium),
@@ -44,13 +56,21 @@ def build_race_debrief(year: int, round_num: int) -> dict:
         "constructor_impact": constructor_impact,
         "reliability_watch": reliability[:5],
         "classification": results[:10],
-        "race_control_notes": build_race_control_notes(results, podium, movers, constructor_impact, reliability),
+        "race_control_notes": build_race_control_notes(
+            results,
+            DebriefSections(
+                podium=podium,
+                movers=movers,
+                constructor_impact=constructor_impact,
+                reliability=reliability,
+            ),
+        ),
         "insight_source": "Derived from race classification, grid positions, finishing status, and points.",
         "incidents": [],
     }
 
 
-def build_debrief_headline(detail: dict, winner: dict | None, results: list[dict]) -> str:
+def build_debrief_headline(detail: dict, winner: dict | None, _results: list[dict]) -> str:
     if not winner:
         return "Race classification is not available yet."
 
@@ -112,8 +132,7 @@ def build_debrief_takeaways(results: list[dict], podium: list[dict]) -> list[str
             takeaways.append(f"{team} scored the strongest constructor haul with {points:g} points.")
 
     non_standard_statuses = [
-        row for row in results
-        if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
+        row for row in results if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
     ]
     if non_standard_statuses:
         takeaways.append(
@@ -137,16 +156,18 @@ def build_podium_cause(podium: list[dict]) -> list[dict]:
             call = f"Lost {abs(delta)} place{'s' if delta != -1 else ''} but held podium"
         else:
             call = "Converted starting position"
-        rows.append({
-            "position": position,
-            "driver": row.get("driver"),
-            "full_name": row.get("full_name") or row.get("driver"),
-            "team": row.get("team"),
-            "grid": grid,
-            "points": row.get("points", 0),
-            "delta": delta,
-            "call": call,
-        })
+        rows.append(
+            {
+                "position": position,
+                "driver": row.get("driver"),
+                "full_name": row.get("full_name") or row.get("driver"),
+                "team": row.get("team"),
+                "grid": grid,
+                "points": row.get("points", 0),
+                "delta": delta,
+                "call": call,
+            }
+        )
     return rows
 
 
@@ -165,41 +186,46 @@ def build_constructor_impact(results: list[dict]) -> list[dict]:
     ][:6]
 
 
-def build_race_control_notes(
-    results: list[dict],
-    podium: list[dict],
-    movers: list[dict],
-    constructor_impact: list[dict],
-    reliability: list[dict],
-) -> list[dict]:
+def build_race_control_notes(results: list[dict], sections: DebriefSections) -> list[dict]:
     notes = []
-    if podium:
-        notes.append({
-            "label": "Podium shape",
-            "detail": ", ".join(f"P{row.get('position')} {row.get('driver')}" for row in podium),
-        })
-    if movers:
-        best = movers[0]
-        notes.append({
-            "label": "Execution swing",
-            "detail": f"{best.get('full_name') or best.get('driver')} gained {best.get('grid') - best.get('position')} places from the grid.",
-        })
-    if constructor_impact:
-        leader = constructor_impact[0]
-        notes.append({
-            "label": "Constructor haul",
-            "detail": f"{leader['team']} led the points take with {leader['points']:g} points.",
-        })
-    if reliability:
-        notes.append({
-            "label": "Reliability / incidents",
-            "detail": f"{len(reliability)} non-standard finish status{'es' if len(reliability) != 1 else ''} in classification.",
-        })
+    if sections.podium:
+        notes.append(
+            {
+                "label": "Podium shape",
+                "detail": ", ".join(f"P{row.get('position')} {row.get('driver')}" for row in sections.podium),
+            }
+        )
+    if sections.movers:
+        best = sections.movers[0]
+        notes.append(
+            {
+                "label": "Execution swing",
+                "detail": f"{best.get('full_name') or best.get('driver')} gained {best.get('grid') - best.get('position')} places from the grid.",
+            }
+        )
+    if sections.constructor_impact:
+        leader = sections.constructor_impact[0]
+        notes.append(
+            {
+                "label": "Constructor haul",
+                "detail": f"{leader['team']} led the points take with {leader['points']:g} points.",
+            }
+        )
+    if sections.reliability:
+        count = len(sections.reliability)
+        notes.append(
+            {
+                "label": "Reliability / incidents",
+                "detail": f"{count} non-standard finish status{'es' if count != 1 else ''} in classification.",
+            }
+        )
     if not results:
-        notes.append({
-            "label": "Awaiting classification",
-            "detail": "Final race classification has not been published or loaded yet.",
-        })
+        notes.append(
+            {
+                "label": "Awaiting classification",
+                "detail": "Final race classification has not been published or loaded yet.",
+            }
+        )
     return notes
 
 
@@ -234,15 +260,21 @@ def load_race_classification(year: int, round_num: int) -> dict:
     race_results = session.results.sort_values(by="Position")
     rows = []
     for _, row in race_results.iterrows():
-        rows.append({
-            "position": safe_int(row.get("Position"), None),
-            "driver": row.get("Abbreviation", ""),
-            "full_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
-            "team": row.get("TeamName", "Unknown"),
-            "grid": safe_int(row.get("GridPosition"), None) if pd.notna(row.get("GridPosition")) and row.get("GridPosition") > 0 else None,
-            "points": safe_float(row.get("Points", 0)),
-            "status": row.get("Status", ""),
-        })
+        rows.append(
+            {
+                "position": safe_int(row.get("Position"), None),
+                "driver": row.get("Abbreviation", ""),
+                "full_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
+                "team": row.get("TeamName", "Unknown"),
+                "grid": safe_int(row.get("GridPosition"), None)
+                if pd.notna(row.get("GridPosition")) and row.get("GridPosition") > 0
+                else None,
+                "points": safe_float(row.get("Points", 0)),
+                "status": row.get("Status", ""),
+            }
+        )
     result["race_results"] = rows
-    result["podium"] = sorted([row for row in rows if row["position"] and row["position"] <= 3], key=lambda row: row["position"])
+    result["podium"] = sorted(
+        [row for row in rows if row["position"] and row["position"] <= 3], key=lambda row: row["position"]
+    )
     return result

@@ -313,11 +313,31 @@ race. `app.data.f1db_source` keeps the local copy on the newest release:
 | Every boot | the readiness warm-up calls `sync_to_latest()` before serving |
 | Every 6 h | the `_refresh_f1db_dataset` loop in `main.py` re-checks |
 
-Both paths are cheap when nothing changed — one small GitHub API call, no
-download. A new release is fetched to a temp file and moved into place with
-`os.replace`, so open reader connections are never overwritten underneath. The
-release currently on disk is reported by `GET /api/ready` as `f1db_version`; the
-tag is also stamped in `backend/data/f1db.db.version`.
+Both paths are cheap when nothing changed — one small request, no download. The
+newest tag is read from the redirect at
+`https://github.com/f1db/f1db/releases/latest` (→ `/releases/tag/<tag>`), which
+is **not** metered against the REST API's 60-requests/hour unauthenticated limit.
+The REST API is only a backup. Relying on it alone left production on the
+hardcoded `FALLBACK_F1DB_VERSION` (round 11) from round 12 to round 16: Render's
+shared egress IPs exhaust that limit, every check came back empty, and the
+server reported itself current. A new release is fetched to a temp file and
+moved into place with `os.replace`, so open reader connections are never
+overwritten underneath. The tag on disk is stamped in
+`backend/data/f1db.db.version`.
+
+`GET /api/ready` reports both the tag on disk (`f1db_version`) and the last
+release check (`f1db_sync`):
+
+```jsonc
+"f1db_sync": {
+  "version": "v2026.16.1",       // on disk
+  "latest": "v2026.16.1",        // what GitHub said is newest; null = check failed
+  "up_to_date": true,            // the field to alert on
+  "updated": true,
+  "reason": "updated from no dataset to v2026.16.1",
+  "checked_at": "2026-10-09T16:32:42+00:00"
+}
+```
 
 **`F1DB_VERSION` must stay unset in the Render dashboard.** Setting it pins the
 dataset to one release and disables all of the above. That is a deliberate
@@ -325,16 +345,21 @@ escape hatch for reproducible training runs, not a production setting — a stal
 pin is what once left the standings page four weeks behind, serving pre-Hungary
 points on every cold start.
 
-If the standings ever look behind again, check in this order:
+If standings, results or the Grand Prix Hub grid ever look behind again (a
+"not in our dataset yet" grid warning on a finished round is the tell):
 
 ```bash
-curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_version
-curl -s https://api.github.com/repos/f1db/f1db/releases/latest | jq -r .tag_name
+curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_sync
 ```
 
-Different tags mean the sync is failing (GitHub rate limit or a download error —
-look for `f1db.sync.failed` in the logs). The same tag means f1db has not
-published the round yet, which is expected in the ~24 h after a race.
+- `up_to_date: true` — the server has the newest release, so f1db has not
+  published the round yet. That is normal for a few hours after a race.
+- `latest: null` — the release check itself is failing. Look for
+  `f1db.latest_redirect_failed` / `f1db.latest_api_failed` /
+  `f1db.sync.check_failed` in the logs. Setting `GITHUB_TOKEN` in the dashboard
+  raises the API backup's limit to 5,000/hour.
+- `latest` set but different from `version` — the download is failing. Look for
+  `f1db.sync.failed`.
 
 ---
 

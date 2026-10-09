@@ -22,18 +22,29 @@ only one of them is allowed to decide what a visitor sees.
 dataset at one release, which is what a reproducible training run or a
 deterministic test wants. Leaving it unset — the default, and what production
 runs — means "track the newest release".
+
+The newest release is read from the release page's redirect, not the REST API.
+That lesson cost five rounds: the API allows 60 unauthenticated requests an
+hour per IP, Render's free tier shares its egress addresses, and every check
+from production came back empty. The server fell through to the hardcoded
+fallback (round 11) and, because a failed check resolved to "whatever is
+installed", reported itself current on every check after. The redirect is not
+metered against that limit; the API stays on as a backup. A failed check now
+says so in its outcome, which ``/api/ready`` publishes as ``f1db_sync``.
 """
 
 from __future__ import annotations
 
 import io
 import os
+import re
 import shutil
 import sqlite3
 import threading
 import time
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -50,6 +61,13 @@ F1DB_VERSION = os.getenv("F1DB_VERSION", "").strip()
 FALLBACK_F1DB_VERSION = "v2026.11.0"
 
 F1DB_RELEASES_API = "https://api.github.com/repos/f1db/f1db/releases/latest"
+# Answers with a 302 to ``…/releases/tag/<tag>``. Not a REST API endpoint, so it
+# does not count against the API rate limit that stranded production.
+F1DB_LATEST_RELEASE_URL = "https://github.com/f1db/f1db/releases/latest"
+RELEASE_TAG_MARKER = "/releases/tag/"
+# A tag is spliced into the download URL and written to the version stamp, so
+# anything that is not a plain tag (a path, a query string) is refused.
+RELEASE_TAG_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 DB_PATH = Path(os.getenv("F1DB_PATH", "data/f1db.db"))
 # Which release the file on disk came from. Kept beside the database rather than
 # in it so that reading it costs no SQLite connection.
@@ -76,9 +94,40 @@ _sync_lock = threading.Lock()
 class SyncOutcome:
     """What a freshness check did. Immutable — callers only report on it."""
 
+    #: Release on disk after the check.
     version: str | None
     updated: bool
     reason: str
+    #: Release the check resolved to track — the pin, or GitHub's newest.
+    #: ``None`` when the lookup failed, which is the state worth alerting on.
+    latest: str | None = None
+    #: ISO-8601 UTC time of the check. Set when the outcome is recorded.
+    checked_at: str | None = None
+
+    @property
+    def up_to_date(self) -> bool:
+        """True only when the check succeeded and the disk holds that release."""
+        return self.latest is not None and self.version == self.latest
+
+    def as_dict(self) -> dict:
+        return {
+            "version": self.version,
+            "latest": self.latest,
+            "up_to_date": self.up_to_date,
+            "updated": self.updated,
+            "reason": self.reason,
+            "checked_at": self.checked_at,
+        }
+
+
+# The last check that actually ran, for ``/api/ready``. Throttled calls never
+# replace it: "checked recently" says nothing about whether the check worked.
+_last_outcome: SyncOutcome | None = None
+
+
+def last_sync_outcome() -> SyncOutcome | None:
+    """The most recent release check of this process, or ``None`` before one."""
+    return _last_outcome
 
 
 def sqlite_url_for(version: str) -> str:
@@ -86,12 +135,40 @@ def sqlite_url_for(version: str) -> str:
     return f"https://github.com/f1db/f1db/releases/download/{version}/f1db-sqlite.zip"
 
 
-def latest_release_version() -> str:
-    """Newest f1db release tag, or ``""`` when the GitHub API is unreachable.
+def _valid_tag(tag: str) -> str:
+    """``tag`` if it is a plain release tag, else ``""``."""
+    return tag if RELEASE_TAG_PATTERN.fullmatch(tag) else ""
 
-    Uses ``GITHUB_TOKEN`` if present (higher rate limit in CI). Returning empty
-    rather than raising keeps an unreachable API a non-event: the caller decides
-    what to fall back to, and a running server keeps the dataset it already has.
+
+def _latest_from_redirect() -> str:
+    """Newest tag from the release page's redirect, or ``""``."""
+    try:
+        response = requests.head(
+            F1DB_LATEST_RELEASE_URL,
+            allow_redirects=False,
+            timeout=DOWNLOAD_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as exc:
+        logger.warning("f1db.latest_redirect_failed", error=str(exc))
+        return ""
+
+    location = response.headers.get("Location", "")
+    _, marker, tag = location.partition(RELEASE_TAG_MARKER)
+    valid = _valid_tag(tag) if marker else ""
+    if not valid:
+        logger.warning(
+            "f1db.latest_redirect_unusable",
+            status=response.status_code,
+            location=location,
+        )
+    return valid
+
+
+def _latest_from_api() -> str:
+    """Newest tag from the REST API, or ``""``.
+
+    The backup lookup. Uses ``GITHUB_TOKEN`` if present (5,000 requests an hour
+    instead of 60), which CI has and the Render service does not.
     """
     headers = {"Accept": "application/vnd.github+json"}
     token = os.getenv("GITHUB_TOKEN")
@@ -102,10 +179,28 @@ def latest_release_version() -> str:
             F1DB_RELEASES_API, headers=headers, timeout=DOWNLOAD_TIMEOUT_SECONDS
         )
         response.raise_for_status()
-        return str(response.json()["tag_name"])
-    except Exception as exc:
-        logger.warning("f1db.latest_version_failed", error=str(exc))
+        tag = str(response.json()["tag_name"])
+    # ValueError covers a body that is not JSON; KeyError/TypeError one that is
+    # JSON but not a release object.
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        logger.warning("f1db.latest_api_failed", error=str(exc))
         return ""
+
+    valid = _valid_tag(tag)
+    if not valid:
+        logger.warning("f1db.latest_api_unusable", tag=tag)
+    return valid
+
+
+def latest_release_version() -> str:
+    """Newest f1db release tag, or ``""`` when GitHub cannot say.
+
+    Asks the release page's redirect first and the REST API only if that fails
+    (see the module docstring for why). Returning empty rather than raising
+    keeps an unreachable GitHub a non-event for serving: the caller decides what
+    to fall back to, and a running server keeps the dataset it already has.
+    """
+    return _latest_from_redirect() or _latest_from_api()
 
 
 def installed_version() -> str | None:
@@ -130,9 +225,12 @@ def target_version() -> str:
     already installed and finally to ``FALLBACK_F1DB_VERSION`` — a GitHub outage
     must never take the dataset away from a server that has one.
     """
-    if F1DB_VERSION:
-        return F1DB_VERSION
-    return latest_release_version() or installed_version() or FALLBACK_F1DB_VERSION
+    return _published_version() or installed_version() or FALLBACK_F1DB_VERSION
+
+
+def _published_version() -> str:
+    """The release to track: the pin if set, else GitHub's newest (``""`` if unknown)."""
+    return F1DB_VERSION or latest_release_version()
 
 
 def refresh_f1db(version: str, dest: Path | None = None) -> Path:
@@ -216,8 +314,11 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
     The lock serialises refreshes so two callers cannot download at once. It is
     deliberately not held by ``connect()``/``ensure_db()``, so a refresh never
     blocks request serving.
+
+    Every check that runs is recorded for :func:`last_sync_outcome`; throttled
+    calls are not.
     """
-    global _last_check_at
+    global _last_check_at, _last_outcome
 
     with _sync_lock:
         current = installed_version()
@@ -226,21 +327,45 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
             return SyncOutcome(current, False, "checked recently")
 
         _last_check_at = time.monotonic()
-        wanted = target_version()
-        if current == wanted:
-            logger.info("f1db.sync.current", version=current)
-            return SyncOutcome(current, False, "already on the newest release")
+        published = _published_version() or None
+        wanted = published or current or FALLBACK_F1DB_VERSION
+        outcome = (
+            _keep(current, published)
+            if current == wanted
+            else _download(wanted, current, published)
+        )
+        _last_outcome = replace(outcome, checked_at=datetime.now(timezone.utc).isoformat())
+        return _last_outcome
 
-        try:
-            refresh_f1db(wanted)
-        except Exception as exc:
-            logger.error("f1db.sync.failed", target=wanted, installed=current, error=str(exc))
-            if current:
-                return SyncOutcome(current, False, f"download failed, kept {current}: {exc}")
-            raise
 
-        logger.info("f1db.sync.updated", version=wanted, previous=current)
-        return SyncOutcome(wanted, True, f"updated from {current or 'no dataset'} to {wanted}")
+def _keep(current: str, published: str | None) -> SyncOutcome:
+    """Nothing to download — but only a check that succeeded may call that current."""
+    if published is None:
+        logger.error("f1db.sync.check_failed", installed=current)
+        return SyncOutcome(current, False, f"release check failed, kept {current}")
+    logger.info("f1db.sync.current", version=current)
+    return SyncOutcome(current, False, "already on the newest release", latest=published)
+
+
+def _download(wanted: str, current: str | None, published: str | None) -> SyncOutcome:
+    """Fetch ``wanted``; on failure keep ``current``, or raise if there is none."""
+    try:
+        refresh_f1db(wanted)
+    except Exception as exc:
+        logger.error("f1db.sync.failed", target=wanted, installed=current, error=str(exc))
+        if current:
+            return SyncOutcome(
+                current, False, f"download failed, kept {current}: {exc}", latest=published
+            )
+        raise
+
+    logger.info("f1db.sync.updated", version=wanted, previous=current)
+    if published is None:
+        logger.error("f1db.sync.check_failed", installed=wanted)
+        return SyncOutcome(wanted, True, f"release check failed, installed fallback {wanted}")
+    return SyncOutcome(
+        wanted, True, f"updated from {current or 'no dataset'} to {wanted}", latest=published
+    )
 
 
 def ensure_db() -> Path:

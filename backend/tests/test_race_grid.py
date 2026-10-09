@@ -94,6 +94,18 @@ def test_qualifying_stands_in_before_the_grid_sheet_is_published(sources):
     assert payload["warnings"] == [PROVISIONAL_WARNING]
 
 
+def test_the_provisional_warning_does_not_claim_the_sheet_is_unpublished():
+    """Only that our dataset lacks it — the one thing the code actually knows.
+
+    A missing grid means f1db has not released the round *or* this server is
+    reading an old release. The warning used to assert the first, and production
+    showed it for five rounds whose sheets had long been published, while the
+    real cause — a dataset stuck on round 11 — went unnoticed.
+    """
+    assert "not been published" not in PROVISIONAL_WARNING
+    assert "dataset" in PROVISIONAL_WARNING
+
+
 def test_provisional_rows_claim_no_penalty_state(sources):
     sources["qualifying"] = [
         {"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "position": 1},

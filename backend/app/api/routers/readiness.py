@@ -29,7 +29,7 @@ import asyncio
 
 from fastapi import APIRouter, Response
 
-from app.data.f1db_source import installed_version
+from app.data.f1db_source import installed_version, last_sync_outcome
 from app.data.store import document_store
 from app.services.readiness import current_state
 
@@ -51,11 +51,18 @@ async def readiness_probe() -> dict:
     from the outside. The dataset version is here for the same reason: a server
     happily serving last month's standings looks identical to a healthy one
     unless it says out loud which snapshot it is reading.
+
+    The version alone was not enough: a server stranded on the hardcoded
+    fallback reports a perfectly plausible tag. ``f1db_sync`` carries the last
+    release check — what GitHub said is newest, and whether the disk matches.
+    ``up_to_date: false`` is the field to alert on.
     """
+    sync = last_sync_outcome()
     return {
         **current_state().as_dict(),
         "store": document_store.health().as_dict(),
         "f1db_version": installed_version(),
+        "f1db_sync": sync.as_dict() if sync else None,
     }
 
 

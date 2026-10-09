@@ -28,14 +28,14 @@ function Th({ children, align = "left" }: { children: React.ReactNode; align?: "
  *
  * "No penalties were applied" is a statement of fact about a published grid
  * sheet. Saying it for a round whose qualifying has not run — or whose sheet
- * has not been released — asserts something nobody has checked.
+ * is not in our dataset yet — asserts something nobody has checked.
  */
 function emptyStateMessage(data?: StartingGridResponse): string {
   if (!data?.available) {
     return "Penalties are not known for this round yet. They are published with the starting grid, once qualifying has run.";
   }
   if (data.provisional) {
-    return "Penalties cannot be listed yet — the official grid sheet for this round has not been published, so only the qualifying order is known.";
+    return "Penalties cannot be listed yet — the official grid sheet for this round is not in our dataset yet, so only the qualifying order is known.";
   }
   return "No grid penalties were applied for this round. Every driver starts from the slot they qualified in.";
 }

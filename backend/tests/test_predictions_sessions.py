@@ -121,15 +121,19 @@ def test_qualifying_is_returned_in_grid_order_regardless_of_row_order(fastf1_ses
 
 
 @pytest.mark.unit
-def test_qualifying_is_loaded_without_telemetry_laps_or_weather(fastf1_sessions):
+def test_qualifying_is_loaded_with_lap_timing_but_without_telemetry(fastf1_sessions):
     session = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
     fastf1_sessions["Q"] = session
 
     _load_qualifying(YEAR, ROUND)
 
     # Telemetry for a full field is orders of magnitude more data than a grid
-    # order needs, and would blow the prediction's time budget.
-    assert session.load_kwargs == {"telemetry": False, "laps": False, "weather": False}
+    # order needs, and would blow the prediction's time budget. Laps and race
+    # control messages are not optional: until the Ergast mirror publishes the
+    # session, FastF1 derives the classification from lap times (with deleted
+    # laps struck off via race control) — without them every position is NaN
+    # for hours after qualifying ends (Singapore 2026).
+    assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False, "messages": True}
 
 
 @pytest.mark.unit
@@ -168,6 +172,22 @@ def test_a_qualifying_session_with_no_classification_yields_no_data(fastf1_sessi
     # None, not [] — the caller distinguishes "no qualifying" (fall back to
     # practice) from "qualifying ran and nobody set a time".
     assert _load_qualifying(YEAR, ROUND) is None, case
+
+
+@pytest.mark.unit
+def test_an_unclassified_qualifying_session_is_retried_rather_than_cached(fastf1_sessions):
+    unclassified = [{**row, "Position": float("nan")} for row in QUALIFYING_ROWS]
+    fastf1_sessions["Q"] = _FakeSession(results=pd.DataFrame(unclassified))
+
+    # The driver list exists but no positions do yet: the session has not been
+    # classified. Caching that empty order would pin the race to the practice
+    # proxy for the life of the process.
+    assert _load_qualifying(YEAR, ROUND) is None
+
+    fastf1_sessions["Q"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    assert [row["driver_code"] for row in _load_qualifying(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
+    assert _requested(fastf1_sessions) == [(YEAR, ROUND, "Q"), (YEAR, ROUND, "Q")]
 
 
 @pytest.mark.unit

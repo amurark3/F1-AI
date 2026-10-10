@@ -38,6 +38,13 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
 
     Returns a list of dicts with keys: driver_code, driver_name, team,
     position.  Returns None if qualifying data is unavailable.
+
+    Laps and race control messages are loaded because the Ergast mirror
+    publishes a session's classification hours (sometimes days) after it ends.
+    Until then FastF1 has only the driver list, and derives positions from lap
+    times — striking off laps race control deleted — which it can only do with
+    both loaded. An order that is still unclassified is not cached, so the next
+    compute retries instead of pinning the race to the practice proxy.
     """
     cache_key = (year, round_num)
     if cache_key in _qualifying_cache:
@@ -46,7 +53,7 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
     try:
         with _fastf1_lock:
             session = fastf1.get_session(year, round_num, "Q")
-            session.load(telemetry=False, laps=False, weather=False)
+            session.load(telemetry=False, laps=True, weather=False, messages=True)
 
         results = session.results
         if results is None or results.empty:
@@ -65,6 +72,10 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
                     "position": int(pos),
                 }
             )
+
+        if not drivers:
+            logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
+            return None
 
         _qualifying_cache[cache_key] = drivers
         logger.info("predictions.qualifying_loaded", year=year, round=round_num, drivers=len(drivers))

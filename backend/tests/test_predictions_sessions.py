@@ -18,7 +18,8 @@ What the assertions guard:
   loads but has no usable laps must fall through rather than return an empty
   grid that outranks the next session's real data.
 * **A non-sprint weekend is not an error.** The absent sprint session must cache
-  an empty result, not retry per driver.
+  an empty result, not retry per driver — but a sprint that has not been
+  classified yet, or failed to load, must be retried rather than cached.
 """
 
 from __future__ import annotations
@@ -333,6 +334,48 @@ def test_a_missing_sprint_is_remembered_so_every_round_is_probed_once(fastf1_ses
     # Most rounds have no sprint, so this is the common path: probing FastF1 per
     # request for a session that will never exist is pure latency.
     assert _requested(fastf1_sessions) == [(YEAR, ROUND, "S")]
+
+
+@pytest.mark.unit
+def test_sprint_is_loaded_with_lap_timing_but_without_telemetry(fastf1_sessions):
+    session = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+    fastf1_sessions["S"] = session
+
+    _load_sprint_result(YEAR, ROUND)
+
+    # Same lag as qualifying: until the Ergast mirror publishes the sprint,
+    # FastF1 can only classify it from laps and race control messages. Without
+    # them every position is NaN for hours after the flag (Singapore 2026).
+    assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False, "messages": True}
+
+
+@pytest.mark.unit
+def test_an_unclassified_sprint_is_retried_rather_than_cached(fastf1_sessions):
+    unclassified = [{**row, "Position": float("nan")} for row in QUALIFYING_ROWS]
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(unclassified))
+
+    # A sprint weekend whose sprint has not run, or has not been classified
+    # yet. Caching that as "no sprint" would drop the signal for the life of
+    # the process, even after the result exists.
+    assert _load_sprint_result(YEAR, ROUND) == []
+
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    assert [row["driver_code"] for row in _load_sprint_result(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
+    assert _requested(fastf1_sessions) == [(YEAR, ROUND, "S"), (YEAR, ROUND, "S")]
+
+
+@pytest.mark.unit
+def test_a_fastf1_outage_costs_the_sprint_signal_only_until_it_recovers(fastf1_sessions):
+    fastf1_sessions["S"] = ConnectionError("ergast/fastf1 unreachable")
+
+    assert _load_sprint_result(YEAR, ROUND) == []
+
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    # Only FastF1's "no such session" answer is permanent; a network failure
+    # on a sprint weekend is retried on the next compute.
+    assert [row["driver_code"] for row in _load_sprint_result(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
 
 
 @pytest.mark.unit

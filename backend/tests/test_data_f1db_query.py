@@ -345,3 +345,20 @@ def test_a_half_points_race_does_not_distort_the_scale(fake_f1db):
 @pytest.mark.integration
 def test_points_scale_is_none_for_a_dataset_with_no_results(empty_f1db):
     assert f1db_query.points_scale() is None
+
+
+# ---------------------------------------------------------------------------
+# constructor_names
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_constructor_names_lists_every_team_in_the_dataset(fake_f1db):
+    """The claim checker recognises a team in prose by name — including a long-gone
+    one the model might reach for from memory, so it is every team, not this season's."""
+    assert f1db_query.constructor_names() == frozenset({"Red Bull", "Ferrari", "McLaren"})
+
+
+@pytest.mark.integration
+def test_constructor_names_is_empty_for_an_empty_dataset(empty_f1db):
+    assert f1db_query.constructor_names() == frozenset()

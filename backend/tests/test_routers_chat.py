@@ -157,8 +157,38 @@ def test_system_prompt_keeps_analysis_to_what_the_rows_support():
     tyre sprint and "3 sprint points". Angles without data are skipped instead."""
     prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
 
-    assert "Add the analysis the rows support" in prompt
-    assert "skip any angle that needs data you were not given" in prompt
+    assert "Skip any angle that needs data you were not given" in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_caps_observations_and_ties_each_to_a_row():
+    """Every answer carried 4-8 derived claims and most answers got one wrong.
+    Fewer claims, each traceable to a row or a computed tally, leave less to get wrong."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert "Lead with the direct answer" in prompt
+    assert "at most THREE observations" in prompt
+    assert "Do not count, sum or compare across rows yourself" in prompt
+    # An example label of "R12 Zandvoort" taught it to tag finishing positions
+    # "R1 Verstappen", "R2 Hamilton" — which read as round numbers.
+    assert "say which round or driver it is about" in prompt
+    assert "R12" not in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_forbids_unstated_absolutes():
+    """ "Leclerc is the only non-Mercedes race winner" was false three ways over."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert 'Never claim "only", "first", "never", "all" or "none"' in prompt
+    assert "No title-battle or standings talk unless standings were fetched" in prompt
+
+
+@pytest.mark.unit
+def test_the_persona_no_longer_demands_title_talk_on_every_points_mention():
+    from app.api.prompts import RACE_ENGINEER_PERSONA
+
+    assert "When discussing points, mention the title battle" not in RACE_ENGINEER_PERSONA
 
 
 @pytest.mark.unit
@@ -797,6 +827,70 @@ def test_the_response_is_streamed_as_plain_text(client, monkeypatch):
     response = client.post("/chat", json={"messages": [{"role": "user", "content": "hi"}]})
 
     assert response.headers["content-type"].startswith("text/plain")
+
+
+_RESULTS_TABLE = """| round | race_winner | race_team |
+| --- | --- | --- |
+| 4 | Kimi Antonelli | Mercedes |
+| 12 | Lando Norris | McLaren |"""
+
+
+def _answer_from_a_table(monkeypatch, *replies):
+    """A tool returns a driver/team table, then the model replies with ``replies``."""
+    from app.api import answer_repair
+
+    monkeypatch.setattr(answer_repair, "constructor_names", lambda: frozenset({"Mercedes", "McLaren"}))
+    monkeypatch.setitem(chat_router.TOOL_MAP, "query_f1_database", _FakeTool(_RESULTS_TABLE))
+    return _install_llm(
+        monkeypatch,
+        [AIMessage(content="", tool_calls=[_tool_call("query_f1_database", {"sql": "SELECT 1"})]), *replies],
+    )
+
+
+@pytest.mark.unit
+def test_a_final_answer_its_rows_contradict_is_repaired_before_it_streams(client, monkeypatch):
+    """The user — and their saved history — get the corrected answer, not the slip."""
+    saved: list[tuple] = []
+    monkeypatch.setattr(chat_router, "save_message", lambda *args: saved.append(args))
+    _answer_from_a_table(
+        monkeypatch,
+        AIMessage(content="Lando Norris (Mercedes) won at Zandvoort."),
+        AIMessage(content="Lando Norris (McLaren) won at Zandvoort."),
+    )
+
+    body = _post(client, user_id="u-7")
+
+    assert body.endswith("Lando Norris (McLaren) won at Zandvoort.")
+    assert "(Mercedes)" not in body
+    assert saved[-1][3] == "Lando Norris (McLaren) won at Zandvoort."
+
+
+@pytest.mark.unit
+def test_an_answer_its_rows_support_costs_no_extra_model_call(client, monkeypatch):
+    llm = _answer_from_a_table(monkeypatch, AIMessage(content="Lando Norris (McLaren) won at Zandvoort."))
+
+    body = _post(client)
+
+    assert body.endswith("Lando Norris (McLaren) won at Zandvoort.")
+    assert len(llm.seen) == 2, "the tool turn and the answer — no repair request"
+
+
+@pytest.mark.unit
+async def test_an_anonymous_question_runs_the_agent_and_returns_its_history(monkeypatch):
+    """The eval's entry point: the same agent and prompt, and nothing saved to anyone's memory."""
+    monkeypatch.setattr(chat_router, "save_message", lambda *_a: pytest.fail("an eval must not be saved"))
+    _install_llm(
+        monkeypatch,
+        [AIMessage(content="", tool_calls=[_tool_call("get_race_results")]), AIMessage(content="Verstappen won.")],
+    )
+    monkeypatch.setitem(chat_router.TOOL_MAP, "get_race_results", _FakeTool("VER P1"))
+
+    streamed, messages = await chat_router.ask_anonymously("Who won Monaco?")
+
+    assert streamed.endswith("Verstappen won.")
+    assert "[TOOL_START]Get Race Results[/TOOL_START]" in streamed
+    assert [m.content for m in messages if isinstance(m, ToolMessage)] == ["VER P1"]
+    assert "Race Engineer" in messages[0].content
 
 
 # ---------------------------------------------------------------------------

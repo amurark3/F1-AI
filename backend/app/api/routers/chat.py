@@ -14,6 +14,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.runnables import Runnable
 import structlog
 
+from app.api.answer_repair import checked_answer
 from app.api.errors import client_error_text
 from app.api.llm import build_chat_llm
 from app.api.prompts import RACE_ENGINEER_PERSONA
@@ -225,13 +226,16 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
       championship implications. It never adds facts the tools did not return.
 
     PRESENTING RESULTS:
-    - When a tool returns a Markdown results table, keep the table intact — but
-      do not stop there. Add the analysis the rows support: margins, patterns,
-      who gained or lost, what the points mean. You are an analyst, not a data
-      terminal — so skip any angle that needs data you were not given (tyres,
-      strategy, grids, standings) rather than guessing it.
-    - For 'query_f1_database' results especially, always explain the rows in
-      plain language and lead with the answer to the user's actual question.
+    - Lead with the direct answer to the user's question, then keep any results
+      table a tool returned intact.
+    - Then add at most THREE observations. Each must come straight from one row
+      — say which round or driver it is about — or quote a tally a tool computed.
+      Do not count, sum or compare across rows yourself — quote the tool's
+      tallies, or leave it out.
+    - Never claim "only", "first", "never", "all" or "none" unless a tool result
+      states it. No title-battle or standings talk unless standings were fetched.
+    - Skip any angle that needs data you were not given (tyres, strategy, grids)
+      rather than guessing it.
     """
 
 
@@ -315,6 +319,18 @@ async def _next_response(messages: list[BaseMessage], tool_names: frozenset[str]
     return await _ainvoke_with_recovery(messages, tool_names)
 
 
+async def _finalise(messages: list[BaseMessage], conversation: _Conversation, content: object) -> str:
+    """Check the answer against the rows it was built from, save it, and return it.
+
+    The check is free for a clean answer; one its rows contradict gets a single
+    repair request (app/api/answer_repair.py), so the user and their saved
+    history both get the corrected text.
+    """
+    checked = await checked_answer(messages, str(content), _answer_or_none)
+    await _save_reply(conversation, checked)
+    return checked
+
+
 async def _agent_stream(
     messages: list[BaseMessage],
     tool_names: frozenset[str],
@@ -326,8 +342,7 @@ async def _agent_stream(
     for turn in range(1, MAX_AGENT_TURNS + 1):
         if not response.tool_calls:
             logger.info("agent.generating_response")
-            await _save_reply(conversation, response.content)
-            yield response.content
+            yield await _finalise(messages, conversation, response.content)
             return
 
         logger.info("agent.turn", turn=turn, tool_count=len(response.tool_calls))
@@ -340,8 +355,7 @@ async def _agent_stream(
     # the notice remains only for a model that returns nothing.
     if response.content:
         logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
-        await _save_reply(conversation, response.content)
-        yield response.content
+        yield await _finalise(messages, conversation, response.content)
         return
 
     yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
@@ -368,11 +382,28 @@ async def _guarded_stream(
         yield _failure_text(exc)
 
 
+def _today() -> str:
+    return datetime.now(timezone.utc).strftime("%B %d, %Y")
+
+
+async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:
+    """One question through the agent outside HTTP, saving nothing — for the eval.
+
+    Returns the streamed text, tool markers included, and the whole message
+    history: its ToolMessages are the tables the answer was built from.
+    """
+    request = ChatRequest(messages=[{"role": "user", "content": question}])
+    messages = build_langchain_messages(request, _today())
+    conversation = _Conversation(user_id=None, thread_id="eval")
+    chunks = [chunk async for chunk in _guarded_stream(messages, select_tools(question), conversation)]
+    return "".join(chunks), messages
+
+
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
     """Streaming chat endpoint that drives the F1 tool-use loop."""
 
-    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
+    today = _today()
     user_id = request.user_id
     thread_id = request.thread_id or "default"
     latest_user_text = _latest_user_text(request)

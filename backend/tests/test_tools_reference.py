@@ -414,3 +414,53 @@ def test_a_failed_points_lookup_drops_the_note_not_the_answer(monkeypatch):
     answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
 
     assert answer.endswith("| Antonelli |")
+
+
+_SEASON_ROWS = {
+    "columns": ["round", "winner", "team"],
+    "rows": [
+        {"round": 2, "winner": "Kimi Antonelli", "team": "Mercedes"},
+        {"round": 4, "winner": "Kimi Antonelli", "team": "Mercedes"},
+        {"round": 12, "winner": "Lando Norris", "team": "McLaren"},
+    ],
+    "row_count": 3,
+    "sql": "SELECT round, winner, team FROM x",
+}
+
+
+@pytest.mark.unit
+def test_repeated_values_are_tallied_under_the_table(monkeypatch):
+    """The model miscounted and mis-paired rows it had read correctly; the tool counts."""
+    _install_query(monkeypatch, _SEASON_ROWS)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.endswith(
+        "| 12 | Lando Norris | McLaren |\n\n"
+        "Tallies, counted in code from the rows above (quote these; do not recount):\n"
+        "- winner: Kimi Antonelli (Mercedes) ×2; Lando Norris (McLaren) ×1\n"
+        "- team: Mercedes ×2; McLaren ×1"
+    )
+
+
+@pytest.mark.unit
+def test_the_tallies_come_before_the_dataset_notes(monkeypatch):
+    _install_query(monkeypatch, _SEASON_ROWS, latest=_THROUGH_AZERBAIJAN)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.index("Tallies, counted in code") < answer.index("f1db has results through")
+
+
+@pytest.mark.unit
+def test_a_tally_failure_drops_the_tallies_not_the_rows(monkeypatch):
+    _install_query(monkeypatch, _SEASON_ROWS)
+
+    def _broken(columns, rows):
+        raise TypeError("unhashable cell")
+
+    monkeypatch.setattr(reference_module, "tally_lines", _broken)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.endswith("| 12 | Lando Norris | McLaren |")

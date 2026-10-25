@@ -8,6 +8,7 @@ import os
 from langchain_core.tools import tool
 import structlog
 
+from app.api.tools.tallies import tally_lines
 from app.config import RULEBOOK_TOP_K
 from app.data.f1db_query import (
     F1DB_SCHEMA_DOC,
@@ -124,7 +125,24 @@ def query_f1_database(sql: str) -> str:
     lines.append("| " + " | ".join(columns) + " |")
     lines.append("| " + " | ".join("---" for _ in columns) + " |")
     lines.extend("| " + " | ".join(str(row.get(c, "")) for c in columns) + " |" for row in rows)
-    return "\n".join(lines) + _dataset_notes()
+    return "\n".join(lines) + _tallies_note(columns, rows) + _dataset_notes()
+
+
+def _tallies_note(columns: list[str], rows: list[dict]) -> str:
+    """Counts, pairings and sums over the rows, so the model quotes rather than counts.
+
+    Reading six correct rows, it still credited a McLaren win to Mercedes and
+    merged two weekends into a "double". A failure here drops the note only.
+    """
+    try:
+        lines = tally_lines(columns, rows)
+    except Exception as exc:
+        logger.warning("tool.query_f1_database.tallies_failed", error=str(exc))
+        return ""
+    if not lines:
+        return ""
+    bullets = "\n".join(f"- {line}" for line in lines)
+    return f"\n\nTallies, counted in code from the rows above (quote these; do not recount):\n{bullets}"
 
 
 def _dataset_notes() -> str:

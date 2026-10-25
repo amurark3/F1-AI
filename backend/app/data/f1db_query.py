@@ -146,6 +146,16 @@ def points_scale() -> dict | None:
     }
 
 
+def constructor_names() -> frozenset[str]:
+    """Every team name in f1db, past and present.
+
+    The claim checker uses it to recognise a team named in prose — including
+    one long gone that the model reached for from memory ("Alfa Romeo").
+    """
+    with connect() as conn:
+        return frozenset(row["name"] for row in conn.execute("SELECT name FROM constructor"))
+
+
 class QueryValidationError(ValueError):
     """Raised when a submitted query is not a permitted read-only statement."""
 

@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { Loader2, RefreshCw } from "lucide-react";
 
+import ChatMarkdown from "./ChatMarkdown";
+
 import type { Message } from "../hooks/useLocalChats";
 import type { RefObject } from "react";
 
@@ -58,7 +60,13 @@ function MessageBubble({ message }: { message: Message }) {
           isUser ? "bg-[#00FF78] text-black" : "border border-[#1E2633] bg-[#0D111B] text-neutral-200"
         }`}
       >
-        <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">{message.content}</div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">{message.content}</div>
+        ) : (
+          <div className="break-words font-mono text-sm leading-relaxed">
+            <ChatMarkdown content={message.content} />
+          </div>
+        )}
       </div>
     </motion.div>
   );

@@ -230,13 +230,66 @@ def test_a_rulebook_failure_is_reported_rather_than_raised(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _install_query(monkeypatch, result):
+def _install_query(monkeypatch, result, latest=None, scale=None):
+    """``latest`` is where f1db's results stop, ``scale`` the points it paid;
+    None (unknown) adds no note for either."""
+
     def _run(sql):
         if isinstance(result, Exception):
             raise result
         return result
 
+    def _latest():
+        if isinstance(latest, Exception):
+            raise latest
+        return latest
+
+    def _scale():
+        if isinstance(scale, Exception):
+            raise scale
+        return scale
+
     monkeypatch.setattr(reference_module, "run_readonly_query", _run)
+    monkeypatch.setattr(reference_module, "latest_results_round", _latest)
+    monkeypatch.setattr(reference_module, "points_scale", _scale)
+
+
+_ROWS = {"columns": ["winner"], "rows": [{"winner": "Antonelli"}], "row_count": 1, "sql": "SELECT winner FROM x"}
+_THROUGH_AZERBAIJAN = {"year": 2026, "round": 15, "grand_prix_id": "azerbaijan"}
+_COVERAGE_NOTE = (
+    "f1db has results through 2026 round 15 (azerbaijan). Anything raced since is not in the "
+    "database yet: fetch it with the per-race tools, or say the answer stops there."
+)
+
+
+@pytest.mark.unit
+def test_rows_say_how_far_the_dataset_runs(monkeypatch):
+    """f1db publishes days after each race, so a season answer can be a round short."""
+    _install_query(monkeypatch, _ROWS, latest=_THROUGH_AZERBAIJAN)
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith(f"| Antonelli |\n\n{_COVERAGE_NOTE}")
+
+
+@pytest.mark.unit
+def test_an_empty_result_also_says_how_far_the_dataset_runs(monkeypatch):
+    """No rows for the newest round is the misleading case: it is not raced, just not published."""
+    _install_query(
+        monkeypatch, {"columns": ["x"], "rows": [], "row_count": 0, "sql": "SELECT x"}, latest=_THROUGH_AZERBAIJAN
+    )
+
+    assert query_f1_database.invoke({"sql": "SELECT x"}).endswith(_COVERAGE_NOTE)
+
+
+@pytest.mark.unit
+def test_a_failed_coverage_lookup_drops_the_note_not_the_answer(monkeypatch):
+    _install_query(monkeypatch, _ROWS, latest=RuntimeError("f1db is locked"))
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith("| Antonelli |")
+    assert "f1db has results through" not in answer
 
 
 @pytest.mark.unit
@@ -317,3 +370,47 @@ def test_the_schema_is_appended_to_the_tool_description():
     assert "SCHEMA:" in query_f1_database.description
     assert "TABLES (key columns):" in query_f1_database.description
     assert "race(id, year, round" in query_f1_database.description
+
+
+_SCALE_2026 = {"year": 2026, "race": [25.0, 18.0, 15.0], "sprint": [8.0, 7.0]}
+_POINTS_NOTE = (
+    "Points paid in 2026 (read from f1db, by finishing position): race P1-P3 = 25, 18, 15; "
+    "sprint P1-P2 = 8, 7. Use these for any points you mention, not the scales you remember."
+)
+
+
+@pytest.mark.unit
+def test_rows_carry_the_points_scale_the_data_actually_used(monkeypatch):
+    """Without it, the model priced a race win at 12 and a sprint win at 3 —
+    its memory of the scales — even when it had not selected any points."""
+    _install_query(monkeypatch, _ROWS, scale=_SCALE_2026)
+
+    assert query_f1_database.invoke({"sql": "SELECT winner FROM x"}).endswith(f"| Antonelli |\n\n{_POINTS_NOTE}")
+
+
+@pytest.mark.unit
+def test_the_points_note_follows_the_coverage_note(monkeypatch):
+    _install_query(monkeypatch, _ROWS, latest=_THROUGH_AZERBAIJAN, scale=_SCALE_2026)
+
+    assert query_f1_database.invoke({"sql": "SELECT winner FROM x"}).endswith(f"{_COVERAGE_NOTE}\n\n{_POINTS_NOTE}")
+
+
+@pytest.mark.unit
+def test_a_season_without_sprints_names_only_the_race_scale(monkeypatch):
+    _install_query(monkeypatch, _ROWS, scale={"year": 2020, "race": [25.0, 18.0], "sprint": []})
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith(
+        "Points paid in 2020 (read from f1db, by finishing position): race P1-P2 = 25, 18. "
+        "Use these for any points you mention, not the scales you remember."
+    )
+
+
+@pytest.mark.unit
+def test_a_failed_points_lookup_drops_the_note_not_the_answer(monkeypatch):
+    _install_query(monkeypatch, _ROWS, scale=RuntimeError("f1db is locked"))
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith("| Antonelli |")

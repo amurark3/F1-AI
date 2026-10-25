@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
+from app.api.tools.formatting import _fmt_driver, _fmt_points
 from app.utils.lap_deltas import LAP_DELTA_COLUMNS, delta_indicator, format_delta, lap_deltas
 
 logger = structlog.get_logger()
@@ -115,11 +116,10 @@ def get_race_results(year: int, grand_prix: str) -> str:
 
         for _, row in results.iterrows():
             pos = str(int(row["Position"])) if pd.notna(row["Position"]) else "NC"
-            driver = row["Abbreviation"]
+            driver = _fmt_driver(row)
             # Truncate long team names to keep the table readable.
             team = row["TeamName"][:15]
-            points = str(row["Points"])
-            points = points.removesuffix(".0")  # "25.0" → "25"
+            points = _fmt_points(row["Points"])
 
             # Grid position: "PL" indicates a pit-lane start.
             grid = str(int(row["GridPosition"])) if pd.notna(row["GridPosition"]) and row["GridPosition"] > 0 else "PL"

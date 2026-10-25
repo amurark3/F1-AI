@@ -1,0 +1,153 @@
+2026 ITALIAN GRAND PRIX
+04 - 06 September 2026
+The FIA Formula 1 Technical Delegate
+From The FIA Formula 1 Technical Delegate
+To The Stewards
+Document 13
+Date 04 September 2026
+Time 12:32
+Title Technical Delegate's Report
+Description New PU Elements for this Competition
+Enclosed 13 ITA GP 26 TDR3.pdf
+Jo Bauer
+
+2026 ITALIAN GRAND PRIX 
+04 - 06 September 2026 
+  
+ 
+From :  The FIA Formula 1 Technical Delegate  
+To :  The Stewards Date :  04 September 2026 
+  
+ 
+Technical Delegate’s Report 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new internal combustion engine (ICE): 
+ 
+Number Car Driver Previously used ICE 
+    
+81 McLaren Mercedes Oscar Piastri 3 
+01 McLaren Mercedes Lando Norris 3 
+12 Mercedes Kimi Antonelli 4 
+16 Ferrari Charles Leclerc 3 
+44 Ferrari Lewis Hamilton 3 
+23 Atlassian Williams Mercedes Alexander Albon 4 
+55 Atlassian Williams Mercedes Carlos Sainz 3 
+87 Haas Ferrari Oliver Bearman 3 
+05 Audi Gabriel Bortoleto 2 
+10 Alpine Mercedes Pierre Gasl y 3 
+43 Alpine Mercedes Franco Colapinto 3 
+ 
+The internal combustion engine used by Kimi Antonelli and Alexander Albon is the fifth (5th) of 
+the four (4) new internal combustion engines allowed for the 2026 Championship season and 
+this is not in conformity with B8.2.2 a) of the 2026 Formula One Sporting Regulations. 
+ 
+The internal combustion engine used by the rest of the above listed drivers is one (1) of the four 
+(4) new internal combustion engines allowed for the 2026 Championship season and this is in 
+conformity with B8.2.2 a) of the 2026 Formula One Sporting Regulations. 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new turbocharger (TC): 
+ 
+Number Car Driver Previously used TC 
+    
+16 Ferrari Charles Leclerc 3 
+44 Ferrari Lewis Hamilton 3 
+55 Atlassian Williams Mercedes Carlos Sainz 3 
+87 Haas Ferrari  Oliver Bearman 3 
+05 Audi Gabriel Bortoleto 2 
+ 
+
+The turbocharger used by the above drivers is one (1) of the four (4) new turbochargers allowed 
+for the 2026 Championship season and this is in conformity with B8.2.2 b) of the 2026 Formula 
+One Sporting Regulations. 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new exhaust set (EXH): 
+ 
+Number Car Driver Previously used EXH 
+    
+81 McLaren Mercedes Oscar Piastri 2 
+16 Ferrari Charles Leclerc 3 
+44 Ferrari Lewis Hamilton 3 
+31 Haas Ferrari  Esteban Ocon 2 
+87 Haas Ferrari  Oliver Bearman 3 
+05 Audi Gabriel Bortoleto 2 
+ 
+The exhaust set used by the above drivers is one (1) of the four (4) new exhaust sets allowed 
+for the 2026 Championship season and this is in conformity with B8.2.2 c) of the 2026 Formula 
+One Sporting Regulations. 
+ 
+ 
+The following driver will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new motor generator unit-kinetic (MGU-K): 
+ 
+Number Car Driver Previously used MGU-K 
+    
+63 Mercedes Geor ge Russell 2 
+ 
+The motor generator unit-kinetic used by George Russell is one (1) of the three (3) new motor 
+generator units-kinetic allowed for the 2026 Championship season and this is in conformity with 
+B8.2.2 f) of the 2026 Formula One Sporting Regulations. 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new energy store unit (ES): 
+ 
+Number Car Driver Previously used ES 
+    
+12 Mercedes Kimi Antonelli 3 
+03 Red Bull Racin g RB Ford Max Verstappen 2 
+05 Audi Gabriel Bortoleto 2 
+ 
+The energy store unit used by Kimi Antonelli is the fourth (4th) of the three (3) new energy store 
+units allowed for the 2026 Championship season and this is not in conformity with B8.2.2 d) of 
+the 2026 Formula One Sporting Regulations. 
+ 
+The energy store unit used by the rest of the above listed drivers is one (1) of the three (3) new 
+energy store units allowed for the 2026 Championship season and this is in conformity with 
+B8.2.2 d) of the 2026 Formula One Sporting Regulations. 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new control electronics unit (PU-CE): 
+ 
+Number Car Driver Previously used PU-CE 
+    
+12 Mercedes Kimi Antonelli 3 
+03 Red Bull Racin g RB Ford Max Verstappen 2 
+23 Atlassian Williams Mercedes Alexander Albon 3 
+ 
+The control electronics unit used by Kimi Antonelli and Alexander Albon is the fourth (4th) of the 
+three (3) new control electronics units allowed for the 2026 Championship season and this is 
+not in conformity with B8.2.2 e) of the 2026 Formula One Sporting Regulations. 
+ 
+The control electronics unit used by Max Verstappen is one (1) of the three (3) new control 
+electronics units allowed for the 2026 Championship season and this is in conformity with 
+B8.2.2 e) of the 2026 Formula One Sporting Regulations. 
+ 
+ 
+The following drivers will start the thirteenth Competition of the 2026 Formula One World 
+Championship with a new power unit ancillary component (PU-ANC): 
+ 
+Number Car Driver Previously used PU-ANC 
+    
+81 McLaren Mercedes Oscar Piastri 3 
+03 Red Bull Racin g RB Ford Max Verstappen 3 
+16 Ferrari Charles Leclerc 4 
+44 Ferrari Lewis Hamilton 4 
+23 Atlassian Williams Mercedes Alexander Albon 4 
+22 Racing Bulls RB Ford Yuki Tsunoda 4 
+87 Haas Ferrari  Oliver Bearman 3 
+05 Audi Gabriel Bortoleto 4 
+10 Alpine Mercedes Pierre Gasl y 4 
+43 Alpine Mercedes Franco Colapinto 3 
+ 
+The power unit ancillary component used by the above drivers is one (1) of the six (6) new 
+power unit ancillary components allowed for the 2026 Championship season and this is in 
+conformity with B8.2.2 g) of the 2026 Formula One Sporting Regulations. 
+ 
+ 

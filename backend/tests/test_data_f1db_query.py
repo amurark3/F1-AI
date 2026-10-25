@@ -88,6 +88,26 @@ def test_validate_query_denylist_is_case_insensitive():
 
 
 # ---------------------------------------------------------------------------
+# latest_results_round
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_latest_results_round_is_the_newest_race_with_a_result(fake_f1db):
+    """2026 round 3 is on the calendar but unraced, so it must not count.
+
+    f1db publishes a few days after each weekend; this is how a query result
+    says where the data stops, so a season question can spot a missing round.
+    """
+    assert f1db_query.latest_results_round() == {"year": 2026, "round": 2, "grand_prix_id": "monaco"}
+
+
+@pytest.mark.integration
+def test_latest_results_round_is_none_for_a_dataset_with_no_results(empty_f1db):
+    assert f1db_query.latest_results_round() is None
+
+
+# ---------------------------------------------------------------------------
 # run_readonly_query — result shape
 # ---------------------------------------------------------------------------
 
@@ -230,3 +250,98 @@ def test_schema_doc_describes_the_tables_the_seeded_database_actually_has(table,
 
     assert table in names
     assert table in f1db_query.F1DB_SCHEMA_DOC
+
+
+# The join the schema doc tells the model to use, verbatim.
+_TEAM_JOIN = "JOIN constructor c ON c.id = d.constructor_id"
+
+
+@pytest.mark.integration
+def test_the_team_join_the_doc_recommends_returns_each_drivers_team_for_that_race(fake_f1db):
+    """The model's memory of the grid predates the season, so it invented teams
+    ("Kimi Antonelli (Alfa Romeo)") when its rows carried only driver names. It
+    is told to read the team from race_data instead; that join has to work."""
+    assert _TEAM_JOIN in f1db_query.F1DB_SCHEMA_DOC
+
+    result = run_readonly_query(
+        "SELECT dr.name AS driver, c.name AS team FROM race_data d "
+        "JOIN driver dr ON dr.id = d.driver_id "
+        "JOIN constructor c ON c.id = d.constructor_id "
+        "JOIN race r ON r.id = d.race_id "
+        "WHERE d.type = 'RACE_RESULT' AND d.position_number = 1 AND r.year = 2026 ORDER BY r.round"
+    )
+
+    assert result["rows"] == [{"driver": "Verstappen", "team": "Red Bull"}] * 2
+
+
+# The column the schema doc tells the model to read points from, verbatim.
+_POINTS_SELECT = "SELECT d.race_points"
+
+
+@pytest.mark.integration
+def test_the_points_column_the_doc_recommends_holds_sprint_and_race_points(fake_f1db):
+    """Its memory of the sprint scale is from 2021, when a win paid 3, so it told a
+    user Russell's three sprint wins were worth 9 points. Points come from rows."""
+    assert _POINTS_SELECT in f1db_query.F1DB_SCHEMA_DOC
+
+    result = run_readonly_query(
+        "SELECT d.type, dr.name AS driver, d.race_points AS points FROM race_data d "
+        "JOIN driver dr ON dr.id = d.driver_id JOIN race r ON r.id = d.race_id "
+        "WHERE r.year = 2026 AND r.round = 1 AND d.position_number = 1 "
+        "AND d.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT') ORDER BY d.type"
+    )
+
+    assert result["rows"] == [
+        {"type": "RACE_RESULT", "driver": "Verstappen", "points": 25.0},
+        {"type": "SPRINT_RACE_RESULT", "driver": "Leclerc", "points": 8.0},
+    ]
+
+
+def _doc_example(title: str) -> str:
+    """The SQL of one EXAMPLE block in the schema doc, exactly as the model reads it."""
+    doc = f1db_query.F1DB_SCHEMA_DOC
+    body = doc[doc.index(f"EXAMPLE — {title}") :].split("\n", 1)[1]
+    return body[: body.index(";")].strip()
+
+
+@pytest.mark.integration
+def test_the_doc_example_for_results_selects_team_and_points_and_runs(fake_f1db):
+    """Rules alone did not move the model — told to select race_points, "always"
+    included, it still did not. Given a worked example that does, it copied it.
+    The example is executed verbatim, so it cannot drift from the schema."""
+    result = run_readonly_query(_doc_example("each 2025 race winner"))
+
+    assert result["rows"] == [
+        {"round": 1, "driver": "Verstappen", "team": "Red Bull", "race_points": 25.0},
+        {"round": 2, "driver": "Verstappen", "team": "Red Bull", "race_points": 25.0},
+    ]
+
+
+# ---------------------------------------------------------------------------
+# points_scale
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_points_scale_reads_what_each_position_paid_in_the_latest_season(fake_f1db):
+    """Its memory of the scales is stale — a sprint win paid 3 in 2021 — so it
+    priced a race win at 12 and a sprint win at 3. The scale comes from the data."""
+    assert f1db_query.points_scale() == {"year": 2026, "race": [25.0, 18.0], "sprint": [8.0, 7.0]}
+
+
+@pytest.mark.integration
+def test_a_half_points_race_does_not_distort_the_scale(fake_f1db):
+    """A shortened race pays half; the most common value per position wins out."""
+    with sqlite3.connect(fake_f1db) as conn:
+        conn.execute(
+            "INSERT INTO race_data (race_id, type, position_display_order, position_number, position_text, "
+            "driver_id, constructor_id, race_points) VALUES (5, 'RACE_RESULT', 1, 1, '1', 'max-verstappen', "
+            "'red-bull', 12.5)"
+        )
+
+    assert f1db_query.points_scale()["race"][0] == 25.0
+
+
+@pytest.mark.integration
+def test_points_scale_is_none_for_a_dataset_with_no_results(empty_f1db):
+    assert f1db_query.points_scale() is None

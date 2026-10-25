@@ -35,4 +35,10 @@ export const REVALIDATE = {
    * is complete, and absent until then.
    */
   SESSION_RESULTS: 300,
+  /**
+   * Power-unit usage. The FIA publishes reports and decisions throughout a
+   * race weekend, and the collection job picks them up hourly — a short window
+   * keeps a new penalty from waiting on a stale render.
+   */
+  POWER_UNITS: 300,
 } as const;

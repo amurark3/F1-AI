@@ -47,6 +47,12 @@ DOCUMENT_PREDICTION_HISTORY = "prediction_history"
 DOCUMENT_PREDICTION_POSTMORTEMS = "prediction_postmortems"
 DOCUMENT_DRIVER_AVAILABILITY = "driver_availability"
 DOCUMENT_CIRCUIT_REFERENCE = "circuit_reference"
+# Extracted text of the FIA power-unit documents, written only by the ingest job.
+DOCUMENT_POWER_UNIT_SOURCES = "power_unit_sources"
+# Each element's season allowance, as the FIA states it (or as pinned by hand).
+DOCUMENT_POWER_UNIT_ALLOWANCES = "power_unit_allowances"
+# When the ingest job last ran and what it found — the screen's "last updated".
+DOCUMENT_POWER_UNIT_STATUS = "power_unit_ingest_status"
 
 _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_PREDICTION_CACHE: PREDICTION_CACHE_PATH,
@@ -54,6 +60,9 @@ _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_PREDICTION_POSTMORTEMS: "data/prediction_postmortems.json",
     DOCUMENT_DRIVER_AVAILABILITY: "data/driver_availability.json",
     DOCUMENT_CIRCUIT_REFERENCE: "data/circuit_reference.json",
+    DOCUMENT_POWER_UNIT_SOURCES: "data/power_unit_sources.json",
+    DOCUMENT_POWER_UNIT_ALLOWANCES: "data/power_unit_allowances.json",
+    DOCUMENT_POWER_UNIT_STATUS: "data/power_unit_ingest_status.json",
 }
 
 BACKEND_POSTGRES = "postgres"

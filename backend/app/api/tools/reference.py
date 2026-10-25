@@ -9,7 +9,13 @@ from langchain_core.tools import tool
 import structlog
 
 from app.config import RULEBOOK_TOP_K
-from app.data.f1db_query import F1DB_SCHEMA_DOC, QueryValidationError, run_readonly_query
+from app.data.f1db_query import (
+    F1DB_SCHEMA_DOC,
+    QueryValidationError,
+    latest_results_round,
+    points_scale,
+    run_readonly_query,
+)
 from app.rag.rerank import rerank
 
 logger = structlog.get_logger()
@@ -90,7 +96,9 @@ def query_f1_database(sql: str) -> str:
     specific tools do not directly answer — historical records, head-to-head
     career comparisons, "most/fewest/best/worst" superlatives, results at a
     given circuit across many seasons, wet-weather records, nationality
-    breakdowns, streaks, and so on.
+    breakdowns, streaks, and so on. Also for any question spanning several
+    races of one season (e.g. every sprint weekend so far): one query here
+    replaces a per-race tool call for each Grand Prix.
 
     Write a single SQLite SELECT (or WITH ... SELECT) statement. Only read
     queries are permitted. Results are capped; add ORDER BY and your own LIMIT
@@ -110,15 +118,67 @@ def query_f1_database(sql: str) -> str:
     rows = result["rows"]
     columns = result["columns"]
     if not rows:
-        return f"Query ran successfully but returned no rows.\n\nSQL:\n{result['sql']}"
+        return f"Query ran successfully but returned no rows.\n\nSQL:\n{result['sql']}{_dataset_notes()}"
 
     lines = [f"Returned {result['row_count']} row(s).", ""]
     lines.append("| " + " | ".join(columns) + " |")
     lines.append("| " + " | ".join("---" for _ in columns) + " |")
     lines.extend("| " + " | ".join(str(row.get(c, "")) for c in columns) + " |" for row in rows)
-    return "\n".join(lines)
+    return "\n".join(lines) + _dataset_notes()
+
+
+def _dataset_notes() -> str:
+    """What every answer needs alongside its rows: where the data stops, and the
+    points scale it used. Each is a courtesy that drops out if its lookup fails."""
+    return _coverage_note() + _points_note()
+
+
+def _coverage_note() -> str:
+    """Where f1db's results stop, so a season answer can spot a missing round.
+
+    f1db publishes a few days after each race weekend. Without this, "who won
+    every race this season" comes back a round short and reads as complete.
+    The note is a courtesy: if the lookup fails, the answer goes out without it.
+    """
+    try:
+        latest = latest_results_round()
+    except Exception as exc:
+        logger.warning("tool.query_f1_database.coverage_unknown", error=str(exc))
+        return ""
+    if latest is None:
+        return ""
+    return (
+        f"\n\nf1db has results through {latest['year']} round {latest['round']} ({latest['grand_prix_id']}). "
+        "Anything raced since is not in the database yet: fetch it with the per-race tools, "
+        "or say the answer stops there."
+    )
 
 
 # The f1db schema is appended to the tool description (not the docstring) so the
 # model sees the full table/column reference when deciding how to write SQL.
 query_f1_database.description = query_f1_database.description.rstrip() + "\n\nSCHEMA:\n" + F1DB_SCHEMA_DOC
+
+
+def _points_note() -> str:
+    """The points each position paid this season, so quoted points are not stale.
+
+    Asked who won, the model rarely selects ``race_points`` — then prices the
+    wins from memory, where a race win paid 12 and a sprint win 3. Read from
+    f1db, so a change to the scales needs no code change here.
+    """
+    try:
+        scale = points_scale()
+    except Exception as exc:
+        logger.warning("tool.query_f1_database.points_scale_unknown", error=str(exc))
+        return ""
+    if scale is None:
+        return ""
+    parts = [
+        f"{label} P1-P{len(points)} = {', '.join(f'{p:g}' for p in points)}"
+        for label, points in (("race", scale["race"]), ("sprint", scale["sprint"]))
+        if points
+    ]
+    return (
+        f"\n\nPoints paid in {scale['year']} (read from f1db, by finishing position): {'; '.join(parts)}. "
+        "Use these for any points you mention, not the scales you remember."
+    )

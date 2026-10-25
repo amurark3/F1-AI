@@ -62,6 +62,21 @@ def test_question_routes_to_its_tool(question, expected):
     assert expected in select_tools(question)
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        # Verbatim from production: it bound only the per-race tools.
+        "In this season,  who has won the sprint race and the main race. Only care about sprint weekends",
+        "Who won each race so far?",
+        "List the winners of every race this year",
+    ],
+)
+def test_a_question_spanning_many_races_binds_the_sql_tool(question):
+    """One race at a time it needs a call per Grand Prix, and gpt-oss makes one
+    call per turn — the loop runs out of turns long before the season does."""
+    assert "query_f1_database" in select_tools(question)
+
+
 def test_core_tools_always_bound():
     """The system prompt mandates resolving the schedule before results tools,
     so the loop cannot chain if the schedule tool is ever dropped."""
@@ -101,3 +116,18 @@ def test_selection_is_immutable_and_deterministic():
     second = select_tools("Who won Monaco 2023?")
     assert first == second
     assert isinstance(first, frozenset)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How many engines has Hadjar used this season?",
+        "Which drivers have taken power unit penalties?",
+        "How many MGU-K units has Russell used?",
+        "Is Lindblad over his ICE allowance?",
+    ],
+)
+def test_power_unit_questions_bind_the_usage_tool(question):
+    """Usage lives only in the FIA documents this tool reads; f1db and the
+    rulebook can say what a penalty is, not who has taken one."""
+    assert "get_power_unit_usage" in select_tools(question)

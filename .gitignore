@@ -53,6 +53,11 @@ backend/data/backups/
 # Local fallback for the durable circuit strategy reference cache (Supabase in
 # production) — machine-local telemetry summaries, recreated on demand.
 backend/data/circuit_reference.json
+# Local fallback for the FIA power-unit document corpus (Supabase in production),
+# rebuilt by scripts/ingest_power_units.py.
+backend/data/power_unit_sources.json
+backend/data/power_unit_allowances.json
+backend/data/power_unit_ingest_status.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db

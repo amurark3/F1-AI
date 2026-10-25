@@ -21,6 +21,7 @@ Available tools
   get_driver_standings        — World Drivers' Championship table (via f1db).
   get_constructor_standings   — World Constructors' Championship table (via f1db).
   get_season_schedule         — Full season calendar with completed/upcoming status.
+  get_power_unit_usage        — PU element usage vs allowance per car, and the penalties (FIA documents).
 
 Tools are grouped by the data they reach for — ``sessions`` and ``race`` read
 FastF1, ``standings`` reads f1db, ``external`` leaves the building — so a change
@@ -36,6 +37,7 @@ docstrings here are re-sent to the model on every turn.
 """
 
 from app.api.tools.external import get_weather_conditions, perform_web_search
+from app.api.tools.power_units import get_power_unit_usage
 from app.api.tools.predictions import get_pit_strategy, get_race_predictions
 from app.api.tools.race import compare_drivers, get_race_anomalies, get_race_results
 from app.api.tools.reference import consult_rulebook, query_f1_database
@@ -74,6 +76,7 @@ TOOL_LIST = [
     get_driver_standings,
     get_constructor_standings,
     get_season_schedule,
+    get_power_unit_usage,
 ]
 
 # Map tool name → tool object for O(1) dispatch in the agentic loop.

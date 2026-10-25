@@ -221,10 +221,19 @@ def test_a_constructor_standings_failure_is_reported_rather_than_raised(monkeypa
 # ---------------------------------------------------------------------------
 
 
-def _schedule(dates: list[pd.Timestamp]) -> pd.DataFrame:
+def _schedule(dates: list[pd.Timestamp], formats: list[str] | None = None) -> pd.DataFrame:
     names = ["Bahrain Grand Prix", "Saudi Arabian Grand Prix", "Australian Grand Prix"]
+    event_formats = formats or ["conventional"] * len(dates)
     return pd.DataFrame(
-        [{"RoundNumber": index + 1, "EventName": names[index], "EventDate": date} for index, date in enumerate(dates)]
+        [
+            {
+                "RoundNumber": index + 1,
+                "EventName": names[index],
+                "EventDate": date,
+                "EventFormat": event_formats[index],
+            }
+            for index, date in enumerate(dates)
+        ]
     )
 
 
@@ -319,6 +328,38 @@ def test_a_season_that_has_not_started_reports_no_last_race(monkeypatch):
     table = get_season_schedule.invoke({"year": 2027})
 
     assert table.endswith("**Context:** The last completed race was the **None**.")
+
+
+@pytest.mark.unit
+def test_sprint_weekends_are_flagged_for_the_model(monkeypatch):
+    """Without the flag the model cannot tell which rounds had a sprint.
+
+    Asked "who won the sprint and the race on sprint weekends", it reached for a
+    web search the request had not offered, and Groq refused the whole turn.
+    FastF1 has spelled the sprint format three ways since 2021; all of them count.
+    """
+    now = _now()
+    _install_schedule(
+        monkeypatch,
+        _schedule(
+            [pd.Timestamp(now - timedelta(days=d)) for d in (30, 20, 10)],
+            formats=["sprint_qualifying", "conventional", "sprint_shootout"],
+        ),
+    )
+
+    lines = get_season_schedule.invoke({"year": 2026}).splitlines()
+    rows = [line for line in lines if line.startswith(("| 1 |", "| 2 |", "| 3 |"))]
+
+    assert "| Round | Grand Prix | Date | Format | Status |" in lines
+    assert ["| Sprint |" in row for row in rows] == [True, False, True]
+    assert "| Standard |" in rows[1]
+
+
+@pytest.mark.unit
+def test_the_2021_sprint_format_name_is_also_flagged(monkeypatch):
+    _install_schedule(monkeypatch, _schedule([pd.Timestamp(_now() - timedelta(days=5))], formats=["sprint"]))
+
+    assert "| Sprint |" in get_season_schedule.invoke({"year": 2021})
 
 
 @pytest.mark.unit

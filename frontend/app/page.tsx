@@ -4,6 +4,7 @@ import {
   Bot,
   BookOpenCheck,
   ClipboardList,
+  Cpu,
   Gauge,
   LayoutDashboard,
   Trophy,
@@ -75,6 +76,13 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
         label: "Standings",
         description: "Drivers' and constructors' championship tables for the current season.",
         icon: Users,
+      },
+      {
+        href: "/race-control/power-units",
+        label: "Power Units",
+        description:
+          "Every car's engine allocation, the Grand Prix each new unit arrived at, and the grid penalties it cost — from the FIA's documents.",
+        icon: Cpu,
       },
     ],
   },

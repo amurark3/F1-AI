@@ -1,20 +1,28 @@
 """Recover malformed tool calls from Groq.
 
-Models on Groq occasionally emit a tool call as inline text like
-``<function=NAME{...json...}>`` instead of a structured tool call — most often
-when an argument is a long string containing quotes (e.g. a SQL query).  Groq
-rejects these with a ``tool_use_failed`` (HTTP 400) error whose body carries the
-raw ``failed_generation``.
+Groq rejects a tool call it cannot validate with a ``tool_use_failed`` (HTTP
+400) error whose body carries the raw ``failed_generation``. Two causes matter:
 
-This module parses that raw text back into ``{name, args, id}`` tool-call dicts
-so the agent loop can execute the model's intended calls instead of failing.
+* The model emitted the call as text instead of a structured call. Llama writes
+  ``<function=NAME{...json...}>``, most often when an argument is a long string
+  containing quotes (e.g. a SQL query); gpt-oss writes bare JSON,
+  ``{"name": NAME, "arguments": {...}}``.
+* The model called a tool the request did not offer. Only the tools the
+  question's keywords suggest are bound (see tool_router.py), so a model that
+  decides it needs another one is refused outright.
+
+This module parses the raw text back into ``{name, args, id}`` tool-call dicts,
+and names the refused tool, so the agent loop can carry on instead of failing.
 """
 
 from __future__ import annotations
 
 import json
+import re
 
 _MARKER = "<function="
+
+_UNBOUND_TOOL = re.compile(r"attempted to call tool '([^']+)' which was not in request\.tools")
 
 
 def is_tool_use_failed(exc: Exception) -> bool:
@@ -25,13 +33,24 @@ def is_tool_use_failed(exc: Exception) -> bool:
     return "tool_use_failed" in str(exc)
 
 
-def _failed_generation(exc: Exception) -> str:
+def unbound_tool_name(exc: Exception) -> str | None:
+    """Name of the tool Groq refused because the request did not offer it."""
+    match = _UNBOUND_TOOL.search(_error_field(exc, "message"))
+    return match.group(1) if match else None
+
+
+def _error_field(exc: Exception, field: str) -> str:
+    """One field of Groq's error body, or the exception text when it is absent."""
     body = getattr(exc, "body", None)
     if isinstance(body, dict):
-        gen = (body.get("error") or {}).get("failed_generation")
-        if gen:
-            return str(gen)
+        value = (body.get("error") or {}).get(field)
+        if value:
+            return str(value)
     return str(exc)
+
+
+def _failed_generation(exc: Exception) -> str:
+    return _error_field(exc, "failed_generation")
 
 
 def _match_json_object(text: str, open_brace: int) -> int | None:
@@ -70,6 +89,13 @@ def recover_tool_calls(exc: Exception) -> list[dict]:
     be recovered).
     """
     generation = _failed_generation(exc)
+    if _MARKER in generation:
+        return _inline_calls(generation)
+    return _json_call(generation)
+
+
+def _inline_calls(generation: str) -> list[dict]:
+    """Every ``<function=NAME{...}>`` call in a Llama-style generation."""
     calls: list[dict] = []
     cursor = 0
     while True:
@@ -92,3 +118,18 @@ def recover_tool_calls(exc: Exception) -> list[dict]:
             calls.append({"name": name, "args": args, "id": f"recovered_{len(calls)}"})
         cursor = end
     return calls
+
+
+def _json_call(generation: str) -> list[dict]:
+    """The single ``{"name": ..., "arguments": {...}}`` call gpt-oss reports."""
+    try:
+        call = json.loads(generation)
+    except (json.JSONDecodeError, ValueError):
+        return []
+    if not isinstance(call, dict):
+        return []
+    name = call.get("name")
+    args = call.get("arguments")
+    if not isinstance(name, str) or not name.strip() or not isinstance(args, dict):
+        return []
+    return [{"name": name.strip(), "args": args, "id": "recovered_0"}]

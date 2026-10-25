@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.api.tools.formatting import _fmt_timedelta
+from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_timedelta
 
 
 @pytest.mark.unit
@@ -45,3 +45,24 @@ def test_a_missing_time_renders_as_a_dash_not_a_zero():
 def test_a_race_length_duration_is_truncated_to_nine_characters():
     """Pins current behaviour: the hour field survives but the trim cuts mid-number."""
     assert _fmt_timedelta(pd.Timedelta("0 days 01:02:03.456789")) == "01:02:03."
+
+
+@pytest.mark.unit
+def test_a_driver_is_labelled_with_full_name_and_code():
+    """A bare code invites a guess: given only ANT, the model wrote "Fernando Alonso (ANT)"."""
+    assert _fmt_driver(pd.Series({"FullName": "Andrea Kimi Antonelli", "Abbreviation": "ANT"})) == (
+        "Andrea Kimi Antonelli (ANT)"
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("missing", ["", "  ", float("nan"), None])
+def test_a_driver_with_no_full_name_falls_back_to_the_code(missing):
+    """FastF1 leaves FullName blank when its driver-info fetch fails; "nan (ANT)" would read as a name."""
+    assert _fmt_driver(pd.Series({"FullName": missing, "Abbreviation": "ANT"})) == "ANT"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("raw", "expected"), [(25.0, "25"), (8.0, "8"), (0.0, "0"), (0.5, "0.5")])
+def test_whole_points_lose_their_trailing_decimal(raw, expected):
+    assert _fmt_points(raw) == expected

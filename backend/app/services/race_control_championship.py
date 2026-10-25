@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -103,7 +103,7 @@ def build_championship_forecast(year: int) -> dict:
 
     return {
         "year": year,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source": "jolpica-ergast-standings + FastF1 recent race classifications",
         "completed_events": completed_events,
         "remaining_events": remaining_events,

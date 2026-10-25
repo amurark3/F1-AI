@@ -19,7 +19,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
                              • FIA rulebook vectors
 ```
 
-- **Backend:** Python 3.10 / FastAPI, deployed on **Render** (`backend/` root).
+- **Backend:** Python 3.13 / FastAPI, deployed on **Render** (`backend/` root).
 - **LLM:** **Groq** (GPT-OSS 120B). Built lazily on first chat request.
 - **Data store:** **Supabase Postgres** (with the `vector`/pgvector extension) holds
   the durable prediction cache + accuracy history, conversation memory, and the
@@ -44,7 +44,7 @@ variable there does nothing on its own.
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
 | `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
 | `ENABLE_LOCAL_MODELS` | **Yes** | Must be `false` on the free tier — see below |
-| `PYTHON_VERSION` | **Yes** | Pinned to `3.10.12` |
+| `PYTHON_VERSION` | **Yes** | Pinned to `3.13.17` (must match `backend/.python-version`) |
 
 ### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
 

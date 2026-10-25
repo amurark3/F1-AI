@@ -30,3 +30,8 @@ pypdf==6.21.2
 # Transitive pin: langchain -> langgraph -> langgraph-checkpoint pulls msgpack.
 # <=1.2.0 is affected by GHSA-6v7p-g79w-8964 (heap overflow); 1.2.1 is the fix.
 msgpack==1.2.1
+
+# Transitive pin: torch and huggingface-hub pull filelock. <=4.1.0 is affected
+# by CVE-2026-112906 and five related lock-file races; 4.2.1 is the fix and
+# needs Python >=3.11.
+filelock==4.2.1

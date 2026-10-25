@@ -6,7 +6,7 @@ interchangeably for "no value". Every branch below is one of those shapes.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -113,7 +113,7 @@ def test_utc_isoformat_converts_aware_datetimes_to_utc():
 
 @pytest.mark.unit
 def test_utc_isoformat_unwraps_pandas_timestamps():
-    stamp = _FakeTimestamp(datetime(2026, 7, 1, 9, 0, 0, tzinfo=timezone.utc))
+    stamp = _FakeTimestamp(datetime(2026, 7, 1, 9, 0, 0, tzinfo=UTC))
 
     assert utc_isoformat(stamp) == "2026-07-01T09:00:00Z"
 
@@ -122,4 +122,4 @@ def test_utc_isoformat_unwraps_pandas_timestamps():
 def test_utc_isoformat_always_ends_in_z_never_offset():
     # The frontend parses these with `new Date(...)`; a bare "+00:00" is legal
     # ISO but the Z form is what the clients are written against.
-    assert not utc_isoformat(datetime(2026, 1, 1, tzinfo=timezone.utc)).endswith("+00:00")
+    assert not utc_isoformat(datetime(2026, 1, 1, tzinfo=UTC)).endswith("+00:00")

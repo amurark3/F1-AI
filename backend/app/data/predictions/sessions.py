@@ -8,7 +8,7 @@ qualifying-based and practice-based scoring paths.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import fastf1
@@ -33,6 +33,32 @@ _practice_cache: dict[tuple[int, int], Any] = {}
 _sprint_cache: dict[tuple[int, int], list[dict]] = {}
 
 
+def _classified_order(results: pd.DataFrame | None) -> list[dict]:
+    """A session's classification as driver dicts, in finishing order.
+
+    A driver without a position (no time set, retired, or a session FastF1 has
+    not classified yet) is left out rather than coerced to P0, which would put
+    them first.
+    """
+    if results is None or results.empty:
+        return []
+
+    drivers = []
+    for _, row in results.sort_values("Position").iterrows():
+        pos = row.get("Position")
+        if pd.isna(pos):  # covers None and the NaN pandas uses for a missing position
+            continue
+        drivers.append(
+            {
+                "driver_code": str(row.get("Abbreviation", "")),
+                "driver_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
+                "team": str(row.get("TeamName", "")),
+                "position": int(pos),
+            }
+        )
+    return drivers
+
+
 def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
     """Load qualifying results for a specific round.
 
@@ -55,24 +81,7 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
             session = fastf1.get_session(year, round_num, "Q")
             session.load(telemetry=False, laps=True, weather=False, messages=True)
 
-        results = session.results
-        if results is None or results.empty:
-            return None
-
-        drivers = []
-        for _, row in results.sort_values("Position").iterrows():
-            pos = row.get("Position")
-            if pd.isna(pos):  # covers None and the NaN pandas uses for a missing position
-                continue
-            drivers.append(
-                {
-                    "driver_code": str(row.get("Abbreviation", "")),
-                    "driver_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
-                    "team": str(row.get("TeamName", "")),
-                    "position": int(pos),
-                }
-            )
-
+        drivers = _classified_order(session.results)
         if not drivers:
             logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
             return None
@@ -168,12 +177,31 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
     return None
 
 
+def _sprint_session(year: int, round_num: int) -> Any | None:
+    """The weekend's sprint session, or None when the weekend has no sprint.
+
+    FastF1 answers a session identifier the event does not have with
+    ValueError. Anything else (the schedule fetch failing, say) propagates, so
+    an outage is not mistaken for a conventional weekend.
+    """
+    try:
+        return fastf1.get_session(year, round_num, "S")
+    except ValueError:
+        return None
+
+
 def _load_sprint_result(year: int, round_num: int) -> list[dict]:
     """Load sprint race results for the current weekend, if one was held.
 
     Returns a list of dicts with keys: driver_code, driver_name, team, position.
-    Returns an empty list when no sprint was held that weekend.
-    Sprint races exist at selected rounds from 2021 onward.
+    Returns an empty list when the weekend has no sprint, or its sprint has no
+    classification yet. Sprint races exist at selected rounds from 2021 onward.
+
+    Laps and race control messages are loaded for the same reason as
+    qualifying: the Ergast mirror publishes the sprint classification hours
+    after it ends, and until then FastF1 derives it from lap timing. Only the
+    absence of a sprint is cached as empty — a sprint that has not run, has not
+    been classified, or failed to load is retried by the next compute.
     """
     cache_key = (year, round_num)
     if cache_key in _sprint_cache:
@@ -181,36 +209,23 @@ def _load_sprint_result(year: int, round_num: int) -> list[dict]:
 
     try:
         with _fastf1_lock:
-            session = fastf1.get_session(year, round_num, "S")
-            session.load(telemetry=False, laps=False, weather=False)
-
-        results = session.results
-        if results is None or results.empty:
-            _sprint_cache[cache_key] = []
-            return []
-
-        drivers = []
-        for _, row in results.sort_values("Position").iterrows():
-            pos = row.get("Position")
-            if pd.isna(pos):  # covers None and the NaN pandas uses for a missing position
-                continue
-            drivers.append(
-                {
-                    "driver_code": str(row.get("Abbreviation", "")),
-                    "driver_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
-                    "team": str(row.get("TeamName", "")),
-                    "position": int(pos),
-                }
-            )
-
-        _sprint_cache[cache_key] = drivers
-        logger.info("predictions.sprint_loaded", year=year, round=round_num, drivers=len(drivers))
-        return drivers
-
-    except Exception:
-        # No sprint session this weekend — not an error
-        _sprint_cache[cache_key] = []
+            session = _sprint_session(year, round_num)
+            if session is None:
+                _sprint_cache[cache_key] = []  # a conventional weekend stays one
+                return []
+            session.load(telemetry=False, laps=True, weather=False, messages=True)
+        drivers = _classified_order(session.results)
+    except Exception as exc:
+        logger.warning("predictions.sprint_unavailable", year=year, round=round_num, error=str(exc))
         return []
+
+    if not drivers:
+        logger.info("predictions.sprint_unclassified", year=year, round=round_num)
+        return []
+
+    _sprint_cache[cache_key] = drivers
+    logger.info("predictions.sprint_loaded", year=year, round=round_num, drivers=len(drivers))
+    return drivers
 
 
 def _to_utc(value: object) -> datetime | None:
@@ -218,7 +233,7 @@ def _to_utc(value: object) -> datetime | None:
     if value is None or pd.isna(value):
         return None
     dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 def _session_datetimes(event_row: pd.Series) -> list[datetime]:
@@ -239,12 +254,12 @@ def _weekend_has_started(event_row: pd.Series) -> bool:
     """
     stamps = _session_datetimes(event_row)
     if stamps:
-        return min(stamps) <= datetime.now(timezone.utc)
+        return min(stamps) <= datetime.now(UTC)
 
     race_dt = _to_utc(event_row.get("EventDate"))
     if race_dt is not None:
         # FP1 is ~2 days before the race on a conventional weekend.
-        return (race_dt - timedelta(days=2)) <= datetime.now(timezone.utc)
+        return (race_dt - timedelta(days=2)) <= datetime.now(UTC)
 
     return True
 
@@ -275,7 +290,7 @@ def _qualifying_has_occurred(event_row: pd.Series) -> bool:
     Falls back to True (attempt the load) whenever the schedule is unavailable,
     preserving the original behaviour.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Prefer the explicit Qualifying session datetime.
     for i in range(1, 6):

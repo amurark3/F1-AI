@@ -1,0 +1,61 @@
+2026 SINGAPORE GRAND PRIX
+09 - 11 October 2026
+The FIA Formula 1 Technical Delegate
+From The FIA Formula 1 Technical Delegate
+To The Stewards
+Document 10
+Date 09 October 2026
+Time 14:11
+Title Technical Delegate's Report
+Description PU Elements used per Driver up to now
+Enclosed 17 SIN GP 26 TDR1.pdf
+Jo Bauer
+
+2026 SINGAPORE GRAND PRIX 
+09 - 11 October 2026 
+  
+ 
+From :  The FIA Formula 1 Technical Delegate  
+To :  The Stewards Date :  09 October 2026 
+  
+ 
+Technical Delegate’s Report 
+ 
+ 
+The drivers entered in the 2026 Formula One Championship have used the below listed number 
+of power unit elements during this season so far: 
+ 
+ICE Internal Combustion Engine TC Turbo Charger 
+EXH EXH aust set MGU-K Motor Generator Unit – Kinetic 
+ES Energy Store unit PU-CE Power Unit-Control Electronics unit 
+PU-ANC Power Unit ANCillary component 
+ 
+N° Car Driver ICE TC EXH MGU
+-K ES PU-
+CE 
+PU-
+ANC 
+81 McLaren Mercedes Oscar Piastri 4 3 3 2 3 3 4 
+01 McLaren Mercedes Lando Norris 4 3 3 2 3 4 4 
+63 Mercedes Geor ge Russell 4 4 4 3 3 3 5 
+12 Mercedes Kimi Antonelli 5 3 3 2 4 4 5 
+03 Red Bull Racin g RB Ford Max Verstappen 4 4 4 3 3 3 5 
+06 Red Bull Racin g RB Ford Isack Hadjar 7 6 6 4 4 4 7 
+16 Ferrari Charles Leclerc 4 4 4 3 3 3 6 
+44 Ferrari Lewis Hamilton 4 4 4 3 3 3 6 
+23 Atlassian Williams Mercedes Alexander Albon 5 3 3 2 3 4 5 
+55 Atlassian Williams Mercedes Carlos Sainz 4 4 3 2 3 4 4 
+41 Racin g Bulls RB Ford Arvid Lindblad 5 5 5 2 2 2 6 
+30 Racin g Bulls RB Ford Liam Lawson 4 4 4 2 2 2 6 
+18 Aston Martin Aramco Honda Lance Stroll 5 6 3 5 7 6 8 
+14 Aston Martin Aramco Honda Fernando Alonso 5 5 3 5 7 6 9 
+31 Haas Ferrari Esteban Ocon 4 4 4 3 3 3 5 
+87 Haas Ferrari Oliver Bearman 4 4 4 4 4 4 4 
+27 Audi Nico Hülkenber g 4 4 4 3 2 2 5 
+05 Audi Gabriel Bortoleto 3 3 3 3 3 3 5 
+10 Alpine Mercedes Pierre Gasl y 4 3 3 2 3 3 5 
+43 Alpine Mercedes Franco Colapinto 5 3 2 2 3 3 4 
+11 Cadillac Ferrari Ser gio Perez 4 4 3 3 3 3 4 
+77 Cadillac Ferrari Valtteri Bottas 4 4 3 3 3 3 4 
+ 
+ 

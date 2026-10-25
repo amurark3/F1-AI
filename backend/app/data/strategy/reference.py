@@ -10,7 +10,7 @@ because the available stint-pace signal is not cleanly fuel-corrected.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from statistics import median
 from typing import Any
 
@@ -215,7 +215,7 @@ def _matching_event(schedule: pd.DataFrame, city: str) -> Any | None:
 
 def _search_circuit_editions(city: str, current_year: int) -> dict | None:
     """Walk seasons backwards for the most recent completed edition summary."""
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
 
     for past_year in range(current_year, EARLIEST_TELEMETRY_SEASON - 1, -1):
         try:

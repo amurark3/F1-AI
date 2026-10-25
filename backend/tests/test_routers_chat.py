@@ -126,6 +126,72 @@ def test_system_prompt_tells_the_model_which_season_to_ask_for():
 
 
 @pytest.mark.unit
+def test_system_prompt_steers_a_multi_race_question_to_one_sql_query():
+    """Per-race tools cost a call per Grand Prix; the loop has turns for three."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert "spans several races" in prompt
+    assert "ONE 'query_f1_database' query" in prompt
+    # Told "fetch it, don't guess", the model checked the schedule first to learn
+    # which weekends had a sprint — then walked the season one Grand Prix at a
+    # time and ran out of tool calls. f1db already answers "which had a sprint".
+    assert "a round had a sprint exactly when it has SPRINT_RACE_RESULT rows" in prompt
+    assert "you do not need the schedule first" in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_forbids_filling_in_facts_from_memory():
+    """The model's training predates the season. Asked to "add analysis", it
+    filled gaps from memory — "Kimi Antonelli (Alfa Romeo)", a sprint grid slot
+    nobody fetched. Analysis must be built from what the tools returned."""
+    # Whitespace collapsed: reflowing the prompt's lines must not break this.
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert "only if it appears in a tool result in this conversation" in prompt
+    assert "memory of drivers, teams and results is out of date" in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_keeps_analysis_to_what_the_rows_support():
+    """Told to add "strategic implications", it invented a sprint-win pole, a soft-
+    tyre sprint and "3 sprint points". Angles without data are skipped instead."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert "Skip any angle that needs data you were not given" in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_caps_observations_and_ties_each_to_a_row():
+    """Every answer carried 4-8 derived claims and most answers got one wrong.
+    Fewer claims, each traceable to a row or a computed tally, leave less to get wrong."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert "Lead with the direct answer" in prompt
+    assert "at most THREE observations" in prompt
+    assert "Do not count, sum or compare across rows yourself" in prompt
+    # An example label of "R12 Zandvoort" taught it to tag finishing positions
+    # "R1 Verstappen", "R2 Hamilton" — which read as round numbers.
+    assert "say which round or driver it is about" in prompt
+    assert "R12" not in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_forbids_unstated_absolutes():
+    """ "Leclerc is the only non-Mercedes race winner" was false three ways over."""
+    prompt = " ".join(chat_router.build_system_prompt("October 23, 2026").split())
+
+    assert 'Never claim "only", "first", "never", "all" or "none"' in prompt
+    assert "No title-battle or standings talk unless standings were fetched" in prompt
+
+
+@pytest.mark.unit
+def test_the_persona_no_longer_demands_title_talk_on_every_points_mention():
+    from app.api.prompts import RACE_ENGINEER_PERSONA
+
+    assert "When discussing points, mention the title battle" not in RACE_ENGINEER_PERSONA
+
+
+@pytest.mark.unit
 def test_system_prompt_omits_the_memory_block_when_there_is_none():
     assert "PERSONALISATION & MEMORY" not in chat_router.build_system_prompt("March 08, 2026")
 
@@ -245,7 +311,10 @@ async def test_a_normal_response_passes_straight_through(monkeypatch):
     expected = AIMessage(content="Verstappen won.")
     _install_llm(monkeypatch, [expected])
 
-    assert await chat_router._ainvoke_with_recovery([], TOOLS) is expected
+    result = await chat_router._ainvoke_with_recovery([], TOOLS)
+
+    assert result.response is expected
+    assert result.tool_names == TOOLS
 
 
 @pytest.mark.unit
@@ -257,8 +326,9 @@ async def test_a_malformed_tool_call_is_recovered_into_a_tool_message(monkeypatc
 
     result = await chat_router._ainvoke_with_recovery([], TOOLS)
 
-    assert result.tool_calls[0]["name"] == "get_race_results"
-    assert result.content == ""
+    assert result.response.tool_calls[0]["name"] == "get_race_results"
+    assert result.response.content == ""
+    assert result.tool_names == TOOLS
 
 
 @pytest.mark.unit
@@ -291,6 +361,99 @@ async def test_recovery_asks_for_the_selected_tools(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# A call to a tool the request did not offer
+# ---------------------------------------------------------------------------
+
+
+def _groq_tool_use_failed(message: str, generation: str = "") -> Exception:
+    """The shape the Groq SDK raises: a 400 whose parsed body rides on ``.body``."""
+    exc = RuntimeError(f"Error code: 400 - {message}")
+    exc.body = {  # type: ignore[attr-defined]
+        "error": {"code": "tool_use_failed", "message": message, "failed_generation": generation}
+    }
+    return exc
+
+
+def _unbound(tool: str) -> Exception:
+    """Verbatim from production (reference 9ec6fba20186), with the tool swapped in."""
+    return _groq_tool_use_failed(
+        f"Tool call validation failed: tool call validation failed: attempted to call tool '{tool}' "
+        "which was not in request.tools",
+        f'{{"name": "{tool}", "arguments": {{"query": "2026 sprint weekends", "top_n": 10}}}}',
+    )
+
+
+WIDENED = TOOLS | {"perform_web_search"}
+
+
+@pytest.mark.unit
+async def test_a_call_to_an_unoffered_tool_is_retried_with_that_tool_bound(monkeypatch):
+    """The model now sees the real schema, so the retried call has valid arguments."""
+    search = AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "2026 sprints"})])
+    llm = _install_llm(monkeypatch, [_unbound("perform_web_search"), search])
+
+    result = await chat_router._ainvoke_with_recovery([], TOOLS)
+
+    assert result.response is search
+    assert result.tool_names == WIDENED
+    assert llm.bound_to == [TOOLS, WIDENED]
+
+
+@pytest.mark.unit
+async def test_a_malformed_call_on_the_retry_is_still_recovered(monkeypatch):
+    """Widening is one repair; a retry that trips the other still gets the parser."""
+    malformed = _groq_tool_use_failed(
+        "parameters for tool perform_web_search did not match schema",
+        '{"name": "perform_web_search", "arguments": {"query": "2026 sprints"}}',
+    )
+    _install_llm(monkeypatch, [_unbound("perform_web_search"), malformed])
+
+    result = await chat_router._ainvoke_with_recovery([], TOOLS)
+
+    assert result.response.tool_calls == [
+        {"name": "perform_web_search", "args": {"query": "2026 sprints"}, "id": "recovered_0", "type": "tool_call"}
+    ]
+    assert result.tool_names == WIDENED
+
+
+@pytest.mark.unit
+async def test_the_unoffered_tool_retry_happens_only_once(monkeypatch):
+    """A model that keeps reaching for new tools must not loop through every schema.
+
+    The second refusal is parsed instead of retried, so the call still runs.
+    """
+    llm = _install_llm(monkeypatch, [_unbound("perform_web_search"), _unbound("consult_rulebook")])
+
+    result = await chat_router._ainvoke_with_recovery([], TOOLS)
+
+    assert llm.bound_to == [TOOLS, WIDENED]
+    assert result.response.tool_calls[0]["name"] == "consult_rulebook"
+    assert result.tool_names == WIDENED
+
+
+@pytest.mark.unit
+def test_a_retry_that_hits_the_rate_limit_says_so(client, monkeypatch):
+    """The retry re-sends the whole prompt, so on the free tier it can be the
+    request that tips the quota — that must read as a rate limit, not a crash."""
+    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
+    _install_llm(monkeypatch, [_unbound("perform_web_search"), RuntimeError("Rate limit reached for model")])
+
+    assert "rate-limited" in _post(client)
+
+
+@pytest.mark.unit
+async def test_an_unoffered_tool_that_does_not_exist_is_not_bound(monkeypatch):
+    """A hallucinated name has no schema to offer; binding it would raise a KeyError."""
+    llm = _install_llm(monkeypatch, [_unbound("summon_safety_car")])
+    monkeypatch.setattr(chat_router, "recover_tool_calls", lambda exc: [])
+
+    with pytest.raises(RuntimeError):
+        await chat_router._ainvoke_with_recovery([], TOOLS)
+
+    assert llm.bound_to == [TOOLS]
+
+
+# ---------------------------------------------------------------------------
 # _ainvoke_final
 # ---------------------------------------------------------------------------
 
@@ -299,24 +462,61 @@ async def test_recovery_asks_for_the_selected_tools(monkeypatch):
 async def test_the_final_turn_binds_no_tools_and_says_why(monkeypatch):
     llm = _install_llm(monkeypatch, [AIMessage(content="Verstappen won.")])
 
-    result = await chat_router._ainvoke_final([HumanMessage(content="who won?")], TOOLS)
+    result = await chat_router._ainvoke_final([HumanMessage(content="who won?")])
 
     assert result.content == "Verstappen won."
     assert llm.bound_to == [frozenset()], "the cheap path sends no schemas"
     assert llm.seen[0][-1].content == chat_router.FINAL_TURN_DIRECTIVE
 
 
-@pytest.mark.unit
-async def test_a_refused_final_turn_retries_with_tool_calling_disabled(monkeypatch):
-    """Groq 400s a tool call the request did not offer; the retry cannot."""
-    llm = _install_llm(monkeypatch, [RuntimeError("tool_use_failed"), AIMessage(content="answer")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: True)
+def _gathered_history() -> list:
+    """A conversation one tool exchange deep, as the loop leaves it."""
+    return [
+        SystemMessage(content="persona"),
+        HumanMessage(content="who won?"),
+        AIMessage(content="", tool_calls=[_tool_call("get_race_results", {"year": 2026})]),
+        ToolMessage(tool_call_id="call-1", content="VER P1", name="get_race_results"),
+    ]
 
-    result = await chat_router._ainvoke_final([], TOOLS)
+
+# Verbatim from production: gpt-oss ignores tool_choice="none".
+_REFUSED_FINAL = "Tool choice is none, but model called a tool"
+
+
+@pytest.mark.unit
+async def test_a_refused_final_turn_retries_with_the_tool_history_as_plain_text(monkeypatch):
+    """gpt-oss keeps calling tools while the history holds structured calls —
+    with none offered, and even under tool_choice="none", which Groq then
+    refuses. Rewritten as prose, the results are context, not an invitation."""
+    llm = _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), AIMessage(content="answer")])
+
+    result = await chat_router._ainvoke_final(_gathered_history())
 
     assert result.content == "answer"
-    assert llm.bound_to == [frozenset(), TOOLS]
-    assert llm.bindings == [{"tool_choice": "none"}]
+    assert llm.bound_to == [frozenset(), frozenset()], "neither attempt offers a tool"
+    assert llm.bindings == [], "tool_choice='none' is not a fix for gpt-oss"
+    retry = llm.seen[1]
+    assert not any(isinstance(m, ToolMessage) or getattr(m, "tool_calls", None) for m in retry)
+    assert "VER P1" in retry[-1].content
+
+
+@pytest.mark.unit
+async def test_a_final_turn_refused_twice_comes_back_empty_rather_than_raising(monkeypatch):
+    """Empty routes the loop to its notice; raising would stream a System Error."""
+    _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), _groq_tool_use_failed(_REFUSED_FINAL)])
+
+    result = await chat_router._ainvoke_final(_gathered_history())
+
+    assert result.content == ""
+
+
+@pytest.mark.unit
+async def test_a_rate_limit_on_the_plain_text_retry_still_surfaces(monkeypatch):
+    """Only a refused tool call is absorbed; a quota must reach its own message."""
+    _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), RuntimeError("Rate limit reached for model")])
+
+    with pytest.raises(RuntimeError, match="Rate limit"):
+        await chat_router._ainvoke_final(_gathered_history())
 
 
 @pytest.mark.unit
@@ -325,7 +525,33 @@ async def test_an_unrelated_final_turn_failure_is_reraised(monkeypatch):
     monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
 
     with pytest.raises(ConnectionError):
-        await chat_router._ainvoke_final([], TOOLS)
+        await chat_router._ainvoke_final([])
+
+
+@pytest.mark.unit
+def test_the_plain_text_transcript_keeps_the_conversation_and_labels_each_result():
+    history = [
+        SystemMessage(content="persona"),
+        HumanMessage(content="who won the sprint and the race in São Paulo?"),
+        AIMessage(
+            content="",
+            tool_calls=[
+                _tool_call("get_sprint_results", {"year": 2026, "grand_prix": "São Paulo"}, "c1"),
+                _tool_call("get_race_results", {"year": 2026, "grand_prix": "São Paulo"}, "c2"),
+            ],
+        ),
+        ToolMessage(tool_call_id="c1", content="NOR P1", name="get_sprint_results"),
+        ToolMessage(tool_call_id="c2", content="ANT P1", name="get_race_results"),
+    ]
+
+    transcript = chat_router._as_plain_transcript(history)
+
+    assert transcript[:2] == history[:2], "the persona and the question survive untouched"
+    assert len(transcript) == 3
+    data = transcript[2].content
+    assert data.startswith(chat_router.FINAL_TURN_DIRECTIVE)
+    assert '### get_sprint_results {"year": 2026, "grand_prix": "São Paulo"}\nNOR P1' in data
+    assert data.index("NOR P1") < data.index("ANT P1"), "results stay in the order they were fetched"
 
 
 # ---------------------------------------------------------------------------
@@ -497,6 +723,73 @@ def test_only_the_tools_the_question_needs_are_offered(client, monkeypatch):
 
 
 @pytest.mark.unit
+def test_a_question_that_needs_an_unoffered_tool_is_answered_not_errored(client, monkeypatch):
+    """The production failure, end to end: it used to stream a System Error."""
+    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
+    _install_llm(
+        monkeypatch,
+        [
+            _unbound("perform_web_search"),
+            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "2026 sprints"})]),
+            AIMessage(content="Five sprint weekends so far."),
+        ],
+    )
+    monkeypatch.setitem(chat_router.TOOL_MAP, "perform_web_search", _FakeTool("China, Miami, ..."))
+
+    body = _post(client)
+
+    assert "System Error" not in body
+    assert "[TOOL_START]Perform Web Search[/TOOL_START]" in body
+    assert body.endswith("Five sprint weekends so far.")
+
+
+@pytest.mark.unit
+def test_a_tool_bound_mid_loop_stays_bound_for_the_rest_of_it(client, monkeypatch):
+    """Dropping it again would just earn the same refusal on the next turn."""
+    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
+    monkeypatch.setattr(chat_router, "MAX_AGENT_TURNS", 2)
+    llm = _install_llm(
+        monkeypatch,
+        [
+            _unbound("perform_web_search"),
+            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "q"})]),
+            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "q2"})]),
+            AIMessage(content="answer"),
+        ],
+    )
+    monkeypatch.setitem(chat_router.TOOL_MAP, "perform_web_search", _FakeTool("results"))
+
+    body = _post(client)
+
+    assert body.endswith("answer")
+    assert llm.bound_to == [TOOLS, WIDENED, WIDENED, frozenset()]
+
+
+@pytest.mark.unit
+def test_a_final_turn_the_model_keeps_refusing_ends_in_the_notice_not_an_error(client, monkeypatch):
+    """The production failure after the schedule fix: two tool rounds, then a
+    final turn gpt-oss refused under tool_choice="none" — a System Error."""
+    saved: list[tuple] = []
+    monkeypatch.setattr(chat_router, "MAX_AGENT_TURNS", 1)
+    monkeypatch.setattr(chat_router, "save_message", lambda *args: saved.append(args))
+    _install_llm(
+        monkeypatch,
+        [
+            AIMessage(content="", tool_calls=[_tool_call("get_race_results")]),
+            _groq_tool_use_failed(_REFUSED_FINAL),
+            _groq_tool_use_failed(_REFUSED_FINAL),
+        ],
+    )
+    monkeypatch.setitem(chat_router.TOOL_MAP, "get_race_results", _FakeTool("data"))
+
+    body = _post(client, user_id="u-6")
+
+    assert "System Error" not in body
+    assert "maximum number of reasoning steps" in body
+    assert [entry[2] for entry in saved] == ["user"], "a notice is not the assistant's answer"
+
+
+@pytest.mark.unit
 def test_a_rate_limit_gets_its_own_message(client, monkeypatch):
     _install_llm(monkeypatch, [RuntimeError("Rate limit reached for model")])
     monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
@@ -534,6 +827,70 @@ def test_the_response_is_streamed_as_plain_text(client, monkeypatch):
     response = client.post("/chat", json={"messages": [{"role": "user", "content": "hi"}]})
 
     assert response.headers["content-type"].startswith("text/plain")
+
+
+_RESULTS_TABLE = """| round | race_winner | race_team |
+| --- | --- | --- |
+| 4 | Kimi Antonelli | Mercedes |
+| 12 | Lando Norris | McLaren |"""
+
+
+def _answer_from_a_table(monkeypatch, *replies):
+    """A tool returns a driver/team table, then the model replies with ``replies``."""
+    from app.api import answer_repair
+
+    monkeypatch.setattr(answer_repair, "constructor_names", lambda: frozenset({"Mercedes", "McLaren"}))
+    monkeypatch.setitem(chat_router.TOOL_MAP, "query_f1_database", _FakeTool(_RESULTS_TABLE))
+    return _install_llm(
+        monkeypatch,
+        [AIMessage(content="", tool_calls=[_tool_call("query_f1_database", {"sql": "SELECT 1"})]), *replies],
+    )
+
+
+@pytest.mark.unit
+def test_a_final_answer_its_rows_contradict_is_repaired_before_it_streams(client, monkeypatch):
+    """The user — and their saved history — get the corrected answer, not the slip."""
+    saved: list[tuple] = []
+    monkeypatch.setattr(chat_router, "save_message", lambda *args: saved.append(args))
+    _answer_from_a_table(
+        monkeypatch,
+        AIMessage(content="Lando Norris (Mercedes) won at Zandvoort."),
+        AIMessage(content="Lando Norris (McLaren) won at Zandvoort."),
+    )
+
+    body = _post(client, user_id="u-7")
+
+    assert body.endswith("Lando Norris (McLaren) won at Zandvoort.")
+    assert "(Mercedes)" not in body
+    assert saved[-1][3] == "Lando Norris (McLaren) won at Zandvoort."
+
+
+@pytest.mark.unit
+def test_an_answer_its_rows_support_costs_no_extra_model_call(client, monkeypatch):
+    llm = _answer_from_a_table(monkeypatch, AIMessage(content="Lando Norris (McLaren) won at Zandvoort."))
+
+    body = _post(client)
+
+    assert body.endswith("Lando Norris (McLaren) won at Zandvoort.")
+    assert len(llm.seen) == 2, "the tool turn and the answer — no repair request"
+
+
+@pytest.mark.unit
+async def test_an_anonymous_question_runs_the_agent_and_returns_its_history(monkeypatch):
+    """The eval's entry point: the same agent and prompt, and nothing saved to anyone's memory."""
+    monkeypatch.setattr(chat_router, "save_message", lambda *_a: pytest.fail("an eval must not be saved"))
+    _install_llm(
+        monkeypatch,
+        [AIMessage(content="", tool_calls=[_tool_call("get_race_results")]), AIMessage(content="Verstappen won.")],
+    )
+    monkeypatch.setitem(chat_router.TOOL_MAP, "get_race_results", _FakeTool("VER P1"))
+
+    streamed, messages = await chat_router.ask_anonymously("Who won Monaco?")
+
+    assert streamed.endswith("Verstappen won.")
+    assert "[TOOL_START]Get Race Results[/TOOL_START]" in streamed
+    assert [m.content for m in messages if isinstance(m, ToolMessage)] == ["VER P1"]
+    assert "Race Engineer" in messages[0].content
 
 
 # ---------------------------------------------------------------------------

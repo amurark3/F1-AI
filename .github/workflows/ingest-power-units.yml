@@ -1,0 +1,69 @@
+name: Ingest power-unit documents
+
+# Collects the FIA's power-unit documents — the Technical Delegate's usage and
+# new-element reports, and the stewards' decisions on them — into the shared
+# Postgres document store, which the power-unit screen and the AI Engineer read.
+# Nothing is deployed: the web service picks the new corpus up within minutes.
+# Each run also brings the stored allowances in line with the figures the FIA's
+# reports state, and records its own outcome as the screen's "last checked".
+#
+# The job is the only writer of those documents; the web service only reads
+# them. See backend/app/data/power_units/sources.py for why that matters.
+#
+# A run reads the FIA index, the season page and the current event's page —
+# three requests when nothing is new — and downloads each new PDF ten seconds
+# apart, as fia.com's robots.txt asks. The first run collects the whole season.
+#
+# Cadence: race weekends publish from Thursday to Sunday night, with
+# corrections into Monday, so the job runs hourly then. Once a day it re-reads
+# every event page of the season (--all-events, ~20 requests): that is what
+# notices a document the FIA withdraws or rescinds after its weekend has moved
+# off the season page. GitHub delays scheduled runs on shared runners (see
+# keep-warm.yml); an hour late is still well inside a weekend.
+on:
+  schedule:
+    - cron: "17 * * * 4,5,6,0,1"
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+    inputs:
+      all_events:
+        description: "Re-read every event page of the season (withdrawals, corrections)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ingest-power-units
+  # Never cancel a run mid-write; the next one simply waits its turn.
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-ingest.txt
+
+      # requirements-ingest.txt would also pull sentence-transformers and torch,
+      # which this job never imports. It needs the web service's dependencies
+      # plus pypdf — at the version requirements-ingest.txt pins, so there is one
+      # source of truth for it.
+      - name: Install dependencies
+        run: pip install -r requirements.txt "$(grep -E '^pypdf==' requirements-ingest.txt)"
+
+      - name: Collect the FIA's power-unit documents
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # The daily schedule and a manual "all events" run re-read every event page.
+          ALL_EVENTS: ${{ (github.event.schedule == '47 5 * * *' || inputs.all_events) && '--all-events' || '' }}
+        run: python -m scripts.ingest_power_units $ALL_EVENTS

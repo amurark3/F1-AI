@@ -15,7 +15,7 @@ computed:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -315,7 +315,7 @@ def test_intel_defaults_to_the_current_season_when_no_year_is_given(
 
     module.build_intel("mclaren")
 
-    assert seen_years == [datetime.now(timezone.utc).year]
+    assert seen_years == [datetime.now(UTC).year]
 
 
 @pytest.mark.unit

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import os
 
 import structlog
@@ -18,7 +18,7 @@ def resolve_rulebook_year(year: int | None = None) -> int:
     if year is not None:
         return year
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_year = now.year
     if now.month == 12 and now.day > 10 and os.path.exists(f"data/raw/{current_year + 1}"):
         return current_year + 1

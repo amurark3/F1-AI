@@ -18,12 +18,13 @@ What the assertions guard:
   loads but has no usable laps must fall through rather than return an empty
   grid that outranks the next session's real data.
 * **A non-sprint weekend is not an error.** The absent sprint session must cache
-  an empty result, not retry per driver.
+  an empty result, not retry per driver — but a sprint that has not been
+  classified yet, or failed to load, must be retried rather than cached.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -336,6 +337,48 @@ def test_a_missing_sprint_is_remembered_so_every_round_is_probed_once(fastf1_ses
 
 
 @pytest.mark.unit
+def test_sprint_is_loaded_with_lap_timing_but_without_telemetry(fastf1_sessions):
+    session = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+    fastf1_sessions["S"] = session
+
+    _load_sprint_result(YEAR, ROUND)
+
+    # Same lag as qualifying: until the Ergast mirror publishes the sprint,
+    # FastF1 can only classify it from laps and race control messages. Without
+    # them every position is NaN for hours after the flag (Singapore 2026).
+    assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False, "messages": True}
+
+
+@pytest.mark.unit
+def test_an_unclassified_sprint_is_retried_rather_than_cached(fastf1_sessions):
+    unclassified = [{**row, "Position": float("nan")} for row in QUALIFYING_ROWS]
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(unclassified))
+
+    # A sprint weekend whose sprint has not run, or has not been classified
+    # yet. Caching that as "no sprint" would drop the signal for the life of
+    # the process, even after the result exists.
+    assert _load_sprint_result(YEAR, ROUND) == []
+
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    assert [row["driver_code"] for row in _load_sprint_result(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
+    assert _requested(fastf1_sessions) == [(YEAR, ROUND, "S"), (YEAR, ROUND, "S")]
+
+
+@pytest.mark.unit
+def test_a_fastf1_outage_costs_the_sprint_signal_only_until_it_recovers(fastf1_sessions):
+    fastf1_sessions["S"] = ConnectionError("ergast/fastf1 unreachable")
+
+    assert _load_sprint_result(YEAR, ROUND) == []
+
+    fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    # Only FastF1's "no such session" answer is permanent; a network failure
+    # on a sprint weekend is retried on the next compute.
+    assert [row["driver_code"] for row in _load_sprint_result(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
+
+
+@pytest.mark.unit
 def test_a_loaded_sprint_result_is_reused_from_cache(fastf1_sessions):
     fastf1_sessions["S"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
 
@@ -360,7 +403,7 @@ def _event(**fields: object) -> pd.Series:
     [(-2, True), (2, False)],
 )
 def test_the_explicit_qualifying_slot_decides_whether_sessions_are_probed(offset_hours, expected):
-    quali_at = datetime.now(timezone.utc) + timedelta(hours=offset_hours)
+    quali_at = datetime.now(UTC) + timedelta(hours=offset_hours)
     event = _event(
         Session1="Practice 1",
         Session4="Qualifying",
@@ -375,7 +418,7 @@ def test_the_explicit_qualifying_slot_decides_whether_sessions_are_probed(offset
 def test_a_timezone_aware_schedule_entry_is_compared_in_utc():
     # FastF1 sometimes hands back tz-aware timestamps; naive comparison against
     # a UTC "now" would raise rather than answer.
-    quali_at = datetime.now(timezone.utc) - timedelta(hours=3)
+    quali_at = datetime.now(UTC) - timedelta(hours=3)
     event = _event(Session4="Qualifying", Session4DateUtc=pd.Timestamp(quali_at).tz_convert("Europe/Rome"))
 
     assert _qualifying_has_occurred(event) is True
@@ -383,7 +426,7 @@ def test_a_timezone_aware_schedule_entry_is_compared_in_utc():
 
 @pytest.mark.unit
 def test_a_plain_datetime_in_the_schedule_is_handled_like_a_timestamp():
-    event = _event(Session4="Qualifying", Session4DateUtc=datetime.now(timezone.utc) - timedelta(hours=1))
+    event = _event(Session4="Qualifying", Session4DateUtc=datetime.now(UTC) - timedelta(hours=1))
 
     assert _qualifying_has_occurred(event) is True
 
@@ -395,7 +438,7 @@ def test_a_qualifying_row_with_no_datetime_falls_back_to_the_race_date():
     future = _event(
         Session4="Qualifying",
         Session4DateUtc=pd.NaT,
-        EventDate=pd.Timestamp(datetime.now(timezone.utc) + timedelta(days=10)),
+        EventDate=pd.Timestamp(datetime.now(UTC) + timedelta(days=10)),
     )
 
     assert _qualifying_has_occurred(past) is True
@@ -412,7 +455,7 @@ def test_without_a_named_qualifying_session_the_race_date_minus_a_day_is_used(da
     # more than a day away means the weekend has not run.
     event = _event(
         Session1="Practice 1",
-        EventDate=pd.Timestamp(datetime.now(timezone.utc) + timedelta(days=days_to_race)),
+        EventDate=pd.Timestamp(datetime.now(UTC) + timedelta(days=days_to_race)),
     )
 
     assert _qualifying_has_occurred(event) is expected
@@ -436,7 +479,7 @@ def test_an_unknown_schedule_attempts_the_load_rather_than_assuming_the_weekend_
 @pytest.mark.unit
 @pytest.mark.parametrize(("fp1_offset_hours", "expected"), [(-1, True), (6, False)])
 def test_the_earliest_scheduled_session_decides_whether_the_weekend_has_started(fp1_offset_hours, expected):
-    fp1_at = datetime.now(timezone.utc) + timedelta(hours=fp1_offset_hours)
+    fp1_at = datetime.now(UTC) + timedelta(hours=fp1_offset_hours)
     event = _event(
         Session1="Practice 1",
         Session1DateUtc=pd.Timestamp(fp1_at.replace(tzinfo=None)),
@@ -450,7 +493,7 @@ def test_the_earliest_scheduled_session_decides_whether_the_weekend_has_started(
 @pytest.mark.unit
 @pytest.mark.parametrize(("days_to_race", "expected"), [(3, False), (1, True), (-1, True)])
 def test_without_session_times_the_race_date_minus_two_days_is_used(days_to_race, expected):
-    event = _event(EventDate=pd.Timestamp(datetime.now(timezone.utc) + timedelta(days=days_to_race)))
+    event = _event(EventDate=pd.Timestamp(datetime.now(UTC) + timedelta(days=days_to_race)))
 
     assert _weekend_has_started(event) is expected
 

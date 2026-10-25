@@ -9,7 +9,7 @@ follows lives in ``driver_score``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import fastf1
@@ -347,7 +347,7 @@ def _response(
         "year": year,
         "round": round_num,
         "grand_prix": gp_name,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "logic_version": PREDICTION_LOGIC_VERSION,
         "accuracy": get_accuracy_stats(),
         **body,

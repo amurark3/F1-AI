@@ -3,8 +3,10 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+import json
 import threading
+from typing import NamedTuple
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -12,11 +14,12 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.runnables import Runnable
 import structlog
 
+from app.api.answer_repair import checked_answer
 from app.api.errors import client_error_text
 from app.api.llm import build_chat_llm
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
-from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls
+from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls, unbound_tool_name
 from app.api.tool_router import select_tools
 from app.api.tools import TOOL_MAP
 from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS
@@ -58,52 +61,131 @@ def _get_llm(tool_names: frozenset[str]) -> Runnable:
 
 FINAL_TURN_DIRECTIVE = (
     "You have gathered all the data you are going to get. Answer the user's "
-    "question now, in full, using only the tool results above. Do not request "
+    "question now, in full, using only the data retrieved so far. If it does "
+    "not cover everything asked, say which part is missing. Do not request "
     "any further tools."
 )
 
 
-async def _ainvoke_final(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
+def _as_plain_transcript(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """The conversation with its tool exchanges folded into one block of prose.
+
+    The structured calls and results are dropped from the history and restated,
+    each result under the call that fetched it, in a closing system message.
+    """
+    args_by_call = {call["id"]: call["args"] for m in messages if isinstance(m, AIMessage) for call in m.tool_calls}
+    results = [
+        f"### {m.name} {json.dumps(args_by_call.get(m.tool_call_id, {}), ensure_ascii=False)}\n{m.content}"
+        for m in messages
+        if isinstance(m, ToolMessage)
+    ]
+    conversation = [
+        m for m in messages if not isinstance(m, ToolMessage) and not (isinstance(m, AIMessage) and m.tool_calls)
+    ]
+    data = "\n\n".join(results)
+    return [*conversation, SystemMessage(content=f"{FINAL_TURN_DIRECTIVE}\n\nDATA RETRIEVED SO FAR:\n\n{data}")]
+
+
+async def _answer_or_none(messages: list[BaseMessage]) -> AIMessage | None:
+    """A reply with no tools offered, or None if the model called one anyway."""
+    try:
+        return await _get_llm(frozenset()).ainvoke(messages)
+    except Exception as exc:
+        if not is_tool_use_failed(exc):
+            raise
+        return None
+
+
+async def _ainvoke_final(messages: list[BaseMessage]) -> AIMessage:
     """Force a text answer out of the model on the last permitted turn.
 
     Binding no tools is the cheap path — it drops the entire schema payload from
     one of the most expensive calls in the loop. But a model that has just seen
     several tool calls in the history will sometimes attempt one more anyway,
     and Groq rejects that with a 400 ("attempted to call tool X which was not in
-    request.tools") rather than ignoring it — which used to surface as a broken
-    stream instead of an answer.
+    request.tools") rather than ignoring it.
 
-    So: ask nicely and bind nothing, then fall back once to sending the schemas
-    with tool calling explicitly disabled, which cannot fail that way. The
-    expensive path only runs when the cheap one is refused.
+    Disabling tool calling is no fix: gpt-oss ignores tool_choice="none", and
+    Groq 400s that too ("Tool choice is none, but model called a tool"). What
+    works is taking the invitation away — the retry restates the tool history as
+    plain text. If even that is refused, the reply comes back empty and the loop
+    shows its notice, so the last turn never ends in an error. A refusal costs
+    one extra request; nothing else is absorbed, so a rate limit still surfaces.
     """
-    guided = [*messages, SystemMessage(content=FINAL_TURN_DIRECTIVE)]
-    try:
-        return await _get_llm(frozenset()).ainvoke(guided)
-    except Exception as exc:
-        if not is_tool_use_failed(exc):
-            raise
-        logger.info("agent.final_turn_forced", tools=len(tool_names))
-        return await _get_llm(tool_names).bind(tool_choice="none").ainvoke(guided)
+    answer = await _answer_or_none([*messages, SystemMessage(content=FINAL_TURN_DIRECTIVE)])
+    if answer is None:
+        logger.info("agent.final_turn_as_transcript")
+        answer = await _answer_or_none(_as_plain_transcript(messages))
+    if answer is None:
+        logger.warning("agent.final_turn_refused")
+        return AIMessage(content="")
+    return answer
 
 
-async def _ainvoke_with_recovery(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
-    """Invoke the model, recovering from Groq malformed tool calls.
+class _ModelTurn(NamedTuple):
+    """One model reply, and the tools bound from here on.
 
-    When the model emits a tool call as inline text (``<function=...>``), Groq
+    The set only ever grows: a tool bound mid-loop to satisfy the model stays
+    bound, or the next turn that reaches for it is refused all over again.
+    """
+
+    response: AIMessage
+    tool_names: frozenset[str]
+
+
+def _recovered_call(exc: Exception) -> AIMessage:
+    """The tool call(s) Groq refused to parse, or ``exc`` again if there are none.
+
+    When the model emits a tool call as text instead of a structured call, Groq
     returns a tool_use_failed error. We parse the intended call(s) out of it and
     return a synthesized tool-calling message so the agent loop can continue.
     """
+    recovered = recover_tool_calls(exc)
+    if not recovered:
+        raise exc
+    logger.info("agent.recovered_tool_calls", count=len(recovered))
+    return AIMessage(content="", tool_calls=recovered)
+
+
+async def _ainvoke_parsing_refusals(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
+    """Invoke the model, recovering a tool call Groq refused to parse."""
     try:
         return await _get_llm(tool_names).ainvoke(messages)
     except Exception as exc:
         if not is_tool_use_failed(exc):
             raise
-        recovered = recover_tool_calls(exc)
-        if not recovered:
+        return _recovered_call(exc)
+
+
+def _with_refused_tool(exc: Exception, tool_names: frozenset[str]) -> frozenset[str] | None:
+    """The tool set plus the real tool Groq refused as unoffered, if that was the refusal."""
+    refused = unbound_tool_name(exc)
+    if refused in TOOL_MAP and refused not in tool_names:
+        return tool_names | {refused}
+    return None
+
+
+async def _ainvoke_with_recovery(messages: list[BaseMessage], tool_names: frozenset[str]) -> _ModelTurn:
+    """Invoke the model, recovering from the tool calls Groq refuses.
+
+    tool_router binds only the tools a question's keywords suggest, so the model
+    sometimes asks for one it was not offered and Groq rejects the whole turn.
+    That tool is bound and the turn retried once, so the model sees the real
+    schema and writes valid arguments. Any other refusal is parsed instead.
+
+    Widening is checked before parsing on purpose: gpt-oss's refusal carries
+    the call as parseable JSON, but with arguments guessed without the schema.
+    """
+    try:
+        return _ModelTurn(await _get_llm(tool_names).ainvoke(messages), tool_names)
+    except Exception as exc:
+        if not is_tool_use_failed(exc):
             raise
-        logger.info("agent.recovered_tool_calls", count=len(recovered))
-        return AIMessage(content="", tool_calls=recovered)
+        widened = _with_refused_tool(exc, tool_names)
+        if widened is None:
+            return _ModelTurn(_recovered_call(exc), tool_names)
+    logger.info("agent.unoffered_tool_bound", tools=sorted(widened - tool_names))
+    return _ModelTurn(await _ainvoke_parsing_refusals(messages, widened), widened)
 
 
 def build_system_prompt(today: str, memory_context: str = "") -> str:
@@ -123,15 +205,37 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
     - Use 'query_f1_database' for ANY historical or statistical question the
       other tools don't directly answer (records, career comparisons, "most/
       best/worst", results across many seasons). Write a read-only SQL SELECT.
+    - When a question spans several races (a season so far, every sprint
+      weekend), answer it with ONE 'query_f1_database' query — f1db holds the
+      sprint and race results of every completed round, and a round had a
+      sprint exactly when it has SPRINT_RACE_RESULT rows — so you do not need
+      the schedule first. Do this even after checking the schedule: walking
+      the season one Grand Prix at a time runs out of tool calls long before
+      the season does.
+    - Use 'get_power_unit_usage' for engine / power-unit element counts, allowances and the
+      grid penalties they caused — it reads the FIA's own documents, so prefer it to the web.
     - Use 'perform_web_search' for recent news or information beyond your knowledge.
 
+    GROUNDING (NON-NEGOTIABLE):
+    - Your memory of drivers, teams and results is out of date: your training
+      predates this season, and the grid changes every year. State a driver's
+      name or team, a result, time, grid slot or points total only if it appears
+      in a tool result in this conversation. Not there? Fetch it or leave it
+      out — never fill it in from memory, and never guess who a driver code is.
+    - Analysis means what the retrieved numbers show — patterns, comparisons,
+      championship implications. It never adds facts the tools did not return.
+
     PRESENTING RESULTS:
-    - When a tool returns a Markdown results table, keep the table intact — but
-      do not stop there. Add the analysis: what the numbers mean, the strategic
-      or championship implications, and the standout story. You are an analyst,
-      not a data terminal.
-    - For 'query_f1_database' results especially, always explain the rows in
-      plain language and lead with the answer to the user's actual question.
+    - Lead with the direct answer to the user's question, then keep any results
+      table a tool returned intact.
+    - Then add at most THREE observations. Each must come straight from one row
+      — say which round or driver it is about — or quote a tally a tool computed.
+      Do not count, sum or compare across rows yourself — quote the tool's
+      tallies, or leave it out.
+    - Never claim "only", "first", "never", "all" or "none" unless a tool result
+      states it. No title-battle or standings talk unless standings were fetched.
+    - Skip any angle that needs data you were not given (tyres, strategy, grids)
+      rather than guessing it.
     """
 
 
@@ -178,7 +282,7 @@ async def _invoke_tool(tool_call: dict) -> str:
             asyncio.to_thread(TOOL_MAP[name].invoke, tool_call["args"]),
             timeout=TOOL_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
         return f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
     except Exception as exc:
@@ -187,7 +291,7 @@ async def _invoke_tool(tool_call: dict) -> str:
     return str(result)
 
 
-async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
+async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str]:
     """Execute every known tool the model asked for, bracketing each with markers.
 
     The markers drive the client's "running a tool" indicator. An unknown tool
@@ -204,44 +308,54 @@ async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> A
         yield f"[TOOL_END]{friendly}[/TOOL_END]"
 
 
-async def _next_response(messages: list[BaseMessage], tool_names: frozenset[str], turn: int) -> AIMessage:
+async def _next_response(messages: list[BaseMessage], tool_names: frozenset[str], turn: int) -> _ModelTurn:
     """Ask for the next turn, offering no tools on the last one permitted.
 
     Without tools the model answers from what it already has, which saves the
     schema payload and turns what used to be a dead-end error into an answer.
     """
     if turn == MAX_AGENT_TURNS:
-        return await _ainvoke_final(messages, tool_names)
+        return _ModelTurn(await _ainvoke_final(messages), tool_names)
     return await _ainvoke_with_recovery(messages, tool_names)
+
+
+async def _finalise(messages: list[BaseMessage], conversation: _Conversation, content: object) -> str:
+    """Check the answer against the rows it was built from, save it, and return it.
+
+    The check is free for a clean answer; one its rows contradict gets a single
+    repair request (app/api/answer_repair.py), so the user and their saved
+    history both get the corrected text.
+    """
+    checked = await checked_answer(messages, str(content), _answer_or_none)
+    await _save_reply(conversation, checked)
+    return checked
 
 
 async def _agent_stream(
     messages: list[BaseMessage],
     tool_names: frozenset[str],
     conversation: _Conversation,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """Drive the tool-use loop, streaming markers and then the final answer."""
-    response = await _ainvoke_with_recovery(messages, tool_names)
+    response, tool_names = await _ainvoke_with_recovery(messages, tool_names)
 
     for turn in range(1, MAX_AGENT_TURNS + 1):
         if not response.tool_calls:
             logger.info("agent.generating_response")
-            await _save_reply(conversation, response.content)
-            yield response.content
+            yield await _finalise(messages, conversation, response.content)
             return
 
         logger.info("agent.turn", turn=turn, tool_count=len(response.tool_calls))
         messages.append(response)
         async for marker in _run_tool_calls(response, messages):
             yield marker
-        response = await _next_response(messages, tool_names, turn)
+        response, tool_names = await _next_response(messages, tool_names, turn)
 
     # Loop exhausted. The last invocation had no tools bound, so this is prose;
     # the notice remains only for a model that returns nothing.
     if response.content:
         logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
-        await _save_reply(conversation, response.content)
-        yield response.content
+        yield await _finalise(messages, conversation, response.content)
         return
 
     yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
@@ -259,7 +373,7 @@ async def _guarded_stream(
     messages: list[BaseMessage],
     tool_names: frozenset[str],
     conversation: _Conversation,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """The agent stream, with any failure rendered through the client-safe path."""
     try:
         async for chunk in _agent_stream(messages, tool_names, conversation):
@@ -268,11 +382,28 @@ async def _guarded_stream(
         yield _failure_text(exc)
 
 
+def _today() -> str:
+    return datetime.now(UTC).strftime("%B %d, %Y")
+
+
+async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:
+    """One question through the agent outside HTTP, saving nothing — for the eval.
+
+    Returns the streamed text, tool markers included, and the whole message
+    history: its ToolMessages are the tables the answer was built from.
+    """
+    request = ChatRequest(messages=[{"role": "user", "content": question}])
+    messages = build_langchain_messages(request, _today())
+    conversation = _Conversation(user_id=None, thread_id="eval")
+    chunks = [chunk async for chunk in _guarded_stream(messages, select_tools(question), conversation)]
+    return "".join(chunks), messages
+
+
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
     """Streaming chat endpoint that drives the F1 tool-use loop."""
 
-    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
+    today = _today()
     user_id = request.user_id
     thread_id = request.thread_id or "default"
     latest_user_text = _latest_user_text(request)

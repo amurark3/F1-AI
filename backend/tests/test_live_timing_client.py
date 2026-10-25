@@ -5,7 +5,7 @@ pytest alone, so async-marked tests would pass locally and skip in CI.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pandas as pd
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.unit
 
 
 def _utc(*args) -> datetime:
-    return datetime(*args, tzinfo=timezone.utc)
+    return datetime(*args, tzinfo=UTC)
 
 
 MEETINGS = [

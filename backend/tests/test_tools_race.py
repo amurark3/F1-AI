@@ -272,6 +272,7 @@ def _race_results() -> pd.DataFrame:
             {
                 "Position": 2.0,
                 "Abbreviation": "NOR",
+                "FullName": "Lando Norris",
                 "TeamName": "McLaren",
                 "Points": 18.0,
                 "GridPosition": 1.0,
@@ -281,6 +282,7 @@ def _race_results() -> pd.DataFrame:
             {
                 "Position": 1.0,
                 "Abbreviation": "VER",
+                "FullName": "Max Verstappen",
                 "TeamName": "Red Bull Racing Honda RBPT",
                 "Points": 25.0,
                 "GridPosition": 3.0,
@@ -290,6 +292,7 @@ def _race_results() -> pd.DataFrame:
             {
                 "Position": 3.0,
                 "Abbreviation": "LEC",
+                "FullName": "Charles Leclerc",
                 "TeamName": "Ferrari",
                 "Points": 15.0,
                 "GridPosition": 3.0,
@@ -300,6 +303,7 @@ def _race_results() -> pd.DataFrame:
             {
                 "Position": 4.0,
                 "Abbreviation": "HAM",
+                "FullName": "Lewis Hamilton",
                 "TeamName": "Mercedes",
                 "Points": 12.0,
                 "GridPosition": 0.0,
@@ -310,6 +314,7 @@ def _race_results() -> pd.DataFrame:
             {
                 "Position": float("nan"),
                 "Abbreviation": "ALO",
+                "FullName": "Fernando Alonso",
                 "TeamName": "Aston Martin",
                 "Points": 0.0,
                 "GridPosition": 8.0,
@@ -341,14 +346,30 @@ def test_the_classification_is_ordered_by_finishing_position(monkeypatch):
         if line.startswith("| ") and "Driver" not in line and ":--" not in line
     ]
 
-    assert drivers == ["VER", "NOR", "LEC", "HAM", "ALO"]
+    assert drivers == [
+        "Max Verstappen (VER)",
+        "Lando Norris (NOR)",
+        "Charles Leclerc (LEC)",
+        "Lewis Hamilton (HAM)",
+        "Fernando Alonso (ALO)",
+    ]
+
+
+@pytest.mark.unit
+def test_each_driver_is_named_in_full_not_by_code_alone(monkeypatch):
+    """Given only "ANT", the model guessed "Fernando Alonso"; names come from FastF1."""
+    _install_session(monkeypatch, _FakeSession(_race_results()))
+
+    table = get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
+
+    assert "| Fernando Alonso (ALO) | Aston Martin |" in table
 
 
 @pytest.mark.unit
 def test_the_winner_is_marked_with_a_trophy(monkeypatch):
     _install_session(monkeypatch, _FakeSession(_race_results()))
 
-    assert "| 🏆 1 | VER |" in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
+    assert "| 🏆 1 | Max Verstappen (VER) |" in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
 
 
 @pytest.mark.unit
@@ -387,7 +408,7 @@ def test_the_position_change_from_the_grid_is_shown(monkeypatch, driver, expecte
     row = next(
         line
         for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if f"| {driver} |" in line
+        if f"({driver}) |" in line
     )
 
     assert f"| {expected} |" in row
@@ -401,7 +422,7 @@ def test_a_pit_lane_start_is_shown_instead_of_a_grid_slot(monkeypatch):
     row = next(
         line
         for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if "| HAM |" in line
+        if "(HAM) |" in line
     )
 
     assert "| PL |" in row
@@ -416,7 +437,7 @@ def test_an_unclassified_driver_is_shown_as_nc(monkeypatch):
     row = next(
         line
         for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if "| ALO |" in line
+        if "(ALO) |" in line
     )
 
     assert row.startswith("| NC |")

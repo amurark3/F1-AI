@@ -7,21 +7,39 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
-from app.api.tools.formatting import _fmt_timedelta
+from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_timedelta
 
 logger = structlog.get_logger()
+
+
+def _header(*value_labels: str) -> list[str]:
+    """Column headings and the alignment row for one classification table."""
+    alignments = (f":{'-' * (len(label) - 1)}" for label in value_labels)
+    return [
+        f"| Pos | Driver | Team | {' | '.join(value_labels)} |",
+        f"| :-- | :----- | :--- | {' | '.join(alignments)} |",
+    ]
+
+
+def _row(position: object, row: pd.Series, *values: str) -> str:
+    """One classification line: who the driver is and the team they ran for here.
+
+    The model's memory of the grid predates the current season; given only a
+    driver code it filled in the rest itself — "Kimi Antonelli (Alfa Romeo)".
+    """
+    return f"| {position} | {_fmt_driver(row)} | {row['TeamName']} | {' | '.join(values)} |"
 
 
 @tool
 def get_sprint_results(year: int, grand_prix: str) -> str:
     """
-    Fetches the SATURDAY SPRINT RACE results (the short 100 km race).
+    Fetches the SATURDAY SPRINT RACE results (the short 100 km race) of ONE
+    Grand Prix — for 'Sprint', 'Sprint Race' or 'Saturday Race'. Do NOT use
+    get_race_results for a sprint. For sprints across several weekends, use
+    one query_f1_database query instead of calling this per weekend.
 
-    ALWAYS use this tool if the user mentions 'Sprint', 'Sprint Race', or
-    'Saturday Race'.  Do NOT use get_race_results for sprint weekends.
-
-    Returns a Markdown table of finishing positions, driver abbreviations,
-    and times / DNF reasons.
+    Returns a Markdown table of finishing positions, drivers, teams, times /
+    DNF reasons, and the sprint points each scored.
     """
     logger.info("tool.sprint_results", grand_prix=grand_prix, year=year)
     try:
@@ -30,7 +48,7 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
         session.load(telemetry=False, laps=False, weather=False)
         results = session.results.sort_values(by="Position")
 
-        summary = [f"### Sprint Race Results: {grand_prix} {year}"]
+        summary = [f"### Sprint Race Results: {grand_prix} {year}", *_header("Time/Status", "Pts")]
 
         for _, row in results.iterrows():
             pos = str(row["Position"]).split(".")[0]
@@ -44,7 +62,7 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
             else:
                 time_str = status  # DNF / +1 Lap / etc.
 
-            summary.append(f"| {pos} | {row['Abbreviation']} | {time_str} |")
+            summary.append(_row(pos, row, time_str, _fmt_points(row["Points"])))
 
         return "\n".join(summary)
 
@@ -76,11 +94,10 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
         if "Q1" in results.columns and results["Q1"].notna().any():
             sq1_df = results.sort_values(by="Q1")
             output.append(f"### SQ1 Results ({grand_prix} {year})")
-            output.append("| Pos | Driver | SQ1 Time |")
-            output.append("| :-- | :----- | :------- |")
+            output.extend(_header("SQ1 Time"))
             for i, (_, row) in enumerate(sq1_df.iterrows(), 1):
                 if pd.notna(row["Q1"]):
-                    output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q1'])} |")
+                    output.append(_row(i, row, _fmt_timedelta(row["Q1"])))
             output.append("\n---\n")
 
         # --- SQ2 ---
@@ -88,10 +105,9 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
             sq2_df = results[results["Q2"].notna()].sort_values(by="Q2")
             if not sq2_df.empty:
                 output.append("### SQ2 Results")
-                output.append("| Pos | Driver | SQ2 Time |")
-                output.append("| :-- | :----- | :------- |")
+                output.extend(_header("SQ2 Time"))
                 for i, (_, row) in enumerate(sq2_df.iterrows(), 1):
-                    output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q2'])} |")
+                    output.append(_row(i, row, _fmt_timedelta(row["Q2"])))
                 output.append("\n---\n")
 
         # --- SQ3 ---
@@ -99,20 +115,18 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
             sq3_df = results[results["Q3"].notna()].sort_values(by="Q3")
             if not sq3_df.empty:
                 output.append("### SQ3 Results (Sprint Pole Position)")
-                output.append("| Pos | Driver | SQ3 Time |")
-                output.append("| :-- | :----- | :------- |")
+                output.extend(_header("SQ3 Time"))
                 for i, (_, row) in enumerate(sq3_df.iterrows(), 1):
-                    output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q3'])} |")
+                    output.append(_row(i, row, _fmt_timedelta(row["Q3"])))
 
         # Fallback: if the split-column data is absent, show a simple ordered list.
         if not output:
             output.append(f"### Sprint Qualifying Results ({grand_prix} {year})")
             output.append("*(Detailed SQ1/SQ2/SQ3 split data currently unavailable)*\n")
-            output.append("| Pos | Driver | Time |")
-            output.append("| :-- | :----- | :--- |")
+            output.extend(_header("Time"))
             for _, row in results.sort_values(by="Position").iterrows():
                 t = _fmt_timedelta(row["Time"]) if pd.notna(row["Time"]) else "-"
-                output.append(f"| {row['Position']} | {row['Abbreviation']} | {t} |")
+                output.append(_row(row["Position"], row, t))
 
         return "\n".join(output)
 
@@ -142,30 +156,27 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
         # --- Q1 --- (all drivers who set a time)
         q1_df = results.sort_values(by="Q1")
         output.append(f"### Q1 Results ({grand_prix} {year})")
-        output.append("| Pos | Driver | Q1 Time |")
-        output.append("| :-- | :----- | :------ |")
+        output.extend(_header("Q1 Time"))
         for i, (_, row) in enumerate(q1_df.iterrows(), 1):
-            output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q1'])} |")
+            output.append(_row(i, row, _fmt_timedelta(row["Q1"])))
         output.append("\n---\n")
 
         # --- Q2 --- (drivers who advanced beyond Q1)
         q2_df = results[results["Q2"].notna()].sort_values(by="Q2")
         if not q2_df.empty:
             output.append("### Q2 Results")
-            output.append("| Pos | Driver | Q2 Time |")
-            output.append("| :-- | :----- | :------ |")
+            output.extend(_header("Q2 Time"))
             for i, (_, row) in enumerate(q2_df.iterrows(), 1):
-                output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q2'])} |")
+                output.append(_row(i, row, _fmt_timedelta(row["Q2"])))
             output.append("\n---\n")
 
         # --- Q3 --- (top 10 pole-position shootout)
         q3_df = results[results["Q3"].notna()].sort_values(by="Q3")
         if not q3_df.empty:
             output.append("### Q3 Results (Pole Position)")
-            output.append("| Pos | Driver | Q3 Time |")
-            output.append("| :-- | :----- | :------ |")
+            output.extend(_header("Q3 Time"))
             for i, (_, row) in enumerate(q3_df.iterrows(), 1):
-                output.append(f"| {i} | {row['Abbreviation']} | {_fmt_timedelta(row['Q3'])} |")
+                output.append(_row(i, row, _fmt_timedelta(row["Q3"])))
 
         return "\n".join(output)
 

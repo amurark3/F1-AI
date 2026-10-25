@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls
+from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls, unbound_tool_name
 
 
 def _exc(message: str, body: object = None) -> Exception:
@@ -69,6 +69,48 @@ def test_a_non_dict_body_falls_back_to_the_message():
 @pytest.mark.unit
 def test_an_ordinary_transport_error_is_not_recoverable():
     assert not is_tool_use_failed(ConnectionError("groq unreachable"))
+
+
+# ---------------------------------------------------------------------------
+# Naming the tool Groq refused because the request did not offer it
+# ---------------------------------------------------------------------------
+
+# Verbatim from production (reference 9ec6fba20186): gpt-oss asked for a web
+# search on a question whose keywords had only bound the results tools.
+_UNBOUND_MESSAGE = (
+    "Tool call validation failed: tool call validation failed: attempted to call "
+    "tool 'perform_web_search' which was not in request.tools"
+)
+
+
+@pytest.mark.unit
+def test_the_refused_tool_is_named_from_the_structured_body():
+    exc = _exc("Error code: 400", {"error": {"code": "tool_use_failed", "message": _UNBOUND_MESSAGE}})
+
+    assert unbound_tool_name(exc) == "perform_web_search"
+
+
+@pytest.mark.unit
+def test_the_refused_tool_is_named_from_the_message_when_there_is_no_body():
+    assert unbound_tool_name(RuntimeError(f"Error code: 400 - {_UNBOUND_MESSAGE}")) == "perform_web_search"
+
+
+@pytest.mark.unit
+def test_a_body_without_a_message_falls_back_to_the_exception_text():
+    exc = _exc(f"Error code: 400 - {_UNBOUND_MESSAGE}", {"error": {"code": "tool_use_failed"}})
+
+    assert unbound_tool_name(exc) == "perform_web_search"
+
+
+@pytest.mark.unit
+def test_a_malformed_call_to_an_offered_tool_names_nothing():
+    """A schema mismatch is a different repair: the tool was already offered."""
+    exc = _exc(
+        "Error code: 400",
+        {"error": {"code": "tool_use_failed", "message": "parameters for tool get_race_results did not match schema"}},
+    )
+
+    assert unbound_tool_name(exc) is None
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +201,23 @@ def test_a_good_call_after_a_broken_one_keeps_the_recovered_index_contiguous():
     assert recover_tool_calls(exc) == [{"name": "get_driver_standings", "args": {"year": 2026}, "id": "recovered_0"}]
 
 
+@pytest.mark.unit
+def test_a_bare_json_call_from_gpt_oss_is_recovered():
+    """gpt-oss reports the rejected call as plain JSON, not ``<function=...>`` text."""
+    exc = _generation('{"name": "get_sprint_results", "arguments": {\n  "year": 2026,\n  "grand_prix": "Miami"\n}}')
+
+    assert recover_tool_calls(exc) == [
+        {"name": "get_sprint_results", "args": {"year": 2026, "grand_prix": "Miami"}, "id": "recovered_0"}
+    ]
+
+
+@pytest.mark.unit
+def test_whitespace_around_a_json_tool_name_is_stripped():
+    exc = _generation('{"name": " get_season_schedule ", "arguments": {"year": 2026}}')
+
+    assert recover_tool_calls(exc)[0]["name"] == "get_season_schedule"
+
+
 # ---------------------------------------------------------------------------
 # Shapes that must recover nothing rather than something wrong
 # ---------------------------------------------------------------------------
@@ -175,6 +234,11 @@ def test_a_good_call_after_a_broken_one_keeps_the_recovered_index_contiguous():
         ("arguments that are not JSON", "<function=get_race_results{year: 2026}>"),
         ("an empty tool name", '<function={"year": 2026}>'),
         ("an empty generation", ""),
+        ("JSON that is not an object", '["get_race_results", {"year": 2026}]'),
+        ("a JSON call with no name", '{"arguments": {"year": 2026}}'),
+        ("a JSON call with a blank name", '{"name": "  ", "arguments": {"year": 2026}}'),
+        ("a JSON call whose arguments are not an object", '{"name": "get_race_results", "arguments": "2026"}'),
+        ("a truncated JSON call", '{"name": "get_race_results", "arguments": {"year": 20'),
     ],
 )
 def test_an_unrecoverable_call_yields_nothing(shape, generation):

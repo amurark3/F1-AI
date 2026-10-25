@@ -13,7 +13,7 @@ See README or CLAUDE.md for full setup instructions.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import logging
 import os
 
@@ -74,7 +74,7 @@ async def get_season_schedule(year: int, ctx: Context) -> str:
         if schedule.empty:
             return f"No schedule data found for {year}."
 
-        today = datetime.now(timezone.utc)
+        today = datetime.now(UTC)
         output = [f"### F1 Season Schedule ({year})"]
         output.append(f"*(Current Date: {today.strftime('%Y-%m-%d')})*\n")
         output.append("| Round | Grand Prix | Date | Status |")
@@ -445,7 +445,7 @@ def consult_rulebook(query: str, year: int | None = None) -> str:
         from langchain_huggingface import HuggingFaceEmbeddings
 
         if year is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             year = now.year + 1 if (now.month == 12 and now.day > 10) else now.year
 
         db_path = os.path.join(os.path.dirname(__file__), "data", "chroma")

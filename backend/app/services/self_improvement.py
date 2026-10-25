@@ -17,6 +17,8 @@ skipped; no database → falls back to local JSON via the document store.
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import structlog
 
 from app.data.predictions import (
@@ -137,7 +139,7 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
     misses = _biggest_misses(predicted, actual)
 
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from langchain_core.messages import HumanMessage
 
@@ -153,7 +155,7 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
     payload = {
         "year": year,
         "round": round_num,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "winner_correct": review.get("winner_correct"),
         "avg_position_error": review.get("avg_position_error"),
         "misses": misses,
@@ -189,6 +191,6 @@ def run_self_improvement_pass(year: int) -> dict:
 
 
 if __name__ == "__main__":
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    print(run_self_improvement_pass(datetime.now(timezone.utc).year))
+    print(run_self_improvement_pass(datetime.now(UTC).year))

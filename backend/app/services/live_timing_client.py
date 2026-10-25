@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import fastf1
 import httpx
@@ -105,7 +105,7 @@ def _event_identity(year: int, round_num: int) -> EventIdentity | None:
     if matches.empty:
         return None
     row = matches.iloc[0]
-    event_date = row["EventDate"].to_pydatetime().replace(tzinfo=timezone.utc)
+    event_date = row["EventDate"].to_pydatetime().replace(tzinfo=UTC)
     return str(row["Location"]), event_date, str(row["EventName"])
 
 
@@ -181,7 +181,7 @@ async def resolve_session_window(
         return EMPTY_LOOKUP
     event_name = identity[2]
 
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
         weekend = await _weekend_sessions(client, year, round_num, identity)
     if weekend is None:
@@ -245,7 +245,7 @@ async def poll_timing(
     windowed lap feed comes back empty — a red flag longer than the window, or
     the run-off after the chequered flag.
     """
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     key = session.session_key
     async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
         drivers = await _fetch_drivers(client, key)

@@ -24,7 +24,7 @@ Series are real pandas.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import os
 import sys
 import types
@@ -941,9 +941,9 @@ def test_consult_rulebook_reports_an_empty_result_set(monkeypatch: pytest.Monkey
     ("now", "expected_year"),
     [
         # Mid-December, next season's regulations are what people mean.
-        (datetime(2024, 12, 20, tzinfo=timezone.utc), "2025"),
-        (datetime(2024, 12, 5, tzinfo=timezone.utc), "2024"),
-        (datetime(2024, 6, 1, tzinfo=timezone.utc), "2024"),
+        (datetime(2024, 12, 20, tzinfo=UTC), "2025"),
+        (datetime(2024, 12, 5, tzinfo=UTC), "2024"),
+        (datetime(2024, 6, 1, tzinfo=UTC), "2024"),
     ],
 )
 def test_consult_rulebook_defaults_to_the_regulation_year_in_force(

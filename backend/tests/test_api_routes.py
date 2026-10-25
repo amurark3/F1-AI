@@ -12,7 +12,7 @@ web process.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -71,9 +71,9 @@ def test_health_reports_ok_with_a_utc_timestamp():
 
     assert body["status"] == "ok"
     # Serialised with an explicit UTC designator — a naive stamp would be
-    # ambiguous to a client. (`fromisoformat` only accepts "Z" from 3.11.)
+    # ambiguous to a client.
     assert body["timestamp"].endswith("Z")
-    assert datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00")).tzinfo is not None
+    assert datetime.fromisoformat(body["timestamp"]).tzinfo is not None
 
 
 @pytest.mark.unit
@@ -81,7 +81,7 @@ async def test_health_check_is_callable_directly():
     result = await routes.health_check()
 
     assert result["status"] == "ok"
-    assert result["timestamp"].tzinfo == timezone.utc
+    assert result["timestamp"].tzinfo == UTC
 
 
 @pytest.mark.unit

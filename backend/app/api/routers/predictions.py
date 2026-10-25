@@ -120,7 +120,7 @@ async def get_predictions(year: int, round_num: int) -> dict:
                 asyncio.to_thread(get_or_compute_race_prediction, year, round_num),
                 timeout=FASTF1_TIMEOUT_SECONDS,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("api.predictions.timeout", year=year, round=round_num)
             return {
                 "year": year,
@@ -211,7 +211,7 @@ async def compute_predictions(
                 asyncio.to_thread(compute_and_store_race_prediction, year, round_num, reason=reason, phase=wanted),
                 timeout=FASTF1_TIMEOUT_SECONDS,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason, phase=wanted)
             return {
                 "year": year,

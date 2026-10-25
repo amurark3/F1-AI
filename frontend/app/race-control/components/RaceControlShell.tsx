@@ -6,6 +6,7 @@ import {
   BookOpenCheck,
   CalendarRange,
   ClipboardList,
+  Cpu,
   Flag,
   Gauge,
   LayoutDashboard,
@@ -38,6 +39,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/race-control/grand-prix", label: "Grand Prix Hub", icon: CalendarRange },
       { href: "/race-control/teams", label: "Standings", icon: Users },
+      { href: "/race-control/power-units", label: "Power Units", icon: Cpu },
     ],
   },
   {

@@ -17,8 +17,6 @@ so the expected tallies are known exactly. The properties that matter:
 
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
@@ -150,9 +148,7 @@ def test_endpoint_reports_a_timeout_without_an_error_id(client, monkeypatch):
     """A slow data source is a retry-able condition, not a server fault."""
 
     def timeout(*_args, **_kwargs):
-        # On 3.10 asyncio.TimeoutError is distinct from the builtin, and the
-        # handler catches the asyncio one specifically.
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(compare_module, "_build_comparison_sync", timeout)
 

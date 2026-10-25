@@ -5,15 +5,10 @@
   // Same bar as the old `npm audit --audit-level=high`: fail on high + critical.
   "high": true,
   "report-type": "summary",
-  "allowlist": [
-    // braces — stack-exhaustion DoS on deeply nested patterns. Every published
-    // version is affected (3.0.3 is latest) and there is no patch. It reaches
-    // us only through lint tooling: eslint-config-next > @next/eslint-plugin-next
-    // > fast-glob (exact 3.3.1 pin, unchanged in 16.3.8) > micromatch > braces.
-    // Dev-only, and it globs patterns from our own config, never request input.
-    // Scoped to that path so braces arriving through any other dependency still
-    // fails the gate. Remove once braces ships a fix — audit-ci logs
-    // "Consider not allowlisting path" when this entry stops matching.
-    "GHSA-vfj7-8cjw-p6xm|eslint-config-next>*",
-  ],
+  // Advisories with no published fix, each scoped to the one dependency path
+  // that brings it in ("GHSA-xxxx|parent>*") so the same package arriving any
+  // other way still fails the gate. Give every entry a comment saying why it is
+  // tolerated, and delete it once audit-ci logs "Consider not allowlisting
+  // path" for it.
+  "allowlist": [],
 }

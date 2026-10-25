@@ -20,7 +20,7 @@
 # CI. Ruff refuses to run on a mismatch, so the two can no longer disagree.
 required-version = "0.16.1"
 
-target-version = "py310"
+target-version = "py313"
 line-length = 120  # matches frontend/.prettierrc.json `printWidth`
 src = ["."]
 
@@ -93,7 +93,7 @@ select = [
     "PLW",    # pylint warnings
 
     # --- Style ------------------------------------------------------------
-    "UP",     # pyupgrade — py310 idioms
+    "UP",     # pyupgrade — py313 idioms
     "N",      # pep8 naming
     "Q",      # quote consistency
     "C90",    # mccabe — cyclomatic complexity budget
@@ -211,6 +211,7 @@ ban-relative-imports = "all"
 # store picks its backend from ``DATABASE_URL`` at import time, so the app
 # imports have to follow ``load_dotenv()``.
 "scripts/backfill_predictions.py" = ["E402"]
+"scripts/ingest_power_units.py" = ["E402"]
 
 # Test suites: `assert` is the point (S101), fixtures legitimately shadow names,
 # and private access is how internals get tested.
@@ -220,6 +221,10 @@ ban-relative-imports = "all"
     # Unused args: pytest fixtures arrive as parameters, and a monkeypatch stub
     # written as `lambda *a, **k: ...` has to accept the shape it replaces.
     "ARG001", "ARG002", "ARG005",
+    # Same reason: a fake `httpx.AsyncClient.get` has to take `timeout=`
+    # because the code under test passes it. The rule is about async APIs we
+    # design, and a test double designs nothing.
+    "ASYNC109",
     "PLR2004",  # magic values are the expected literals
     "PLR0915",  # a scenario test is one long linear arrangement
     # A test's parameter list is pytest's injection mechanism, not an API it is

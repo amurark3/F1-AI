@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import WebSocketDisconnect
 import pytest
@@ -96,7 +96,7 @@ def _serve(monkeypatch, *, active=True, poll=None):
     polls: list[str] = []
 
     async def _resolve(_year, _round, now=None):
-        moment = now or datetime.now(timezone.utc)
+        moment = now or datetime.now(UTC)
         return SessionLookup(active=_active(moment) if active else None, next_start=None)
 
     async def _poll(session, now=None, last_lap=None):
@@ -329,7 +329,7 @@ async def test_a_failed_handshake_leaves_nothing_behind(monkeypatch, manager, no
 
 @pytest.mark.unit
 def test_feed_age_is_never_negative_under_clock_skew():
-    now = datetime(2026, 4, 5, 6, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 5, 6, 0, tzinfo=UTC)
     ahead = TimingSnapshot(rows=ROWS, sampled_at=now + timedelta(seconds=3), lap=1)
 
     assert ws_mod._feed_age(ahead, now) == 0

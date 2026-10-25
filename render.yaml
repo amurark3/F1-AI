@@ -69,4 +69,4 @@ services:
       - key: ENABLE_LOCAL_MODELS
         value: "false"
       - key: PYTHON_VERSION
-        value: 3.10.12
+        value: 3.13.17

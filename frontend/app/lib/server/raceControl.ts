@@ -91,6 +91,19 @@ export function getWeekendSessions<T>(year: number, round: number): Promise<T | 
   });
 }
 
+/**
+ * Every car's power-unit usage for the season, read from the FIA's documents.
+ *
+ * One payload serves the overview and every car page, so `cache` lets a car
+ * page and its metadata share a single request.
+ */
+export const getPowerUnits = cache(<T>(year: number): Promise<T | null> => {
+  return fetchFromBackend<T>(`/api/race-control/power-units/${year}`, {
+    revalidate: REVALIDATE.POWER_UNITS,
+    tags: ["power-units", `power-units:${year}`],
+  });
+});
+
 /** Rival intel for one constructor. */
 export function getIntel<T>(slug: string): Promise<T | null> {
   return fetchFromBackend<T>(`/api/race-control/intel/${slug}`, {

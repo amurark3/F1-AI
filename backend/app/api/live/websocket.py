@@ -8,7 +8,7 @@ only the socket: when to re-resolve, how fast to poll, and what to send.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -73,7 +73,7 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
     resolved_at = 0.0
 
     while not manager.is_stale(websocket):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if _needs_resolution(active, now, resolved_at, next_start):
             previous_key = active.session_key if active else None
@@ -172,5 +172,5 @@ async def _drain_client(websocket: WebSocket) -> None:
     try:
         await asyncio.wait_for(websocket.receive_text(), timeout=WS_RECEIVE_TIMEOUT)
         manager.touch(websocket)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass

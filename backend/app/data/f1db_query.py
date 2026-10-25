@@ -15,6 +15,7 @@ Safety layers (defense in depth):
 
 from __future__ import annotations
 
+from collections import Counter
 import re
 import time
 
@@ -64,12 +65,95 @@ RULES:
 - Season champion: season_driver_standing WHERE championship_won=1.
 - For career totals prefer driver/constructor lifetime columns (total_*).
 - Driver name from id: JOIN driver ON driver.id = race_data.driver_id.
+- Naming a driver in a result? ALSO select the team they drove for in that race:
+  JOIN constructor c ON c.id = d.constructor_id (with race_data as d). race_data
+  holds the team per race, so it is right even after a mid-season switch. Teams
+  change every year — never state one from memory.
+- Mentioning points? SELECT d.race_points for those rows — it holds what each
+  RACE_RESULT and SPRINT_RACE_RESULT row scored. Never work points out from
+  memory: the scales change (a sprint win paid 3 points in 2021, more today).
+
+EXAMPLE — each 2025 race winner, with their team and points:
+  SELECT r.round, dr.name AS driver, c.name AS team, d.race_points
+  FROM race_data d JOIN race r ON r.id=d.race_id
+  JOIN driver dr ON dr.id=d.driver_id JOIN constructor c ON c.id=d.constructor_id
+  WHERE r.year=2025 AND d.type='RACE_RESULT' AND d.position_number=1 ORDER BY r.round;
 
 EXAMPLE — wins at Monza:
   SELECT r.year FROM race_data d JOIN race r ON r.id=d.race_id
   WHERE d.type='RACE_RESULT' AND d.position_number=1
     AND d.driver_id='max-verstappen' AND r.circuit_id='monza' ORDER BY r.year;
 """
+
+
+_LATEST_RESULTS_ROUND_SQL = """
+SELECT r.year, r.round, r.grand_prix_id FROM race r
+WHERE EXISTS (SELECT 1 FROM race_data d WHERE d.race_id = r.id AND d.type = 'RACE_RESULT')
+ORDER BY r.year DESC, r.round DESC
+LIMIT 1
+"""
+
+
+def latest_results_round() -> dict | None:
+    """The newest race f1db holds a result for — where query answers stop.
+
+    f1db is published a few days after each race weekend, so the newest round
+    on the calendar can be finished yet absent here. Scheduled rounds are
+    already in ``race`` long before they run, so "has a result" is the test.
+    """
+    with connect() as conn:
+        row = conn.execute(_LATEST_RESULTS_ROUND_SQL).fetchone()
+    return dict(row) if row else None
+
+
+# Every points-scoring sprint and race finish of the newest season with results.
+_SEASON_POINTS_SQL = """
+SELECT r.year, d.type, d.position_number, d.race_points FROM race_data d
+JOIN race r ON r.id = d.race_id
+WHERE r.year = (
+    SELECT MAX(r2.year) FROM race r2 JOIN race_data d2 ON d2.race_id = r2.id WHERE d2.type = 'RACE_RESULT'
+)
+  AND d.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT')
+  AND d.position_number IS NOT NULL AND d.race_points > 0
+"""
+
+_SCALE_KEYS = {"RACE_RESULT": "race", "SPRINT_RACE_RESULT": "sprint"}
+
+
+def points_scale() -> dict | None:
+    """What each finishing position paid in the newest season, read from f1db.
+
+    Returns ``{"year": 2026, "race": [25.0, 18.0, ...], "sprint": [8.0, ...]}``,
+    lists ordered from P1. The model's memory of the scales is stale (a sprint
+    win paid 3 in 2021), so they are read rather than written down. The most
+    common value per position is taken: a half-points race or a bonus point
+    must not distort it.
+    """
+    with connect() as conn:
+        rows = conn.execute(_SEASON_POINTS_SQL).fetchall()
+    if not rows:
+        return None
+    paid = Counter((row["type"], row["position_number"], row["race_points"]) for row in rows)
+    usual: dict[tuple[str, int], float] = {}
+    for (kind, position, points), _count in paid.most_common():
+        usual.setdefault((kind, position), points)
+    return {
+        "year": rows[0]["year"],
+        **{
+            key: [points for (kind, _pos), points in sorted(usual.items()) if kind == result_type]
+            for result_type, key in _SCALE_KEYS.items()
+        },
+    }
+
+
+def constructor_names() -> frozenset[str]:
+    """Every team name in f1db, past and present.
+
+    The claim checker uses it to recognise a team named in prose — including
+    one long gone that the model reached for from memory ("Alfa Romeo").
+    """
+    with connect() as conn:
+        return frozenset(row["name"] for row in conn.execute("SELECT name FROM constructor"))
 
 
 class QueryValidationError(ValueError):

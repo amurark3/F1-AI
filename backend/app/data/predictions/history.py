@@ -7,7 +7,7 @@ is a read-modify-write of one document.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -104,7 +104,7 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
         if entry.get("driver_code")
     }
     snapshot = {
-        "generated_at": predictions.get("generated_at", datetime.now(timezone.utc).isoformat()),
+        "generated_at": predictions.get("generated_at", datetime.now(UTC).isoformat()),
         "prediction_phase": predictions.get("prediction_phase"),
         "data_sources": predictions.get("data_sources") or [],
         "predicted_positions": predicted_positions,

@@ -16,7 +16,7 @@ Uses httpx.AsyncClient for async HTTP calls.  Falls back from One Call 3.0
 to 2.5 current weather API when the premium subscription is not available.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import time
 
 import httpx
@@ -256,7 +256,7 @@ def _build_from_onecall(data: dict, _location: str) -> dict:
     # Hourly forecast (next 4 hours)
     hourly_forecast = []
     for h in hourly_raw[:4]:
-        dt = datetime.fromtimestamp(h.get("dt", 0), tz=timezone.utc)
+        dt = datetime.fromtimestamp(h.get("dt", 0), tz=UTC)
         h_desc = h.get("weather", [{}])[0].get("description", "unknown")
         h_wind = round(h.get("wind_speed", 0.0) * 3.6, 1)
         h_pop = h.get("pop", 0.0)

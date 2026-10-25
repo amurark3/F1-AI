@@ -6,7 +6,7 @@ start before failing), and the result it does find is persisted so the next
 process reads it instead of re-loading the telemetry.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 import pytest
@@ -24,7 +24,7 @@ LOCATION = "Zandvoort, Netherlands"
 PLANNING_YEAR = 2026
 
 # The clock every test runs against: the 2026 Dutch GP is still two days away.
-NOW = datetime(2026, 8, 21, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
 
 
 def schedule_for(year: int, race_day: str) -> pd.DataFrame:
@@ -124,7 +124,7 @@ def test_the_planning_season_edition_is_used_once_its_race_is_run(loaded, cache,
     class _Clock(datetime):
         @classmethod
         def now(cls, tz=None):
-            moment = datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc)
+            moment = datetime(2026, 8, 24, 12, 0, tzinfo=UTC)
             return moment.astimezone(tz) if tz else moment
 
     monkeypatch.setattr(strategy_module, "datetime", _Clock)

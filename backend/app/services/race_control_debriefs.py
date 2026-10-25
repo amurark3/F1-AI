@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import fastf1
 import pandas as pd
@@ -252,7 +252,7 @@ def load_race_classification(year: int, round_num: int) -> dict:
         ),
         None,
     )
-    if not race_date or datetime.now(timezone.utc).replace(tzinfo=None) <= race_date + pd.Timedelta(hours=3):
+    if not race_date or datetime.now(UTC).replace(tzinfo=None) <= race_date + pd.Timedelta(hours=3):
         return result
 
     session = fastf1.get_session(year, round_num, "R")

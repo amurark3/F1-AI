@@ -18,7 +18,7 @@ layer at the boundary the tool calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -80,7 +80,7 @@ def test_an_explicit_year_is_searched_as_given(monkeypatch):
 
 @pytest.mark.unit
 def test_mid_season_an_unqualified_question_uses_the_current_regulations(monkeypatch):
-    _freeze_now(monkeypatch, datetime(2026, 7, 4, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 7, 4, tzinfo=UTC))
     calls = _install_rulebook(monkeypatch, hits=[])
 
     consult_rulebook.invoke({"query": "parc fermé"})
@@ -91,7 +91,7 @@ def test_mid_season_an_unqualified_question_uses_the_current_regulations(monkeyp
 @pytest.mark.unit
 def test_after_the_season_ends_next_years_regulations_are_used_once_they_exist(monkeypatch, tmp_path):
     """In late December the current book is history; the new one is what applies."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data" / "raw" / "2027").mkdir(parents=True)
     calls = _install_rulebook(monkeypatch, hits=[])
@@ -104,7 +104,7 @@ def test_after_the_season_ends_next_years_regulations_are_used_once_they_exist(m
 @pytest.mark.unit
 def test_next_years_regulations_are_not_used_before_they_are_ingested(monkeypatch, tmp_path):
     """Rolling forward to a directory that does not exist would find nothing at all."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     calls = _install_rulebook(monkeypatch, hits=[])
 
@@ -116,7 +116,7 @@ def test_next_years_regulations_are_not_used_before_they_are_ingested(monkeypatc
 @pytest.mark.unit
 def test_early_december_is_still_the_current_season(monkeypatch, tmp_path):
     """The season is only treated as over after the 10th; races run before it."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 5, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 5, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data" / "raw" / "2027").mkdir(parents=True)
     calls = _install_rulebook(monkeypatch, hits=[])
@@ -230,13 +230,66 @@ def test_a_rulebook_failure_is_reported_rather_than_raised(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _install_query(monkeypatch, result):
+def _install_query(monkeypatch, result, latest=None, scale=None):
+    """``latest`` is where f1db's results stop, ``scale`` the points it paid;
+    None (unknown) adds no note for either."""
+
     def _run(sql):
         if isinstance(result, Exception):
             raise result
         return result
 
+    def _latest():
+        if isinstance(latest, Exception):
+            raise latest
+        return latest
+
+    def _scale():
+        if isinstance(scale, Exception):
+            raise scale
+        return scale
+
     monkeypatch.setattr(reference_module, "run_readonly_query", _run)
+    monkeypatch.setattr(reference_module, "latest_results_round", _latest)
+    monkeypatch.setattr(reference_module, "points_scale", _scale)
+
+
+_ROWS = {"columns": ["winner"], "rows": [{"winner": "Antonelli"}], "row_count": 1, "sql": "SELECT winner FROM x"}
+_THROUGH_AZERBAIJAN = {"year": 2026, "round": 15, "grand_prix_id": "azerbaijan"}
+_COVERAGE_NOTE = (
+    "f1db has results through 2026 round 15 (azerbaijan). Anything raced since is not in the "
+    "database yet: fetch it with the per-race tools, or say the answer stops there."
+)
+
+
+@pytest.mark.unit
+def test_rows_say_how_far_the_dataset_runs(monkeypatch):
+    """f1db publishes days after each race, so a season answer can be a round short."""
+    _install_query(monkeypatch, _ROWS, latest=_THROUGH_AZERBAIJAN)
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith(f"| Antonelli |\n\n{_COVERAGE_NOTE}")
+
+
+@pytest.mark.unit
+def test_an_empty_result_also_says_how_far_the_dataset_runs(monkeypatch):
+    """No rows for the newest round is the misleading case: it is not raced, just not published."""
+    _install_query(
+        monkeypatch, {"columns": ["x"], "rows": [], "row_count": 0, "sql": "SELECT x"}, latest=_THROUGH_AZERBAIJAN
+    )
+
+    assert query_f1_database.invoke({"sql": "SELECT x"}).endswith(_COVERAGE_NOTE)
+
+
+@pytest.mark.unit
+def test_a_failed_coverage_lookup_drops_the_note_not_the_answer(monkeypatch):
+    _install_query(monkeypatch, _ROWS, latest=RuntimeError("f1db is locked"))
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith("| Antonelli |")
+    assert "f1db has results through" not in answer
 
 
 @pytest.mark.unit
@@ -317,3 +370,97 @@ def test_the_schema_is_appended_to_the_tool_description():
     assert "SCHEMA:" in query_f1_database.description
     assert "TABLES (key columns):" in query_f1_database.description
     assert "race(id, year, round" in query_f1_database.description
+
+
+_SCALE_2026 = {"year": 2026, "race": [25.0, 18.0, 15.0], "sprint": [8.0, 7.0]}
+_POINTS_NOTE = (
+    "Points paid in 2026 (read from f1db, by finishing position): race P1-P3 = 25, 18, 15; "
+    "sprint P1-P2 = 8, 7. Use these for any points you mention, not the scales you remember."
+)
+
+
+@pytest.mark.unit
+def test_rows_carry_the_points_scale_the_data_actually_used(monkeypatch):
+    """Without it, the model priced a race win at 12 and a sprint win at 3 —
+    its memory of the scales — even when it had not selected any points."""
+    _install_query(monkeypatch, _ROWS, scale=_SCALE_2026)
+
+    assert query_f1_database.invoke({"sql": "SELECT winner FROM x"}).endswith(f"| Antonelli |\n\n{_POINTS_NOTE}")
+
+
+@pytest.mark.unit
+def test_the_points_note_follows_the_coverage_note(monkeypatch):
+    _install_query(monkeypatch, _ROWS, latest=_THROUGH_AZERBAIJAN, scale=_SCALE_2026)
+
+    assert query_f1_database.invoke({"sql": "SELECT winner FROM x"}).endswith(f"{_COVERAGE_NOTE}\n\n{_POINTS_NOTE}")
+
+
+@pytest.mark.unit
+def test_a_season_without_sprints_names_only_the_race_scale(monkeypatch):
+    _install_query(monkeypatch, _ROWS, scale={"year": 2020, "race": [25.0, 18.0], "sprint": []})
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith(
+        "Points paid in 2020 (read from f1db, by finishing position): race P1-P2 = 25, 18. "
+        "Use these for any points you mention, not the scales you remember."
+    )
+
+
+@pytest.mark.unit
+def test_a_failed_points_lookup_drops_the_note_not_the_answer(monkeypatch):
+    _install_query(monkeypatch, _ROWS, scale=RuntimeError("f1db is locked"))
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.endswith("| Antonelli |")
+
+
+_SEASON_ROWS = {
+    "columns": ["round", "winner", "team"],
+    "rows": [
+        {"round": 2, "winner": "Kimi Antonelli", "team": "Mercedes"},
+        {"round": 4, "winner": "Kimi Antonelli", "team": "Mercedes"},
+        {"round": 12, "winner": "Lando Norris", "team": "McLaren"},
+    ],
+    "row_count": 3,
+    "sql": "SELECT round, winner, team FROM x",
+}
+
+
+@pytest.mark.unit
+def test_repeated_values_are_tallied_under_the_table(monkeypatch):
+    """The model miscounted and mis-paired rows it had read correctly; the tool counts."""
+    _install_query(monkeypatch, _SEASON_ROWS)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.endswith(
+        "| 12 | Lando Norris | McLaren |\n\n"
+        "Tallies, counted in code from the rows above (quote these; do not recount):\n"
+        "- winner: Kimi Antonelli (Mercedes) ×2; Lando Norris (McLaren) ×1\n"
+        "- team: Mercedes ×2; McLaren ×1"
+    )
+
+
+@pytest.mark.unit
+def test_the_tallies_come_before_the_dataset_notes(monkeypatch):
+    _install_query(monkeypatch, _SEASON_ROWS, latest=_THROUGH_AZERBAIJAN)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.index("Tallies, counted in code") < answer.index("f1db has results through")
+
+
+@pytest.mark.unit
+def test_a_tally_failure_drops_the_tallies_not_the_rows(monkeypatch):
+    _install_query(monkeypatch, _SEASON_ROWS)
+
+    def _broken(columns, rows):
+        raise TypeError("unhashable cell")
+
+    monkeypatch.setattr(reference_module, "tally_lines", _broken)
+
+    answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
+
+    assert answer.endswith("| 12 | Lando Norris | McLaren |")

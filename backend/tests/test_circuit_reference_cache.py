@@ -7,7 +7,7 @@ and a store outage is never mistaken for an empty cache — writing on top of
 one would drop every reference this process failed to read.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -123,12 +123,12 @@ def test_remembered_miss_is_a_hit_carrying_no_reference(store):
 
 
 def test_reference_from_the_planning_season_never_expires(store, at):
-    at(datetime(2026, 1, 1, tzinfo=timezone.utc))
+    at(datetime(2026, 1, 1, tzinfo=UTC))
     cache = CircuitReferenceCache()
     cache.set(CITY, YEAR, {**REFERENCE, "source_year": YEAR})
 
     # No newer edition of this circuit can exist, so age is irrelevant.
-    at(datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=SUPERSEDED_TTL_SECONDS * 10))
+    at(datetime(2026, 1, 1, tzinfo=UTC) + timedelta(seconds=SUPERSEDED_TTL_SECONDS * 10))
 
     hit = cache.get(CITY, YEAR)
     assert hit is not None
@@ -136,7 +136,7 @@ def test_reference_from_the_planning_season_never_expires(store, at):
 
 
 def test_reference_from_an_earlier_season_expires_once_it_can_be_superseded(store, at):
-    stored_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    stored_at = datetime(2026, 1, 1, tzinfo=UTC)
     at(stored_at)
     cache = CircuitReferenceCache()
     cache.set(CITY, YEAR, REFERENCE)
@@ -149,7 +149,7 @@ def test_reference_from_an_earlier_season_expires_once_it_can_be_superseded(stor
 
 
 def test_remembered_miss_is_rechecked_sooner_than_a_reference(store, at):
-    stored_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    stored_at = datetime(2026, 1, 1, tzinfo=UTC)
     at(stored_at)
     cache = CircuitReferenceCache()
     cache.set(CITY, YEAR, None)
@@ -200,7 +200,7 @@ def test_a_failed_load_is_retried_after_the_backoff(store, monkeypatch):
             f"{CITY.lower()}:{YEAR}": {
                 "reference": REFERENCE,
                 "source_year": 2025,
-                "stored_at": datetime.now(timezone.utc).isoformat(),
+                "stored_at": datetime.now(UTC).isoformat(),
             }
         },
     }

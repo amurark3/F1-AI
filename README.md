@@ -96,7 +96,7 @@ without a database.
 | Tool | Version |
 |---|---|
 | Node.js | 18+ |
-| Python | 3.10+ |
+| Python | 3.13 |
 | Xcode | 15+ (iOS only) |
 
 ---
@@ -358,7 +358,7 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | Web framework | Next.js 16, React 19, TypeScript 5 |
 | Styling | Tailwind CSS 4 |
 | Web UI libs | Recharts, Framer Motion, SWR, Vercel AI SDK, lucide-react |
-| Backend | FastAPI, Uvicorn, Python 3.10+, structlog |
+| Backend | FastAPI, Uvicorn, Python 3.13, structlog |
 | LLM | Groq — GPT-OSS 120B |
 | LLM orchestration | LangChain (agentic tool-use loop) |
 | F1 data | f1db (SQLite, 1950–present), FastF1, OpenF1 (live), Ergast (fallback) |

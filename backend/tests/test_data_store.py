@@ -765,7 +765,8 @@ def test_direct_supabase_host_is_flagged_at_startup(capsys):
 
     logged = capsys.readouterr().out
     assert "store.direct_supabase_host_configured" in logged
-    assert "pooler.supabase.com" in logged, "the warning must name the fix"
+    # The session pooler on 5432, not the transaction pooler on 6543, is the fix.
+    assert "aws-<n>-<region>.pooler.supabase.com:5432" in logged, "the warning must name the fix"
 
 
 @pytest.mark.unit

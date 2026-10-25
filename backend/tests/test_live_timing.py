@@ -9,7 +9,7 @@ render as a live Dutch Grand Prix timing tower:
   * a wall-clock staleness gate reading a quiet track as a dead feed
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -30,7 +30,7 @@ pytestmark = pytest.mark.unit
 
 
 def _utc(*args) -> datetime:
-    return datetime(*args, tzinfo=timezone.utc)
+    return datetime(*args, tzinfo=UTC)
 
 
 # --------------------------------------------------------------------------

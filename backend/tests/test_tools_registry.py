@@ -35,6 +35,7 @@ EXPECTED_TOOLS = frozenset(
         "get_driver_standings",
         "get_constructor_standings",
         "get_season_schedule",
+        "get_power_unit_usage",
     }
 )
 

@@ -16,14 +16,9 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import Self
 
 import pytest
-
-if TYPE_CHECKING:
-    # `Self` lands in typing at 3.11; this runs on 3.10, and `from __future__
-    # import annotations` means the name is never evaluated at runtime.
-    from typing_extensions import Self
 
 from app.rag import pgvector_store
 

@@ -12,7 +12,7 @@ not live data — so they are asserted as constants.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -25,12 +25,12 @@ def _event(status: str = "upcoming", days_until: int | None = None, sessions: di
 
 def _on_track() -> dict[str, str]:
     """A race that went green half an hour ago."""
-    return {"Race": (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()}
+    return {"Race": (datetime.now(UTC) - timedelta(minutes=30)).isoformat()}
 
 
 def _between_sessions() -> dict[str, str]:
     """Saturday night: the race is still twelve hours away."""
-    return {"Race": (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat()}
+    return {"Race": (datetime.now(UTC) + timedelta(hours=12)).isoformat()}
 
 
 # ---------------------------------------------------------------------------

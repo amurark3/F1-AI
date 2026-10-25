@@ -19,7 +19,7 @@ frames themselves are real pandas so the coercion paths are exercised.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -27,7 +27,7 @@ import pytest
 from app.services import race_control_debriefs as module
 from app.services.race_control_debriefs import DebriefSections
 
-_NOW = datetime.now(timezone.utc).replace(tzinfo=None)
+_NOW = datetime.now(UTC).replace(tzinfo=None)
 
 # ---------------------------------------------------------------------------
 # helpers

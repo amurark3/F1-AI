@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import fastf1
 from fastf1.ergast import Ergast
@@ -116,24 +116,33 @@ def _naive_utc(value: object) -> pd.Timestamp:
     return stamp.tz_convert(None) if stamp.tzinfo else stamp
 
 
+def _weekend_format(event_format: object) -> str:
+    """Sprint or Standard, from FastF1's ``EventFormat``.
+
+    FastF1 has spelled the sprint format three ways since 2021 — ``sprint``,
+    ``sprint_shootout`` and ``sprint_qualifying`` — so match the prefix.
+    """
+    return "Sprint" if str(event_format).startswith("sprint") else "Standard"
+
+
 @tool
 def get_season_schedule(year: int) -> str:
     """
     Fetches the full F1 season calendar for `year`.
 
-    Marks each race as 'Completed' or 'Upcoming' relative to today's date,
-    and appends a summary of the last completed race to help the LLM resolve
-    queries like 'What happened in the last race?'.
+    Flags each round as a Sprint or Standard weekend, marks it 'Completed' or
+    'Upcoming' relative to today's date, and names the last completed race to
+    help resolve queries like 'What happened in the last race?'.
     """
     logger.info("tool.season_schedule", year=year)
     try:
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-        today = datetime.now(timezone.utc).replace(tzinfo=None)
+        today = datetime.now(UTC).replace(tzinfo=None)
 
         output = [f"### F1 Season Schedule ({year})"]
         output.append(f"*(Current Date: {today.strftime('%Y-%m-%d')})*\n")
-        output.append("| Round | Grand Prix | Date | Status |")
-        output.append("| :--- | :--------- | :--- | :----- |")
+        output.append("| Round | Grand Prix | Date | Format | Status |")
+        output.append("| :--- | :--------- | :--- | :----- | :----- |")
 
         last_completed = "None"
 
@@ -148,7 +157,8 @@ def get_season_schedule(year: int) -> str:
             else:
                 status = "🔜 Upcoming"
 
-            output.append(f"| {round_num} | {gp_name} | {race_date.strftime('%d %b')} | {status} |")
+            weekend = _weekend_format(row["EventFormat"])
+            output.append(f"| {round_num} | {gp_name} | {race_date.strftime('%d %b')} | {weekend} | {status} |")
 
         # Provide explicit context for the LLM to avoid hallucinating race names.
         output.append(f"\n**Context:** The last completed race was the **{last_completed}**.")

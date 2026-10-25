@@ -28,7 +28,7 @@ fastf1==3.8.3
 tavily-python==0.7.26
 
 # MCP server (optional — for Claude Desktop integration)
-fastmcp==3.4.4
+fastmcp==3.4.10
 
 
 # Structured logging

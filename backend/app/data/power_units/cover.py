@@ -20,7 +20,7 @@ publication of an event in sequence.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 import re
 
 from app.data.power_units.text import clean
@@ -54,7 +54,7 @@ def _race_day(head: str) -> date | None:
         return None
     try:
         parsed = datetime.strptime(f"{match['day']} {match['month']} {match['year']}", "%d %B %Y").replace(
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
     except ValueError:
         return None

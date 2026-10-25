@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import fastf1
 import pandas as pd
@@ -25,7 +25,7 @@ def season_events(year: int) -> list[dict]:
     """Build the season's event list from the schedule, with derived status."""
 
     schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
 
     events = []
     for _, row in schedule.iterrows():
@@ -103,7 +103,7 @@ def build_strategy_dashboard(year: int) -> dict:
 
     return {
         "year": year,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "focus": focus_for_event(selected_event),
         "race": selected_event,
         "season": {

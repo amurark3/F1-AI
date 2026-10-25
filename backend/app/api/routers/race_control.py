@@ -1,7 +1,7 @@
 """HTTP router for Race Control v2 endpoints."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
@@ -215,4 +215,4 @@ async def get_intel(team_slug: str) -> dict:
 
 @router.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "race-control", "time": datetime.now(timezone.utc).isoformat()}
+    return {"status": "ok", "service": "race-control", "time": datetime.now(UTC).isoformat()}

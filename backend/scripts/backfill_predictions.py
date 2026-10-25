@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -77,12 +77,12 @@ def _first_session(row: pd.Series) -> datetime | None:
     if not valid:
         return None
     first = min(valid).to_pydatetime()
-    return first.replace(tzinfo=timezone.utc) if first.tzinfo is None else first
+    return first.replace(tzinfo=UTC) if first.tzinfo is None else first
 
 
 def _current_round(schedule: pd.DataFrame) -> int:
     """The latest round whose weekend has started — the current race."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     started = [
         int(row["RoundNumber"])
         for _, row in schedule.iterrows()
@@ -122,7 +122,7 @@ def _backup(backup_dir: Path) -> Path | None:
         documents[name] = read.payload
 
     backup_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     path = backup_dir / f"predictions-{stamp}.json"
     path.write_text(json.dumps(documents, default=str), encoding="utf-8")
     return path
@@ -154,7 +154,7 @@ def _run(year: int, calls: list[PlannedCall]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--year", type=int, default=datetime.now(timezone.utc).year)
+    parser.add_argument("--year", type=int, default=datetime.now(UTC).year)
     parser.add_argument("--through-round", type=int, help="last round to compute (default: the current race)")
     parser.add_argument("--recompute", action="store_true", help="also redo phases with a current snapshot")
     parser.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)

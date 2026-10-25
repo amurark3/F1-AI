@@ -14,7 +14,7 @@ database connection is involved.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -55,14 +55,14 @@ def test_an_explicit_year_is_never_second_guessed():
     ("moment", "next_season_ingested", "expected"),
     [
         # Mid-season: always the running season.
-        (datetime(2026, 6, 1, tzinfo=timezone.utc), True, 2026),
+        (datetime(2026, 6, 1, tzinfo=UTC), True, 2026),
         # December, but before the roll-over date.
-        (datetime(2026, 12, 5, tzinfo=timezone.utc), True, 2026),
+        (datetime(2026, 12, 5, tzinfo=UTC), True, 2026),
         # Late December with next year's PDFs on disk — roll forward.
-        (datetime(2026, 12, 20, tzinfo=timezone.utc), True, 2027),
+        (datetime(2026, 12, 20, tzinfo=UTC), True, 2027),
         # Late December but nothing ingested yet — stay put rather than search
         # a corpus that does not exist.
-        (datetime(2026, 12, 20, tzinfo=timezone.utc), False, 2026),
+        (datetime(2026, 12, 20, tzinfo=UTC), False, 2026),
     ],
 )
 def test_year_rolls_forward_only_once_next_seasons_corpus_exists(

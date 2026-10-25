@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import math
 from typing import Any
 
@@ -214,7 +214,7 @@ def get_driver_options(year: int) -> dict:
         logger.warning("race_control.driver_options.failed", year=year, error=str(exc))
         return {
             "year": year,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "source": "f1db-driver-standings",
             "drivers": [],
             "error": "Driver standings are unavailable right now.",
@@ -222,7 +222,7 @@ def get_driver_options(year: int) -> dict:
 
     return {
         "year": year,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source": "f1db-driver-standings",
         "drivers": drivers,
         "error": None if drivers else "No driver standings found for this season yet.",
@@ -252,7 +252,7 @@ def completed_race_count(year: int) -> int | None:
         logger.warning("race_control.completed_races.failed", year=year, error=str(exc))
         return None
 
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
     completed = 0
     for _, row in schedule.iterrows():
         race_date = next(
@@ -275,7 +275,7 @@ def completed_race_rounds(year: int) -> tuple[list[int], int]:
         logger.warning("race_control.completed_rounds.failed", year=year, error=str(exc))
         return [], 0
 
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
     completed: list[int] = []
     total_events = 0
     for _, row in schedule.iterrows():

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import fastf1
 from fastf1.ergast import Ergast
@@ -137,7 +137,7 @@ def get_season_schedule(year: int) -> str:
     logger.info("tool.season_schedule", year=year)
     try:
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-        today = datetime.now(timezone.utc).replace(tzinfo=None)
+        today = datetime.now(UTC).replace(tzinfo=None)
 
         output = [f"### F1 Season Schedule ({year})"]
         output.append(f"*(Current Date: {today.strftime('%Y-%m-%d')})*\n")

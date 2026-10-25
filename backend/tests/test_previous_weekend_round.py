@@ -6,13 +6,13 @@ not ``round - 1`` — the rounds in between have not run either, and loading the
 would be a string of slow, failing FastF1 calls.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
 from app.data.predictions.sessions import _previous_started_round
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def schedule(*rounds_and_first_session_offsets_days):

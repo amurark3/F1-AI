@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import threading
 import time
 from typing import TYPE_CHECKING, Any
@@ -45,11 +45,11 @@ class PredictionCacheUnavailableError(RuntimeError):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime | None) -> str | None:
-    return value.astimezone(timezone.utc).isoformat() if value else None
+    return value.astimezone(UTC).isoformat() if value else None
 
 
 def _coerce_utc(value: Any) -> datetime | None:
@@ -60,8 +60,8 @@ def _coerce_utc(value: Any) -> datetime | None:
     if not isinstance(value, datetime):
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _race_datetime(row: Any) -> datetime | None:

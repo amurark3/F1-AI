@@ -9,7 +9,7 @@ This is the harness to reach for whenever a live session is not available.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import json
 import pathlib
 
@@ -76,7 +76,7 @@ def _session(now: datetime) -> ActiveSession:
 @pytest.fixture
 def replay_stack(monkeypatch):
     """Wire the loop to recorded data and a fake socket."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     replay = Replay(FIXTURE["frames"], now)
 
     async def fake_get_json(_client, path, _params):
@@ -96,7 +96,7 @@ def replay_stack(monkeypatch):
     client._driver_cache.clear()
 
     async def fake_resolve(_year, _round, now=None):
-        return SessionLookup(active=_session(now or datetime.now(timezone.utc)), next_start=None)
+        return SessionLookup(active=_session(now or datetime.now(UTC)), next_start=None)
 
     monkeypatch.setattr(live_ws, "resolve_session_window", fake_resolve)
     monkeypatch.setattr(live_ws, "WS_POLL_INTERVAL", 0)
@@ -179,7 +179,7 @@ def test_replay_stays_live_through_a_quiet_feed(monkeypatch, replay_stack):
     and the tower must keep showing it. Judged on sample age instead, the desk
     reported "Control Room Idle" for 39% of the Grand Prix.
     """
-    quiet = datetime.now(timezone.utc) - timedelta(minutes=20)
+    quiet = datetime.now(UTC) - timedelta(minutes=20)
 
     async def quiet_get_json(_client, path, _params):
         if path == "position":

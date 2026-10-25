@@ -15,7 +15,7 @@ picking one silently.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.data.power_units.allowances import SOURCE_MANUAL
@@ -38,7 +38,7 @@ def _parse(moment: str | None) -> datetime | None:
         parsed = datetime.fromisoformat(moment)
     except ValueError:
         return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def freshness(year: int, corpus_updated_at: str | None, now: datetime) -> dict:

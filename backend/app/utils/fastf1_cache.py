@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 import sqlite3
 from typing import TYPE_CHECKING, Any
@@ -142,7 +142,7 @@ def _repair_if_malformed(cache_path: Path) -> None:
 
 
 def _quarantine_cache_files(cache_path: Path) -> None:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     for path in cache_path.glob(f"{FASTF1_HTTP_CACHE}*"):
         if not path.is_file():
             continue

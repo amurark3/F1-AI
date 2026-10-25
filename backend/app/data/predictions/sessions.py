@@ -8,7 +8,7 @@ qualifying-based and practice-based scoring paths.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import fastf1
@@ -233,7 +233,7 @@ def _to_utc(value: object) -> datetime | None:
     if value is None or pd.isna(value):
         return None
     dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 def _session_datetimes(event_row: pd.Series) -> list[datetime]:
@@ -254,12 +254,12 @@ def _weekend_has_started(event_row: pd.Series) -> bool:
     """
     stamps = _session_datetimes(event_row)
     if stamps:
-        return min(stamps) <= datetime.now(timezone.utc)
+        return min(stamps) <= datetime.now(UTC)
 
     race_dt = _to_utc(event_row.get("EventDate"))
     if race_dt is not None:
         # FP1 is ~2 days before the race on a conventional weekend.
-        return (race_dt - timedelta(days=2)) <= datetime.now(timezone.utc)
+        return (race_dt - timedelta(days=2)) <= datetime.now(UTC)
 
     return True
 
@@ -290,7 +290,7 @@ def _qualifying_has_occurred(event_row: pd.Series) -> bool:
     Falls back to True (attempt the load) whenever the schedule is unavailable,
     preserving the original behaviour.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Prefer the explicit Qualifying session datetime.
     for i in range(1, 6):

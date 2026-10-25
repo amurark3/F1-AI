@@ -55,3 +55,9 @@ python-dotenv==1.2.2
 pandas==2.3.3
 scikit-learn==1.7.2
 joblib==1.5.3
+
+# Transitive pin: fastf1 -> matplotlib pulls Pillow. <=12.3.0 is affected by the
+# 2026 decoder advisories, among them GHSA-78g4-xqwv-q3g8 (heap overflow in the
+# bundled libopenjp2). 13.0.0 is the fix and needs Python >=3.11, which is why
+# this pin and the 3.13 upgrade landed together.
+pillow==13.0.0

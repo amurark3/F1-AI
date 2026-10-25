@@ -27,7 +27,7 @@ async def compare_drivers_endpoint(year: int, driver1: str, driver2: str) -> dic
     """
     try:
         return await asyncio.to_thread(_build_comparison_sync, year, driver1, driver2)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"error": "Comparison timed out. Try again."}
     except Exception as e:
         return client_error("api.compare_drivers.error", e, year=year, driver1=driver1, driver2=driver2)

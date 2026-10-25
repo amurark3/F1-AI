@@ -19,14 +19,14 @@ desk live.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
 
 from app.services.race_control import strategy_context as module
 
-_NOW = datetime.now(timezone.utc).replace(tzinfo=None)
+_NOW = datetime.now(UTC).replace(tzinfo=None)
 
 
 # ---------------------------------------------------------------------------
@@ -556,7 +556,7 @@ def test_context_stint_plan_spans_the_full_race_distance():
 
 def _sessions_starting(offset: timedelta) -> dict[str, str]:
     """A race session that started ``offset`` ago (negative: still to come)."""
-    start = datetime.now(timezone.utc) - offset
+    start = datetime.now(UTC) - offset
     return {"Race": start.isoformat()}
 
 

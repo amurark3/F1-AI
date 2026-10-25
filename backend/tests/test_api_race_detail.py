@@ -18,7 +18,6 @@ FastF1 is mocked at the boundary throughout; the network is blocked.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta
 import threading
 
@@ -600,7 +599,7 @@ def test_an_error_response_is_not_cached(client, monkeypatch):
 @pytest.mark.unit
 def test_a_timeout_is_reported_as_retryable(client, monkeypatch):
     def slow(year, round_num):
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(rd, "build_race_detail", slow)
 

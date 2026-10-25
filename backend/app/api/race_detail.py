@@ -7,7 +7,7 @@ synchronous FastF1 work, with its own in-memory cache and timeout.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter
@@ -253,7 +253,7 @@ def build_race_detail(year: int, round_num: int) -> dict:
     }
 
     race_start = _race_start(row)
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
     if not race_start or now_utc <= race_start + _RACE_COMPLETE_BUFFER:
         return result
 
@@ -291,7 +291,7 @@ async def get_race_detail(year: int, round_num: int) -> dict:
         if detail.get("circuit") is not None:
             race_detail_cache[cache_key] = detail
         return detail
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("api.race_detail.timeout", year=year, round=round_num, timeout_seconds=FASTF1_TIMEOUT)
         return {"error": "Request timed out loading race data. Try again later.", "timeout": True}
     except Exception as e:

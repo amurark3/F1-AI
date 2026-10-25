@@ -19,7 +19,7 @@ at the script's own module attributes.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import json
 import sys
 
@@ -36,7 +36,7 @@ YEAR = 2026
 
 
 def _naive(offset: timedelta) -> pd.Timestamp:
-    return pd.Timestamp((datetime.now(timezone.utc) + offset).replace(tzinfo=None))
+    return pd.Timestamp((datetime.now(UTC) + offset).replace(tzinfo=None))
 
 
 def _round(number: int, name: str, fp1: timedelta, quali: timedelta) -> dict:
@@ -135,7 +135,7 @@ def test_the_first_session_is_the_earliest_dated_slot_in_utc():
         }
     )
 
-    assert backfill._first_session(row) == datetime(2026, 8, 21, 10, 30, tzinfo=timezone.utc)
+    assert backfill._first_session(row) == datetime(2026, 8, 21, 10, 30, tzinfo=UTC)
 
 
 def test_an_aware_first_session_keeps_its_timezone():

@@ -19,8 +19,6 @@ up after a short wait rather than holding the request open.
 
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
@@ -117,7 +115,7 @@ def test_a_slow_data_source_returns_a_retryable_message(client, monkeypatch):
     monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.01)
 
     def slow(*_args, **_kwargs):
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", slow)
 
@@ -227,7 +225,7 @@ def test_compute_defaults_to_manual(client, monkeypatch):
 @pytest.mark.unit
 def test_compute_timeout_returns_a_retryable_message(client, monkeypatch):
     def slow(*_args, **_kwargs):
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", slow)
 

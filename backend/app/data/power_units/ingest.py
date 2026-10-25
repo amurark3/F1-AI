@@ -31,7 +31,7 @@ figures the FIA's reports state (:mod:`.allowances`).
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import hashlib
 import re
 from typing import TYPE_CHECKING
@@ -92,7 +92,7 @@ class IngestReport:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _wanted(title: str) -> bool:

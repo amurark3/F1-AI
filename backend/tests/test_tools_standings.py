@@ -19,7 +19,7 @@ so the row iteration and formatting under test are the real ones.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -251,7 +251,7 @@ def _install_schedule(monkeypatch, schedule) -> list[dict]:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @pytest.mark.unit

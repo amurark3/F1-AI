@@ -18,7 +18,7 @@ layer at the boundary the tool calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -80,7 +80,7 @@ def test_an_explicit_year_is_searched_as_given(monkeypatch):
 
 @pytest.mark.unit
 def test_mid_season_an_unqualified_question_uses_the_current_regulations(monkeypatch):
-    _freeze_now(monkeypatch, datetime(2026, 7, 4, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 7, 4, tzinfo=UTC))
     calls = _install_rulebook(monkeypatch, hits=[])
 
     consult_rulebook.invoke({"query": "parc fermé"})
@@ -91,7 +91,7 @@ def test_mid_season_an_unqualified_question_uses_the_current_regulations(monkeyp
 @pytest.mark.unit
 def test_after_the_season_ends_next_years_regulations_are_used_once_they_exist(monkeypatch, tmp_path):
     """In late December the current book is history; the new one is what applies."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data" / "raw" / "2027").mkdir(parents=True)
     calls = _install_rulebook(monkeypatch, hits=[])
@@ -104,7 +104,7 @@ def test_after_the_season_ends_next_years_regulations_are_used_once_they_exist(m
 @pytest.mark.unit
 def test_next_years_regulations_are_not_used_before_they_are_ingested(monkeypatch, tmp_path):
     """Rolling forward to a directory that does not exist would find nothing at all."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 20, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     calls = _install_rulebook(monkeypatch, hits=[])
 
@@ -116,7 +116,7 @@ def test_next_years_regulations_are_not_used_before_they_are_ingested(monkeypatc
 @pytest.mark.unit
 def test_early_december_is_still_the_current_season(monkeypatch, tmp_path):
     """The season is only treated as over after the 10th; races run before it."""
-    _freeze_now(monkeypatch, datetime(2026, 12, 5, tzinfo=timezone.utc))
+    _freeze_now(monkeypatch, datetime(2026, 12, 5, tzinfo=UTC))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data" / "raw" / "2027").mkdir(parents=True)
     calls = _install_rulebook(monkeypatch, hits=[])

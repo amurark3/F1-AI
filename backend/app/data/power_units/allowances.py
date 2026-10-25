@@ -29,7 +29,7 @@ the job; when the FIA's latest statement disagrees with it, the screen says so.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -221,7 +221,7 @@ def refresh_from_reports(sources: SeasonSources, now: str) -> tuple[str, ...]:
 
 def pin(year: int, code: str, allowance: int, note: str) -> WriteResult:
     """Fix one element's allowance by hand; the ingest job will not change it."""
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     pinned = AllowanceEntry(code, allowance, SOURCE_MANUAL, None, None, None, now, note)
     return save_allowances(year, {**load_allowances(year), code: pinned})
 

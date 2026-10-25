@@ -21,7 +21,7 @@ everything it covers — an adjustment left behind is redundant, not harmful.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import re
 
 import structlog
@@ -207,7 +207,7 @@ def _adjustment_from_withdrawal(withdrawal: Withdrawal) -> DriverAdjustment:
         status=STATUS_OUT,
         reason=_require_text(withdrawal.reason, "reason"),
         source=_require_text(withdrawal.source, "source"),
-        noted_at=datetime.now(timezone.utc).isoformat(),
+        noted_at=datetime.now(UTC).isoformat(),
     )
     if not withdrawal.replacement_code:
         return adjustment

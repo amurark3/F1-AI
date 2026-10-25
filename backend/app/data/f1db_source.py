@@ -36,7 +36,7 @@ says so in its outcome, which ``/api/ready`` publishes as ``f1db_sync``.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import io
 import os
 from pathlib import Path
@@ -324,7 +324,7 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
         published = _published_version() or None
         wanted = published or current or FALLBACK_F1DB_VERSION
         outcome = _keep(current, published) if current == wanted else _download(wanted, current, published)
-        _last_outcome = replace(outcome, checked_at=datetime.now(timezone.utc).isoformat())
+        _last_outcome = replace(outcome, checked_at=datetime.now(UTC).isoformat())
         return _last_outcome
 
 

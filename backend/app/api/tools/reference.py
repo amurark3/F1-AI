@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import os
 
 from langchain_core.tools import tool
@@ -36,7 +36,7 @@ def consult_rulebook(query: str, year: int | None = None) -> str:
     # regulations in late December once they are available.
     # --- Year resolution logic ---
     if year is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         current_year = now.year
         # After mid-December the season is over; prefer next-year regs if present.
         season_ended = now.month == 12 and now.day > 10

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 import math
 from typing import Any
 
@@ -34,5 +34,5 @@ def utc_isoformat(value: Any) -> str:
     """Serialize FastF1 UTC timestamps with an explicit UTC designator."""
 
     dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
-    dt = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
     return dt.isoformat().replace("+00:00", "Z")

@@ -13,7 +13,7 @@ cheap, but not something to repeat on every page view.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -66,7 +66,7 @@ _cache_lock = threading.Lock()
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _unavailable(year: int, reason: str, fresh: dict | None = None) -> dict:

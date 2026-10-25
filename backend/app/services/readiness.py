@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import threading
 from typing import TYPE_CHECKING
 
@@ -69,7 +69,7 @@ class ReadinessState:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 _INITIAL_STATE = ReadinessState(
@@ -128,7 +128,7 @@ def _warm_season() -> None:
     """Run one real query so the SQLite handle and schedule path are hot."""
     from app.data.f1db_results import race_schedule
 
-    race_schedule(datetime.now(timezone.utc).year)
+    race_schedule(datetime.now(UTC).year)
 
 
 def _warm_store() -> None:
@@ -190,7 +190,7 @@ async def run_warmup(steps: tuple[WarmupStep, ...] = WARMUP_STEPS) -> ReadinessS
                 timeout=WARMUP_STEP_TIMEOUT_SECONDS,
             )
             logger.info("warmup.step_done", stage=step.stage)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             first_error = first_error or f"{step.stage} timed out"
             logger.warning("warmup.step_timeout", stage=step.stage, timeout=WARMUP_STEP_TIMEOUT_SECONDS)
         except Exception as exc:

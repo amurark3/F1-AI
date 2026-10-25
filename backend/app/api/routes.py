@@ -24,7 +24,7 @@ This module holds no endpoint logic of its own beyond the liveness probe —
 each feature owns its router and this file only wires them together.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 import structlog
@@ -67,4 +67,4 @@ enable_fastf1_cache()
 @router.get("/health")
 async def health_check() -> dict:
     """Liveness probe — returns 200 OK when the server is running."""
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc)}
+    return {"status": "ok", "timestamp": datetime.now(UTC)}

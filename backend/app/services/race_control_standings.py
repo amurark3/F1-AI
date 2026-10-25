@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -120,7 +120,7 @@ def build_teams(year: int) -> dict:
     if teams:
         return {
             "year": year,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "source": "jolpica-ergast-constructor-standings",
             "drivers": drivers,
             "teams": teams,
@@ -129,7 +129,7 @@ def build_teams(year: int) -> dict:
 
     return {
         "year": year,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source": "jolpica-ergast-constructor-standings",
         "drivers": drivers,
         "teams": [],
@@ -252,7 +252,7 @@ def _intel_opportunities(context: IntelContext) -> list[str]:
 
 
 def build_intel(team_slug_value: str, year: int | None = None) -> dict:
-    resolved_year = year or datetime.now(timezone.utc).year
+    resolved_year = year or datetime.now(UTC).year
     drivers, constructors = get_standings_snapshot(resolved_year)
     if not constructors:
         return {

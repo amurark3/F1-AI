@@ -7,14 +7,14 @@ phase all ask that question, and all ask it here, so they cannot disagree.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.services.live_timing import scheduled_session_now
 
 
 def live_session(race: dict | None) -> str | None:
     """Name of the session on track for this event, or None between sessions."""
-    return scheduled_session_now((race or {}).get("sessions", {}), datetime.now(timezone.utc))
+    return scheduled_session_now((race or {}).get("sessions", {}), datetime.now(UTC))
 
 
 def build_live_status(race: dict | None) -> dict:

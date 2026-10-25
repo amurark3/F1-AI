@@ -8,7 +8,7 @@ reports any disagreement. The status record is the screen's "last checked".
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -217,7 +217,7 @@ def test_an_unreadable_or_malformed_status_reads_as_none(store_dir, monkeypatch)
 # what the screen says
 # ---------------------------------------------------------------------------
 
-MOMENT = datetime(2026, 10, 24, 9, 0, tzinfo=timezone.utc)
+MOMENT = datetime(2026, 10, 24, 9, 0, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(

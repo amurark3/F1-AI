@@ -5,7 +5,7 @@ whole race weekend — so it stayed lit for three days regardless of whether
 anything was on track.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -40,7 +40,7 @@ def at(monkeypatch):
 
 
 def test_live_status_is_connected_during_a_session(at):
-    at(datetime(2026, 8, 23, 13, 30, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 23, 13, 30, tzinfo=UTC))
 
     status = build_live_status(DUTCH_WEEKEND)
 
@@ -50,14 +50,14 @@ def test_live_status_is_connected_during_a_session(at):
 
 
 def test_live_status_names_the_sprint_not_the_grand_prix(at):
-    at(datetime(2026, 8, 22, 10, 20, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 22, 10, 20, tzinfo=UTC))
 
     assert build_live_status(DUTCH_WEEKEND)["session"] == "Sprint"
 
 
 def test_live_status_is_standby_between_sessions(at):
     """Saturday night. The weekend is in progress; nothing is running."""
-    at(datetime(2026, 8, 22, 23, 28, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 22, 23, 28, tzinfo=UTC))
 
     status = build_live_status(DUTCH_WEEKEND)
 
@@ -67,16 +67,16 @@ def test_live_status_is_standby_between_sessions(at):
 
 
 def test_live_status_handles_a_missing_race(at):
-    at(datetime(2026, 8, 22, 23, 28, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 22, 23, 28, tzinfo=UTC))
 
     assert build_live_status(None)["connected"] is False
 
 
 def test_focus_is_live_control_only_while_a_session_runs(at):
-    at(datetime(2026, 8, 23, 13, 30, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 23, 13, 30, tzinfo=UTC))
     assert focus_for_event({**DUTCH_WEEKEND, "days_until": None}) == "Live session control"
 
 
 def test_focus_falls_back_between_sessions(at):
-    at(datetime(2026, 8, 22, 23, 28, tzinfo=timezone.utc))
+    at(datetime(2026, 8, 22, 23, 28, tzinfo=UTC))
     assert focus_for_event({**DUTCH_WEEKEND, "days_until": 1}) != "Live session control"

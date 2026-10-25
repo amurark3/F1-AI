@@ -1,6 +1,6 @@
 """Season schedule and championship standings routes."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 import fastf1
@@ -63,7 +63,7 @@ def build_schedule_event(row: pd.Series) -> dict:
         last_session_date = timestamp if last_session_date is None else max(last_session_date, timestamp)
 
     event["is_sprint"] = "Sprint" in event["sessions"]
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
     if last_session_date and now_utc > last_session_date + pd.Timedelta(hours=3):
         event["status"] = "completed"
     elif first_session_date and now_utc >= first_session_date:

@@ -18,7 +18,7 @@ Prix's final classification as a live Dutch Grand Prix feed:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # How far back the gap and lap feeds are queried. Both are read only for their
 # latest row per driver, so pulling a whole session is wasted bandwidth: Spain
@@ -57,12 +57,12 @@ def parse_iso(value: object) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.strip())
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _normalise(value: object) -> str:

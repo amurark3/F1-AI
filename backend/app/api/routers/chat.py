@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 import threading
 from typing import NamedTuple
@@ -282,7 +282,7 @@ async def _invoke_tool(tool_call: dict) -> str:
             asyncio.to_thread(TOOL_MAP[name].invoke, tool_call["args"]),
             timeout=TOOL_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
         return f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
     except Exception as exc:
@@ -291,7 +291,7 @@ async def _invoke_tool(tool_call: dict) -> str:
     return str(result)
 
 
-async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
+async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str]:
     """Execute every known tool the model asked for, bracketing each with markers.
 
     The markers drive the client's "running a tool" indicator. An unknown tool
@@ -335,7 +335,7 @@ async def _agent_stream(
     messages: list[BaseMessage],
     tool_names: frozenset[str],
     conversation: _Conversation,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """Drive the tool-use loop, streaming markers and then the final answer."""
     response, tool_names = await _ainvoke_with_recovery(messages, tool_names)
 
@@ -373,7 +373,7 @@ async def _guarded_stream(
     messages: list[BaseMessage],
     tool_names: frozenset[str],
     conversation: _Conversation,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """The agent stream, with any failure rendered through the client-safe path."""
     try:
         async for chunk in _agent_stream(messages, tool_names, conversation):
@@ -383,7 +383,7 @@ async def _guarded_stream(
 
 
 def _today() -> str:
-    return datetime.now(timezone.utc).strftime("%B %d, %Y")
+    return datetime.now(UTC).strftime("%B %d, %Y")
 
 
 async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:

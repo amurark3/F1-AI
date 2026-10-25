@@ -14,7 +14,7 @@ the wiring — which feed reaches which block, and what survives when one dies.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -275,7 +275,7 @@ def test_overview_reports_an_empty_championship_as_no_competitors(monkeypatch):
 
 def _race_started(offset: timedelta) -> dict[str, str]:
     """A race session that started ``offset`` ago (negative: still to come)."""
-    return {"Race": (datetime.now(timezone.utc) - offset).isoformat()}
+    return {"Race": (datetime.now(UTC) - offset).isoformat()}
 
 
 @pytest.mark.unit

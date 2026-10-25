@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.tools import tool
 import structlog
@@ -137,7 +137,7 @@ def get_power_unit_usage(driver: str | None = None, year: int | None = None) -> 
         driver: Driver name, code or car number, e.g. "Hadjar", "HAD" or "6". Omit for every car.
         year: Season, e.g. 2026. Defaults to the current season.
     """
-    season = year or datetime.now(timezone.utc).year
+    season = year or datetime.now(UTC).year
     logger.info("tool.power_unit_usage", driver=driver, year=season)
     try:
         payload = build_power_units(season)

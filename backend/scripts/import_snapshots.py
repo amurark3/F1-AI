@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import argparse
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -48,7 +48,7 @@ def _strip_derived(payload: dict) -> dict:
 def _snapshot_from(payload: dict, position: int) -> dict:
     """Build a cache snapshot from one endpoint response."""
     cache = payload.get("cache") or {}
-    stored_at = cache.get("stored_at") or datetime.now(timezone.utc).isoformat()
+    stored_at = cache.get("stored_at") or datetime.now(UTC).isoformat()
     return {
         "id": f"v{position}-{stored_at}",
         "stored_at": stored_at,

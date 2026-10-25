@@ -4,7 +4,7 @@ A socket stays open across a whole race weekend, so the idle path must be
 cheap without letting the connection look dead.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import time
 
 import pytest
@@ -27,7 +27,7 @@ def _session(end: datetime) -> ActiveSession:
     )
 
 
-NOW = datetime(2026, 8, 23, 14, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 23, 14, 0, tzinfo=UTC)
 
 
 def test_idle_lookup_is_rate_limited():

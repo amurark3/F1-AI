@@ -18,7 +18,7 @@ So the properties under test are:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 import sys
 from types import SimpleNamespace
 
@@ -95,7 +95,7 @@ def test_iso_renders_utc_and_passes_none_through():
 
 @pytest.mark.unit
 def test_utc_now_is_timezone_aware():
-    assert module._utc_now().tzinfo == timezone.utc
+    assert module._utc_now().tzinfo == UTC
 
 
 @pytest.mark.unit
@@ -113,21 +113,21 @@ def test_coerce_utc_assumes_utc_for_a_naive_datetime():
     """FastF1's ``*DateUtc`` columns are naive but already UTC."""
     coerced = module._coerce_utc(datetime(2026, 3, 8, 15, 0))
 
-    assert coerced == datetime(2026, 3, 8, 15, 0, tzinfo=timezone.utc)
+    assert coerced == datetime(2026, 3, 8, 15, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
 def test_coerce_utc_converts_an_offset_aware_datetime():
     local = datetime(2026, 3, 8, 15, 0, tzinfo=timezone(timedelta(hours=3)))
 
-    assert module._coerce_utc(local) == datetime(2026, 3, 8, 12, 0, tzinfo=timezone.utc)
+    assert module._coerce_utc(local) == datetime(2026, 3, 8, 12, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
 def test_coerce_utc_unwraps_a_pandas_timestamp():
     coerced = module._coerce_utc(pd.Timestamp("2026-03-08 15:00"))
 
-    assert coerced == datetime(2026, 3, 8, 15, 0, tzinfo=timezone.utc)
+    assert coerced == datetime(2026, 3, 8, 15, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ def test_race_datetime_prefers_the_session_named_race():
         "EventDate": datetime(2026, 3, 8),
     }
 
-    assert module._race_datetime(row) == datetime(2026, 3, 8, 15, 0, tzinfo=timezone.utc)
+    assert module._race_datetime(row) == datetime(2026, 3, 8, 15, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
@@ -161,14 +161,14 @@ def test_race_datetime_falls_back_to_the_last_dated_session():
         "EventDate": datetime(2026, 3, 8),
     }
 
-    assert module._race_datetime(row) == datetime(2026, 3, 7, 15, 0, tzinfo=timezone.utc)
+    assert module._race_datetime(row) == datetime(2026, 3, 7, 15, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
 def test_race_datetime_ignores_a_race_session_with_no_date():
     row = {"Session2": "Race", "Session2DateUtc": None, "EventDate": datetime(2026, 3, 8)}
 
-    assert module._race_datetime(row) == datetime(2026, 3, 8, tzinfo=timezone.utc)
+    assert module._race_datetime(row) == datetime(2026, 3, 8, tzinfo=UTC)
 
 
 @pytest.mark.unit

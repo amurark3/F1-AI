@@ -28,7 +28,7 @@ or the FIA site could not be reached, in which case nothing was written.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -56,7 +56,7 @@ EXIT_UNREACHABLE = 2
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Collect the FIA's power-unit documents into the store.")
-    parser.add_argument("--year", type=int, default=datetime.now(timezone.utc).year)
+    parser.add_argument("--year", type=int, default=datetime.now(UTC).year)
     parser.add_argument("--all-events", action="store_true", help="re-walk every event page of the season")
     parser.add_argument("--cache-dir", type=Path, default=None, help="serve PDFs already downloaded to this folder")
     return parser.parse_args(argv)
@@ -96,7 +96,7 @@ def _record(status: IngestStatus, *, changed: bool) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     fetcher = PoliteFetcher(cache_dir=args.cache_dir)
-    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    started = datetime.now(UTC).isoformat(timespec="seconds")
     try:
         report = ingest_season(args.year, fetcher, all_events=args.all_events)
     except SourcesUnavailableError as exc:

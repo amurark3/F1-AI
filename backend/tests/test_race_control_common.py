@@ -17,14 +17,14 @@ championship forecast divides by. Three risks are worth guarding.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
 
 from app.services import race_control_common as module
 
-_NOW = datetime.now(timezone.utc).replace(tzinfo=None)
+_NOW = datetime.now(UTC).replace(tzinfo=None)
 
 
 # ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ load_dotenv()
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import os
 
 from fastapi import FastAPI
@@ -68,7 +68,7 @@ async def _prefetch_round(year: int, round_num: int) -> None:
         if detail.get("circuit") is not None:
             race_detail.race_detail_cache[(year, round_num)] = detail
             logger.info("prefetch.cached", year=year, round=round_num)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("prefetch.timeout", year=year, round=round_num)
     except Exception as inner_err:
         logger.exception("prefetch.failed", year=year, round=round_num, error=str(inner_err))
@@ -88,9 +88,9 @@ async def _prefetch_race_details() -> None:
 
     while True:
         try:
-            year = datetime.now(timezone.utc).year
+            year = datetime.now(UTC).year
             schedule = await asyncio.to_thread(fastf1.get_event_schedule, year, include_testing=False)
-            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            now_utc = datetime.now(UTC).replace(tzinfo=None)
 
             for _, row in schedule.iterrows():
                 round_num = int(row["RoundNumber"])
@@ -119,7 +119,7 @@ async def _prefetch_race_details() -> None:
         try:
             from app.services.self_improvement import run_self_improvement_pass
 
-            await asyncio.to_thread(run_self_improvement_pass, datetime.now(timezone.utc).year)
+            await asyncio.to_thread(run_self_improvement_pass, datetime.now(UTC).year)
         except Exception as e:
             logger.exception("self_improvement.loop_error", error=str(e))
 

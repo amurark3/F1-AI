@@ -105,6 +105,14 @@ def test_cover_reads_event_race_day_and_document_number_through_nbsp():
     assert cover.event == "United States Grand Prix"
     assert cover.race_day == date(2026, 10, 25)
     assert cover.document_number == 15
+    # A stewards' decision encloses no report, so it does not say its round.
+    assert cover.round is None
+
+
+def test_cover_reads_the_round_the_enclosed_report_is_numbered_for():
+    assert parse_cover(fixture("usage_singapore.txt")).round == 17
+    # The event code is the FIA's own, hyphenated for Barcelona.
+    assert parse_cover("2026 BARCELONA-CATALUNYA GRAND PRIX\nEnclosed 07 BCN-CAT GP 26 TDR8.pdf\n").round == 7
 
 
 def test_cover_handles_a_range_across_a_month_end():
@@ -113,13 +121,29 @@ def test_cover_handles_a_range_across_a_month_end():
     assert cover.event == "Mexico City Grand Prix"
 
 
-@pytest.mark.parametrize("text", ["Some page\n31 - 32 Smarch 2026\n", "no cover at all"])
+def test_cover_range_without_a_year_takes_the_headline_season():
+    # Mexico City 2026: the FIA left the year off the range on every cover.
+    cover = parse_cover("2026 MEXICO CITY GRAND PRIX\n30 October - 01 November\nThe Stewards\nDocument 17\n")
+    assert cover.race_day == date(2026, 11, 1)
+
+
+def test_cover_reads_an_abbreviated_month():
+    # Austria 2026: "Jun", not "June".
+    cover = parse_cover("2026 AUSTRIAN GRAND PRIX\n26 - 28 Jun 2026\nDocument 9\n")
+    assert cover.race_day == date(2026, 6, 28)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Some page\n31 - 32 Smarch 2026\n", "Some page\n30 October - 01 November\n", "no cover at all"],
+)
 def test_cover_fields_are_none_when_absent_or_invalid(text):
     cover = parse_cover(text)
     assert cover.season is None
     assert cover.event is None
     assert cover.race_day is None
     assert cover.document_number is None
+    assert cover.round is None
 
 
 # ---------------------------------------------------------------------------

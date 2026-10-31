@@ -1,8 +1,9 @@
 """Parse the stored corpus into round-tagged evidence.
 
-Each document is tied to an f1db round by its cover's race day — the FIA's
-event names drift ("Bahrain Grand Prix" was held in Malaysia in 2026), dates
-do not — and by its listed event name when the cover date cannot be read.
+Each document is tied to an f1db round by what its cover says — the round its
+enclosed report is numbered for, else its race day; the FIA's event names drift
+("Bahrain Grand Prix" was held in Malaysia in 2026) — and by its listed event
+name when the cover says neither.
 
 A document that cannot be read, or tied to a round, is not dropped: it becomes
 an :class:`UnreadDocument` with the reason, and the screen lists it. A season
@@ -155,6 +156,9 @@ def _ref(source: SourceDocument, parsed: ParsedDocument) -> DocumentRef:
 
 
 def _round_for(source: SourceDocument, parsed: ParsedDocument, context: SeasonContext) -> int | None:
+    numbered = parsed.cover.round
+    if numbered is not None and any(item.round == numbered for item in context.rounds):
+        return numbered
     if parsed.cover.race_day is not None:
         by_day = context.round_on(parsed.cover.race_day)
         if by_day is not None:

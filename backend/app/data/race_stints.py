@@ -1,47 +1,53 @@
-"""Tyre stints for a race, from FastF1 lap data.
+"""Tyre stints for a race: stored, from OpenF1, or from FastF1 lap data.
 
 f1db records results and pit stops but not what a car was running, so the
-compound behind a strategy has to come from FastF1's lap frame. Each lap
-carries the stint it belongs to, the compound fitted, and how many laps that
-set had already done — which together describe the strategy rather than just
-its timing.
+compound behind a strategy has to come from timing data. Each stint carries the
+compound fitted, its lap range, and how many laps that set had already done,
+which together describe the strategy rather than just its timing.
 
-``TyreLife`` at the start of a stint is the detail that usually explains the
-decision: a set starting at zero is new, and one starting above zero is a
+**Where stints come from, in order:**
+
+1. This process's cache, then the document store (:mod:`app.data.race_stints_store`):
+   a finished race's stints never change.
+2. OpenF1 (:mod:`app.data.openf1_stints`). Since mid-October 2026 F1's
+   live-timing archive refuses requests without an F1 TV token, so FastF1 has
+   no lap data on a cold cache, and Render's cache is always cold. OpenF1 needs
+   no login and agrees with FastF1 stint for stint.
+3. FastF1's lap frame, for when OpenF1 is closed (it refuses unauthenticated
+   clients while any session is live) and a warm local cache can still answer.
+
+``tyre_life_start`` at the start of a stint is the detail that usually explains
+the decision: a set starting at zero is new, and one starting above zero is a
 scrubbed set from qualifying or practice. A stint chart without it makes two
-very different strategies look identical.
+very different strategies look identical. FastF1's ``TyreLife`` counts the lap
+being driven, so it reads 1 on a new set's first lap and is reduced by one here.
 
-``TrackStatus`` on the lap a stint *ends* matters just as much, because not
-every tyre change is a pit stop. When a race is red-flagged the whole field
-files into the pit lane and changes tyres for free, which shows up as a stint
-boundary — and as a ``PitInTime`` — for every car. Monza 2026 was red-flagged on
-lap 3 and produced 21 such boundaries against 9 real stops; counting them as
-pit stops trebled every driver's stop count. The end-lap status is therefore
-recorded so callers can tell a strategic stop from a suspended race.
+The lap a stint *ends* on matters just as much, because not every tyre change
+is a pit stop. When a race is red-flagged the whole field files into the pit
+lane and changes tyres for free, which shows up as a stint boundary for every
+car. Monza 2026 was red-flagged on lap 3 and produced 21 such boundaries
+against 9 real stops; counting them as pit stops trebled every driver's stop
+count. ``ended_under_red_flag`` lets callers tell a strategic stop from a
+suspended race.
 
 Relationship to :mod:`app.data.strategy`: that module also reads stints, but
 for a different job. ``analyze_pit_strategy`` answers a question about *one
 driver* — degradation, average pace, undercut and overcut windows, circuit
-history — and is what the AI tool layer calls. Using it to draw a whole-field
-stint chart would mean running that analysis twenty times over to recover a
-lap range each time. This module makes one pass over the lap frame and returns
-the shape of every driver's race, and computes no degradation at all.
+history — and is what the AI tool layer calls. This module returns the shape of
+every driver's race and computes no degradation at all.
 
-Caching is not optional here. ``session.load()`` re-parses the whole session
-from its cache on every call — measured at ~28s warm and over two minutes cold
-for a single race — which is far too slow to sit in a request path. A stint is
-also immutable once the chequered flag falls, so a completed race is cached for
-the life of the process and only an *empty* result is retried, on a short
-interval, in case the race simply has not run yet.
+Caching is not optional. ``session.load()`` re-parses the whole session on every
+call, measured at ~28s warm and over two minutes cold for a single race. A
+completed race is cached for the life of the process and kept in the store; only
+an *empty* result is retried, on a short interval, in case the race simply has
+not run yet.
 
-Thread safety: FastF1 session loads are wrapped with ``_fastf1_lock``, the same
-per-module pattern used by :mod:`app.data.session_entries` and
-:mod:`app.data.predictions`.
+Thread safety: FastF1 session loads are wrapped with ``_fastf1_lock``, the
+process-wide lock every FastF1 caller shares.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 import threading
 import time
@@ -50,6 +56,9 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
+from app.data.openf1_stints import openf1_race_stints
+from app.data.race_stints_store import stint_store
+from app.data.stint_model import Stint, clean_compound
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
@@ -69,45 +78,12 @@ _cache: dict[tuple[int, int | str], tuple[Stint, ...]] = {}
 _empty_until: dict[tuple[int, int | str], float] = {}
 _cache_lock = threading.Lock()
 
-#: How long an empty result is trusted before the session is tried again.
+#: How long an empty result is trusted before the sources are tried again.
 EMPTY_RETRY_SECONDS = 300.0
-
-#: FastF1 writes this when it has lap rows but no compound for them.
-UNKNOWN_COMPOUND = "UNKNOWN"
 
 #: FastF1 concatenates the single-digit track statuses seen during a lap, so a
 #: red-flagged lap reads e.g. "1245". Code 5 is the red flag.
 RED_FLAG_STATUS = "5"
-
-
-@dataclass(frozen=True)
-class Stint:
-    """One run on one set of tyres."""
-
-    driver_code: str
-    #: Constructor the driver ran for, for livery-tinting a stint chart.
-    team: str
-    #: Which stint of the race, counting from 1.
-    stint: int
-    #: Tyre compound, or ``None`` when FastF1 has lap rows but no compound.
-    compound: str | None
-    start_lap: int
-    end_lap: int
-    laps: int
-    #: Laps already on the set when the stint began: 0 for a new set.
-    tyre_life_start: int | None
-    #: Whether the set was new when fitted. ``None`` when not recorded.
-    fresh: bool | None
-    #: True when the lap this stint ended on was red-flagged, which makes the
-    #: tyre change a consequence of the suspension rather than a pit stop.
-    ended_under_red_flag: bool
-
-
-def _clean_compound(value: object) -> str | None:
-    text = str(value or "").strip().upper()
-    if not text or text in {"NAN", "NONE", UNKNOWN_COMPOUND}:
-        return None
-    return text
 
 
 def _is_missing(value: object) -> bool:
@@ -124,10 +100,14 @@ def _bool_or_none(value: object) -> bool | None:
     return bool(value)
 
 
-def _int_or_none(value: object) -> int | None:
-    if _is_missing(value):
+def _laps_before(tyre_life: object) -> int | None:
+    """Laps on a set before this stint, from FastF1's ``TyreLife`` on its first lap.
+
+    ``TyreLife`` includes the lap being driven, so a new set reads 1 there.
+    """
+    if _is_missing(tyre_life):
         return None
-    return int(value)
+    return max(int(tyre_life) - 1, 0)
 
 
 def _stints_from_laps(laps: pd.DataFrame, driver_codes: dict[str, str]) -> tuple[Stint, ...]:
@@ -146,11 +126,11 @@ def _stints_from_laps(laps: pd.DataFrame, driver_codes: dict[str, str]) -> tuple
                 driver_code=driver_codes.get(str(driver), str(driver)),
                 team=str(first.get("Team", "") or "").strip(),
                 stint=int(stint),
-                compound=_clean_compound(first.get("Compound")),
+                compound=clean_compound(first.get("Compound")),
                 start_lap=int(ordered["LapNumber"].min()),
                 end_lap=int(ordered["LapNumber"].max()),
                 laps=len(ordered),
-                tyre_life_start=_int_or_none(first.get("TyreLife")),
+                tyre_life_start=_laps_before(first.get("TyreLife")),
                 fresh=_bool_or_none(first.get("FreshTyre")),
                 ended_under_red_flag=RED_FLAG_STATUS in str(last.get("TrackStatus") or ""),
             )
@@ -161,7 +141,7 @@ def _stints_from_laps(laps: pd.DataFrame, driver_codes: dict[str, str]) -> tuple
 
 
 def _cached(key: tuple[int, int | str]) -> tuple[Stint, ...] | None:
-    """A hit, or ``None`` when the session must actually be loaded."""
+    """A hit, or ``None`` when the sources must actually be asked."""
     with _cache_lock:
         hit = _cache.get(key)
         if hit is not None:
@@ -180,18 +160,27 @@ def _store(key: tuple[int, int | str], stints: tuple[Stint, ...]) -> None:
             _empty_until[key] = time.monotonic() + EMPTY_RETRY_SECONDS
 
 
-def race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
-    """Every tyre stint of a race, by driver then stint order.
+def _driver_codes(results: pd.DataFrame | None) -> dict[str, str]:
+    """FastF1's driver identifier mapped onto the three-letter code.
 
-    Returns an empty tuple when the session cannot be loaded — a race that has
-    not run, or a FastF1 source that is unavailable. Callers report the gap
-    rather than presenting an empty strategy as a real one.
+    FastF1 keys laps by the number for some seasons and the abbreviation for
+    others; the results frame maps either onto the code every other surface
+    here uses.
     """
-    key = (year, round_num)
-    cached = _cached(key)
-    if cached is not None:
-        return cached
+    codes: dict[str, str] = {}
+    if results is None or results.empty:
+        return codes
+    for _, row in results.iterrows():
+        abbreviation = str(row.get("Abbreviation", "") or "").strip().upper()
+        if not abbreviation:
+            continue
+        codes[str(row.get("DriverNumber", "") or "").strip()] = abbreviation
+        codes[abbreviation] = abbreviation
+    return codes
 
+
+def _fastf1_stints(year: int, round_num: int) -> tuple[Stint, ...]:
+    """Stints from FastF1's lap frame; empty when the session cannot be loaded."""
     try:
         with _fastf1_lock:
             session = fastf1.get_session(year, round_num, "R")
@@ -206,28 +195,34 @@ def race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     # and this function's contract is "no stints" for every one of them.
     except Exception as exc:
         logger.warning("race_stints.unavailable", year=year, round=round_num, error=str(exc))
-        _store(key, ())
         return ()
 
     if laps is None or laps.empty:
         logger.info("race_stints.no_laps", year=year, round=round_num)
-        _store(key, ())
         return ()
+    return _stints_from_laps(laps, _driver_codes(session.results))
 
-    # FastF1 keys laps by its own driver identifier, which is the number for
-    # some seasons and the abbreviation for others; the results frame is what
-    # maps either onto the three-letter code every other surface here uses.
-    codes: dict[str, str] = {}
-    results = session.results
-    if results is not None and not results.empty:
-        for _, row in results.iterrows():
-            abbreviation = str(row.get("Abbreviation", "") or "").strip().upper()
-            if not abbreviation:
-                continue
-            codes[str(row.get("DriverNumber", "") or "").strip()] = abbreviation
-            codes[abbreviation] = abbreviation
 
-    stints = _stints_from_laps(laps, codes)
+def race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
+    """Every tyre stint of a race, by driver then stint order.
+
+    Returns an empty tuple when no source can say: a race that has not run, or
+    every source unreachable. Callers report the gap rather than presenting an
+    empty strategy as a real one.
+    """
+    key = (year, round_num)
+    cached = _cached(key)
+    if cached is not None:
+        return cached
+
+    stored = stint_store.get(year, round_num)
+    if stored:
+        _store(key, stored)
+        return stored
+
+    stints = openf1_race_stints(year, round_num) or _fastf1_stints(year, round_num)
     _store(key, stints)
+    if stints:
+        stint_store.put(year, round_num, stints)
     logger.info("race_stints.loaded", year=year, round=round_num, stints=len(stints))
     return stints

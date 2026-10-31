@@ -53,6 +53,8 @@ DOCUMENT_POWER_UNIT_SOURCES = "power_unit_sources"
 DOCUMENT_POWER_UNIT_ALLOWANCES = "power_unit_allowances"
 # When the ingest job last ran and what it found — the screen's "last updated".
 DOCUMENT_POWER_UNIT_STATUS = "power_unit_ingest_status"
+# Each finished race's tyre stints, once a source has resolved them.
+DOCUMENT_RACE_STINTS = "race_stints"
 
 _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_PREDICTION_CACHE: PREDICTION_CACHE_PATH,
@@ -63,6 +65,7 @@ _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_POWER_UNIT_SOURCES: "data/power_unit_sources.json",
     DOCUMENT_POWER_UNIT_ALLOWANCES: "data/power_unit_allowances.json",
     DOCUMENT_POWER_UNIT_STATUS: "data/power_unit_ingest_status.json",
+    DOCUMENT_RACE_STINTS: "data/race_stints.json",
 }
 
 BACKEND_POSTGRES = "postgres"

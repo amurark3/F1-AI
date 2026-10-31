@@ -58,6 +58,7 @@ backend/data/circuit_reference.json
 backend/data/power_unit_sources.json
 backend/data/power_unit_allowances.json
 backend/data/power_unit_ingest_status.json
+backend/data/race_stints.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db

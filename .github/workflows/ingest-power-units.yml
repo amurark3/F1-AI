@@ -61,9 +61,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt "$(grep -E '^pypdf==' requirements-ingest.txt)"
 
+      # DATABASE_URL must be the Supabase *session pooler* URL
+      # (…@aws-<n>-<region>.pooler.supabase.com:5432): runners are IPv4-only and
+      # the direct db.<ref>.supabase.co host is IPv6-only. --require-database
+      # stops the run when it is missing or direct — without it the job would
+      # collect into this runner's throwaway disk and still report success.
       - name: Collect the FIA's power-unit documents
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # The daily schedule and a manual "all events" run re-read every event page.
           ALL_EVENTS: ${{ (github.event.schedule == '47 5 * * *' || inputs.all_events) && '--all-events' || '' }}
-        run: python -m scripts.ingest_power_units $ALL_EVENTS
+        run: python -m scripts.ingest_power_units --require-database $ALL_EVENTS

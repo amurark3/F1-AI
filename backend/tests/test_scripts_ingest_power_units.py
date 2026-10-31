@@ -1,7 +1,8 @@
 """Tests for ``scripts.ingest_power_units`` — the scheduled FIA collection job.
 
 What is pinned is the job's contract with its scheduler: the exit status says
-whether to look (0 fine, 1 some documents unread, 2 nothing written at all),
+whether to look (0 fine, 1 some documents unread, 2 nothing written at all,
+3 no usable database),
 and the printed report says what to look at.
 """
 
@@ -28,7 +29,14 @@ from app.data.power_units.status import (  # noqa: E402
     OUTCOME_OK,
     OUTCOME_WRITE_FAILED,
 )
-from app.data.store_types import WriteResult  # noqa: E402
+from app.data.store import (  # noqa: E402
+    BACKEND_FILE,
+    BACKEND_POSTGRES,
+    HOST_OTHER,
+    HOST_SUPABASE_DIRECT,
+    HOST_SUPABASE_POOLER,
+)
+from app.data.store_types import StoreHealth, WriteResult  # noqa: E402
 
 
 def report(**overrides) -> IngestReport:
@@ -150,3 +158,44 @@ def test_an_unreachable_store_exits_two_without_recording(calls, capsys, recorde
     assert script.main([]) == script.EXIT_UNREACHABLE
     assert "store down" in capsys.readouterr().out
     assert recorded == []
+
+
+# ---------------------------------------------------------------------------
+# --require-database: the scheduled job must never write to a throwaway disk
+# ---------------------------------------------------------------------------
+
+
+def store_health(monkeypatch, health: StoreHealth) -> None:
+    monkeypatch.setattr(script.document_store, "health", lambda: health)
+
+
+@pytest.mark.parametrize(
+    ("health", "message"),
+    [
+        (StoreHealth(backend=BACKEND_FILE), "DATABASE_URL is not set"),
+        (StoreHealth(backend=BACKEND_POSTGRES, host_kind=HOST_SUPABASE_DIRECT), "IPv6-only"),
+    ],
+)
+def test_require_database_refuses_a_store_the_job_would_lose(calls, capsys, monkeypatch, recorded, health, message):
+    seen = calls(report())
+    store_health(monkeypatch, health)
+    assert script.main(["--require-database"]) == script.EXIT_NO_DATABASE
+
+    assert message in capsys.readouterr().out
+    assert seen == []  # fia.com was never asked
+    assert recorded == []
+
+
+@pytest.mark.parametrize("host_kind", [HOST_SUPABASE_POOLER, HOST_OTHER])
+def test_require_database_lets_a_reachable_postgres_run(calls, monkeypatch, host_kind):
+    seen = calls(report())
+    store_health(monkeypatch, StoreHealth(backend=BACKEND_POSTGRES, host_kind=host_kind))
+    assert script.main(["--require-database"]) == script.EXIT_OK
+    assert len(seen) == 1
+
+
+def test_without_the_flag_a_local_file_run_is_allowed(calls, monkeypatch):
+    seen = calls(report())
+    store_health(monkeypatch, StoreHealth(backend=BACKEND_FILE))
+    assert script.main([]) == script.EXIT_OK
+    assert len(seen) == 1

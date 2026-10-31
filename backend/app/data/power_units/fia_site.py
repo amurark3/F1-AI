@@ -22,6 +22,12 @@ read by the anchors both share (the row class, ``class="title"``,
 
 robots.txt asks for ten seconds between requests and disallows none of these
 paths. :class:`PoliteFetcher` enforces that delay on every request it makes.
+
+fia.com also resets connections now and then — ``ConnectionResetError(104)``
+from GitHub's runners, a few times a day — and a single reset used to fail the
+whole scheduled job. A transient failure (reset, timeout, 429 or 5xx) is
+therefore tried again after a longer pause; a definite answer such as a 404 is
+not.
 """
 
 from __future__ import annotations
@@ -51,6 +57,13 @@ DOCUMENTS_INDEX_URL = f"{FIA_BASE_URL}/documents/championships/fia-formula-one-w
 CRAWL_DELAY_SECONDS = 10.0
 REQUEST_TIMEOUT_SECONDS = 60
 USER_AGENT = "F1-AI power-unit tracker (github.com/amurark3/F1-AI; honours robots.txt crawl-delay)"
+#: Extra pause before each retry of a transiently failed request — one entry per
+#: retry, so three attempts in all. The server just turned us away, so the second
+#: knock waits longer than the crawl delay, and the third longer still.
+RETRY_BACKOFF_SECONDS: tuple[float, ...] = (30.0, 90.0)
+#: Longest ``Retry-After`` honoured; a longer one fails the request instead.
+MAX_RETRY_AFTER_SECONDS = 300.0
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 _SEASON_PATH = re.compile(
     r"(?P<path>/documents/championships/fia-formula-one-world-championship-14/season/season-(?P<year>\d{4})-\d+)(?=[\"'/?#])",
@@ -170,6 +183,25 @@ def pdf_text(data: bytes) -> str:
         raise DocumentParseError(f"PDF text could not be extracted: {exc}") from exc
 
 
+def _retry_wait(exc: requests.RequestException, backoff: float) -> float | None:
+    """How long to pause before trying again, or ``None`` when trying again is pointless.
+
+    Connection resets, timeouts and broken transfers are transient, and so are
+    429 and 5xx answers — whose ``Retry-After``, when given and sane, is honoured.
+    Any other answer (404, 403) is the server's considered reply.
+    """
+    if isinstance(exc, requests.ConnectionError | requests.Timeout | requests.exceptions.ChunkedEncodingError):
+        return backoff
+    response = exc.response
+    if response is None or response.status_code not in _RETRYABLE_STATUS:
+        return None
+    retry_after = str(response.headers.get("Retry-After", "")).strip()
+    if not retry_after.isdigit():
+        return backoff
+    asked = float(retry_after)
+    return max(backoff, asked) if asked <= MAX_RETRY_AFTER_SECONDS else None
+
+
 class PoliteFetcher:
     """HTTP GET with the FIA's crawl delay between requests.
 
@@ -198,17 +230,31 @@ class PoliteFetcher:
         if remaining > 0:
             time.sleep(remaining)
 
-    def _get(self, url: str) -> bytes:
+    def _attempt(self, url: str) -> bytes:
         self._wait_turn()
         try:
             response = self._session.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT_SECONDS)
             response.raise_for_status()
-        except requests.RequestException as exc:
-            raise FetchError(f"GET {url} failed: {exc}") from exc
         finally:
             self._last_request = time.monotonic()
             self.requests_made += 1
         return response.content
+
+    def _get(self, url: str) -> bytes:
+        for backoff in RETRY_BACKOFF_SECONDS:
+            try:
+                return self._attempt(url)
+            except requests.RequestException as exc:
+                wait = _retry_wait(exc, backoff)
+                if wait is None:
+                    raise FetchError(f"GET {url} failed: {exc}") from exc
+                logger.warning("fia_site.retrying", url=url, error=str(exc), wait_seconds=wait)
+                time.sleep(wait)
+        try:
+            return self._attempt(url)
+        except requests.RequestException as exc:
+            attempts = len(RETRY_BACKOFF_SECONDS) + 1
+            raise FetchError(f"GET {url} failed after {attempts} attempts: {exc}") from exc
 
     def page(self, url: str) -> str:
         """An HTML page, decoded."""

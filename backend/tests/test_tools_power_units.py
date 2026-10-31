@@ -6,6 +6,8 @@ model reads is what the screen shows.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from app.api.tools import TOOL_MAP, power_units as tool_module
@@ -14,6 +16,9 @@ from app.data.power_units.status import OUTCOME_OK, IngestStatus
 from app.services.power_units import clear_cache, provenance, report
 from tests.power_units_support import allowance_entries, corpus, season_context
 
+# Relative to the real clock: the tool calls a check more than a day old stale,
+# so a fixed date here would start failing the day after it was written.
+CHECKED_AT = (datetime.now(UTC) - timedelta(hours=1)).isoformat(timespec="seconds")
 GRIDS = {13: (GridSlot("LAW", "Liam Lawson", "Red Bull", None, 14, 35, False, True),)}
 
 
@@ -24,9 +29,7 @@ def wired(monkeypatch):
     monkeypatch.setattr(report, "load_season_context", lambda year: season_context())
     monkeypatch.setattr(report, "starting_grid", lambda year, round_num: GRIDS.get(round_num, ()))
     monkeypatch.setattr(report, "load_allowances", lambda year: allowance_entries())
-    monkeypatch.setattr(
-        provenance, "load_status", lambda year: IngestStatus(year, "2026-10-24T08:17:00+00:00", OUTCOME_OK)
-    )
+    monkeypatch.setattr(provenance, "load_status", lambda year: IngestStatus(year, CHECKED_AT, OUTCOME_OK))
     yield
     clear_cache()
 
@@ -111,7 +114,7 @@ def test_a_failure_reaches_the_model_without_its_details(monkeypatch):
 
 
 def test_the_model_is_told_how_fresh_the_data_is(monkeypatch):
-    assert "FIA documents last checked 2026-10-24T08:17:00+00:00." in run(year=2026)
+    assert f"FIA documents last checked {CHECKED_AT}." in run(year=2026)
     monkeypatch.setattr(
         provenance, "load_status", lambda year: IngestStatus(year, "2026-01-01T00:00:00+00:00", OUTCOME_OK)
     )

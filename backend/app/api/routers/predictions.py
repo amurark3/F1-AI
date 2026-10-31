@@ -1,6 +1,8 @@
 """Race prediction REST routes."""
 
 import asyncio
+from collections.abc import Awaitable, Callable
+from functools import partial
 
 from fastapi import APIRouter, Query
 import structlog
@@ -25,6 +27,14 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["predictions"])
 prediction_locks: dict[tuple[int, int], asyncio.Lock] = {}
 
+# A model run in flight, keyed by race and by which call it is computing: a
+# phase name, "auto" when the data picks the phase, or the legacy first compute.
+RunKey = tuple[int, int, str]
+model_runs: dict[RunKey, asyncio.Task[dict]] = {}
+AUTO_PHASE_RUN = "auto"
+FIRST_COMPUTE_RUN = "first_compute"
+STILL_RUNNING_MESSAGE = "The model is still running. Try again in a minute."
+
 # How long a request waits for a post-race result load before serving the
 # snapshot as-is. Kept short: the page must stay fast, and a slower load still
 # finishes in the background and lands on the next request.
@@ -48,6 +58,61 @@ def _prediction_lock(cache_key: tuple[int, int]) -> asyncio.Lock:
         lock = asyncio.Lock()
         prediction_locks[cache_key] = lock
     return lock
+
+
+def _start_model_run(key: RunKey, work: Callable[[], Awaitable[dict]]) -> asyncio.Task[dict]:
+    """The run for ``key`` already in flight, or a newly started one.
+
+    A run is a task of its own, not part of the request that started it. A
+    request that stops waiting leaves the run to finish, store its snapshot and
+    only then release the race. A request that arrives meanwhile joins the run,
+    so a retry never stacks a second full model run beside the first — on a
+    512 MB instance that is what ran the worker out of memory.
+    """
+    run = model_runs.get(key)
+    if run is None:
+        run = asyncio.create_task(work())
+        model_runs[key] = run
+        run.add_done_callback(partial(_forget_model_run, key))
+    return run
+
+
+def _forget_model_run(key: RunKey, run: asyncio.Task[dict]) -> None:
+    """Drop a finished run, logging a failure no request may have stayed to see."""
+    model_runs.pop(key, None)
+    if run.cancelled():
+        return
+    error = run.exception()
+    if error:
+        logger.warning("api.predictions.model_run_failed", year=key[0], round=key[1], run=key[2], error=str(error))
+
+
+async def _wait_for_model_run(run: asyncio.Task[dict]) -> dict | None:
+    """The run's result, or ``None`` when it is still going as this request's wait ends.
+
+    ``shield`` is what lets the wait end without cancelling the run. A
+    ``TimeoutError`` from a run that has already finished is the run's own
+    failure (a socket timeout, say), so it is raised, not read as a slow run.
+    """
+    try:
+        return await asyncio.wait_for(asyncio.shield(run), timeout=FASTF1_TIMEOUT_SECONDS)
+    except TimeoutError:
+        if run.done():
+            return run.result()
+        return None
+
+
+async def _get_or_compute_under_race_lock(year: int, round_num: int) -> dict:
+    async with _prediction_lock((year, round_num)):
+        cached = prediction_snapshot_cache.get(year, round_num)
+        if cached:
+            return await _with_scored_review(enrich_prediction_result(cached))
+        return await asyncio.to_thread(get_or_compute_race_prediction, year, round_num)
+
+
+async def _compute_under_race_lock(year: int, round_num: int, reason: str, phase: str | None) -> dict:
+    async with _prediction_lock((year, round_num)):
+        return await asyncio.to_thread(compute_and_store_race_prediction, year, round_num, reason=reason, phase=phase)
 
 
 def _log_late_review(task: asyncio.Task) -> None:
@@ -105,38 +170,28 @@ async def get_predictions(year: int, round_num: int) -> dict:
     Use ``/snapshot`` when a client must not trigger model work.
     """
 
-    cache_key = (year, round_num)
     cached = prediction_snapshot_cache.get(year, round_num)
     if cached:
         return await _with_scored_review(enrich_prediction_result(cached))
 
-    async with _prediction_lock(cache_key):
-        cached = prediction_snapshot_cache.get(year, round_num)
-        if cached:
-            return await _with_scored_review(enrich_prediction_result(cached))
+    run = _start_model_run(
+        (year, round_num, FIRST_COMPUTE_RUN),
+        partial(_get_or_compute_under_race_lock, year, round_num),
+    )
+    try:
+        result = await _wait_for_model_run(run)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "predictions": [],
+            **client_error("api.predictions.error", exc, year=year, round=round_num),
+        }
 
-        try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(get_or_compute_race_prediction, year, round_num),
-                timeout=FASTF1_TIMEOUT_SECONDS,
-            )
-        except TimeoutError:
-            logger.warning("api.predictions.timeout", year=year, round=round_num)
-            return {
-                "year": year,
-                "round": round_num,
-                "predictions": [],
-                "error": "Prediction data source timed out. Try again shortly.",
-            }
-        except Exception as exc:
-            return {
-                "year": year,
-                "round": round_num,
-                "predictions": [],
-                **client_error("api.predictions.error", exc, year=year, round=round_num),
-            }
-
-        return result
+    if result is None:
+        logger.warning("api.predictions.still_running", year=year, round=round_num)
+        return {"year": year, "round": round_num, "predictions": [], "error": STILL_RUNNING_MESSAGE}
+    return result
 
 
 @router.get("/predictions/{year}/{round_num}/snapshot")
@@ -150,13 +205,19 @@ async def get_prediction_snapshot(
     ``phase`` selects one of the two stored calls for the race. Omitting it
     returns the most recently stored one, which is what clients written before
     phases existed expect.
+
+    ``model_running`` says whether a compute for that phase is still in flight,
+    so a client waiting on a "computing" answer can tell a slow run (keep
+    waiting) from one that ended without storing anything (stop and say so).
     """
 
     wanted = normalise_phase(phase)
+    running = (year, round_num, wanted or AUTO_PHASE_RUN) in model_runs
     cached = get_cached_race_prediction(year, round_num, phase=wanted)
     if cached:
-        return await _with_scored_review(cached)
+        return {**(await _with_scored_review(cached)), "model_running": running}
     return {
+        "model_running": running,
         "year": year,
         "round": round_num,
         "predictions": [],
@@ -198,37 +259,30 @@ async def compute_predictions(
 
     ``phase`` recomputes just that one of the race's two stored calls; the other
     is left untouched, so refreshing one tab never clears the other.
+
+    A run that outlasts the wait answers ``cache.status == "computing"``: the run
+    carries on and stores its snapshot, which the client then picks up from
+    ``/snapshot``. Posting again meanwhile joins that run instead of starting one.
     """
 
-    cache_key = (year, round_num)
     if reason not in {"manual_compute", "qualifying_recompute"}:
         reason = "manual_compute"
     wanted = normalise_phase(phase)
+    empty = {"year": year, "round": round_num, "predictions": [], "risk_predictions": [], "prediction_phase": wanted}
 
-    async with _prediction_lock(cache_key):
-        try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(compute_and_store_race_prediction, year, round_num, reason=reason, phase=wanted),
-                timeout=FASTF1_TIMEOUT_SECONDS,
-            )
-        except TimeoutError:
-            logger.warning("api.predictions.compute_timeout", year=year, round=round_num, reason=reason, phase=wanted)
-            return {
-                "year": year,
-                "round": round_num,
-                "predictions": [],
-                "risk_predictions": [],
-                "prediction_phase": wanted,
-                "error": "Prediction data source timed out. Try again shortly.",
-            }
-        except Exception as exc:
-            return {
-                "year": year,
-                "round": round_num,
-                "predictions": [],
-                "risk_predictions": [],
-                "prediction_phase": wanted,
-                **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason),
-            }
+    run = _start_model_run(
+        (year, round_num, wanted or AUTO_PHASE_RUN),
+        partial(_compute_under_race_lock, year, round_num, reason, wanted),
+    )
+    try:
+        result = await _wait_for_model_run(run)
+    except Exception as exc:
+        return {
+            **empty,
+            **client_error("api.predictions.compute_error", exc, year=year, round=round_num, reason=reason),
+        }
 
-        return result
+    if result is None:
+        logger.info("api.predictions.compute_still_running", year=year, round=round_num, reason=reason, phase=wanted)
+        return {**empty, "cache": {"status": "computing", "policy": "stored_until_manual_recompute"}}
+    return result

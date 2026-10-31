@@ -55,6 +55,12 @@ _CLEARED_ENV = (
 for _key in _CLEARED_ENV:
     os.environ.pop(_key, None)
 
+# Blanked rather than popped: `main` calls `load_dotenv()` on import, which
+# refills any *absent* variable from a developer's `.env` but never overrides a
+# present one. A real DSN there would ship every deliberately raised test error
+# to the live Sentry project.
+os.environ["SENTRY_DSN"] = ""
+
 # Deterministic settings the suite asserts against.
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("ENABLE_LOCAL_MODELS", "false")

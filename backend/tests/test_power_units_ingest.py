@@ -303,9 +303,39 @@ def test_a_season_page_without_events_is_an_error(store_dir, text_pdfs):
         ingest_season(2026, FakeFetcher(pages={SEASON_URL: "<html></html>"}))
 
 
-def test_an_unreachable_event_page_aborts_without_writing(store_dir, text_pdfs):
+def test_an_unreachable_event_page_is_reported_and_the_rest_still_collect(store_dir, text_pdfs):
+    # fia.com resets a connection now and then; one event page must not cost
+    # the run every other event's documents.
     fetcher = FakeFetcher()
     del fetcher.pages[EVENT_URL.format("Singapore%20Grand%20Prix")]
+    report = ingest_season(2026, fetcher)
+
+    assert not report.ok
+    assert report.failed == (
+        f"Singapore Grand Prix event page: GET {EVENT_URL.format('Singapore%20Grand%20Prix')} failed: 404",
+    )
+    assert report.written
+    stored = {document.url for document in load_season(2026).documents}
+    assert stored == {AZERBAIJAN_NEW, AZERBAIJAN_DECISION}
+
+    # Nothing collected for Singapore yet, so the next run reads its page again.
+    retry = ingest_season(2026, FakeFetcher())
+    assert "Singapore Grand Prix" in retry.events_checked
+    assert len(retry.added) == 2
+
+
+def test_an_unreachable_page_withdraws_nothing_it_did_not_read(store_dir, text_pdfs):
+    ingest_season(2026, FakeFetcher())
+    fetcher = FakeFetcher()
+    del fetcher.pages[EVENT_URL.format("Singapore%20Grand%20Prix")]
+    report = ingest_season(2026, fetcher, all_events=True)
+    assert report.withdrawn == ()
+    assert all(document.withdrawn is None for document in load_season(2026).documents)
+
+
+def test_an_unreachable_season_page_still_aborts(store_dir, text_pdfs):
+    fetcher = FakeFetcher()
+    del fetcher.pages[SEASON_URL]
     with pytest.raises(FetchError):
         ingest_season(2026, fetcher)
     assert load_season(2026).documents == ()

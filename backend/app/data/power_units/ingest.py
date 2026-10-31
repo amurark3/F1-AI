@@ -202,20 +202,43 @@ def _settle_withdrawn(
     )
 
 
+def _read_event_pages(
+    fetcher: PoliteFetcher,
+    events: tuple[EventPage, ...],
+) -> tuple[dict[str, tuple[ListedDocument, ...]], tuple[str, ...]]:
+    """Every event page that answered, and a line for each one that did not.
+
+    A page left unread is tried again by a later run: the current event every
+    run, an event with nothing collected yet every run, the rest daily.
+    """
+    listings: dict[str, tuple[ListedDocument, ...]] = {}
+    unreachable: list[str] = []
+    for event in events:
+        try:
+            listings[event.name] = listed_documents(fetcher.page(event.url), event.name)
+        except FetchError as exc:
+            unreachable.append(f"{event.name} event page: {exc}")
+    return listings, tuple(unreachable)
+
+
 def ingest_season(year: int, fetcher: PoliteFetcher, *, all_events: bool = False) -> IngestReport:
     """Collect every power-unit document of ``year`` not already stored.
 
     Raises :class:`~app.data.power_units.sources.SourcesUnavailableError` when
     the store cannot be read, :class:`IngestError` when the FIA site does not
-    list the season, and :class:`FetchError` when one of its pages cannot be
-    fetched — a run that cannot see the whole picture writes nothing.
+    list the season, and :class:`FetchError` when the index or season page
+    cannot be fetched — without those a run cannot see what to collect, so it
+    writes nothing. An event page that cannot be fetched is reported and
+    skipped: every other event still collects, and that event's held documents
+    stay exactly as they were, because nothing is judged withdrawn from a page
+    this run did not read.
     """
     existing = load_season(year)
     events, current = _listing(fetcher, year)
     targets = _events_to_check(events, current, existing.documents, all_events)
 
     held = {document.url for document in existing.documents if document.text is not None}
-    listings = {event.name: listed_documents(fetcher.page(event.url), event.name) for event in targets}
+    listings, unreachable = _read_event_pages(fetcher, targets)
     collected = [
         _collect(fetcher, listed)
         for items in listings.values()
@@ -229,7 +252,7 @@ def ingest_season(year: int, fetcher: PoliteFetcher, *, all_events: bool = False
         year=year,
         events_checked=tuple(event.name for event in targets),
         added=tuple(item.document.title for item in collected if not item.problem),
-        failed=tuple(f"{item.document.title}: {item.problem}" for item in collected if item.problem),
+        failed=(*unreachable, *(f"{item.document.title}: {item.problem}" for item in collected if item.problem)),
         written=False,
         withdrawn=tuple(
             document.title for document in documents if document.withdrawn and not was_withdrawn.get(document.url)

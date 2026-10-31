@@ -15,15 +15,29 @@ point:
 Concurrency matters here too: the per-race lock is what stops two simultaneous
 cache misses from both paying for a model run, and the review refresh must give
 up after a short wait rather than holding the request open.
+
+A model run outlives the request that started it. A request that gives up
+waiting must not release the race, or every retry stacks one more full run
+beside the last; on Render's 512 MB instance that is what ran it out of memory
+(2026-10-30, Mexico). So a run holds the race lock until it really finishes, and
+a request that arrives meanwhile joins it rather than starting another.
 """
 
 from __future__ import annotations
 
+import threading
+import time
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+import structlog
 
 from app.api.routers import predictions as predictions_router
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 SNAPSHOT = {
     "year": 2026,
@@ -35,17 +49,41 @@ SNAPSHOT = {
 
 @pytest.fixture(autouse=True)
 def _clear_locks():
-    """The lock registry is module-global and would leak between tests."""
+    """The lock and run registries are module-global and would leak between tests."""
     predictions_router.prediction_locks.clear()
+    predictions_router.model_runs.clear()
     yield
     predictions_router.prediction_locks.clear()
+    predictions_router.model_runs.clear()
 
 
 @pytest.fixture
-def client():
+def client() -> Iterator[TestClient]:
+    """One event loop for the whole test, so a run outlives the request that started it."""
     app = FastAPI()
     app.include_router(predictions_router.router)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def gate() -> Iterator[threading.Event]:
+    """Holds a fake model run open until the test releases it.
+
+    Released on teardown too: the client's event loop joins its worker threads
+    on exit, so a run still parked here would stall the suite.
+    """
+    event = threading.Event()
+    yield event
+    event.set()
+
+
+def _wait_until(condition: Callable[[], bool], timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() > deadline:
+            pytest.fail("condition not met in time")
+        time.sleep(0.01)
 
 
 @pytest.fixture
@@ -110,21 +148,33 @@ def test_a_snapshot_that_appears_while_waiting_on_the_lock_is_served(client, mon
 
 
 @pytest.mark.unit
-def test_a_slow_data_source_returns_a_retryable_message(client, monkeypatch):
+def test_a_slow_model_run_returns_a_retryable_message(client, monkeypatch, gate):
     monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
-    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.01)
-
-    def slow(*_args, **_kwargs):
-        raise TimeoutError
-
-    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", slow)
+    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", lambda y, r: gate.wait(5) and {})
 
     body = client.get("/predictions/2026/1").json()
 
     assert body["predictions"] == []
-    assert "timed out" in body["error"]
-    # A timeout is retry-able, not a server fault, so it carries no error id.
+    assert "still running" in body["error"]
+    # Still running is retry-able, not a server fault, so it carries no error id.
     assert "error_id" not in body
+
+
+@pytest.mark.unit
+def test_a_timeout_raised_inside_the_model_is_a_failure_not_a_wait(client, monkeypatch):
+    """A socket timeout is a ``TimeoutError`` too; it must not read as "still running"."""
+    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
+
+    def network_timeout(*_args, **_kwargs):
+        raise TimeoutError("read timed out")
+
+    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", network_timeout)
+
+    body = client.get("/predictions/2026/1").json()
+
+    assert body["predictions"] == []
+    assert "error_id" in body
 
 
 @pytest.mark.unit
@@ -169,6 +219,21 @@ def test_snapshot_never_computes_on_a_miss(client, monkeypatch):
 
     assert body["predictions"] == []
     assert body["cache"] == {"status": "missing", "policy": "stored_until_manual_recompute"}
+    assert body["model_running"] is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("stored", [SNAPSHOT, None], ids=["hit", "miss"])
+def test_snapshot_says_when_that_phase_has_a_run_in_flight(client, monkeypatch, no_review_refresh, stored):
+    """How a client waiting on a "computing" answer tells a slow run from one that stopped."""
+    monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r, phase=None: stored)
+    predictions_router.model_runs[(2026, 1, "pre_qualifying")] = object()
+
+    running = client.get("/predictions/2026/1/snapshot", params={"phase": "pre_qualifying"}).json()
+    other_phase = client.get("/predictions/2026/1/snapshot", params={"phase": "post_qualifying"}).json()
+
+    assert running["model_running"] is True
+    assert other_phase["model_running"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -223,17 +288,112 @@ def test_compute_defaults_to_manual(client, monkeypatch):
 
 
 @pytest.mark.unit
-def test_compute_timeout_returns_a_retryable_message(client, monkeypatch):
-    def slow(*_args, **_kwargs):
-        raise TimeoutError
+def test_a_compute_that_outlives_its_wait_reports_it_is_still_running(client, monkeypatch, gate):
+    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(
+        predictions_router,
+        "compute_and_store_race_prediction",
+        lambda year, round_num, reason, phase=None: gate.wait(5) and {},
+    )
 
-    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", slow)
-
-    body = client.post("/predictions/2026/1/compute").json()
+    body = client.post("/predictions/2026/1/compute", params={"phase": "pre_qualifying"}).json()
 
     assert body["predictions"] == []
     assert body["risk_predictions"] == []
-    assert "timed out" in body["error"]
+    assert body["prediction_phase"] == "pre_qualifying"
+    assert body["cache"]["status"] == "computing"
+    # Not an error: the run carries on and stores its snapshot.
+    assert "error" not in body
+
+
+@pytest.mark.unit
+def test_a_second_click_joins_the_run_in_flight(client, monkeypatch, gate):
+    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
+    runs: list[int] = []
+
+    def compute(year, round_num, reason, phase=None):
+        runs.append(round_num)
+        gate.wait(5)
+        return {"year": year, "round": round_num, "predictions": [{"code": "ANT"}]}
+
+    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", compute)
+
+    first = client.post("/predictions/2026/19/compute").json()
+    second = client.post("/predictions/2026/19/compute").json()
+    runs_while_in_flight = list(runs)
+    gate.set()
+    _wait_until(lambda: not predictions_router.model_runs)
+
+    assert first["cache"]["status"] == "computing"
+    assert second["cache"]["status"] == "computing"
+    assert runs_while_in_flight == [19]
+    assert runs == [19]
+
+
+@pytest.mark.unit
+def test_the_race_stays_locked_until_an_abandoned_run_finishes(client, monkeypatch, gate):
+    """The other phase of the same race must queue behind a run its request gave up on."""
+    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
+    events: list[tuple[str, str]] = []
+
+    def compute(year, round_num, reason, phase=None):
+        events.append(("start", phase))
+        if phase == "pre_qualifying":
+            gate.wait(5)
+        events.append(("end", phase))
+        return {"predictions": [{"code": "RUS"}]}
+
+    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", compute)
+
+    client.post("/predictions/2026/19/compute", params={"phase": "pre_qualifying"})
+    client.post("/predictions/2026/19/compute", params={"phase": "post_qualifying"})
+    started_while_locked = list(events)
+    gate.set()
+    _wait_until(lambda: not predictions_router.model_runs)
+
+    assert started_while_locked == [("start", "pre_qualifying")]
+    assert events == [
+        ("start", "pre_qualifying"),
+        ("end", "pre_qualifying"),
+        ("start", "post_qualifying"),
+        ("end", "post_qualifying"),
+    ]
+
+
+@pytest.mark.unit
+def test_a_finished_run_is_forgotten_so_the_next_click_recomputes(client, monkeypatch):
+    runs: list[int] = []
+
+    def compute(year, round_num, reason, phase=None):
+        runs.append(round_num)
+        return {"predictions": []}
+
+    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", compute)
+
+    client.post("/predictions/2026/19/compute")
+    client.post("/predictions/2026/19/compute")
+
+    assert runs == [19, 19]
+    assert predictions_router.model_runs == {}
+
+
+@pytest.mark.unit
+def test_a_run_that_fails_after_its_request_gave_up_is_logged(client, monkeypatch, gate):
+    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
+
+    def compute(*_args, **_kwargs):
+        gate.wait(5)
+        raise RuntimeError("upstream 503")
+
+    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", compute)
+
+    with structlog.testing.capture_logs() as logs:
+        client.post("/predictions/2026/19/compute")
+        gate.set()
+        _wait_until(lambda: not predictions_router.model_runs)
+
+    failure = next(entry for entry in logs if entry["event"] == "api.predictions.model_run_failed")
+    assert failure["error"] == "upstream 503"
 
 
 @pytest.mark.unit
@@ -415,6 +575,27 @@ def test_a_cancelled_review_task_is_ignored(capsys):
     predictions_router._log_late_review(_CancelledTask())
 
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.unit
+def test_a_cancelled_model_run_is_forgotten_without_reading_its_error():
+    """Loop shutdown cancels a run; reading its exception would raise inside the callback."""
+
+    class _CancelledRun:
+        def cancelled(self):
+            return True
+
+        def exception(self):
+            raise AssertionError("a cancelled run has no exception to read")
+
+    run = _CancelledRun()
+    predictions_router.model_runs[(2026, 19, "auto")] = run
+
+    with structlog.testing.capture_logs() as logs:
+        predictions_router._forget_model_run((2026, 19, "auto"), run)
+
+    assert predictions_router.model_runs == {}
+    assert logs == []
 
 
 # ---------------------------------------------------------------------------

@@ -68,5 +68,13 @@ services:
       # predictions are unaffected. See backend/app/config.py.
       - key: ENABLE_LOCAL_MODELS
         value: "false"
+      # Optional — Sentry error tracking (backend/app/error_tracking.py); off when
+      # unset. The *backend* Sentry project's DSN, not the frontend's.
+      - key: SENTRY_DSN
+        sync: false
+      # Switches logs to JSON lines (logging_config.py) and labels Sentry events.
+      # Unset, the service logs and reports as "development".
+      - key: ENVIRONMENT
+        value: production
       - key: PYTHON_VERSION
         value: 3.13.17

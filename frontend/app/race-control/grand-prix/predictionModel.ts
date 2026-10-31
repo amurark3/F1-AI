@@ -113,8 +113,11 @@ export interface PredictionsResponse {
   };
   model_inputs?: Array<{ label: string; status: string; impact: string; source: string }>;
   model_limitations?: string[];
+  /** On a snapshot read: whether a compute for this phase is still in flight. */
+  model_running?: boolean;
   cache?: {
-    status: "hit" | "stored" | "missing";
+    /** `computing`: the run outlasted the request and will store its snapshot when done. */
+    status: "hit" | "stored" | "missing" | "computing";
     stored_at?: string | null;
     updated_at?: string | null;
     valid_until?: string | null;

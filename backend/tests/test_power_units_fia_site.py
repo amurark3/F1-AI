@@ -146,7 +146,18 @@ class FakeResponse:
             raise self._error
 
 
+def http_error(status: int, retry_after: str | None = None) -> FakeResponse:
+    """A response whose ``raise_for_status`` raises an HTTPError carrying it, as requests does."""
+    answer = requests.Response()
+    answer.status_code = status
+    if retry_after is not None:
+        answer.headers["Retry-After"] = retry_after
+    return FakeResponse(b"", requests.HTTPError(f"{status} error", response=answer))
+
+
 class FakeSession:
+    """Serves each URL's result; a list is served one entry per request, in order."""
+
     def __init__(self, responses: dict):
         self.responses = responses
         self.calls: list[tuple[str, dict, int]] = []
@@ -154,6 +165,8 @@ class FakeSession:
     def get(self, url, headers, timeout):
         self.calls.append((url, headers, timeout))
         result = self.responses[url]
+        if isinstance(result, list):
+            result = result.pop(0)
         if isinstance(result, Exception):
             raise result
         return result
@@ -198,15 +211,58 @@ def test_no_wait_once_the_delay_has_already_passed(clock):
     assert clock["sleeps"] == []
 
 
+RESET = requests.ConnectionError(ConnectionResetError(104, "Connection reset by peer"))
+
+
 @pytest.mark.parametrize(
-    "failure",
-    [requests.ConnectionError("down"), FakeResponse(b"", requests.HTTPError("503 Service Unavailable"))],
+    "transient",
+    [RESET, requests.Timeout("read timed out"), requests.exceptions.ChunkedEncodingError("broken"), http_error(503)],
 )
-def test_failures_raise_fetch_error_and_still_count_against_the_delay(clock, failure):
+def test_a_transient_failure_is_tried_again_after_a_longer_pause(clock, transient):
+    fetcher = PoliteFetcher(session=FakeSession({"u": [transient, FakeResponse(b"ok")]}), delay_seconds=10)
+    assert fetcher.page("u") == "ok"
+    assert fetcher.requests_made == 2
+    assert clock["sleeps"] == [30.0]  # the backoff alone: it already outlasts the crawl delay
+
+
+def test_a_failure_that_persists_gives_up_after_three_attempts(clock):
+    fetcher = PoliteFetcher(session=FakeSession({"u": [RESET, RESET, RESET]}), delay_seconds=10)
+    with pytest.raises(FetchError, match="GET u failed after 3 attempts"):
+        fetcher.page("u")
+    assert fetcher.requests_made == 3
+    assert clock["sleeps"] == [30.0, 90.0]
+
+
+@pytest.mark.parametrize("failure", [http_error(404), http_error(403), FakeResponse(b"", requests.HTTPError("bare"))])
+def test_a_definite_answer_is_not_retried(clock, failure):
     fetcher = PoliteFetcher(session=FakeSession({"u": failure}), delay_seconds=10)
-    with pytest.raises(FetchError, match="GET u failed"):
+    with pytest.raises(FetchError, match="GET u failed: "):
         fetcher.page("u")
     assert fetcher.requests_made == 1
+    assert clock["sleeps"] == []
+
+
+def test_retry_after_is_honoured_when_sane(clock):
+    asked = PoliteFetcher(session=FakeSession({"u": [http_error(429, "120"), FakeResponse(b"ok")]}))
+    assert asked.page("u") == "ok"
+    assert clock["sleeps"] == [120.0]
+
+    clock["sleeps"].clear()
+    short = PoliteFetcher(session=FakeSession({"u": [http_error(503, "5"), FakeResponse(b"ok")]}))
+    assert short.page("u") == "ok"
+    assert clock["sleeps"] == [30.0]
+
+    clock["sleeps"].clear()
+    unparseable = PoliteFetcher(session=FakeSession({"u": [http_error(503, "Fri, 30 Oct"), FakeResponse(b"ok")]}))
+    assert unparseable.page("u") == "ok"
+    assert clock["sleeps"] == [30.0]
+
+
+def test_an_absurd_retry_after_fails_instead_of_stalling_the_job(clock):
+    fetcher = PoliteFetcher(session=FakeSession({"u": http_error(429, "3600")}))
+    with pytest.raises(FetchError, match="429 error"):
+        fetcher.page("u")
+    assert clock["sleeps"] == []
 
 
 def test_documents_come_from_the_cache_when_it_holds_them(clock, tmp_path):

@@ -34,6 +34,9 @@ fastmcp==3.4.10
 # Structured logging
 structlog==26.1.0
 
+# Error tracking — inert unless SENTRY_DSN is set (app/error_tracking.py)
+sentry-sdk==2.73.0
+
 # Durable document store (Supabase / Postgres) — optional, JSON fallback if unset
 psycopg[binary]==3.3.4
 

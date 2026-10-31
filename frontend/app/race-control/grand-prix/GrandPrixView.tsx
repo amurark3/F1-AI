@@ -9,6 +9,7 @@ import { fetcher } from "@/app/utils/fetcher";
 
 import { PageLoader } from "../components/RaceControlPrimitives";
 
+import { awaitStoredSnapshot, isStillComputing } from "./computeRun";
 import { GrandPrixBoard, type GrandPrixBoardProps } from "./GrandPrixBoard";
 import { qualifyingHasRun, resolveDefaultRace } from "./predictionHelpers";
 
@@ -303,15 +304,23 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
   const pageLoading = season.awaitingSchedule || season.awaitingDrivers;
 
   const computePrediction = useCallback(
-    async (phase: PredictionPhase, mutate: KeyedMutator<PredictionsResponse>) => {
+    async (phase: PredictionPhase, mutate: KeyedMutator<PredictionsResponse>, shownSnapshotId: string | null) => {
       if (!effectiveRound || job) return;
       const reason = reasonFor(phase);
       setComputeError(null);
       setJob({ phase, reason });
       try {
-        const result = await postPredictionCompute(
+        const posted = await postPredictionCompute(
           `${API_BASE}/api/predictions/${year}/${effectiveRound}/compute?reason=${reason}&phase=${phase}`,
         );
+        // A run that outlasted the request keeps going on the server; wait for
+        // the snapshot it stores rather than blanking the one on screen.
+        const result = isStillComputing(posted)
+          ? await awaitStoredSnapshot(
+              `${API_BASE}/api/predictions/${year}/${effectiveRound}/snapshot?phase=${phase}`,
+              shownSnapshotId,
+            )
+          : posted;
         // Only this phase's cache is written, so the other tab keeps the
         // prediction it was already showing.
         await mutate(result, { revalidate: false });
@@ -325,9 +334,10 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
     [effectiveRound, job, year],
   );
 
+  const shownSnapshotId = active.data?.cache?.snapshot_id ?? null;
   const runActivePhase = useCallback(() => {
-    void computePrediction(activePhase, active.mutate);
-  }, [activePhase, active.mutate, computePrediction]);
+    void computePrediction(activePhase, active.mutate, shownSnapshotId);
+  }, [activePhase, active.mutate, shownSnapshotId, computePrediction]);
 
   const boardProps: GrandPrixBoardProps = {
     schedule,

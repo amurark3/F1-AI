@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from functools import partial
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter
@@ -31,6 +32,14 @@ router = APIRouter()
 # In-memory cache for race detail — populated by background prefetch and
 # on-demand requests. Keyed by (year, round_num).
 race_detail_cache: dict[tuple[int, int], dict] = {}
+
+# The build in flight for each race. Its worker thread cannot be stopped, so a
+# request that stops waiting leaves it running; a later request, or the prefetch
+# sweep in main.py, joins it instead of starting a second FastF1 load beside it.
+race_detail_builds: dict[tuple[int, int], asyncio.Task[dict]] = {}
+
+STILL_LOADING_MESSAGE = "Still loading this race's data. Try again in a minute."
+TIMED_OUT_MESSAGE = "Request timed out loading race data. Try again later."
 
 # Only allow ONE FastF1 session load at a time — they are heavy I/O and
 # FastF1 itself is not thread-safe for concurrent session loads.
@@ -267,32 +276,68 @@ def build_race_detail(year: int, round_num: int) -> dict:
     return result
 
 
+def start_race_detail_build(year: int, round_num: int) -> asyncio.Task[dict]:
+    """The build for this race already in flight, or a newly started one.
+
+    A build is a task of its own, not part of the request that started it, and
+    it caches its own result: a detail that arrives after every request has
+    stopped waiting still lands in the cache for the next one.
+    """
+    key = (year, round_num)
+    build = race_detail_builds.get(key)
+    if build is None:
+        build = asyncio.create_task(_build_and_cache(year, round_num))
+        race_detail_builds[key] = build
+        build.add_done_callback(partial(_forget_build, key))
+    return build
+
+
+async def _build_and_cache(year: int, round_num: int) -> dict:
+    detail = await asyncio.to_thread(build_race_detail, year, round_num)
+    # Cache if we got at least circuit info (even without results)
+    if detail.get("circuit") is not None:
+        race_detail_cache[(year, round_num)] = detail
+    return detail
+
+
+def _forget_build(key: tuple[int, int], build: asyncio.Task[dict]) -> None:
+    """Drop a finished build, logging a failure no request may have stayed to see."""
+    race_detail_builds.pop(key, None)
+    if not build.cancelled() and (error := build.exception()) is not None:
+        logger.warning("api.race_detail.build_failed", year=key[0], round=key[1], error=str(error))
+
+
 @router.get("/race/{year}/{round_num}")
 async def get_race_detail(year: int, round_num: int) -> dict:
     """
     Returns enriched race data: circuit info, race results, qualifying.
 
     Results are cached in memory — first request may be slow (~5-15s) as
-    FastF1 loads session data, subsequent requests are instant.
-    A 60-second timeout prevents hanging requests.  A threading lock ensures
-    only one FastF1 session loads at a time.
+    FastF1 loads session data, subsequent requests are instant. A request
+    waits at most FASTF1_TIMEOUT; a build still going then keeps running and
+    the next request joins it. A threading lock ensures only one FastF1
+    session loads at a time.
     """
     cache_key = (year, round_num)
 
     if cache_key in race_detail_cache:
         return race_detail_cache[cache_key]
 
+    build = start_race_detail_build(year, round_num)
     try:
-        detail = await asyncio.wait_for(
-            asyncio.to_thread(build_race_detail, year, round_num),
-            timeout=FASTF1_TIMEOUT,
-        )
-        # Cache if we got at least circuit info (even without results)
-        if detail.get("circuit") is not None:
-            race_detail_cache[cache_key] = detail
-        return detail
+        # shield: a request that stops waiting must not cancel the shared build.
+        return await asyncio.wait_for(asyncio.shield(build), timeout=FASTF1_TIMEOUT)
     except TimeoutError:
-        logger.warning("api.race_detail.timeout", year=year, round=round_num, timeout_seconds=FASTF1_TIMEOUT)
-        return {"error": "Request timed out loading race data. Try again later.", "timeout": True}
+        # Done means the build itself timed out (a socket, say); not done
+        # means it is merely slow and the next request will join it.
+        still_building = not build.done()
+        logger.warning(
+            "api.race_detail.timeout",
+            year=year,
+            round=round_num,
+            timeout_seconds=FASTF1_TIMEOUT,
+            still_building=still_building,
+        )
+        return {"error": STILL_LOADING_MESSAGE if still_building else TIMED_OUT_MESSAGE, "timeout": True}
     except Exception as e:
         return client_error("api.race_detail.error", e, year=year, round=round_num)

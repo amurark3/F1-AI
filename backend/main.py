@@ -54,6 +54,22 @@ def _race_session_date(row: pd.Series) -> datetime | None:
     return None
 
 
+async def _await_build(build: asyncio.Task[dict], year: int, round_num: int) -> dict:
+    """The build's detail, however long it takes.
+
+    The worker thread behind a build cannot be stopped, so giving up at the
+    deadline would only start the next race's FastF1 load beside this one. The
+    deadline just flags the race as slow in the logs.
+    """
+    try:
+        return await asyncio.wait_for(asyncio.shield(build), timeout=PREFETCH_RACE_TIMEOUT_SECONDS)
+    except TimeoutError:
+        if build.done():  # the build's own timeout (a socket, say): a failure
+            raise
+        logger.warning("prefetch.slow", year=year, round=round_num, waited_seconds=PREFETCH_RACE_TIMEOUT_SECONDS)
+        return await asyncio.shield(build)
+
+
 async def _prefetch_round(year: int, round_num: int) -> None:
     """Build and cache one race's detail.
 
@@ -62,17 +78,14 @@ async def _prefetch_round(year: int, round_num: int) -> None:
     """
     logger.info("prefetch.starting", year=year, round=round_num)
     try:
-        detail = await asyncio.wait_for(
-            asyncio.to_thread(race_detail.build_race_detail, year, round_num),
-            timeout=PREFETCH_RACE_TIMEOUT_SECONDS,
-        )
-        if detail.get("circuit") is not None:
-            race_detail.race_detail_cache[(year, round_num)] = detail
-            logger.info("prefetch.cached", year=year, round=round_num)
-    except TimeoutError:
-        logger.warning("prefetch.timeout", year=year, round=round_num)
+        # Joins the build a visitor already started rather than loading the race twice.
+        detail = await _await_build(race_detail.start_race_detail_build(year, round_num), year, round_num)
     except Exception as inner_err:
         logger.exception("prefetch.failed", year=year, round=round_num, error=str(inner_err))
+        return
+    # The build caches a detail that resolved a circuit; one without is a failed build.
+    if detail.get("circuit") is not None:
+        logger.info("prefetch.cached", year=year, round=round_num)
 
 
 async def _prefetch_race_details() -> None:
@@ -106,7 +119,7 @@ async def _prefetch_race_details() -> None:
                 if not race_date or now_utc <= race_date + pd.Timedelta(hours=3):
                     continue
 
-                # Pre-fetch ONE race at a time with a 60s timeout.
+                # Pre-fetch ONE race at a time; a slow one is waited out, not left running.
                 await _prefetch_round(year, round_num)
 
                 # Pause between races to avoid hammering the API.

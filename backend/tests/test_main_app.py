@@ -87,9 +87,10 @@ def sleep_stub(monkeypatch):
 
 @pytest.fixture
 def detail_cache(monkeypatch) -> dict:
-    """Swap the process-wide race-detail cache for a throwaway dict."""
+    """Swap the process-wide race-detail cache and build registry for throwaway dicts."""
     cache: dict = {}
     monkeypatch.setattr(race_detail, "race_detail_cache", cache)
+    monkeypatch.setattr(race_detail, "race_detail_builds", {})
     return cache
 
 
@@ -169,15 +170,58 @@ async def test_prefetch_round_refuses_to_cache_a_detail_with_no_circuit(monkeypa
 
 
 @pytest.mark.integration
-async def test_prefetch_round_gives_up_on_a_slow_race_without_raising(monkeypatch, detail_cache):
+async def test_a_slow_race_is_logged_and_waited_out_before_the_sweep_moves_on(monkeypatch, detail_cache):
+    # The worker thread cannot be stopped, so moving on at the deadline would
+    # only start the next race's FastF1 load beside this one.
+    detail = {"circuit": {"name": "Suzuka"}}
+
+    def _slow_build(year: int, rnd: int) -> dict:
+        time.sleep(0.2)
+        return detail
+
     monkeypatch.setattr(main, "PREFETCH_RACE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(race_detail, "build_race_detail", lambda year, rnd: time.sleep(0.5))
+    monkeypatch.setattr(race_detail, "build_race_detail", _slow_build)
 
     with structlog.testing.capture_logs() as logs:
         await main._prefetch_round(2026, 5)
 
+    assert detail_cache == {(2026, 5): detail}
+    assert [entry["event"] for entry in logs] == ["prefetch.starting", "prefetch.slow", "prefetch.cached"]
+
+
+@pytest.mark.integration
+async def test_a_build_that_times_out_on_its_own_is_a_failure_not_a_slow_race(monkeypatch, detail_cache):
+    def _socket_timeout(year: int, rnd: int) -> dict:
+        raise TimeoutError("read timed out")
+
+    monkeypatch.setattr(race_detail, "build_race_detail", _socket_timeout)
+
+    with structlog.testing.capture_logs() as logs:
+        await main._prefetch_round(2026, 5)
+
+    events = [entry["event"] for entry in logs]
+    assert "prefetch.failed" in events
+    assert "prefetch.slow" not in events
     assert detail_cache == {}
-    assert [entry["event"] for entry in logs] == ["prefetch.starting", "prefetch.timeout"]
+
+
+@pytest.mark.integration
+async def test_the_sweep_joins_a_build_a_visitor_already_started(monkeypatch, detail_cache):
+    detail = {"circuit": {"name": "Suzuka"}}
+    calls: list[int] = []
+
+    def _build(year: int, rnd: int) -> dict:
+        calls.append(rnd)
+        return detail
+
+    monkeypatch.setattr(race_detail, "build_race_detail", _build)
+
+    visitor = race_detail.start_race_detail_build(2026, 5)
+    await main._prefetch_round(2026, 5)
+
+    assert calls == [5], "the sweep must not load a race a request is already loading"
+    assert await visitor == detail
+    assert detail_cache == {(2026, 5): detail}
 
 
 @pytest.mark.integration

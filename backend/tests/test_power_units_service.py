@@ -370,6 +370,28 @@ def test_evidence_records_why_a_document_is_unread():
     assert evidence.latest is None
 
 
+@pytest.mark.parametrize(
+    ("dates", "enclosed", "round_num"),
+    [
+        # Monaco and Hungary 2026 printed the wrong race day on their covers;
+        # the enclosed report's number was right.
+        ("02 - 04 October 2026", "17 SIN GP 26 TDR1.pdf", 17),
+        # A number the calendar does not hold gives way to the race day.
+        ("09 - 11 October 2026", "19 SIN GP 26 TDR1.pdf", 17),
+    ],
+)
+def test_the_enclosed_report_number_places_a_report_before_its_cover_date(dates, enclosed, round_num):
+    text = (
+        clean(fixture("usage_singapore.txt"))
+        .replace("09 - 11 October 2026", dates)
+        .replace("17 SIN GP 26 TDR1.pdf", enclosed)
+    )
+    report_doc = source("Marina Bay Grand Prix", "Doc 9", "usage_singapore.txt", text=text)
+    evidence = gather_evidence(replace(corpus(), documents=(report_doc,)), season_context())
+    assert evidence.unread == ()
+    assert {item.round for item in evidence.usage} == {round_num}
+
+
 def test_a_document_without_a_cover_date_is_placed_by_its_event_name():
     text = fixture("decision_italy_car30.txt").replace("04 - 06 September 2026", "")
     dated_by_name = source("Italian Grand Prix", "Doc 41", "decision_italy_car30.txt", text=text)

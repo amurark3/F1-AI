@@ -1,8 +1,8 @@
 """A race's strategy in one payload: every stint, and every pit stop.
 
-Two sources, joined because neither answers alone. FastF1's lap frame knows
-what compound a car was on and for how long; f1db knows how long the crew held
-it stationary. A stint chart without stop times cannot say whether a slow
+Two sources, joined because neither answers alone. Timing data (OpenF1, or
+FastF1's lap frame; see :mod:`app.data.race_stints`) knows what compound a car
+was on and for how long; f1db knows how long the crew held it stationary. A stint chart without stop times cannot say whether a slow
 in-lap was the driver or the pit crew, and a stop list without compounds cannot
 say what the stop was *for*.
 
@@ -18,6 +18,18 @@ for every car. Monza 2026 was red-flagged on lap 3: 21 boundaries, against 9
 real stops. Boundaries ending on a red-flagged lap are therefore counted
 separately and never as stops.
 
+**Where the two disagree on a lap, the stop sheet wins, if it can say which.**
+OpenF1 numbered whole 2026 races a lap low (R1, R5, R6, R16) and ended some
+first stints on lap 1 for stops made much later (Stroll, USA 2026), so no stop
+attached and the chart showed boundaries a lap or more off. When a driver's
+tyre changes (red-flag changes aside) and published stops are equal in number,
+the changes are moved onto the stops' laps in order. Any other disagreement is
+left as the timing data has it and reported. Across 2026 rounds 1-18 this left
+16 tyre changes without a published stop outside Monaco, mostly stops the sheet
+never published. Monaco (R6) keeps 41: its stint laps also disagree with
+OpenF1's own lap feed, so its red-flag changes cannot be placed and count as
+stops.
+
 The counts a caller gets are deliberately three different facts:
 ``stops`` is what the driver actually did, ``red_flag_changes`` is what the
 suspension gave them, and ``timed_stops`` is how many of the former have a
@@ -26,6 +38,8 @@ strategy or a gap in the source.
 """
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import structlog
 
@@ -40,8 +54,8 @@ logger = structlog.get_logger()
 UNPLACED = 999
 
 STINTS_UNAVAILABLE = (
-    "Tyre stint data is not available for this race. It is read from timing "
-    "data, which exists only once the race has been run."
+    "Tyre stint data is not available for this race yet. It is published once "
+    "the race has been run, and can be out of reach while another session is live."
 )
 STOPS_UNAVAILABLE = "No pit stops are published for this race yet."
 
@@ -60,6 +74,57 @@ def _red_flag_note(changes: int) -> str:
         "Those are not counted as pit stops: the race was suspended and the "
         "change cost the driver nothing."
     )
+
+
+def _realigned_note(drivers: int) -> str:
+    return (
+        f"Tyre changes for {drivers} driver(s) are shown on the laps the published "
+        "stop sheet records. The timing feed placed them on different laps."
+    )
+
+
+def _realigned(rows: list[Stint], stops: list[PitStop]) -> list[Stint] | None:
+    """One driver's stints with each pit-stop boundary moved onto its published lap.
+
+    ``None`` when the stop sheet cannot settle it: a different number of stops
+    than tyre changes, laps that already agree, or a move that would run a
+    stint backwards past its neighbour.
+    """
+    boundaries = [index for index, stint in enumerate(rows[:-1]) if not stint.ended_under_red_flag]
+    laps = sorted(stop.lap for stop in stops)
+    if len(boundaries) != len(laps) or [rows[index].end_lap for index in boundaries] == laps:
+        return None
+    moved = dict(zip(boundaries, laps, strict=True))
+    aligned: list[Stint] = []
+    for index, stint in enumerate(rows):
+        start = aligned[-1].end_lap + 1 if index - 1 in moved else stint.start_lap
+        end = moved.get(index, stint.end_lap)
+        if start > end:
+            return None
+        aligned.append(replace(stint, start_lap=start, end_lap=end, laps=end - start + 1))
+    return aligned
+
+
+def _align_to_stop_sheet(stints: tuple[Stint, ...], stops: tuple[PitStop, ...]) -> tuple[tuple[Stint, ...], int]:
+    """Every stint, with boundaries moved onto the stop sheet where it settles them.
+
+    Also returns how many drivers were moved, for the payload to say so.
+    """
+    stints_by_driver: dict[str, list[Stint]] = {}
+    for stint in stints:
+        stints_by_driver.setdefault(stint.driver_code, []).append(stint)
+    stops_by_driver: dict[str, list[PitStop]] = {}
+    for stop in stops:
+        stops_by_driver.setdefault(stop.driver_code, []).append(stop)
+
+    aligned: list[Stint] = []
+    realigned = 0
+    for code, rows in stints_by_driver.items():
+        ordered = sorted(rows, key=lambda stint: stint.stint)
+        moved = _realigned(ordered, stops_by_driver.get(code, []))
+        realigned += moved is not None
+        aligned.extend(moved or ordered)
+    return tuple(aligned), realigned
 
 
 def _stop_payload(stop: PitStop) -> dict:
@@ -173,14 +238,16 @@ def build_race_strategy(year: int, round_num: int) -> dict:
     the reverse happens too. The payload says which is missing rather than
     presenting a half-built strategy as a whole one.
     """
-    stints = race_stints(year, round_num)
     stops = race_pit_stops(year, round_num)
+    stints, realigned = _align_to_stop_sheet(race_stints(year, round_num), stops)
 
     warnings = []
     if not stints:
         warnings.append(STINTS_UNAVAILABLE)
     if not stops:
         warnings.append(STOPS_UNAVAILABLE)
+    if realigned:
+        warnings.append(_realigned_note(realigned))
 
     drivers = _driver_rows(stints, stops, race_results(year, round_num))
 
@@ -213,6 +280,7 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         stops_made=stops_made,
         red_flag_changes=red_flag_changes,
         unmatched=len(unmatched),
+        realigned_drivers=realigned,
     )
     return {
         "year": year,

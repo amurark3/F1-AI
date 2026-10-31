@@ -121,20 +121,41 @@ def lap_frame(rows):
     )
 
 
+class FakeStintStore:
+    """Stands in for the persisted stint store, recording what was kept."""
+
+    def __init__(self):
+        self.races: dict[tuple[int, int], tuple[Stint, ...]] = {}
+
+    def get(self, year, round_num):
+        return self.races.get((year, round_num))
+
+    def put(self, year, round_num, stints):
+        self.races[(year, round_num)] = stints
+
+
 @pytest.fixture
 def fake_fastf1(monkeypatch):
+    """FastF1 as the only source that answers: OpenF1 and the store are empty.
+
+    ``state["openf1"]`` and ``state["store"]`` let a test give the other two
+    sources something to say.
+    """
     # Stints are cached for the life of the process, so each test starts from
     # an empty cache or it would read the previous test's race.
     monkeypatch.setattr(stints_module, "_cache", {})
     monkeypatch.setattr(stints_module, "_empty_until", {})
-    state = {"session": None, "raise": None}
+    state = {"session": None, "raise": None, "openf1": (), "store": FakeStintStore(), "loads": 0}
 
     def get_session(year, rnd, kind):
+        state["loads"] += 1
         if state["raise"] is not None:
             raise state["raise"]
         return state["session"]
 
     monkeypatch.setattr(stints_module.fastf1, "get_session", get_session)
+    monkeypatch.setattr(stints_module, "openf1_race_stints", lambda year, rnd: state["openf1"])
+    monkeypatch.setattr(stints_module, "stint_store", state["store"])
     return state
 
 
@@ -164,11 +185,23 @@ def test_team_travels_with_the_stint_for_livery_tinting(fake_fastf1):
 
 
 def test_reports_a_scrubbed_set_as_not_fresh(fake_fastf1):
-    fake_fastf1["session"] = FakeSession(lap_frame([("PIA", 1, 1.0, "MEDIUM", 2, False, "Ferrari", "1")]))
+    # TyreLife counts the lap being driven, so 3 on a stint's first lap means
+    # the set had done two laps before it was fitted.
+    fake_fastf1["session"] = FakeSession(lap_frame([("PIA", 1, 1.0, "MEDIUM", 3, False, "Ferrari", "1")]))
 
     stint = race_stints(2024, 6)[0]
 
     assert (stint.tyre_life_start, stint.fresh) == (2, False)
+
+
+def test_a_new_set_starts_at_zero_laps_although_fastf1_counts_its_first(fake_fastf1):
+    # FastF1 reports TyreLife 1 on a new set's first lap; the chart's "New set"
+    # label needs 0. Every new set on Monza 2026 read one lap high before this.
+    fake_fastf1["session"] = FakeSession(lap_frame([("PIA", 1, 1.0, "MEDIUM", 1, True, "Ferrari", "1")]))
+
+    stint = race_stints(2024, 6)[0]
+
+    assert (stint.tyre_life_start, stint.fresh) == (0, True)
 
 
 def test_missing_tyre_history_is_unknown_not_fresh(fake_fastf1):
@@ -283,6 +316,67 @@ def test_an_empty_result_is_retried_rather_than_pinned(fake_fastf1):
     fake_fastf1["session"] = FakeSession(lap_frame([("LEC", 1, 1.0, "HARD", 0, True, "Ferrari", "1")]))
 
     assert len(race_stints(2026, 22)) == 1
+
+
+# --- where stints come from ---------------------------------------------------
+
+OPENF1_STINT = Stint(
+    driver_code="VER",
+    team="Red Bull Racing",
+    stint=1,
+    compound="HARD",
+    start_lap=1,
+    end_lap=53,
+    laps=53,
+    tyre_life_start=0,
+    fresh=True,
+    ended_under_red_flag=False,
+)
+
+
+def test_openf1_answers_first_and_fastf1_is_never_loaded(fake_fastf1):
+    """FastF1 needs F1's live-timing archive, which refuses requests without a login.
+
+    On Render its cache is always cold, so a FastF1 attempt there only costs
+    time under the process-wide FastF1 lock and still returns nothing.
+    """
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 13) == (OPENF1_STINT,)
+    assert fake_fastf1["loads"] == 0
+
+
+def test_fastf1_is_the_fallback_when_openf1_has_nothing(fake_fastf1):
+    # OpenF1 closes to unauthenticated clients while any session is live.
+    fake_fastf1["session"] = FakeSession(lap_frame([("LEC", 1, 1.0, "HARD", 1, True, "Ferrari", "1")]))
+
+    assert [s.driver_code for s in race_stints(2026, 13)] == ["LEC"]
+    assert fake_fastf1["loads"] == 1
+
+
+def test_a_stored_race_is_served_without_asking_either_source(fake_fastf1):
+    fake_fastf1["store"].races[(2026, 13)] = (OPENF1_STINT,)
+    fake_fastf1["openf1"] = ()
+
+    assert race_stints(2026, 13) == (OPENF1_STINT,)
+    assert fake_fastf1["loads"] == 0
+
+
+def test_a_resolved_race_is_stored_for_the_next_process(fake_fastf1):
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    race_stints(2026, 13)
+
+    assert fake_fastf1["store"].races == {(2026, 13): (OPENF1_STINT,)}
+
+
+def test_no_stints_are_never_stored(fake_fastf1):
+    # "Not yet" must stay retryable, in this process and every later one.
+    fake_fastf1["session"] = FakeSession(lap_frame([]))
+
+    race_stints(2026, 22)
+
+    assert fake_fastf1["store"].races == {}
 
 
 # --- the joined board ------------------------------------------------------
@@ -443,6 +537,76 @@ def test_driver_row_carries_the_team(board):
     board["stints"] = (stint("LEC", 1, 1, 57),)
 
     assert build_race_strategy(2024, 6)["drivers"][0]["team"] == "Ferrari"
+
+
+def test_stint_ends_a_lap_off_the_stop_sheet_are_moved_onto_it(board, pit_db):
+    """OpenF1 numbered whole 2026 races a lap low (R1, R5, R6, R16).
+
+    Every stop then missed its stint by one lap: no stop times on the chart and
+    a warning that the stop sheet was incomplete when it was not.
+    """
+    pit_db("leclerc", 1, 19, "21.8", 21800)
+    pit_db("leclerc", 2, 41, "22.4", 22400)
+    board["stints"] = (stint("LEC", 1, 1, 18), stint("LEC", 2, 19, 40), stint("LEC", 3, 41, 57))
+    board["stops"] = race_pit_stops(2026, 13)
+
+    payload = build_race_strategy(2024, 6)
+    rows = payload["drivers"][0]["stints"]
+
+    assert [(row["start_lap"], row["end_lap"], row["laps"]) for row in rows] == [
+        (1, 19, 19),
+        (20, 41, 22),
+        (42, 57, 16),
+    ]
+    assert [row["ended_by_stop"] and row["ended_by_stop"]["time"] for row in rows] == ["21.8", "22.4", None]
+    assert payload["unmatched_stops"] == []
+    assert race_strategy_board._realigned_note(1) in payload["warnings"]
+
+
+def test_a_one_lap_phantom_stint_is_moved_to_the_real_stop(board, pit_db):
+    # Stroll, USA 2026: OpenF1 ended his first stint on lap 1; he stopped on 15.
+    pit_db("leclerc", 1, 15, "24.3", 24300)
+    pit_db("leclerc", 2, 41, "23.8", 23800)
+    board["stints"] = (stint("LEC", 1, 1, 1), stint("LEC", 2, 2, 41), stint("LEC", 3, 42, 56))
+    board["stops"] = race_pit_stops(2026, 13)
+
+    rows = build_race_strategy(2024, 6)["drivers"][0]["stints"]
+
+    assert [(row["start_lap"], row["end_lap"]) for row in rows] == [(1, 15), (16, 41), (42, 56)]
+
+
+def test_a_red_flag_change_is_left_where_it_is_while_the_stop_moves(board, pit_db):
+    pit_db("leclerc", 1, 31, "22.0", 22000)
+    board["stints"] = (stint("LEC", 1, 1, 3, red_flag=True), stint("LEC", 2, 4, 30), stint("LEC", 3, 31, 53))
+    board["stops"] = race_pit_stops(2026, 13)
+
+    rows = build_race_strategy(2024, 6)["drivers"][0]["stints"]
+
+    assert [(row["start_lap"], row["end_lap"]) for row in rows] == [(1, 3), (4, 31), (32, 53)]
+
+
+def test_a_driver_the_stop_sheet_cannot_settle_is_left_as_timed(board, pit_db):
+    # Two tyre changes against one published stop: which one it was is a guess.
+    pit_db("leclerc", 1, 25, "22.0", 22000)
+    board["stints"] = (stint("LEC", 1, 1, 10), stint("LEC", 2, 11, 30), stint("LEC", 3, 31, 53))
+    board["stops"] = race_pit_stops(2026, 13)
+
+    payload = build_race_strategy(2024, 6)
+
+    assert [row["end_lap"] for row in payload["drivers"][0]["stints"]] == [10, 30, 53]
+    assert race_strategy_board._realigned_note(1) not in payload["warnings"]
+
+
+def test_an_alignment_that_would_run_laps_backwards_is_refused(board, pit_db):
+    # Moving the lap-10 change to the stop on lap 20 would overrun the red-flag
+    # stint that ended on lap 12.
+    pit_db("leclerc", 1, 20, "22.0", 22000)
+    board["stints"] = (stint("LEC", 1, 1, 10), stint("LEC", 2, 11, 12, red_flag=True), stint("LEC", 3, 13, 53))
+    board["stops"] = race_pit_stops(2026, 13)
+
+    rows = build_race_strategy(2024, 6)["drivers"][0]["stints"]
+
+    assert [(row["start_lap"], row["end_lap"]) for row in rows] == [(1, 10), (11, 12), (13, 53)]
 
 
 def test_a_stop_matching_no_stint_is_reported_not_discarded(board, pit_db):

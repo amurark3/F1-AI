@@ -38,6 +38,7 @@ from app.config import (
     PREFETCH_STARTUP_DELAY,
 )
 from app.data.f1db_source import sync_to_latest
+from app.error_tracking import init_error_tracking
 from app.logging_config import setup_logging
 from app.services.readiness import run_warmup
 
@@ -176,6 +177,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
 
+
+# Before the app exists, so the SDK's FastAPI integration sees every request.
+init_error_tracking()
 
 app = FastAPI(
     title="F1 AI Race Engineer",

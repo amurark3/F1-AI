@@ -20,6 +20,8 @@ import os
 
 import structlog
 
+from app.error_tracking import report_to_sentry
+
 
 def setup_logging() -> None:
     """Configure structlog and stdlib logging for the application."""
@@ -35,6 +37,8 @@ def setup_logging() -> None:
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.UnicodeDecoder(),
+        # Error-level events also go to Sentry (a no-op without SENTRY_DSN).
+        report_to_sentry,
     ]
 
     # JSON lines for machine parsing in production, pretty colored console

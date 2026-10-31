@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import NavShell from "./components/NavShell";
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ServerWarmingBanner />
         <NavShell>{children}</NavShell>
+        <Analytics />
       </body>
     </html>
   );

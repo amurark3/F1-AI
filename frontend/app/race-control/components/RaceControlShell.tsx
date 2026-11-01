@@ -76,6 +76,19 @@ function isActive(item: NavEntry, pathname: string): boolean {
   return [item.href, ...(item.match ?? [])].some((prefix) => pathname.startsWith(prefix));
 }
 
+const ENGINEER_HREF = "/race-control/engineer";
+
+/**
+ * Workspaces that own the whole content area: they scroll internally and sit
+ * flush against the shell chrome, so they get no page padding and no scrolling
+ * footer. Each must render the F1 disclaimer itself.
+ */
+const FULL_BLEED_ROUTES: readonly string[] = [ENGINEER_HREF];
+
+function isFullBleed(pathname: string): boolean {
+  return FULL_BLEED_ROUTES.some((prefix) => pathname.startsWith(prefix));
+}
+
 const rcHeaderFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };
 
 interface SessionOverview {
@@ -232,16 +245,18 @@ function DesktopSidebar({ pathname, race }: { pathname: string; race: RaceInfo |
 
       <SidebarNav pathname={pathname} />
 
-      {/* AI Engineer CTA */}
-      <div className="shrink-0 p-3 border-t border-[#1E2633]">
-        <Link
-          href="/race-control/engineer"
-          className="flex items-center gap-2.5 rounded-md border border-[#E10600]/25 bg-[#E10600]/10 px-3 py-2.5 text-sm text-neutral-400 hover:text-neutral-100 hover:border-[#E10600]/40 transition-all"
-        >
-          <Bot className="h-4 w-4 text-[#FF4655] shrink-0" />
-          <span className="font-semibold text-[13px]">AI Engineer</span>
-        </Link>
-      </div>
+      {/* AI Engineer CTA — dropped on the engineer itself, where it would only repeat the page */}
+      {!pathname.startsWith(ENGINEER_HREF) && (
+        <div className="shrink-0 p-3 border-t border-[#1E2633]">
+          <Link
+            href={ENGINEER_HREF}
+            className="flex items-center gap-2.5 rounded-md border border-[#E10600]/25 bg-[#E10600]/10 px-3 py-2.5 text-sm text-neutral-400 hover:text-neutral-100 hover:border-[#E10600]/40 transition-all"
+          >
+            <Bot className="h-4 w-4 text-[#FF4655] shrink-0" />
+            <span className="font-semibold text-[13px]">AI Engineer</span>
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
@@ -370,13 +385,15 @@ function ShellHeader({ currentSection, nextSession, isLive, onOpenNav }: ShellHe
             </span>
           )}
 
-          <Link
-            href="/race-control/engineer"
-            className="rounded-md border border-[#1E2633] px-3 py-1.5 text-[13px] font-bold text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
-          >
-            <Radio className="inline h-3.5 w-3.5 mr-1.5" />
-            Engineer
-          </Link>
+          {currentSection?.href !== ENGINEER_HREF && (
+            <Link
+              href={ENGINEER_HREF}
+              className="rounded-md border border-[#1E2633] px-3 py-1.5 text-[13px] font-bold text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            >
+              <Radio className="inline h-3.5 w-3.5 mr-1.5" />
+              Engineer
+            </Link>
+          )}
         </div>
       </div>
     </header>
@@ -433,11 +450,15 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
             onOpenNav={() => setNavOpen(true)}
           />
 
-          <div ref={contentRef} className="min-h-0 w-full max-w-none flex-1 overflow-y-auto overscroll-contain">
-            <div className="w-full max-w-none px-4 pt-7 pb-8 sm:px-6 sm:pt-8 sm:pb-10 [&>*]:w-full">{children}</div>
-            {/* Lives inside the scroll container — the shell itself is fixed to the viewport. */}
-            <SiteFooter compact />
-          </div>
+          {isFullBleed(pathname) ? (
+            <div className="flex min-h-0 w-full flex-1">{children}</div>
+          ) : (
+            <div ref={contentRef} className="min-h-0 w-full max-w-none flex-1 overflow-y-auto overscroll-contain">
+              <div className="w-full max-w-none px-4 pt-7 pb-8 sm:px-6 sm:pt-8 sm:pb-10 [&>*]:w-full">{children}</div>
+              {/* Lives inside the scroll container — the shell itself is fixed to the viewport. */}
+              <SiteFooter compact />
+            </div>
+          )}
         </section>
       </div>
     </main>

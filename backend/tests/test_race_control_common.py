@@ -243,6 +243,13 @@ def test_team_color_returns_the_liveried_colour_for_a_known_entrant():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("name", ["Racing Bulls", "RB"])
+def test_team_color_gives_racing_bulls_its_livery_under_both_names(name):
+    """Racing Bulls used to fall through to grey: its slug was missing."""
+    assert module.team_color(name) == "#6692FF"
+
+
+@pytest.mark.unit
 def test_team_color_returns_a_neutral_grey_for_an_unmapped_entrant():
     """A new entrant must render neutral rather than borrow another team's colour."""
     colour = module.team_color("Brawn GP")

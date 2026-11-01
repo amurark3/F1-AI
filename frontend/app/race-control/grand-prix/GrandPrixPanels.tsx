@@ -1,16 +1,15 @@
 "use client";
 
-import { BrainCircuit, ShieldAlert, Sparkles } from "lucide-react";
+import { BrainCircuit, ShieldAlert } from "lucide-react";
 import { useMemo } from "react";
 
 import { LocalTime } from "@/app/components/LocalTime";
-import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 import { getTeamColor } from "@/app/lib/teamColors";
 
 import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
-import { rcFont } from "../components/RaceControlPrimitives";
+import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
-import { ConsoleHeader, ConsolePanel, InfoRow, StatBlock } from "./predictionConsole";
+import { ConsoleHeader, ConsolePanel, InfoRow } from "./predictionConsole";
 import {
   buildRiskLookup,
   circuitLengthLabel,
@@ -23,11 +22,11 @@ import {
   formatPct,
   modelStatusColor,
   pointsForPosition,
-  raceSessionTime,
   shortName,
 } from "./predictionHelpers";
+import { WeekendGlance } from "./WeekendGlance";
 
-import type { DriverLookup, PredictionsResponse, RaceEvent, RiskPrediction } from "./predictionModel";
+import type { DriverLookup, DriverPrediction, PredictionsResponse, RaceEvent, RiskPrediction } from "./predictionModel";
 
 export function FullGridTable({
   predictions,
@@ -83,10 +82,14 @@ export function FullGridTable({
                       <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">
                         {prediction.driver_code}
                       </span>
-                      <span className="truncate text-[#AEB5C5]">{shortName(name)}</span>
+                      <DriverLink code={prediction.driver_code} name={name} className="truncate text-[#AEB5C5]">
+                        {shortName(name)}
+                      </DriverLink>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[#AEB5C5]">{prediction.team || "-"}</td>
+                  <td className="px-4 py-3 text-[#AEB5C5]">
+                    {prediction.team ? <TeamLink name={prediction.team}>{prediction.team}</TeamLink> : "-"}
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-[#7F8797]">
                     {risk ? `${risk.dnf_risk_pct}%` : "-"}
                   </td>
@@ -145,7 +148,9 @@ export function PodiumPanel({
                   <span className="h-9 w-[3px] rounded-full" style={{ background: color }} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-white">
-                      {driverDisplayName(prediction, driverLookup)}
+                      <DriverLink code={prediction.driver_code}>
+                        {driverDisplayName(prediction, driverLookup)}
+                      </DriverLink>
                     </p>
                     <p className="truncate font-mono text-[11px] text-[#6F7789]">
                       {prediction.team} - {prediction.driver_code}
@@ -195,7 +200,6 @@ function ModelWhyPanel({ prediction, driverLookup }: { prediction?: DriverPredic
 
 function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) {
   const circuit = selectedRace?.circuit;
-  const raceTime = raceSessionTime(selectedRace);
 
   return (
     <ConsolePanel>
@@ -207,20 +211,12 @@ function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) 
           </span>
         }
       />
+      {/* Name, race time and status are in the page header; this card adds the rest. */}
       <dl className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
-        <InfoRow label="Circuit" value={circuit?.circuit_name ?? selectedRace?.location ?? "-"} />
+        <InfoRow label="Location" value={selectedRace?.location ?? "-"} />
         <InfoRow label="Length" value={circuitLengthLabel(circuit)} />
+        <InfoRow label="Laps" value={circuit?.laps ? String(circuit.laps) : "-"} />
         <InfoRow label="Type" value={circuit?.circuit_type ?? "-"} />
-        <InfoRow
-          label="Race"
-          value={
-            <>
-              <LocalTime value={raceTime} style="day" fallback="date TBC" /> -{" "}
-              <LocalTime value={raceTime} style="time" fallback="time TBC" />
-            </>
-          }
-        />
-        <InfoRow label="Status" value={selectedRace?.status ?? "-"} />
       </dl>
     </ConsolePanel>
   );
@@ -258,37 +254,6 @@ function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> 
   );
 }
 
-export function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
-  const accuracy = data?.accuracy;
-  const avgError = accuracy?.avg_position_error == null ? "-" : String(accuracy.avg_position_error);
-  const top3 = accuracy?.recent_top3_pct == null ? "-" : `${accuracy.recent_top3_pct}%`;
-
-  return (
-    <ConsolePanel className="xl:col-span-2">
-      <ConsoleHeader
-        label="Model stats"
-        right={
-          <span className="font-mono text-[10px] text-[#7F8797]">{data?.cache?.snapshot_id ?? "no snapshot"}</span>
-        }
-      />
-      <div className="grid grid-cols-2 gap-6 p-4 md:grid-cols-4">
-        <StatBlock label="Avg error" value={avgError} detail="positions across scored predictions" />
-        <StatBlock label="Top 3 hit" value={top3} detail={`latest ${accuracy?.rolling_window ?? 8} scored max`} />
-        <StatBlock
-          label="Validated"
-          value={String(accuracy?.races_evaluated ?? 0)}
-          detail="prediction/result pairs available"
-        />
-        <StatBlock
-          label="Updated"
-          value={<LocalTime value={data?.cache?.updated_at ?? data?.generated_at} style="stamp" fallback="not stored" />}
-          detail={data?.cache?.reason ?? "snapshot"}
-        />
-      </div>
-    </ConsolePanel>
-  );
-}
-
 /**
  * The event itself: where it is run and when each session starts.
  *
@@ -296,13 +261,14 @@ export function ModelStatsPanel({ data }: { data?: PredictionsResponse }) {
  * never been run for — which is the whole reason it is no longer bundled with
  * the model's accuracy panel.
  */
-export function WeekendPanel({ selectedRace }: { selectedRace: RaceEvent | null }) {
+export function WeekendPanel({ year, selectedRace }: { year: number; selectedRace: RaceEvent | null }) {
   const sessions = Object.entries(selectedRace?.sessions ?? {});
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+    <div className="grid gap-4 xl:grid-cols-3">
       <CircuitInfoPanel selectedRace={selectedRace} />
       <SessionSchedulePanel sessions={sessions} />
+      {selectedRace && <WeekendGlance year={year} round={selectedRace.round} />}
     </div>
   );
 }
@@ -329,9 +295,17 @@ export function RiskTable({ rows }: { rows: RiskPrediction[] }) {
                 <tr key={risk.driver_code} className="bg-[#0D111B] text-sm text-[#B7BDCA] hover:bg-[#121825]">
                   <td className="px-4 py-3 font-mono font-bold text-white">
                     {risk.driver_code}{" "}
-                    <span className="font-sans font-normal text-[#8E96A8]">{shortName(risk.driver_name)}</span>
+                    <DriverLink
+                      code={risk.driver_code}
+                      name={risk.driver_name}
+                      className="font-sans font-normal text-[#8E96A8]"
+                    >
+                      {shortName(risk.driver_name)}
+                    </DriverLink>
                   </td>
-                  <td className="px-4 py-3">{risk.team}</td>
+                  <td className="px-4 py-3">
+                    <TeamLink name={risk.team}>{risk.team}</TeamLink>
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-white">{risk.dnf_risk_pct}%</td>
                   <td className="px-4 py-3 text-right font-mono text-white">{risk.crash_risk_pct}%</td>
                   <td className="px-4 py-3 text-right font-mono text-white">{risk.mechanical_risk_pct}%</td>
@@ -399,44 +373,31 @@ export function ModelIO({ data }: { data?: PredictionsResponse }) {
   );
 }
 
+/**
+ * No stored prediction for this phase yet. Deliberately small, and with no
+ * button of its own — the bar above holds the one run control.
+ */
 export function StandbyPanel({
   raceName,
   phaseName,
   phaseDetail,
-  onRun,
-  isComputing,
 }: {
   raceName: string;
-  /** The tab this panel is standing in for, e.g. "After Qualifying". */
+  /** The phase this panel is standing in for, e.g. "After Qualifying". */
   phaseName: string;
-  /** What that tab's model is fed. */
+  /** What that phase's model is fed. */
   phaseDetail: string;
-  onRun: () => void;
-  isComputing: boolean;
 }) {
   return (
     <ConsolePanel>
-      <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[#E10600]">
-            No stored {phaseName.toLowerCase()} prediction
-          </p>
-          <h2 className="mt-2 text-3xl font-black text-white" style={rcFont}>
-            {raceName}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8E96A8]">
-            {phaseDetail} Run the model to create a saved snapshot for this tab. It stays fixed until you
-            recompute it, and recomputing it leaves the other tab alone.
-          </p>
-        </div>
-        <button
-          onClick={onRun}
-          disabled={isComputing}
-          className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-md border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#00FF78] hover:bg-[#00FF78] hover:text-black disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-[#596173]"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          {isComputing ? "running" : `run ${phaseName.toLowerCase()}`}
-        </button>
+      <div className="p-5">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[#E10600]">
+          No stored {phaseName.toLowerCase()} prediction for {raceName}
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8E96A8]">
+          {phaseDetail} Run it from the bar above to save a snapshot. It stays fixed until you run it again, and running
+          one phase leaves the other alone.
+        </p>
       </div>
     </ConsolePanel>
   );

@@ -9,6 +9,9 @@ Assembles every endpoint of the F1 AI backend onto one router:
   GET  /api/standings/drivers/{year}   — World Drivers' Championship standings
   GET  /api/standings/constructors/{year} — World Constructors' Championship standings
   GET  /api/race-control/power-units/{year} — Power-unit element usage and penalties per car
+  GET  /api/profiles/{year}/teams/{team_id} — A team's season (line-up, wins, results, power units)
+  GET  /api/profiles/{year}/drivers/{driver_id} — A driver's season (every result, power unit)
+  GET  /api/analysis/{year}/{round_num}/... — Telemetry Lab: speed map, head-to-head, tyre degradation
   WS   /api/live/{year}/{round_num}    — Live timing for whichever session is on track
   GET  /api/health                     — Liveness probe (is the process up?)
   GET  /api/ready                      — Readiness probe (has warm-up finished?)
@@ -32,11 +35,13 @@ import structlog
 from app.api.compare import router as compare_router
 from app.api.live.websocket import router as live_router
 from app.api.race_detail import router as race_detail_router
+from app.api.routers.analysis import router as analysis_router
 from app.api.routers.champions import router as champions_router
 from app.api.routers.chat import router as chat_router
 from app.api.routers.memory import router as memory_router
 from app.api.routers.power_units import router as power_units_router
 from app.api.routers.predictions import router as predictions_router
+from app.api.routers.profiles import router as profiles_router
 from app.api.routers.race_control import router as race_control_router
 from app.api.routers.readiness import router as readiness_router
 from app.api.routers.season import router as season_router
@@ -49,9 +54,11 @@ router.include_router(chat_router)
 router.include_router(memory_router)
 router.include_router(predictions_router)
 router.include_router(race_control_router)
+router.include_router(analysis_router)
 router.include_router(power_units_router)
 router.include_router(season_router)
 router.include_router(champions_router)
+router.include_router(profiles_router)
 router.include_router(readiness_router)
 router.include_router(race_detail_router)
 router.include_router(compare_router)

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Loader2, Mic, MicOff } from "lucide-react";
+import { Loader2, Mic, SendHorizontal } from "lucide-react";
 
 import { useVoice } from "@/app/hooks/useVoice";
 
@@ -15,6 +15,12 @@ interface ChatInputProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+function inputPlaceholder(listening: boolean): string {
+  return listening
+    ? "Listening… speak your question"
+    : "Ask for a race brief, driver delta, regulation call, or strategy explanation…";
+}
+
 export default function ChatInput({ input, isLoading, inputRef, onInputChange, onSubmit }: ChatInputProps) {
   const {
     supported: voiceSupported,
@@ -26,63 +32,70 @@ export default function ChatInput({ input, isLoading, inputRef, onInputChange, o
   });
 
   return (
-    <div className="shrink-0 border-t border-[#1E2633] bg-[#0B0D0C] p-3 sm:p-4">
-      {/* RADIO channel label */}
-      <div className="flex items-center gap-2 max-w-4xl mx-auto mb-2">
-        <span className="h-[6px] w-[6px] rounded-full animate-glow-pulse" style={{ background: "#00FF78" }} />
-        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: "#00FF78" }}>
-          Race Engineer Channel
-        </span>
-      </div>
-
-      <form onSubmit={onSubmit} className="max-w-4xl mx-auto flex gap-2 sm:gap-3">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          placeholder={
-            listening
-              ? "Listening… speak your question"
-              : "Ask for a race brief, driver delta, regulation call, or strategy explanation…"
-          }
-          className="flex-1 min-w-0 rounded-md border border-[#1E2633] bg-[#0D111B] px-4 sm:px-5 py-3 text-sm text-white
-            focus:outline-none focus:border-[#00FF78]/40 focus:ring-1 focus:ring-[#00FF78]/30
-            placeholder:text-[#6F7789] transition-colors duration-200"
-          disabled={isLoading}
-          autoFocus
-        />
-
-        {voiceSupported && (
-          <motion.button
-            type="button"
-            onClick={() => (listening ? stopListening() : startListening())}
+    // Sits on the page, not in a chrome bar; the fade lets the thread scroll
+    // out beneath it instead of ending at a hard rule.
+    <div className="relative shrink-0 px-3 pb-2 pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-[#07090D] before:to-transparent sm:px-4">
+      <form onSubmit={onSubmit} className="mx-auto max-w-4xl">
+        {/* One field: the input and its actions share the focus ring. */}
+        <div className="flex items-center gap-1.5 rounded-md border border-[#1E2633] bg-[#0D111B] p-1.5 pl-4 transition-colors duration-200 focus-within:border-[#E10600]/35">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            placeholder={inputPlaceholder(listening)}
+            aria-label="Message the race engineer"
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-white placeholder:text-[#596173] focus:outline-none"
             disabled={isLoading}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.93 }}
-            aria-label={listening ? "Stop voice input" : "Start voice input"}
-            title={listening ? "Stop voice input" : "Speak your question"}
-            className={`shrink-0 rounded-md border px-4 py-3 transition-colors duration-200 disabled:opacity-25 disabled:cursor-not-allowed ${
-              listening
-                ? "border-[#00FF78]/40 bg-[#00FF78]/15 text-[#00FF78]"
-                : "border-[#1E2633] bg-[#0D111B] text-neutral-300 hover:text-white"
-            }`}
-          >
-            {listening ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
-          </motion.button>
-        )}
+            autoFocus
+          />
 
-        <motion.button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.95 }}
-          className="shrink-0 rounded-md bg-[#00FF78] px-5 sm:px-7 py-3 text-[11px] font-black uppercase tracking-widest text-black
-            transition-colors duration-200 hover:bg-white disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-[#00FF78]"
-        >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
-        </motion.button>
+          {voiceSupported && (
+            <motion.button
+              type="button"
+              onClick={() => (listening ? stopListening() : startListening())}
+              disabled={isLoading}
+              whileTap={{ scale: 0.93 }}
+              aria-label={listening ? "Stop voice input" : "Start voice input"}
+              aria-pressed={listening}
+              title={listening ? "Stop voice input" : "Speak your question"}
+              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+                listening ? "bg-[#E10600]/15 text-[#FF4655]" : "text-[#8E96A8] hover:bg-white/[0.05] hover:text-white"
+              }`}
+            >
+              <Mic className={`h-4 w-4 ${listening ? "animate-pulse" : ""}`} />
+            </motion.button>
+          )}
+
+          <motion.button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            whileTap={{ scale: 0.95 }}
+            aria-label="Send message"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md bg-[#E10600] px-3 text-[11px] font-black uppercase tracking-widest text-white transition-colors duration-200 hover:bg-[#FF4655] disabled:cursor-not-allowed disabled:bg-[#1E2633] disabled:text-[#596173] sm:px-4"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+            <span className="hidden sm:inline">Send</span>
+          </motion.button>
+        </div>
+
+        <ChannelStatus isLoading={isLoading} />
       </form>
+    </div>
+  );
+}
+
+/** Team-radio style status under the field: green while open, amber while transmitting. */
+function ChannelStatus({ isLoading }: { isLoading: boolean }) {
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3 px-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em]">
+      <span className={`flex items-center gap-2 ${isLoading ? "text-[#F5C542]" : "text-[#6F7789]"}`}>
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${isLoading ? "bg-[#F5C542] animate-pulse" : "bg-[#00FF78] animate-glow-pulse"}`}
+        />
+        {isLoading ? "Engineer transmitting" : "Race engineer channel"}
+      </span>
+      <span className="hidden text-[#3A4354] sm:inline">Enter to send</span>
     </div>
   );
 }

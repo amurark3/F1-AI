@@ -7,6 +7,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { driverHref, teamHref } from "@/app/lib/entityLinks";
 import { getTeamColor } from "@/app/lib/teamColors";
 
 import { Panel, rcFont } from "../../components/RaceControlPrimitives";
@@ -86,14 +87,23 @@ export function CarHeader({ car, cars }: { car: PowerUnitCar; cars: PowerUnitCar
               <ArrowLeft className="h-3 w-3" aria-hidden="true" /> All cars
             </Link>
             <h1 className="truncate text-3xl font-black text-white" style={rcFont}>
-              {car.driver.name}
+              <Link href={driverHref(car.driver.id)} className="hover:underline">
+                {car.driver.name}
+              </Link>
             </h1>
             <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#8E96A8]">
-              {car.team} · {car.driver.code}
+              <Link href={teamHref(car.team_id)} className="hover:text-white">
+                {car.team}
+              </Link>{" "}
+              · {car.driver.code}
             </p>
             {others.map((item) => (
               <p key={item.id} className="mt-1 text-xs text-[#9EC5FF]">
-                Also raced by {item.name} (#{item.car_number}) at {roundRuns(item.rounds)}
+                Also raced by{" "}
+                <Link href={driverHref(item.id)} className="hover:underline">
+                  {item.name}
+                </Link>{" "}
+                (#{item.car_number}) at {roundRuns(item.rounds)}
               </p>
             ))}
           </div>

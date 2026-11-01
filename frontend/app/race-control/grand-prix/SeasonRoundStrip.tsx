@@ -162,10 +162,13 @@ export function SeasonRoundStrip({
   schedule,
   selectedRound,
   onSelectRound,
+  year = new Date().getFullYear(),
 }: {
   schedule: RaceEvent[];
   selectedRound: number | null;
   onSelectRound: (round: number) => void;
+  /** The season the calendar is for; the Telemetry Lab also shows past ones. */
+  year?: number;
 }) {
   const segments = useMemo(() => seasonSegments(schedule), [schedule]);
   const completed = schedule.filter((race) => race.status === "completed").length;
@@ -176,7 +179,7 @@ export function SeasonRoundStrip({
   return (
     <ConsolePanel>
       <ConsoleHeader
-        label={`${new Date().getFullYear()} season - select a round`}
+        label={`${year} season - select a round`}
         right={
           <span className="font-mono text-[11px] text-[#7F8797]">
             {total} races / {completed} complete

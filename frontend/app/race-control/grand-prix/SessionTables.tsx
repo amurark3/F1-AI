@@ -2,6 +2,8 @@
 
 import { getTeamColor } from "@/app/lib/teamColors";
 
+import { DriverLink } from "../profiles/EntityLinks";
+
 import { shortName } from "./predictionHelpers";
 
 import type { SessionEntry } from "./sessionsModel";
@@ -10,11 +12,7 @@ import type { SessionEntry } from "./sessionsModel";
 function PositionCell({ entry }: { entry: SessionEntry }) {
   return (
     <td className="px-4 py-2.5 font-mono text-[#8E96A8]">
-      {entry.position === null ? (
-        <span className="text-[#FF4655]">{entry.position_text}</span>
-      ) : (
-        `P${entry.position}`
-      )}
+      {entry.position === null ? <span className="text-[#FF4655]">{entry.position_text}</span> : `P${entry.position}`}
     </td>
   );
 }
@@ -24,10 +22,10 @@ function DriverCell({ entry }: { entry: SessionEntry }) {
     <td className="px-4 py-2.5">
       <span className="flex min-w-0 items-center gap-3">
         <span className="h-4 w-[3px] rounded-full" style={{ background: getTeamColor(entry.team) }} />
-        <span className="font-mono text-sm font-black uppercase tracking-[0.06em] text-white">
-          {entry.driver_code}
-        </span>
-        <span className="truncate text-[#AEB5C5]">{shortName(entry.driver_name)}</span>
+        <span className="font-mono text-sm font-black uppercase tracking-[0.06em] text-white">{entry.driver_code}</span>
+        <DriverLink code={entry.driver_code} name={entry.driver_name} className="truncate text-[#AEB5C5]">
+          {shortName(entry.driver_name)}
+        </DriverLink>
       </span>
     </td>
   );

@@ -11,6 +11,7 @@ import { PageLoader } from "../components/RaceControlPrimitives";
 
 import { awaitStoredSnapshot, isStillComputing } from "./computeRun";
 import { GrandPrixBoard, type GrandPrixBoardProps } from "./GrandPrixBoard";
+import { defaultHubTab, defaultPredictionView, type HubTab } from "./hubNavigation";
 import { qualifyingHasRun, resolveDefaultRace } from "./predictionHelpers";
 
 import type { StartingGridResponse } from "./gridModel";
@@ -18,6 +19,7 @@ import type { DriverStanding, PredictionPhase, PredictionsResponse, RaceEvent } 
 import type { PhaseTabState } from "./PredictionPhaseTabs";
 import type { WeekendSessionsResponse } from "./sessionsModel";
 import type { RaceStrategyResponse } from "./strategyModel";
+import type { HubUrl } from "./useHubUrlState";
 
 export interface DriversResponse {
   drivers: DriverStanding[];
@@ -137,11 +139,15 @@ function useStartingGrid(year: number, round: number | null, seed: StartingGridR
  * Both describe what the weekend did, not what the model thinks, so they hold
  * their own SWR keys: recomputing a prediction must not blank either, and a
  * round with no snapshot still fills these tabs.
+ *
+ * Stints come from a FastF1 load that costs ~28 s warm and minutes cold, so
+ * they are fetched only once the Stints tab has been opened.
  */
 function useWeekendData(
   year: number,
   round: number | null,
   seed: { sessions: WeekendSessionsResponse | null; strategy: RaceStrategyResponse | null },
+  wantStints: boolean,
 ) {
   const sessions = useSWR<WeekendSessionsResponse, Error>(
     round ? `${API_BASE}/api/race-control/sessions/${year}/${round}` : null,
@@ -149,7 +155,7 @@ function useWeekendData(
     { revalidateOnFocus: false, dedupingInterval: 120000, ...seededWith(seed.sessions) },
   );
   const strategy = useSWR<RaceStrategyResponse, Error>(
-    round ? `${API_BASE}/api/race-control/stints/${year}/${round}` : null,
+    round && wantStints ? `${API_BASE}/api/race-control/stints/${year}/${round}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 120000, ...seededWith(seed.strategy) },
   );
@@ -162,11 +168,34 @@ function useWeekendData(
   };
 }
 
-/** Resolve which round/race is in focus from the selection and schedule defaults. */
+/**
+ * Resolve which round/race is in focus. A round the calendar does not hold —
+ * a stale or hand-edited link — falls back to the default rather than
+ * fetching for a race that does not exist.
+ */
 function resolveRound(schedule: RaceEvent[], selectedRound: number | null, defaultRace: RaceEvent | null) {
-  const effectiveRound = selectedRound ?? defaultRace?.round ?? null;
-  const selectedRace = schedule.find((r) => r.round === effectiveRound) ?? defaultRace;
-  return { effectiveRound, selectedRace };
+  const selectedRace = schedule.find((r) => r.round === selectedRound) ?? defaultRace;
+  return { effectiveRound: selectedRace?.round ?? null, selectedRace };
+}
+
+/**
+ * The section and prediction view on screen: the URL's, or wherever the
+ * weekend has got to. Remembers that Stints was opened, so its slow load
+ * starts only when someone asks for it and is not dropped on the next tab.
+ */
+function useHubSections(url: HubUrl, race: RaceEvent | null) {
+  const activeTab: HubTab = url.tab ?? defaultHubTab(race);
+  const [stintsWanted, setStintsWanted] = useState(activeTab === "stints");
+  if (activeTab === "stints" && !stintsWanted) {
+    setStintsWanted(true);
+  }
+  return {
+    activeTab,
+    predictionView: url.view ?? defaultPredictionView(race),
+    stintsWanted,
+    onSelectTab: (tab: HubTab) => url.update({ tab }),
+    onSelectView: (view: NonNullable<HubUrl["view"]>) => url.update({ tab: "predictions", view }),
+  };
 }
 
 /** Derive the display-ready prediction slices from the snapshot payload. */
@@ -269,9 +298,8 @@ function useSeasonContext(seed: GrandPrixSeed) {
   };
 }
 
-function useGrandPrixWorkspace(seed: GrandPrixSeed) {
+function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl) {
   const { year } = seed;
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [selectedPhase, setSelectedPhase] = useState<PredictionPhase | null>(null);
   const [computeError, setComputeError] = useState<string | null>(null);
   const [job, setJob] = useState<ComputeJob | null>(null);
@@ -280,18 +308,31 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
   const { schedule } = season;
   const defaultRace = useMemo(() => resolveDefaultRace(schedule), [schedule]);
 
-  const { effectiveRound, selectedRace } = resolveRound(schedule, selectedRound, defaultRace);
+  const { effectiveRound, selectedRace } = resolveRound(schedule, url.round, defaultRace);
+  const sections = useHubSections(url, selectedRace);
 
   // Only seed the round the server actually prefetched — selecting another
   // round must fall through to a real fetch, not reuse this payload.
   const seeded = effectiveRound === seed.snapshotRound;
-  const preQualifying = usePhaseSnapshot(year, effectiveRound, "pre_qualifying", seeded ? seed.snapshots.pre_qualifying : null);
-  const postQualifying = usePhaseSnapshot(year, effectiveRound, "post_qualifying", seeded ? seed.snapshots.post_qualifying : null);
+  const preQualifying = usePhaseSnapshot(
+    year,
+    effectiveRound,
+    "pre_qualifying",
+    seeded ? seed.snapshots.pre_qualifying : null,
+  );
+  const postQualifying = usePhaseSnapshot(
+    year,
+    effectiveRound,
+    "post_qualifying",
+    seeded ? seed.snapshots.post_qualifying : null,
+  );
   const { grid, gridLoading } = useStartingGrid(year, effectiveRound, seeded ? seed.grid : null);
-  const weekend = useWeekendData(year, effectiveRound, {
-    sessions: seeded ? seed.sessions : null,
-    strategy: seeded ? seed.strategy : null,
-  });
+  const weekend = useWeekendData(
+    year,
+    effectiveRound,
+    { sessions: seeded ? seed.sessions : null, strategy: seeded ? seed.strategy : null },
+    sections.stintsWanted,
+  );
 
   const qualifyingRun = qualifyingHasRun(selectedRace);
   // Land on the most informed prediction the race actually has, until the
@@ -340,9 +381,13 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
   }, [activePhase, active.mutate, shownSnapshotId, computePrediction]);
 
   const boardProps: GrandPrixBoardProps = {
+    year,
+    activeTab: sections.activeTab,
+    predictionView: sections.predictionView,
+    onSelectTab: sections.onSelectTab,
+    onSelectView: sections.onSelectView,
     schedule,
     scheduleError: season.scheduleFailed,
-    scheduleLoading: season.awaitingSchedule,
     selectedRound: effectiveRound,
     selectedRace: selectedRace ?? null,
     data: active.data,
@@ -367,7 +412,7 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
     computeReason: job?.reason ?? null,
     computeError,
     onSelectRound: (round) => {
-      setSelectedRound(round);
+      url.update({ round });
       setComputeError(null);
     },
     onSelectPhase: (phase) => {
@@ -383,16 +428,13 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed) {
   return { pageLoading, boardProps };
 }
 
-export function GrandPrixView({ seed }: { seed: GrandPrixSeed }) {
-  const { pageLoading, boardProps } = useGrandPrixWorkspace(seed);
+export function GrandPrixView({ seed, url }: { seed: GrandPrixSeed; url: HubUrl }) {
+  const { pageLoading, boardProps } = useGrandPrixWorkspace(seed, url);
 
   if (pageLoading) {
     return (
       <div>
-        <PageLoader
-          title="Preparing the Grand Prix hub"
-          detail="Loading the race calendar and championship table."
-        />
+        <PageLoader title="Preparing the Grand Prix hub" detail="Loading the race calendar and championship table." />
       </div>
     );
   }

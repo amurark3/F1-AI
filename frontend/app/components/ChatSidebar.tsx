@@ -17,6 +17,11 @@ interface ChatSidebarProps {
   onToggleCollapse: () => void;
 }
 
+// Mirrors the Race Control sidebar's AI Engineer link: a red-tinted tile, not a
+// solid fill, so the primary action reads as part of the shell.
+const NEW_CHAT_BUTTON =
+  "w-full flex items-center justify-center rounded-md border border-[#E10600]/30 bg-[#E10600]/10 text-white hover:border-[#E10600]/50 hover:bg-[#E10600]/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40";
+
 export default function ChatSidebar({
   chats,
   activeChatId,
@@ -38,7 +43,7 @@ export default function ChatSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
             onClick={onClose}
           />
         )}
@@ -49,44 +54,39 @@ export default function ChatSidebar({
         className={`
           fixed lg:relative top-0 left-0 z-50 lg:z-auto
           h-full shrink-0
-          bg-[#0B0D0C] border-r border-[#1E2633]
+          bg-[#080B11] border-r border-[#1E2633]
           flex flex-col
           transition-all duration-200 ease-out
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
           ${collapsed ? "lg:w-[52px]" : "w-72 lg:w-64"}
         `}
       >
-        {/* Header — New Chat button */}
-        <div className="p-2 border-b border-[#1E2633]">
+        {/* Header — New Chat button. h-16 matches the chat header so their borders line up. */}
+        <div className="flex h-16 shrink-0 items-center px-2 border-b border-[#1E2633]">
           {collapsed ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onNewChat}
-              className="w-full flex items-center justify-center p-2 rounded-md bg-[#00FF78] hover:bg-white text-black transition-colors"
-              title="New Chat"
-            >
-              <Plus className="w-4 h-4" />
-            </motion.button>
+            <button onClick={onNewChat} className={`${NEW_CHAT_BUTTON} p-2`} title="New Chat" aria-label="New Chat">
+              <Plus className="w-4 h-4 text-[#FF4655]" />
+            </button>
           ) : (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               onClick={onNewChat}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[#00FF78] hover:bg-white text-black text-sm font-black uppercase tracking-wider transition-colors duration-200"
+              className={`${NEW_CHAT_BUTTON} gap-2 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider`}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 text-[#FF4655]" />
               New Chat
-            </motion.button>
+            </button>
           )}
         </div>
 
         {/* Chat list */}
         <div className="flex-1 overflow-y-auto py-2">
+          {!collapsed && chats.length > 0 && (
+            <p className="px-4 pb-2 pt-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#596173]">
+              Recent threads
+            </p>
+          )}
           {chats.length === 0
-            ? !collapsed && (
-                <p className="text-center text-neutral-500 italic text-xs py-8 px-4">No conversations yet</p>
-              )
+            ? !collapsed && <p className="text-center text-[#596173] text-xs py-8 px-4">No conversations yet</p>
             : chats.map((chat) => (
                 <ChatListItem
                   key={chat.id}
@@ -106,7 +106,7 @@ export default function ChatSidebar({
             onClick={onToggleCollapse}
             className={`
               w-full flex items-center gap-2 p-2 rounded-md
-              text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.04]
+              text-[#6F7789] hover:text-white hover:bg-white/[0.04]
               transition-colors duration-200 text-xs
               ${collapsed ? "justify-center" : "justify-between"}
             `}
@@ -134,14 +134,15 @@ function ChatListItem({ chat, isActive, collapsed, onSelectChat, onDeleteChat, o
   return (
     <div
       className={`
-        group relative mx-2 mb-1 rounded-md transition-colors duration-200
+        group relative mx-2 mb-1 rounded-md border transition-colors duration-200
         ${
           isActive
-            ? "bg-[#00FF78]/10 text-white border border-[#00FF78]/25"
-            : "text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200 border border-transparent"
+            ? "border-[#1E2633] bg-[#121825] text-white"
+            : "border-transparent text-[#8E96A8] hover:bg-white/[0.03] hover:text-white"
         }
       `}
     >
+      {isActive && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[2px] rounded-full bg-[#E10600]" />}
       <button
         type="button"
         onClick={() => {
@@ -154,14 +155,10 @@ function ChatListItem({ chat, isActive, collapsed, onSelectChat, onDeleteChat, o
           collapsed ? "justify-center p-2" : "px-3 py-2.5 pr-9 text-left"
         }`}
       >
-        {collapsed ? (
-          <MessageSquare className={`w-4 h-4 ${isActive ? "opacity-100" : "opacity-50"}`} />
-        ) : (
-          <>
-            <MessageSquare className="w-4 h-4 shrink-0 mr-2.5 opacity-50" />
-            <span className="text-sm truncate flex-1">{chat.title}</span>
-          </>
-        )}
+        <MessageSquare
+          className={`w-4 h-4 shrink-0 ${collapsed ? "" : "mr-2.5"} ${isActive ? "text-[#FF4655]" : "opacity-50"}`}
+        />
+        {!collapsed && <span className="text-sm truncate flex-1">{chat.title}</span>}
       </button>
       {!collapsed && (
         <button
@@ -171,7 +168,7 @@ function ChatListItem({ chat, isActive, collapsed, onSelectChat, onDeleteChat, o
           title="Delete chat"
           aria-label={`Delete chat: ${chat.title}`}
         >
-          <Trash2 className="w-3.5 h-3.5 text-neutral-500 hover:text-[#E10600]" />
+          <Trash2 className="w-3.5 h-3.5 text-[#6F7789] hover:text-[#FF4655]" />
         </button>
       )}
     </div>

@@ -18,6 +18,11 @@ const DATA_SOURCES = [
   { label: "OpenWeatherMap", href: "https://openweathermap.org" },
 ];
 
+/** Fine-print disclaimer for full-bleed workspaces that have no room for a footer. */
+export function F1DisclaimerLine({ className = "" }: { className?: string }) {
+  return <p className={`text-[10px] leading-snug text-[#5C6473] ${className}`}>{F1_DISCLAIMER}</p>;
+}
+
 interface SiteFooterProps {
   /** Single-line variant for the Race Control workspace, which is dense already. */
   compact?: boolean;

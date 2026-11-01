@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 # without importing them itself. `pytest_plugins` is only honoured in the
 # rootdir conftest, which this is not, so a plain import is the supported route.
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
+from tests.profiles_support import profiles_f1db  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Environment scrubbing — must run before `app.*` is imported anywhere.
@@ -64,6 +65,9 @@ os.environ["SENTRY_DSN"] = ""
 # Deterministic settings the suite asserts against.
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("ENABLE_LOCAL_MODELS", "false")
+# OpenF1 requests are paced in production; against a mock transport the pause
+# is only wall-clock time. The pacer's own tests inject a gap and a clock.
+os.environ["OPENF1_MIN_REQUEST_GAP_SECONDS"] = "0"
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 

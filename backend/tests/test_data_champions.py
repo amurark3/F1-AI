@@ -238,14 +238,18 @@ def test_get_season_detail_lists_every_race_winner_in_round_order(fake_f1db):
             "race_name": "Bahrain Grand Prix",
             "date": "2026-03-08",
             "winner": "Max Verstappen",
+            "driver_id": "max-verstappen",
             "team": "Red Bull",
+            "team_id": "red-bull",
         },
         {
             "round": 2,
             "race_name": "Monaco Grand Prix",
             "date": "2026-05-24",
             "winner": "Max Verstappen",
+            "driver_id": "max-verstappen",
             "team": "Red Bull",
+            "team_id": "red-bull",
         },
     ]
 

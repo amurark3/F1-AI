@@ -22,6 +22,10 @@ FASTF1_TIMEOUT_SECONDS = int(os.getenv("FASTF1_TIMEOUT_SECONDS", "60"))
 # OpenF1 live-timing HTTP request timeout (seconds)
 OPENF1_HTTP_TIMEOUT_SECONDS = int(os.getenv("OPENF1_HTTP_TIMEOUT_SECONDS", "10"))
 
+# Least time between the starts of two OpenF1 requests from this process. The
+# free tier allows about three a second and answers a burst of ~20 with 429.
+OPENF1_MIN_REQUEST_GAP_SECONDS = float(os.getenv("OPENF1_MIN_REQUEST_GAP_SECONDS", "0.4"))
+
 # ---------------------------------------------------------------------------
 # WebSocket settings
 # ---------------------------------------------------------------------------
@@ -78,6 +82,36 @@ PREFETCH_INTER_RACE_DELAY = int(os.getenv("PREFETCH_INTER_RACE_DELAY", "5"))
 
 # How often the prefetch loop runs (seconds) — default 30 minutes
 PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
+
+# ---------------------------------------------------------------------------
+# Telemetry Lab (lap telemetry and tyre degradation, from OpenF1)
+# ---------------------------------------------------------------------------
+# How long after OpenF1's session end its rows are treated as final and kept.
+# Before that a session may still be filling in, and a partial lap list kept
+# for good would outlive the gap that caused it.
+ANALYSIS_SESSION_SETTLE_MINUTES = int(os.getenv("ANALYSIS_SESSION_SETTLE_MINUTES", "60"))
+
+# How long one request waits on a cold OpenF1 load before answering "still
+# working". The load carries on, and the next request joins it.
+ANALYSIS_WAIT_SECONDS = float(os.getenv("ANALYSIS_WAIT_SECONDS", "45"))
+
+# Loads kept in process memory, in front of the database (or instead of it
+# when DATABASE_URL is unset). A lap trace is ~20 KB; a race's laps ~150 KB.
+ANALYSIS_MEMORY_ENTRIES = int(os.getenv("ANALYSIS_MEMORY_ENTRIES", "48"))
+
+# Fuel correction for tyre degradation. Lap time falls as fuel burns off, which
+# hides wear, so each lap is put on an empty-tank footing. Both numbers are
+# modelled, not measured, and are returned with every result:
+#   * ~0.03 s per kg is the effect commonly used in race-strategy work.
+#   * Start fuel is not published. Up to 2025 the limit was 110 kg and cars
+#     started near it; the 2026 rules cut the race fuel to roughly 70 kg.
+# A season missing here gets no fuel-corrected times rather than a guess.
+FUEL_EFFECT_SECONDS_PER_KG = float(os.getenv("FUEL_EFFECT_SECONDS_PER_KG", "0.03"))
+RACE_START_FUEL_KG: dict[int, float] = {2023: 105.0, 2024: 105.0, 2025: 105.0, 2026: 70.0}
+
+# A lap run closer than this to the car ahead (median over the lap) is flagged
+# as traffic: dirty air, not the tyre, sets its pace. A heuristic.
+TRAFFIC_GAP_SECONDS = float(os.getenv("TRAFFIC_GAP_SECONDS", "1.5"))
 
 # ---------------------------------------------------------------------------
 # f1db dataset freshness

@@ -1,4 +1,23 @@
-import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
+/** One feature's exact share of a driver's predicted finish, from the linear model. */
+export interface ModelAttribution {
+  feature: string;
+  label: string;
+  value: number;
+  contribution: number;
+  direction: "helps" | "hurts";
+}
+
+/** One row of the model's predicted finishing order. */
+export interface DriverPrediction {
+  position: number;
+  driver_code: string;
+  driver_name: string;
+  team: string;
+  confidence_low: number;
+  confidence_high: number;
+  factors: string[];
+  model_attribution?: ModelAttribution[] | null;
+}
 
 export interface RaceEvent {
   round: number;
@@ -130,21 +149,3 @@ export interface PredictionsResponse {
 }
 
 export type DriverLookup = Record<string, DriverStanding>;
-
-/**
- * The sections of the Grand Prix Hub.
- *
- * `weekend` and `grid` describe the event itself and stand on their own data;
- * the rest read a stored prediction snapshot. The split matters because the
- * former must render on a weekend the model has never been run for.
- */
-export type TabKey =
-  | "weekend"
-  | "sessions"
-  | "grid"
-  | "stints"
-  | "predictions"
-  | "podium"
-  | "risk"
-  | "model"
-  | "results";

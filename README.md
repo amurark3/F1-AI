@@ -211,6 +211,15 @@ All endpoints are mounted under `/api`.
 | `GET` | `/api/race-control/debrief/{year}/{round_num}` | LLM race debrief |
 | `POST` | `/api/race-control/rulebook/search` | Regulation semantic search |
 | `GET` | `/api/race-control/intel/{team_slug}` | Team intel summary |
+| `GET` | `/api/race-control/glance/{year}/{round_num}` | Last edition's winner and pole, this round's PU penalty decisions |
+
+### Teams & Drivers
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/profiles/{year}/directory` | Every driver and team of the season, by f1db id (with team aliases) |
+| `GET` | `/api/profiles/{year}/teams/{team_id}` | Line-up, wins, results per round, cumulative points, power units |
+| `GET` | `/api/profiles/{year}/drivers/{driver_id}` | Every round's result, wins, stats, and the PU of each car raced |
 
 ### Memory (requires `DATABASE_URL`)
 

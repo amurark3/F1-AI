@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /**
  * Browser voice I/O for the race-engineer chat — speech-to-text (dictate a
@@ -54,6 +54,20 @@ function getRecognitionCtor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+// Browser support never changes after load, so there is nothing to subscribe to.
+function subscribeNever(): () => void {
+  return () => undefined;
+}
+
+function detectSupport(): boolean {
+  return getRecognitionCtor() !== null || "speechSynthesis" in window;
+}
+
+/** The server has no Web Speech API; React also uses this for the hydration render. */
+function detectSupportOnServer(): boolean {
+  return false;
+}
+
 /** Strip markdown/table noise so TTS reads clean prose, not symbols. */
 function cleanForSpeech(text: string): string {
   return text
@@ -71,9 +85,11 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const [speaking, setSpeaking] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  const hasRecognition = getRecognitionCtor() !== null;
   const hasSynthesis = typeof window !== "undefined" && "speechSynthesis" in window;
-  const supported = hasRecognition || hasSynthesis;
+  // Read through useSyncExternalStore so the server and hydration renders agree
+  // (no voice controls) and the client switches them on right after; reading
+  // `window` during render made the mic button a hydration mismatch.
+  const supported = useSyncExternalStore(subscribeNever, detectSupport, detectSupportOnServer);
 
   const onTranscriptRef = useRef(onTranscript);
   useEffect(() => {

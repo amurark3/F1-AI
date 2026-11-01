@@ -14,3 +14,17 @@ CREATE TABLE IF NOT EXISTS app_documents (
 -- Deny the Supabase anon/authenticated REST API; see rls.sql for the rationale
 -- and for the same treatment of the other tables this app owns.
 ALTER TABLE app_documents ENABLE ROW LEVEL SECURITY;
+
+-- Kept OpenF1 loads for the Telemetry Lab (app/data/analysis_cache.py): lap
+-- lists, lap traces and circuit corners, once their session has ended. Created
+-- automatically on first use; mirrored here for manual provisioning.
+CREATE TABLE IF NOT EXISTS analysis_cache (
+    kind           TEXT NOT NULL,
+    key            TEXT NOT NULL,
+    schema_version INTEGER NOT NULL,
+    payload        JSONB NOT NULL,
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (kind, key)
+);
+
+ALTER TABLE analysis_cache ENABLE ROW LEVEL SECURITY;

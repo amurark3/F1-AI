@@ -6,6 +6,7 @@ import { getTeamColor } from "@/app/lib/teamColors";
 
 import { ChampionshipBarChart, DriverChampionshipChart } from "../components/Charts";
 import { Panel, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
+import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
 import { driverCode, formatPoints, type DriverStanding, type Team } from "./teamsModel";
 
@@ -246,9 +247,13 @@ function DriverStandingRow({ driver }: { driver: DriverStanding }) {
         {driverCode(driver)}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-white">{driver.driver}</p>
+        <p className="truncate text-sm font-bold text-white">
+          <DriverLink code={driver.code} name={driver.driver}>
+            {driver.driver}
+          </DriverLink>
+        </p>
         <p className="truncate text-xs font-semibold" style={{ color }}>
-          {driver.team}
+          <TeamLink name={driver.team}>{driver.team}</TeamLink>
         </p>
       </div>
       <div className="shrink-0 text-right">
@@ -271,9 +276,22 @@ function ConstructorStandingRow({ team }: { team: Team }) {
       </div>
       <span className="h-7 w-1.5 shrink-0 rounded-full" style={{ background: team.color }} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-white">{team.name}</p>
+        <p className="truncate text-sm font-bold text-white">
+          <TeamLink id={team.slug} name={team.name}>
+            {team.name}
+          </TeamLink>
+        </p>
         <p className="truncate text-xs text-neutral-500">
-          {team.drivers.map((driver) => driver.driver).join(" / ") || "Roster pending"}
+          {team.drivers.length === 0
+            ? "Roster pending"
+            : team.drivers.map((driver, index) => (
+                <span key={driver.driver}>
+                  {index > 0 && " / "}
+                  <DriverLink code={driver.code} name={driver.driver}>
+                    {driver.driver}
+                  </DriverLink>
+                </span>
+              ))}
         </p>
       </div>
       <div className="shrink-0 text-right">

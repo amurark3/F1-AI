@@ -45,9 +45,11 @@ Consumer, Calendar, Standings, Champions, Predictions, Live.
 | `/`                                             | Redirects to `/race-control`              |
 | `/race-control`                                 | Control board + live timing tower         |
 | `/race-control/engineer`                        | Streaming AI race-engineer chat           |
-| `/race-control/teams` · `/teams/[team]`         | Constructor breakdowns                    |
+| `/race-control/teams`                           | Championship standings                    |
+| `/race-control/constructors/[team]`             | Teams & Drivers: line-up, wins, PU usage  |
+| `/race-control/drivers/[driver]`                | Driver season: every result, car's PU     |
 | `/race-control/debriefs`                        | LLM post-race debriefs                    |
-| `/race-control/intel`                           | Per-team strategic intel                  |
+| `/race-control/grand-prix`                      | Grand Prix Hub (`?round=&tab=&view=`)     |
 | `/race-control/predictions`                     | Race predictions + post-mortems           |
 | `/race-control/rulebook`                        | FIA regulation semantic search            |
 | `/race-control/champions` · `/champions/[year]` | Historical champions                      |

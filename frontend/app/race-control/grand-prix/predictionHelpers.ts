@@ -1,6 +1,11 @@
-import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
-
-import type { DriverLookup, DriverStanding, PredictionPhase, RaceEvent, RiskPrediction } from "./predictionModel";
+import type {
+  DriverLookup,
+  DriverPrediction,
+  DriverStanding,
+  PredictionPhase,
+  RaceEvent,
+  RiskPrediction,
+} from "./predictionModel";
 
 const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 

@@ -31,14 +31,6 @@ export const getTeams = cache((year: number): Promise<TeamsResponse | null> => {
   });
 });
 
-/** One constructor's detail page payload. */
-export const getTeamDetail = cache(<T>(slug: string, year: number): Promise<T | null> => {
-  return fetchFromBackend<T>(`/api/race-control/teams/${slug}/${year}`, {
-    revalidate: REVALIDATE.STANDINGS,
-    tags: ["teams", `teams:${year}`],
-  });
-});
-
 /** The season entry list, used to seed the prediction grid. */
 export function getDrivers<T>(year: number): Promise<T | null> {
   return fetchFromBackend<T>(`/api/race-control/drivers/${year}`, {
@@ -103,14 +95,6 @@ export const getPowerUnits = cache(<T>(year: number): Promise<T | null> => {
     tags: ["power-units", `power-units:${year}`],
   });
 });
-
-/** Rival intel for one constructor. */
-export function getIntel<T>(slug: string): Promise<T | null> {
-  return fetchFromBackend<T>(`/api/race-control/intel/${slug}`, {
-    revalidate: REVALIDATE.OVERVIEW,
-    tags: ["intel", `intel:${slug}`],
-  });
-}
 
 /** Cached model output for a round. Never triggers a recompute. */
 /**

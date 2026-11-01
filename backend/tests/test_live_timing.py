@@ -126,6 +126,28 @@ def test_match_meeting_falls_back_to_the_event_date_window():
     assert match["meeting_key"] == 1292
 
 
+# OpenF1's real 2024 calendar opens with testing at the Bahrain GP's location.
+MEETINGS_2024_SAKHIR = [
+    {"meeting_key": 1228, "meeting_name": "Pre-Season Testing", "location": "Sakhir", "date_start": "2024-02-21"},
+    {"meeting_key": 1229, "meeting_name": "Bahrain Grand Prix", "location": "Sakhir", "date_start": "2024-02-29"},
+]
+
+
+def test_match_meeting_picks_the_grand_prix_over_testing_at_the_same_circuit():
+    """Regression: Bahrain 2023-2025 resolved to pre-season testing, which has no race."""
+    match = match_meeting(MEETINGS_2024_SAKHIR, "Sakhir", _utc(2024, 3, 2))
+    assert match["meeting_name"] == "Bahrain Grand Prix"
+
+
+def test_match_meeting_without_a_date_keeps_the_first_meeting_at_the_location():
+    assert match_meeting(MEETINGS_2024_SAKHIR, "Sakhir")["meeting_key"] == 1228
+
+
+def test_match_meeting_prefers_a_dated_meeting_over_an_undated_one():
+    undated = [{"meeting_key": 1, "location": "Sakhir"}, MEETINGS_2024_SAKHIR[1]]
+    assert match_meeting(undated, "Sakhir", _utc(2024, 3, 2))["meeting_key"] == 1229
+
+
 def test_match_meeting_rejects_a_date_outside_the_weekend_window():
     assert match_meeting(MEETINGS_2026, "Nowhere", _utc(2026, 5, 30)) is None
 

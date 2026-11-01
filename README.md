@@ -15,7 +15,7 @@ Desktop / Cursor, and a **legacy iOS companion app**.
 
 ```
 F1-AI/
-├── backend/    Python FastAPI + LangChain agent on Groq (GPT-OSS 120B)
+├── backend/    Python FastAPI + LangChain agent on AMD Token Lab, Gemini fallback
 ├── frontend/   Next.js 16 + React 19 (TypeScript) — "Race Control" workspace
 ├── ios/        SwiftUI iOS companion (legacy — lags the web feature set)
 └── render.yaml Reference copy of the Render config (NOT applied — the Render
@@ -31,17 +31,18 @@ MCP clients (Claude Desktop / Cursor)  ────────┤
                                                │
      ┌──────────────┬──────────────┬───────────┴──────┬────────────────┐
      │              │              │                  │                │
-  Groq LLM      f1db SQLite    FastF1 / OpenF1    Supabase Postgres  Tavily /
-  (GPT-OSS      (1950–present  (sessions,         + pgvector         OpenWeatherMap
-   120B + tools) history)       telemetry, live)   (store, memory,    (news, forecast)
+  LLM engines   f1db SQLite    FastF1 / OpenF1    Supabase Postgres  Tavily /
+  (Token Lab    (1950–present  (sessions,         + pgvector         OpenWeatherMap
+   → Gemini)     history)       telemetry, live)   (store, memory,    (news, forecast)
                                                     rulebook vectors)
 ```
 
 The chat backend runs an **agentic tool-use loop**: the model may call one or
 more of 16 F1 tools per turn (up to `MAX_AGENT_TURNS`), the backend executes
 them, feeds the results back, and repeats until the model returns a final
-analysis. A recovery layer parses the model's occasional malformed inline tool
-calls so the loop keeps running. Before an answer is sent, a claim checker
+analysis. Every tool is offered on every tool turn. If the engine fails with
+its own error (out of points or credit, rate-limited, down), the question
+restarts on the next engine. Before an answer is sent, a claim checker
 compares its driver↔team statements against the tool results and asks for one
 repair if they disagree.
 
@@ -125,7 +126,8 @@ cp .env.example .env                     # then fill in the keys
 `backend/.env` (see `.env.example` for the full notes on each):
 
 ```env
-GROQ_API_KEY=your_groq_key                         # required — authenticates the LLM engine
+TOKENLAB_API_KEY=your_tokenlab_key                 # primary chat engine (set at least one engine key)
+GOOGLE_API_KEY=your_gemini_key                     # fallback chat engine — Gemini free tier
 TAVILY_API_KEY=your_tavily_key                     # optional — web-search tool
 OPENWEATHERMAP_API_KEY=your_openweathermap_key     # optional — weather tool
 DATABASE_URL=postgresql://...                      # optional — memory + durable store
@@ -134,7 +136,11 @@ SENTRY_DSN=                                        # optional — backend error 
 ALLOWED_ORIGINS=http://localhost:3000              # CORS (comma-separated)
 ```
 
-- **GROQ_API_KEY** — free, no card required, at [console.groq.com](https://console.groq.com)
+- **TOKENLAB_API_KEY** — AMD Token Lab, through the AMD AI Developer Program, at
+  [notebooks.amd.com/tokenlab](https://notebooks.amd.com/tokenlab). It is a beta
+  with a points budget and a 30-day access window you extend from that page
+- **GOOGLE_API_KEY** — Gemini free tier at [aistudio.google.com](https://aistudio.google.com).
+  Create it in a project with no billing linked, or it is charged instead of free
 - **TAVILY_API_KEY** — [app.tavily.com](https://app.tavily.com)
 - **DATABASE_URL** — any Postgres with the `pgvector` extension (e.g. Supabase).
   On Supabase use the **session pooler** host: the direct `db.<ref>` host is
@@ -144,9 +150,10 @@ ALLOWED_ORIGINS=http://localhost:3000              # CORS (comma-separated)
   rulebook query once OOM-killed the server. With it off, rules search reports
   that it is disabled and chat skips semantic recall
 
-> **Which model?** Not an environment variable and not a secret — the Groq model
-> is a code constant, `GROQ_MODEL_NAME` in `backend/app/config.py`. Changing it
-> is a code change and a deploy, not a dashboard edit.
+> **Which model?** Not an environment variable and not a secret — the engines,
+> their models and their order are code constants, `LLM_PROVIDERS` in
+> `backend/app/config.py`. Changing one is a code change and a deploy, not a
+> dashboard edit.
 
 ```bash
 python main.py
@@ -183,7 +190,7 @@ cd backend && .venv/bin/python -m pytest tests -q --cov   # coverage must stay a
 open ios/F1AI.xcodeproj
 ```
 
-> **Note:** the iOS app predates the Race Control / f1db / Groq overhaul and does
+> **Note:** the iOS app predates the Race Control / f1db / AI overhaul and does
 > not yet expose the newer backend features. In **DEBUG builds** it points to
 > `http://localhost:8000`; in **Release builds**, to `https://f1-ai.onrender.com`.
 > On a physical device, update `APIClient.baseURL` to your Mac's LAN IP —
@@ -356,7 +363,6 @@ Add to your Claude Desktop config
       "command": "/absolute/path/to/backend/.venv/bin/python",
       "args": ["/absolute/path/to/backend/mcp_server.py"],
       "env": {
-        "GROQ_API_KEY": "your_key",
         "TAVILY_API_KEY": "your_key"
       }
     }
@@ -391,8 +397,7 @@ backend/
 │   │   ├── live/             live-timing WebSocket + connection manager
 │   │   ├── race_detail.py    race + qualifying + sprint detail
 │   │   ├── compare.py        season head-to-head
-│   │   ├── llm.py            Groq chat model factory
-│   │   ├── tool_recovery.py  recovers malformed inline tool calls
+│   │   ├── llm.py            chat engines, failover classification, rest periods
 │   │   ├── claim_check.py    checks driver↔team claims against tool results
 │   │   ├── answer_repair.py  one repair pass for flagged answers
 │   │   ├── single_flight.py  one compute per key, shared by concurrent callers
@@ -449,7 +454,7 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | Styling | Tailwind CSS 4 |
 | Web UI libs | Recharts, Framer Motion, SWR, react-markdown, lucide-react |
 | Backend | FastAPI, Uvicorn, Python 3.13, structlog |
-| LLM | Groq — GPT-OSS 120B |
+| LLM | AMD Token Lab (DeepSeek-V4-Flash), Gemini 3.5 Flash-Lite fallback |
 | LLM orchestration | LangChain (agentic tool-use loop) |
 | F1 data | f1db (SQLite, 1950–present), FastF1, OpenF1 (telemetry + live), Ergast/Jolpica (fallback), FIA documents (power units) |
 | Vector search | Postgres pgvector + sentence-transformers + cross-encoder reranker |

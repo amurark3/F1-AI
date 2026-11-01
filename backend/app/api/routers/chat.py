@@ -4,9 +4,9 @@ import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 import json
 import threading
-from typing import NamedTuple
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -16,13 +16,18 @@ import structlog
 
 from app.api.answer_repair import checked_answer
 from app.api.errors import client_error_text
-from app.api.llm import build_chat_llm
+from app.api.llm import (
+    available_providers,
+    build_chat_llm,
+    is_provider_failure,
+    is_rate_limited,
+    mark_unavailable,
+    message_text,
+)
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
-from app.api.tool_recovery import is_tool_use_failed, recover_tool_calls, unbound_tool_name
-from app.api.tool_router import select_tools
-from app.api.tools import TOOL_MAP
-from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS
+from app.api.tools import TOOL_LIST, TOOL_MAP
+from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS, LLMProvider
 from app.data.memory import build_memory_context, save_message
 
 logger = structlog.get_logger()
@@ -30,32 +35,33 @@ router = APIRouter(tags=["chat"])
 
 
 # The chat model is built lazily on first use, not at import. Constructing it
-# eagerly would (a) import langchain_groq — which pulls in torch — during app
-# startup, spiking memory and risking a slow/OOM boot that fails the deploy
-# health check, and (b) make a missing GROQ_API_KEY crash the whole service
-# instead of only the chat endpoint. Deferring keeps boot fast and isolates the
-# LLM dependency to requests that actually need it.
+# eagerly would (a) import the engine's client during app startup, spiking
+# memory and risking a slow/OOM boot that fails the deploy health check, and
+# (b) make a missing key crash the whole service instead of only the chat
+# endpoint. Deferring keeps boot fast and isolates the LLM dependency to
+# requests that actually need it.
 #
-# Keyed by tool subset: every distinct selection from tool_router needs its own
-# bound model, and binding is pure setup, so they are cached rather than rebuilt
-# per request. The number of distinct subsets is bounded by the keyword table.
-_llm_cache: dict[frozenset[str], Runnable] = {}
+# Per engine: one model with every tool bound, one with none for the forced
+# final answer. Binding is pure setup, so both are cached rather than rebuilt
+# per request.
+_llm_cache: dict[tuple[LLMProvider, bool], Runnable] = {}
 _llm_lock = threading.Lock()
 
 
-def _get_llm(tool_names: frozenset[str]) -> Runnable:
-    """Return a model bound to exactly ``tool_names`` (unbound if empty)."""
+def _get_llm(provider: LLMProvider, *, with_tools: bool) -> Runnable:
+    """Return ``provider``'s model, bound to every tool or to none."""
     global _llm_cache
-    cached = _llm_cache.get(tool_names)
+    key = (provider, with_tools)
+    cached = _llm_cache.get(key)
     if cached is not None:
         return cached
 
     with _llm_lock:
-        cached = _llm_cache.get(tool_names)
+        cached = _llm_cache.get(key)
         if cached is None:
-            base = build_chat_llm()
-            cached = base.bind_tools([TOOL_MAP[name] for name in sorted(tool_names)]) if tool_names else base
-            _llm_cache = {**_llm_cache, tool_names: cached}
+            base = build_chat_llm(provider)
+            cached = base.bind_tools(TOOL_LIST) if with_tools else base
+            _llm_cache = {**_llm_cache, key: cached}
     return cached
 
 
@@ -86,106 +92,32 @@ def _as_plain_transcript(messages: list[BaseMessage]) -> list[BaseMessage]:
     return [*conversation, SystemMessage(content=f"{FINAL_TURN_DIRECTIVE}\n\nDATA RETRIEVED SO FAR:\n\n{data}")]
 
 
-async def _answer_or_none(messages: list[BaseMessage]) -> AIMessage | None:
-    """A reply with no tools offered, or None if the model called one anyway."""
-    try:
-        return await _get_llm(frozenset()).ainvoke(messages)
-    except Exception as exc:
-        if not is_tool_use_failed(exc):
-            raise
-        return None
+async def _answer_or_none(provider: LLMProvider, messages: list[BaseMessage]) -> AIMessage | None:
+    """A reply with no tools offered, or None if the model still asked for one."""
+    answer = await _get_llm(provider, with_tools=False).ainvoke(messages)
+    return None if answer.tool_calls else answer
 
 
-async def _ainvoke_final(messages: list[BaseMessage]) -> AIMessage:
+async def _ainvoke_final(provider: LLMProvider, messages: list[BaseMessage]) -> AIMessage:
     """Force a text answer out of the model on the last permitted turn.
 
     Binding no tools is the cheap path — it drops the entire schema payload from
     one of the most expensive calls in the loop. But a model that has just seen
-    several tool calls in the history will sometimes attempt one more anyway,
-    and Groq rejects that with a 400 ("attempted to call tool X which was not in
-    request.tools") rather than ignoring it.
+    several tool calls in the history will sometimes reply with one more anyway.
 
-    Disabling tool calling is no fix: gpt-oss ignores tool_choice="none", and
-    Groq 400s that too ("Tool choice is none, but model called a tool"). What
-    works is taking the invitation away — the retry restates the tool history as
-    plain text. If even that is refused, the reply comes back empty and the loop
-    shows its notice, so the last turn never ends in an error. A refusal costs
-    one extra request; nothing else is absorbed, so a rate limit still surfaces.
+    What works is taking the invitation away — the retry restates the tool
+    history as plain text. If even that comes back as a tool call, the reply is
+    empty and the loop shows its notice, so the last turn never ends in an
+    error. Engine failures are not absorbed here: they belong to the failover.
     """
-    answer = await _answer_or_none([*messages, SystemMessage(content=FINAL_TURN_DIRECTIVE)])
+    answer = await _answer_or_none(provider, [*messages, SystemMessage(content=FINAL_TURN_DIRECTIVE)])
     if answer is None:
         logger.info("agent.final_turn_as_transcript")
-        answer = await _answer_or_none(_as_plain_transcript(messages))
+        answer = await _answer_or_none(provider, _as_plain_transcript(messages))
     if answer is None:
         logger.warning("agent.final_turn_refused")
         return AIMessage(content="")
     return answer
-
-
-class _ModelTurn(NamedTuple):
-    """One model reply, and the tools bound from here on.
-
-    The set only ever grows: a tool bound mid-loop to satisfy the model stays
-    bound, or the next turn that reaches for it is refused all over again.
-    """
-
-    response: AIMessage
-    tool_names: frozenset[str]
-
-
-def _recovered_call(exc: Exception) -> AIMessage:
-    """The tool call(s) Groq refused to parse, or ``exc`` again if there are none.
-
-    When the model emits a tool call as text instead of a structured call, Groq
-    returns a tool_use_failed error. We parse the intended call(s) out of it and
-    return a synthesized tool-calling message so the agent loop can continue.
-    """
-    recovered = recover_tool_calls(exc)
-    if not recovered:
-        raise exc
-    logger.info("agent.recovered_tool_calls", count=len(recovered))
-    return AIMessage(content="", tool_calls=recovered)
-
-
-async def _ainvoke_parsing_refusals(messages: list[BaseMessage], tool_names: frozenset[str]) -> AIMessage:
-    """Invoke the model, recovering a tool call Groq refused to parse."""
-    try:
-        return await _get_llm(tool_names).ainvoke(messages)
-    except Exception as exc:
-        if not is_tool_use_failed(exc):
-            raise
-        return _recovered_call(exc)
-
-
-def _with_refused_tool(exc: Exception, tool_names: frozenset[str]) -> frozenset[str] | None:
-    """The tool set plus the real tool Groq refused as unoffered, if that was the refusal."""
-    refused = unbound_tool_name(exc)
-    if refused in TOOL_MAP and refused not in tool_names:
-        return tool_names | {refused}
-    return None
-
-
-async def _ainvoke_with_recovery(messages: list[BaseMessage], tool_names: frozenset[str]) -> _ModelTurn:
-    """Invoke the model, recovering from the tool calls Groq refuses.
-
-    tool_router binds only the tools a question's keywords suggest, so the model
-    sometimes asks for one it was not offered and Groq rejects the whole turn.
-    That tool is bound and the turn retried once, so the model sees the real
-    schema and writes valid arguments. Any other refusal is parsed instead.
-
-    Widening is checked before parsing on purpose: gpt-oss's refusal carries
-    the call as parseable JSON, but with arguments guessed without the schema.
-    """
-    try:
-        return _ModelTurn(await _get_llm(tool_names).ainvoke(messages), tool_names)
-    except Exception as exc:
-        if not is_tool_use_failed(exc):
-            raise
-        widened = _with_refused_tool(exc, tool_names)
-        if widened is None:
-            return _ModelTurn(_recovered_call(exc), tool_names)
-    logger.info("agent.unoffered_tool_bound", tools=sorted(widened - tool_names))
-    return _ModelTurn(await _ainvoke_parsing_refusals(messages, widened), widened)
 
 
 def build_system_prompt(today: str, memory_context: str = "") -> str:
@@ -308,78 +240,120 @@ async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> A
         yield f"[TOOL_END]{friendly}[/TOOL_END]"
 
 
-async def _next_response(messages: list[BaseMessage], tool_names: frozenset[str], turn: int) -> _ModelTurn:
+async def _next_response(messages: list[BaseMessage], provider: LLMProvider, turn: int) -> AIMessage:
     """Ask for the next turn, offering no tools on the last one permitted.
 
     Without tools the model answers from what it already has, which saves the
     schema payload and turns what used to be a dead-end error into an answer.
     """
     if turn == MAX_AGENT_TURNS:
-        return _ModelTurn(await _ainvoke_final(messages), tool_names)
-    return await _ainvoke_with_recovery(messages, tool_names)
+        return await _ainvoke_final(provider, messages)
+    return await _get_llm(provider, with_tools=True).ainvoke(messages)
 
 
-async def _finalise(messages: list[BaseMessage], conversation: _Conversation, content: object) -> str:
+async def _finalise(
+    messages: list[BaseMessage],
+    provider: LLMProvider,
+    conversation: _Conversation,
+    answer: str,
+) -> str:
     """Check the answer against the rows it was built from, save it, and return it.
 
     The check is free for a clean answer; one its rows contradict gets a single
-    repair request (app/api/answer_repair.py), so the user and their saved
-    history both get the corrected text.
+    repair request (app/api/answer_repair.py) on the same engine, so the user
+    and their saved history both get the corrected text.
     """
-    checked = await checked_answer(messages, str(content), _answer_or_none)
+    checked = await checked_answer(messages, answer, partial(_answer_or_none, provider))
     await _save_reply(conversation, checked)
     return checked
 
 
 async def _agent_stream(
     messages: list[BaseMessage],
-    tool_names: frozenset[str],
+    provider: LLMProvider,
     conversation: _Conversation,
 ) -> AsyncGenerator[str]:
-    """Drive the tool-use loop, streaming markers and then the final answer."""
-    response, tool_names = await _ainvoke_with_recovery(messages, tool_names)
+    """Drive the tool-use loop on one engine, streaming markers and then the final answer."""
+    response = await _get_llm(provider, with_tools=True).ainvoke(messages)
 
     for turn in range(1, MAX_AGENT_TURNS + 1):
         if not response.tool_calls:
-            logger.info("agent.generating_response")
-            yield await _finalise(messages, conversation, response.content)
+            logger.info("agent.generating_response", provider=provider.name)
+            yield await _finalise(messages, provider, conversation, message_text(response))
             return
 
         logger.info("agent.turn", turn=turn, tool_count=len(response.tool_calls))
         messages.append(response)
         async for marker in _run_tool_calls(response, messages):
             yield marker
-        response, tool_names = await _next_response(messages, tool_names, turn)
+        response = await _next_response(messages, provider, turn)
 
     # Loop exhausted. The last invocation had no tools bound, so this is prose;
     # the notice remains only for a model that returns nothing.
-    if response.content:
+    answer = message_text(response)
+    if answer:
         logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
-        yield await _finalise(messages, conversation, response.content)
+        yield await _finalise(messages, provider, conversation, answer)
         return
 
     yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
 
 
+RATE_LIMITED_NOTICE = (
+    "**Box, box:** The engine is rate-limited right now (free tier). Give it a few seconds and try again."
+)
+
+
 def _failure_text(exc: Exception) -> str:
     """What the user sees when the loop dies — a quota gets its own message."""
-    if "rate limit" in str(exc).lower() or "429" in str(exc):
+    if is_rate_limited(exc):
         logger.warning("agent.rate_limited", error=str(exc))
-        return "**Box, box:** The engine is rate-limited right now (free tier). Give it a few seconds and try again."
+        return RATE_LIMITED_NOTICE
     return f"**System Error:** {client_error_text('agent.critical_error', exc)}"
 
 
-async def _guarded_stream(
-    messages: list[BaseMessage],
-    tool_names: frozenset[str],
-    conversation: _Conversation,
-) -> AsyncGenerator[str]:
-    """The agent stream, with any failure rendered through the client-safe path."""
+def _fails_over(provider: LLMProvider, exc: Exception, *, is_last: bool) -> bool:
+    """Rest an engine that failed; True when the question should move to the next one.
+
+    Only the engine's own failures qualify. Our own bug would fail the same way
+    on every engine, and retrying it would hide it.
+    """
+    if not is_provider_failure(exc):
+        return False
+    mark_unavailable(provider, exc)
+    if is_last:
+        return False
+    logger.warning("agent.provider_failover", provider=provider.name, error=str(exc))
+    return True
+
+
+async def _guarded_stream(messages: list[BaseMessage], conversation: _Conversation) -> AsyncGenerator[str]:
+    """The agent stream on the first engine that answers, failures rendered client-safe.
+
+    An engine that is out of points or credit, past its access window,
+    overloaded or unreachable hands the question to the next engine (order in
+    app/config.py), which starts again from the question: ``messages`` is cut
+    back to it, so the next engine never sees the failed one's tool calls.
+    Tool markers already streamed are repeated by the next attempt.
+    """
+    question_length = len(messages)
     try:
-        async for chunk in _agent_stream(messages, tool_names, conversation):
-            yield chunk
-    except Exception as exc:
+        providers = available_providers()
+    except RuntimeError as exc:
         yield _failure_text(exc)
+        return
+
+    for index, provider in enumerate(providers):
+        del messages[question_length:]
+        try:
+            async for chunk in _agent_stream(messages, provider, conversation):
+                yield chunk
+            return
+        except Exception as exc:
+            if _fails_over(provider, exc, is_last=index == len(providers) - 1):
+                continue
+            yield _failure_text(exc)
+            return
 
 
 def _today() -> str:
@@ -395,7 +369,7 @@ async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:
     request = ChatRequest(messages=[{"role": "user", "content": question}])
     messages = build_langchain_messages(request, _today())
     conversation = _Conversation(user_id=None, thread_id="eval")
-    chunks = [chunk async for chunk in _guarded_stream(messages, select_tools(question), conversation)]
+    chunks = [chunk async for chunk in _guarded_stream(messages, conversation)]
     return "".join(chunks), messages
 
 
@@ -416,13 +390,9 @@ async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
             await asyncio.to_thread(save_message, user_id, thread_id, "user", latest_user_text)
 
     langchain_messages = build_langchain_messages(request, today, memory_context)
-
-    # Only the tools this question plausibly needs — the full set costs ~2,100
-    # prompt tokens on every turn of the loop. See app/api/tool_router.py.
-    tool_names = select_tools(latest_user_text)
     conversation = _Conversation(user_id=user_id, thread_id=thread_id)
 
     return StreamingResponse(
-        _guarded_stream(langchain_messages, tool_names, conversation),
+        _guarded_stream(langchain_messages, conversation),
         media_type="text/plain",
     )

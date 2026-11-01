@@ -8,7 +8,7 @@ development and total in production.
 Two hazards shape how these tests are written:
 
 * **Importing ``main`` calls ``load_dotenv()``.** The repo has a real ``.env``
-  holding ``GROQ_API_KEY`` and ``DATABASE_URL``, which ``tests/conftest.py``
+  holding engine keys and ``DATABASE_URL``, which ``tests/conftest.py``
   deliberately clears so no test can reach a live service. The import below is
   therefore bracketed by an exact ``os.environ`` snapshot/restore, and every
   reload goes through ``reloaded_main`` which does the same. Without that, this
@@ -312,7 +312,7 @@ async def test_an_unreachable_schedule_is_logged_and_the_sweep_is_rescheduled(mo
 @pytest.mark.integration
 async def test_a_failing_self_improvement_pass_does_not_break_prefetching(monkeypatch, sleep_stub):
     def _explode(year: int) -> dict:
-        raise RuntimeError("groq quota exhausted")
+        raise RuntimeError("engine quota exhausted")
 
     monkeypatch.setattr(main.fastf1, "get_event_schedule", lambda year, include_testing: pd.DataFrame([]))
     _stub_self_improvement(monkeypatch, _explode)

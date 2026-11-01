@@ -5,7 +5,7 @@ gate, so this file *is* the definition of "the assistant still works". The risks
 are quiet ones: a duplicate id silently overwrites a case in any id-keyed
 report; an empty rubric makes the LLM judge grade against nothing and hand out
 free marks; an empty ``must_include`` makes the keyword fallback return a
-perfect 1.0 for any answer at all, so a Groq outage would turn into a green
+perfect 1.0 for any answer at all, so an engine outage would turn into a green
 build. Each assertion below pins one of those.
 """
 

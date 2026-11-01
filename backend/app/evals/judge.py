@@ -1,7 +1,7 @@
 """LLM-as-judge scoring for assistant answers.
 
 Scores a candidate answer against a rubric on a 0.0–1.0 scale.  Uses the same
-engine as the assistant (Groq) but with no tools — it only judges.  Falls back
+engine as the assistant (the first available one) but with no tools — it only judges.  Falls back
 to a deterministic keyword score when the judge LLM is unavailable, so the eval
 always produces a number.
 """
@@ -57,7 +57,7 @@ def judge_answer(question: str, answer: str, rubric: str, must_include: list[str
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        from app.api.llm import build_chat_llm
+        from app.api.llm import build_chat_llm, message_text
 
         judge_llm = build_chat_llm()
         prompt = f"QUESTION:\n{question}\n\nANSWER:\n{answer}\n\nRUBRIC:\n{rubric}"
@@ -67,7 +67,7 @@ def judge_answer(question: str, answer: str, rubric: str, must_include: list[str
                 HumanMessage(content=prompt),
             ]
         )
-        score, reason = _parse_score(str(response.content))
+        score, reason = _parse_score(message_text(response))
         return {"score": score, "reason": reason, "method": "llm_judge"}
     except Exception as exc:
         logger.warning("evals.judge_llm_unavailable_using_keywords", error=str(exc))

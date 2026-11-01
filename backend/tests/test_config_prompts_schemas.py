@@ -27,7 +27,8 @@ def test_defaults_are_usable_without_any_environment(reload_module, monkeypatch)
     for key in (
         "TOOL_TIMEOUT_SECONDS",
         "MAX_AGENT_TURNS",
-        "GROQ_MODEL_NAME",
+        "LLM_REQUEST_TIMEOUT_SECONDS",
+        "LLM_MAX_RETRIES",
         "RULEBOOK_TOP_K",
         "WEATHER_CACHE_TTL",
     ):
@@ -37,7 +38,8 @@ def test_defaults_are_usable_without_any_environment(reload_module, monkeypatch)
 
     assert cfg.TOOL_TIMEOUT_SECONDS == 30
     assert cfg.MAX_AGENT_TURNS == 3
-    assert cfg.GROQ_MODEL_NAME == "openai/gpt-oss-120b"
+    assert cfg.LLM_REQUEST_TIMEOUT_SECONDS == 60
+    assert cfg.LLM_MAX_RETRIES == 1
     assert cfg.RULEBOOK_TOP_K == 6
     assert cfg.WEATHER_CACHE_TTL == 600
 
@@ -56,14 +58,28 @@ def test_numeric_settings_are_read_from_the_environment(reload_module, monkeypat
 
 
 @pytest.mark.unit
-def test_the_groq_model_is_fixed_in_code_not_the_environment(reload_module, monkeypatch):
-    """Tool schemas and prompts are tuned to one model; an env override would
-    silently swap it underneath them."""
-    monkeypatch.setenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+def test_the_engines_are_fixed_in_code_and_only_their_keys_come_from_the_environment():
+    """Tool schemas and prompts are tuned to these models; an env override would
+    silently swap one underneath them. Token Lab answers first, Gemini catches
+    what it drops."""
+    from app.config import LLM_PROVIDERS
 
-    cfg = reload_module("app.config")
+    assert [(p.name, p.model, p.key_env) for p in LLM_PROVIDERS] == [
+        ("tokenlab", "DeepSeek-V4-Flash", "TOKENLAB_API_KEY"),
+        ("gemini", "gemini-3.5-flash-lite", "GOOGLE_API_KEY"),
+    ]
+    assert LLM_PROVIDERS[0].base_url == "https://api.tokenlab.amd.com/v1"
+    assert LLM_PROVIDERS[1].base_url is None, "Gemini runs on Google's own client"
 
-    assert cfg.GROQ_MODEL_NAME == "openai/gpt-oss-120b"
+
+@pytest.mark.unit
+def test_an_engine_spec_cannot_be_changed_after_it_is_built():
+    from dataclasses import FrozenInstanceError
+
+    from app.config import LLM_PROVIDERS
+
+    with pytest.raises(FrozenInstanceError):
+        LLM_PROVIDERS[0].model = "something-else"  # type: ignore[misc]
 
 
 @pytest.mark.unit

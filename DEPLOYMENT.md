@@ -12,7 +12,7 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
                                    │
                  ┌─────────────────┼──────────────────────────┐
                  ▼                 ▼                          ▼
-          Groq (GPT-OSS)     Supabase Postgres          FastF1 + f1db
+          Token Lab→Gemini   Supabase Postgres          FastF1 + f1db
           LLM + tools        + pgvector                 (F1 data; f1db.db
                              • prediction cache/history  downloaded on boot)
                              • conversation memory
@@ -20,7 +20,12 @@ Frontend (Next.js)  ──HTTPS──▶  Backend (FastAPI on Render)
 ```
 
 - **Backend:** Python 3.13 / FastAPI, deployed on **Render** (`backend/` root).
-- **LLM:** **Groq** (GPT-OSS 120B). Built lazily on first chat request.
+- **LLM:** **AMD Token Lab** (DeepSeek-V4-Flash) first, **Gemini** free tier
+  (3.5 Flash-Lite) as the fallback. Gemini's free tier caps requests per day
+  (20 a day on the Flash models), so it is a backup, not a second primary. A
+  question that fails on one engine with that engine's own error restarts on
+  the next, and the failed engine rests for 1–10 minutes. Built lazily on first
+  chat request.
 - **Data store:** **Supabase Postgres** (with the `vector`/pgvector extension) holds
   the durable prediction cache + accuracy history, conversation memory, and the
   FIA rulebook embeddings. Falls back to local JSON when `DATABASE_URL` is unset.
@@ -37,7 +42,8 @@ variable there does nothing on its own.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | **Yes** | Authenticates the LLM engine (get a free key at console.groq.com) |
+| `TOKENLAB_API_KEY` | **One of these two** | Primary chat engine — AMD Token Lab ([notebooks.amd.com/tokenlab](https://notebooks.amd.com/tokenlab)). Beta: extend its 30-day access from that page before it lapses |
+| `GOOGLE_API_KEY` | **One of these two** | Fallback chat engine — Gemini free tier. Key must come from an AI Studio project with **no billing linked** |
 | `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
 | `TAVILY_API_KEY` | No | Web-search tool |
 | `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
@@ -83,8 +89,9 @@ different model from all-MiniLM-L6-v2 though, so the whole corpus would have to
 be re-embedded through the same function, and the cross-encoder has no Supabase
 equivalent.
 
-> A missing `GROQ_API_KEY` no longer crashes the whole service — only the chat
-> endpoint fails; health, predictions, standings, and rulebook still work.
+> Missing engine keys do not crash the service — only the chat endpoint fails;
+> health, predictions, standings, and rulebook still work. Set both keys so the
+> chat survives Token Lab's points or access window running out.
 
 ### `DATABASE_URL` must use the pooler host
 

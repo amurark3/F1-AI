@@ -11,12 +11,13 @@ The second is **fabricated analysis**: the post-mortem text comes from an LLM.
 With no key, or on any LLM error, the pass must record actuals and return
 ``None`` rather than store an empty or invented summary.
 
-The document store and the LLM are both faked; ``GROQ_API_KEY`` is unset, so
+The document store and the LLM are both faked; no engine key is set, so
 no real client is ever constructed.
 """
 
 from __future__ import annotations
 
+from langchain_core.messages import AIMessage
 import pytest
 
 from app.data.store_types import ReadResult, WriteResult
@@ -52,7 +53,7 @@ class _FakeLLM:
 
     def invoke(self, messages):
         self.prompts.append(messages[0].content)
-        return type("_Response", (), {"content": self.content})()
+        return AIMessage(content=self.content)
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def store(monkeypatch):
 
 
 def _install_llm(monkeypatch, llm) -> None:
-    """Patch the lazily-imported Groq factory the post-mortem reaches for."""
+    """Patch the lazily-imported engine factory the post-mortem reaches for."""
     from app.api import llm as llm_module
 
     monkeypatch.setattr(llm_module, "build_chat_llm", lambda: llm)
@@ -243,7 +244,7 @@ def test_an_llm_outage_yields_no_postmortem_rather_than_an_empty_one(store, monk
     from app.api import llm as llm_module
 
     def explode():
-        raise RuntimeError("GROQ_API_KEY is not set")
+        raise RuntimeError("No chat engine is configured")
 
     monkeypatch.setattr(llm_module, "build_chat_llm", explode)
 

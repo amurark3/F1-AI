@@ -14,7 +14,7 @@ An intelligent F1 race engineer that answers any Formula 1 question from real da
 
 **AI Engineer (chat)**
 
-- ✓ Agentic chat on Groq (GPT-OSS 120B) with 16 LangChain tools and up to 3 tool turns per answer — AI overhaul (2026-07)
+- ✓ Agentic chat with 16 LangChain tools and up to 3 tool turns per answer — AI overhaul (2026-07); on AMD Token Lab with a Gemini fallback since 2026-11
 - ✓ Recovery of malformed inline tool calls so the loop keeps running — AI overhaul (2026-07)
 - ✓ Read-only text-to-SQL over f1db (`query_f1_database`) for any historical question — AI overhaul (2026-07)
 - ✓ Answer-quality pipeline: tallies on SQL results, answer contract in the system prompt, driver↔team claim checker with one repair pass; measured with `python -m scripts.eval_answers` (12/12 clean on 2026-10-24) — 2026-10
@@ -106,11 +106,11 @@ Data sources and their known failure modes:
 
 Provenance rules: never index OpenF1 by round or select sessions by type; judge feed rows by provenance, not age; don't show heuristic or placeholder values as measured data. `docs/HARDCODED_DATA_AUDIT.md` has the Tier 1 and Tier 3 fixes done and the Tier 2 heuristics disclosed in the UI.
 
-The Groq gpt-oss model calls one tool per turn, ignores `tool_choice=none` and fills gaps from stale knowledge, so facts belong in tool results rather than in schema docs. Temperature 0 is not deterministic, so measure answer quality with the eval rather than with single probes.
+Models fill gaps from stale knowledge, so facts belong in tool results rather than in schema docs. Temperature 0 is not deterministic, so measure answer quality with the eval rather than with single probes. (The gpt-oss quirks — one tool per turn, ignoring `tool_choice=none`, malformed calls — left with Groq; DeepSeek-V4-Flash and Gemini make parallel structured calls.)
 
 ## Constraints
 
-- **Tech stack**: FastAPI on Python 3.13, Next.js 16 / React 19 / Tailwind 4, SwiftUI (iOS 17+). LLM is Groq GPT-OSS 120B via LangChain; the model is the code constant `GROQ_MODEL_NAME`, not an env var
+- **Tech stack**: FastAPI on Python 3.13, Next.js 16 / React 19 / Tailwind 4, SwiftUI (iOS 17+). LLM is AMD Token Lab (DeepSeek-V4-Flash) with a Gemini free-tier fallback (3.5 Flash-Lite), via LangChain; engines and models are the code constant `LLM_PROVIDERS`, only the keys are env vars
 - **Deployment**: backend on Render's free tier (512 MB, cold starts, ephemeral disk); frontend on Vercel; Supabase Postgres + pgvector. `DATABASE_URL` must use the session-pooler host, because the direct host is IPv6-only
 - **Memory**: torch models (embedder, reranker) load only with `ENABLE_LOCAL_MODELS`, which is off by default on Render. Without it, rules search reports itself disabled and chat skips semantic recall. LLM and torch imports stay lazy; Sentry runs with `auto_enabling_integrations=False`
 - **FastF1**: not thread-safe — one process-wide RLock serializes session loads
@@ -122,6 +122,7 @@ The Groq gpt-oss model calls one tool per turn, ignores `tool_choice=none` and f
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Keep Gemini as LLM | Already integrated, learning continuity | ⚠️ Reversed — Groq-only (GPT-OSS 120B) since 2026-07; Gemini and Anthropic code removed |
+| Replace Groq with AMD Token Lab + Gemini fallback (2026-11) | Groq's free 8K tokens/min could not carry one question, gpt-oss malformed tool calls and the keyword tool router hid tools. Token Lab is a beta with expiring access, so Gemini's free tier backs it | — Pending — gate on `scripts.eval_answers` per engine |
 | Implement predictions without ML | Use statistical/heuristic approach rather than training models | ⚠️ Reversed — Ridge model blended with the heuristic; every model change gated on beating grid order in `evaluate.py` |
 | Ridge over GradientBoosting | GBR lost to the grid-order baseline on every metric; Ridge beats it, including on the 2026 regulation-change season | ✓ Good |
 | iOS as live race companion | Differentiates mobile from web — phone is what you have trackside | ⚠️ Revisit — web became primary; iOS is legacy and lags the web features |

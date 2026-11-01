@@ -2,7 +2,7 @@
 LLM-Callable Tools
 ==================
 Each function decorated with @tool is registered as a callable tool that the
-Groq LLM (GPT-OSS 120B) can invoke during the agentic loop in the chat router.
+chat engine (app/api/llm.py) can invoke during the agentic loop in the chat router.
 
 Available tools
 ---------------
@@ -26,10 +26,9 @@ Available tools
 Tools are grouped by the data they reach for — ``sessions`` and ``race`` read
 FastF1, ``standings`` reads f1db, ``external`` leaves the building — so a change
 to one source touches one module. This package assembles them into the registry
-below. ``TOOL_MAP`` is how the chat router dispatches a call by name, and how
-it binds the subset chosen by app/api/tool_router.py — the full ``TOOL_LIST`` is
-no longer bound on every request, because each schema costs prompt tokens on
-every turn of the agent loop.
+below. The chat router binds the whole ``TOOL_LIST`` on every request and
+dispatches each call by name through ``TOOL_MAP``. Every schema is re-sent on
+every turn of the agent loop, so each one costs prompt tokens.
 
 Keep descriptions to what the model needs in order to CHOOSE the tool and fill
 its arguments. Implementation notes belong in comments in the function body:

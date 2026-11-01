@@ -1,9 +1,9 @@
 """Golden-set evaluation runner with a pass/fail gate.
 
-Runs the full agent (tool loop + recovery) over the golden Q&A set, scores each
-answer with the LLM judge, and gates on the mean score — the same discipline the
-ML model already uses against the grid baseline, applied to the assistant so
-prompt/model changes can't silently regress.
+Runs the full agent over the golden Q&A set, scores each answer with the LLM
+judge, and gates on the mean score — the same discipline the ML model already
+uses against the grid baseline, applied to the assistant so prompt/model
+changes can't silently regress.
 
     cd backend
     python -m app.evals.run              # run + print report
@@ -14,68 +14,47 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
 import sys
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 import structlog
 
-from app.api.routers.chat import (
-    MAX_AGENT_TURNS,
-    TOOL_MAP,
-    _ainvoke_final,
-    _ainvoke_with_recovery,
-    build_system_prompt,
-)
-from app.api.tool_router import select_tools
+from app.api.routers.chat import RATE_LIMITED_NOTICE, ask_anonymously
 from app.evals.dataset import GOLDEN_QA, GoldenQA
 from app.evals.judge import judge_answer, keyword_score
 
 logger = structlog.get_logger()
 
 DEFAULT_GATE = 0.7
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_PAUSE_SECONDS = 20
+
+_TOOL_MARKER = re.compile(r"\[TOOL_(?:START|END)\].*?\[/TOOL_(?:START|END)\]")
 
 
-async def _run_agent(question: str, today: str = "July 20, 2026") -> str:
-    """Drive the tool-use loop to a final text answer (non-streaming).
+async def _run_agent(question: str) -> str:
+    """The answer the chat would stream for ``question``, without its tool markers.
 
-    Mirrors the chat router exactly — same routed tool subset, same no-tools
-    final turn — so the eval scores the agent that actually ships.
+    Runs the chat router's own entry point — same engines, failover, prompt and
+    final-turn handling — so the eval scores the agent that actually ships.
     """
-    messages = [SystemMessage(content=build_system_prompt(today)), HumanMessage(content=question)]
-    tool_names = select_tools(question)
-    response = await _ainvoke_with_recovery(messages, tool_names)
-    for turn in range(1, MAX_AGENT_TURNS + 1):
-        if not response.tool_calls:
-            return str(response.content)
-        messages.append(response)
-        for call in response.tool_calls:
-            name = call["name"]
-            if name not in TOOL_MAP:
-                continue
-            try:
-                result = await asyncio.to_thread(TOOL_MAP[name].invoke, call["args"])
-            except Exception as exc:  # tool failure shouldn't abort the eval
-                result = f"Tool error: {exc}"
-            messages.append(ToolMessage(tool_call_id=call["id"], content=str(result), name=name))
-        if turn == MAX_AGENT_TURNS:
-            response = await _ainvoke_final(messages, tool_names)
-        else:
-            response = await _ainvoke_with_recovery(messages, tool_names)
-    return str(response.content)
+    streamed, _history = await ask_anonymously(question)
+    return _TOOL_MARKER.sub("", streamed).strip()
 
 
-async def _evaluate_one(item: GoldenQA, retries: int = 3) -> dict:
-    for attempt in range(retries):
-        try:
-            answer = await _run_agent(item.question)
+async def _answer(question: str) -> str:
+    """The agent's answer, waiting out a rate limit a few times before scoring it."""
+    answer = ""
+    for attempt in range(RATE_LIMIT_RETRIES):
+        answer = await _run_agent(question)
+        if answer != RATE_LIMITED_NOTICE or attempt == RATE_LIMIT_RETRIES - 1:
             break
-        except Exception as exc:
-            if ("rate" in str(exc).lower() or "429" in str(exc)) and attempt < retries - 1:
-                await asyncio.sleep(20)
-                continue
-            answer = f"(agent error: {exc})"
-            break
+        await asyncio.sleep(RATE_LIMIT_PAUSE_SECONDS)
+    return answer
 
+
+async def _evaluate_one(item: GoldenQA) -> dict:
+    answer = await _answer(item.question)
     kw = keyword_score(answer, item.must_include)
     verdict = judge_answer(item.question, answer, item.rubric, item.must_include)
     return {

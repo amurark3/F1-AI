@@ -3,18 +3,17 @@
 The judge produces the number CI gates on, so two failure modes matter. First,
 a fragile parser: the model returns prose around its JSON, or a bare number, or
 a score outside 0..1 — any of which must land on a usable float rather than
-blowing up the eval run. Second, the fallback: when Groq is unreachable
-(``GROQ_API_KEY`` is unset in this suite, so that is the default path) the run
+blowing up the eval run. Second, the fallback: when no engine is reachable
+(no engine key is set in this suite, so that is the default path) the run
 must still yield a score, and it must be the *keyword* score rather than a
 silent 1.0 — otherwise an outage reads as a passing build.
 
-The LLM boundary is faked; no Groq call is ever made.
+The LLM boundary is faked; no engine is ever called.
 """
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
+from langchain_core.messages import AIMessage
 import pytest
 
 from app.evals import judge
@@ -32,7 +31,7 @@ class _FakeLLM:
         self.prompts.append(messages)
         if self.error:
             raise self.error
-        return SimpleNamespace(content=self.content)
+        return AIMessage(content=self.content)
 
 
 def _install_judge_llm(monkeypatch, llm: _FakeLLM) -> _FakeLLM:
@@ -152,7 +151,7 @@ def test_judge_answer_uses_the_llm_verdict_when_available(monkeypatch):
 
 @pytest.mark.unit
 def test_judge_answer_falls_back_to_keywords_when_the_llm_fails(monkeypatch):
-    _install_judge_llm(monkeypatch, _FakeLLM(error=RuntimeError("GROQ_API_KEY is not set")))
+    _install_judge_llm(monkeypatch, _FakeLLM(error=RuntimeError("No chat engine is configured")))
 
     verdict = judge.judge_answer("Who won 2021?", "Max Verstappen.", "Must name Verstappen.", ["Verstappen"])
 
@@ -172,8 +171,9 @@ def test_judge_answer_falls_back_when_the_verdict_cannot_be_parsed(monkeypatch):
 
 @pytest.mark.unit
 def test_judge_answer_without_a_key_degrades_rather_than_raising(monkeypatch):
-    """The suite's default: GROQ_API_KEY is unset, so build_chat_llm raises."""
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    """The suite's default: no engine key is set, so build_chat_llm raises."""
+    monkeypatch.delenv("TOKENLAB_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
 
     verdict = judge.judge_answer("Who won 2021?", "Max Verstappen.", "Must name Verstappen.", ["Verstappen"])
 

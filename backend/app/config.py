@@ -8,6 +8,7 @@ Every constant uses os.getenv() with a sensible default so the app works
 out of the box while remaining fully configurable for production tuning.
 """
 
+from dataclasses import dataclass
 import os
 
 # ---------------------------------------------------------------------------
@@ -61,11 +62,12 @@ SESSION_LOOKUP_INTERVAL = int(os.getenv("SESSION_LOOKUP_INTERVAL", "300"))
 # Maximum number of tool-use turns before the model must produce a text answer.
 #
 # 3, not 5: every turn re-sends the system prompt and all bound tool schemas, so
-# on Groq's free tier (8K tokens/minute) turn count multiplies directly into the
-# rate limit. The mandated worst-case chain is get_season_schedule → a results
-# tool → answer, which fits in 3 — and the chat router binds no tools on the
-# final turn, so the model always spends the last one answering rather than
-# asking for data it will not be allowed to fetch.
+# turn count multiplies directly into free-tier quota (Token Lab points, Gemini
+# requests). The mandated worst-case chain is get_season_schedule → a results
+# tool → answer, which fits in 3 — the engines batch parallel calls into one
+# turn — and the chat router binds no tools on the final turn, so the model
+# always spends the last one answering rather than asking for data it will not
+# be allowed to fetch.
 MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "3"))
 
 # ---------------------------------------------------------------------------
@@ -160,22 +162,85 @@ ENABLE_LOCAL_MODELS = os.getenv("ENABLE_LOCAL_MODELS", "false").strip().lower() 
 RULEBOOK_TOP_K = int(os.getenv("RULEBOOK_TOP_K", "6"))
 
 # ---------------------------------------------------------------------------
-# LLM settings — Groq only
+# LLM settings — AMD Token Lab first, Gemini as the fallback
 # ---------------------------------------------------------------------------
-# Groq — free, reliable, tool-calling capable engine. GPT-OSS 120B supports the
-# function calling the agentic loop depends on. Get a free key at
-# https://console.groq.com (no card required); set GROQ_API_KEY.
+
+
+@dataclass(frozen=True)
+class LLMProvider:
+    """One chat engine: which model, where its key lives, and how to reach it.
+
+    ``base_url`` set means an OpenAI-compatible endpoint (``ChatOpenAI``); None
+    means Google's own Gemini client, which keeps Gemini's thought signatures
+    across tool calls.
+    """
+
+    name: str
+    model: str
+    key_env: str
+    base_url: str | None = None
+
+
+# Tried in order: each question runs on the first engine whose key is set and
+# that is not resting after a failure (app/api/llm.py). An engine that is out of
+# quota, unauthorised or down mid-question hands the whole question to the next.
 #
-# Deliberately a constant, not os.getenv: the model is not deployment config and
+# AMD Token Lab (https://notebooks.amd.com/tokenlab) is a beta: a points budget
+# and a 30-day access window you extend by hand. Gemini's free tier (key from
+# https://aistudio.google.com, on a project with no billing) keeps the chat
+# answering when Token Lab lapses — but only as a backup: the free tier allows
+# 20 requests a day per Flash model (quota GenerateRequestsPerDayPerProjectPerModel,
+# hit 2026-11-01 after ~7 questions), and a question takes two to four requests.
+#
+# Deliberately constants, not os.getenv: the model is not deployment config and
 # not a secret. Which model the agent runs on is a code decision — it changes the
 # quality of every answer and the tool-calling behaviour the agent loop depends
 # on, so it belongs in review and git history, not in a dashboard where prod can
-# silently diverge from this file.
+# silently diverge from this file. Only the keys come from the environment.
 #
-# Replaced llama-3.3-70b-versatile, decommissioned by Groq on 2026-08-16.
-GROQ_MODEL_NAME = "openai/gpt-oss-120b"
+# Replaced Groq (openai/gpt-oss-120b) on 2026-11-01: its free tier's 8K
+# tokens/minute could not carry one question, and gpt-oss malformed tool calls.
+#
+# Token Lab's model, measured 2026-11-01 with scripts.eval_answers: DeepSeek-V4-
+# Flash answered 12/12 (11 clean; the 12th a claim-checker false positive),
+# fastest, and batches parallel tool calls. Qwen3.8-27B errored 3/12: its chat
+# template rejects a system message after the first, which the forced final
+# turn sends — any engine put here must accept one. GLM-5.3-Flash was slow and
+# wrong in a spike; DeepSeek-V4.1-Flash returned garbled SQL.
+LLM_PROVIDERS: tuple[LLMProvider, ...] = (
+    LLMProvider(
+        name="tokenlab",
+        model="DeepSeek-V4-Flash",
+        key_env="TOKENLAB_API_KEY",
+        base_url="https://api.tokenlab.amd.com/v1",
+    ),
+    LLMProvider(name="gemini", model="gemini-3.5-flash-lite", key_env="GOOGLE_API_KEY"),
+)
 
+# Gemini 3's thinking depth. Measured 2026-11-01 on the free tier: at the default
+# depth 3.8 Flash took ~40 s on one tool turn and 504'd on the next. At "low",
+# 3.6 Flash answered a multi-race question in ~12 s and 3.5 Flash-Lite in ~3 s,
+# both with a correct table and three grounded observations. Flash-Lite is the
+# fallback: fastest, and still answering when 3.6 and 3.5 Flash had spent their
+# daily free quota. 3.8 Flash, Google's pick for new projects, 503'd ("high
+# demand") on the free tier the same day.
+GEMINI_THINKING_LEVEL = "low"
+
+# Sent to OpenAI-compatible engines only. Gemini 3.5+ fixes its own sampling and
+# warns on every request that sets it.
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
+
+# Per-request ceiling. Without one a hung engine holds the chat stream open.
+LLM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
+
+# Client-side retries before an engine counts as failed. Kept low: the fallback
+# engine is a faster recovery than backing off against an exhausted quota.
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "1"))
+
+# How long an engine rests after failing. A key, quota or model problem (401,
+# 402, 403, 404) will not clear in seconds; a rate limit or outage might.
+LLM_ACCOUNT_COOLDOWN_SECONDS = float(os.getenv("LLM_ACCOUNT_COOLDOWN_SECONDS", "600"))
+LLM_TRANSIENT_COOLDOWN_SECONDS = float(os.getenv("LLM_TRANSIENT_COOLDOWN_SECONDS", "60"))
 
 # ---------------------------------------------------------------------------
 # Prediction scoring weights (sum to 1.0)

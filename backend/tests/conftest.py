@@ -8,7 +8,7 @@ Two invariants this file exists to guarantee:
    that import is invisible — the scrubbing has to happen at conftest module
    level, which pytest imports ahead of any test module.
 
-2. **No real network, filesystem or model loads.** Groq, Supabase, FastF1,
+2. **No real network, filesystem or model loads.** LLM engines, Supabase, FastF1,
    OpenF1, Tavily and sentence-transformers are all reached through mocked
    boundaries. A test that would open a socket fails loudly instead.
 """
@@ -40,7 +40,8 @@ from tests.profiles_support import profiles_f1db  # noqa: F401
 # the "missing key" branches are the default path under test.
 _CLEARED_ENV = (
     "DATABASE_URL",
-    "GROQ_API_KEY",
+    "TOKENLAB_API_KEY",
+    "GOOGLE_API_KEY",
     "OPENWEATHERMAP_API_KEY",
     "GITHUB_TOKEN",
     "GITHUB_OUTPUT",

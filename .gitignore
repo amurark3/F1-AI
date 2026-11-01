@@ -48,6 +48,9 @@ ios/**/xcuserdata/
 # Runtime data
 backend/data/prediction_history.json
 backend/data/prediction_cache.json
+# Local fallback for the scored post-race reviews (Supabase in production);
+# a local backend writes it as soon as a race is reviewed.
+backend/data/prediction_postmortems.json
 # Pre-write copies of the prediction documents taken by scripts/backfill_predictions.py
 backend/data/backups/
 # Local fallback for the durable circuit strategy reference cache (Supabase in

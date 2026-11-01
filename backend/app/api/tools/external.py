@@ -25,7 +25,7 @@ def get_tavily_client() -> TavilyClient:
     with it, not just web search. Deferring the build keeps the boot path free
     of third-party credentials and scopes a missing key to the one tool that
     needs it — the same contract `build_chat_llm()` and the embedder already
-    follow for Groq and sentence-transformers.
+    follow for the chat engines and sentence-transformers.
     """
     global _tavily_client
     if _tavily_client is None:

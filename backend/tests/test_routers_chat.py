@@ -11,14 +11,12 @@ from becoming a hung or lying answer:
 * **A failing tool does not kill the turn.** A timeout or an exception becomes a
   ``ToolMessage`` the model can read and route around — the alternative is a
   dead stream with no explanation.
-* **Malformed tool calls are recovered.** The model sometimes emits calls as
-  inline ``<function=...>`` text and Groq rejects them; `tool_recovery` parses
-  the intent back out. If recovery silently stopped working the chat would
-  still "work", just never call a tool.
-* **The model is built lazily, once per tool subset.** Constructing it at
-  import would pull torch into startup and turn a missing ``GROQ_API_KEY`` into
-  a dead service instead of a dead endpoint. Only the tools the question needs
-  are bound, because every schema costs prompt tokens on every turn.
+* **The model is built lazily, once per engine.** Constructing it at import
+  would load a client into startup and turn a missing key into a dead service
+  instead of a dead endpoint. Every tool is offered on every tool turn, so the
+  model is never refused one it needs; the final turn offers none.
+* **An engine that fails hands the question on.** Covered in
+  ``test_routers_chat_failover.py``.
 * **Nothing leaks.** A crash renders through the client-safe error path, and a
   rate limit gets its own message rather than an error id.
 """
@@ -32,14 +30,25 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 import pytest
 
+from app.api import llm as llm_module
 from app.api.routers import chat as chat_router
 from app.api.schemas.chat import ChatRequest
+from app.config import LLMProvider
+
+ENGINE = LLMProvider(name="primary", model="m-1", key_env="PRIMARY_KEY", base_url="https://primary.example/v1")
 
 
 @pytest.fixture(autouse=True)
 def _reset_llm_cache(monkeypatch):
     """Bound models are a module-global memo and would leak between tests."""
     monkeypatch.setattr(chat_router, "_llm_cache", {})
+
+
+@pytest.fixture(autouse=True)
+def _one_engine(monkeypatch):
+    """One configured engine, nothing resting. Failover has its own module."""
+    monkeypatch.setattr(chat_router, "available_providers", lambda: (ENGINE,))
+    monkeypatch.setattr(llm_module, "_resting_until", {})
 
 
 @pytest.fixture(autouse=True)
@@ -59,19 +68,15 @@ def client():
 class _ScriptedLLM:
     """Returns a queued response per `ainvoke`, recording what it was sent.
 
-    One script serves every tool subset, so ``bound_to`` records which subset
-    each call asked for, and ``bindings`` any ``.bind(...)`` applied on top.
+    ``tools_offered`` records, per call, whether the tool-bound model or the
+    tool-less one was asked; ``engines`` which engine it was.
     """
 
     def __init__(self, responses):
         self._responses = list(responses)
         self.seen: list[list] = []
-        self.bound_to: list[frozenset[str]] = []
-        self.bindings: list[dict] = []
-
-    def bind(self, **kwargs):
-        self.bindings.append(kwargs)
-        return self
+        self.tools_offered: list[bool] = []
+        self.engines: list[str] = []
 
     async def ainvoke(self, messages):
         self.seen.append(list(messages))
@@ -84,15 +89,13 @@ class _ScriptedLLM:
 def _install_llm(monkeypatch, responses):
     llm = _ScriptedLLM(responses)
 
-    def _get_llm(tool_names):
-        llm.bound_to.append(tool_names)
+    def _get_llm(provider, *, with_tools):
+        llm.engines.append(provider.name)
+        llm.tools_offered.append(with_tools)
         return llm
 
     monkeypatch.setattr(chat_router, "_get_llm", _get_llm)
     return llm
-
-
-TOOLS = frozenset({"get_race_results"})
 
 
 def _tool_call(name, args=None, call_id="call-1"):
@@ -251,9 +254,13 @@ def test_latest_user_text_tolerates_a_turn_with_no_content():
 
 
 class _Raw:
-    """Stands in for the Groq chat model; records every ``bind_tools`` call."""
+    """Stands in for an engine's chat model; records every ``bind_tools`` call."""
 
+    built: ClassVar[list[str]] = []
     bound: ClassVar[list[list[str]]] = []
+
+    def __init__(self, provider) -> None:
+        type(self).built.append(provider.name)
 
     def bind_tools(self, tools):
         type(self).bound.append([tool.name for tool in tools])
@@ -262,195 +269,49 @@ class _Raw:
 
 @pytest.fixture
 def raw_model(monkeypatch):
+    _Raw.built = []
     _Raw.bound = []
     monkeypatch.setattr(chat_router, "build_chat_llm", _Raw)
     return _Raw
 
 
+OTHER = LLMProvider(name="other", model="m-2", key_env="OTHER_KEY")
+
+
 @pytest.mark.unit
-def test_the_model_is_built_once_per_tool_subset_and_memoised(raw_model):
-    first = chat_router._get_llm(TOOLS)
-    second = chat_router._get_llm(TOOLS)
+def test_the_model_is_built_once_per_engine_and_memoised(raw_model):
+    first = chat_router._get_llm(ENGINE, with_tools=True)
+    second = chat_router._get_llm(ENGINE, with_tools=True)
 
     assert first is second
-    assert len(raw_model.bound) == 1, "the model must not be rebuilt per request"
+    assert raw_model.built == ["primary"], "the model must not be rebuilt per request"
 
 
 @pytest.mark.unit
-def test_the_model_is_bound_to_exactly_the_selected_tools(raw_model):
-    chat_router._get_llm(frozenset({"get_race_results", "consult_rulebook"}))
+def test_every_tool_is_bound_so_none_the_model_needs_is_missing(raw_model):
+    """Binding a keyword-chosen subset hid tools the model then asked for."""
+    chat_router._get_llm(ENGINE, with_tools=True)
 
-    assert raw_model.bound == [["consult_rulebook", "get_race_results"]], "sorted, so the cache key is stable"
-
-
-@pytest.mark.unit
-def test_each_subset_gets_its_own_bound_model(raw_model):
-    rulebook = chat_router._get_llm(frozenset({"consult_rulebook"}))
-    results = chat_router._get_llm(TOOLS)
-
-    assert rulebook != results
-    assert set(chat_router._llm_cache) == {frozenset({"consult_rulebook"}), TOOLS}
+    assert raw_model.bound == [[tool.name for tool in chat_router.TOOL_LIST]]
+    assert set(raw_model.bound[0]) == set(chat_router.TOOL_MAP)
 
 
 @pytest.mark.unit
-def test_an_empty_subset_is_the_unbound_model(raw_model):
+def test_the_tool_less_model_is_the_unbound_one(raw_model):
     """No schemas at all — the cheap path for the forced final answer."""
-    model = chat_router._get_llm(frozenset())
+    model = chat_router._get_llm(ENGINE, with_tools=False)
 
     assert isinstance(model, _Raw)
     assert raw_model.bound == []
 
 
-# ---------------------------------------------------------------------------
-# _ainvoke_with_recovery
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.unit
-async def test_a_normal_response_passes_straight_through(monkeypatch):
-    expected = AIMessage(content="Verstappen won.")
-    _install_llm(monkeypatch, [expected])
+def test_each_engine_and_binding_gets_its_own_cached_model(raw_model):
+    chat_router._get_llm(ENGINE, with_tools=True)
+    chat_router._get_llm(ENGINE, with_tools=False)
+    chat_router._get_llm(OTHER, with_tools=True)
 
-    result = await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert result.response is expected
-    assert result.tool_names == TOOLS
-
-
-@pytest.mark.unit
-async def test_a_malformed_tool_call_is_recovered_into_a_tool_message(monkeypatch):
-    failure = RuntimeError("tool_use_failed")
-    _install_llm(monkeypatch, [failure])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: True)
-    monkeypatch.setattr(chat_router, "recover_tool_calls", lambda exc: [_tool_call("get_race_results")])
-
-    result = await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert result.response.tool_calls[0]["name"] == "get_race_results"
-    assert result.response.content == ""
-    assert result.tool_names == TOOLS
-
-
-@pytest.mark.unit
-async def test_an_unrecoverable_tool_failure_is_reraised(monkeypatch):
-    """Recovery must not swallow a call it could not parse."""
-    _install_llm(monkeypatch, [RuntimeError("tool_use_failed")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: True)
-    monkeypatch.setattr(chat_router, "recover_tool_calls", lambda exc: [])
-
-    with pytest.raises(RuntimeError):
-        await chat_router._ainvoke_with_recovery([], TOOLS)
-
-
-@pytest.mark.unit
-async def test_an_unrelated_error_is_not_treated_as_a_tool_failure(monkeypatch):
-    _install_llm(monkeypatch, [ConnectionError("groq unreachable")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
-
-    with pytest.raises(ConnectionError):
-        await chat_router._ainvoke_with_recovery([], TOOLS)
-
-
-@pytest.mark.unit
-async def test_recovery_asks_for_the_selected_tools(monkeypatch):
-    llm = _install_llm(monkeypatch, [AIMessage(content="ok")])
-
-    await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert llm.bound_to == [TOOLS]
-
-
-# ---------------------------------------------------------------------------
-# A call to a tool the request did not offer
-# ---------------------------------------------------------------------------
-
-
-def _groq_tool_use_failed(message: str, generation: str = "") -> Exception:
-    """The shape the Groq SDK raises: a 400 whose parsed body rides on ``.body``."""
-    exc = RuntimeError(f"Error code: 400 - {message}")
-    exc.body = {  # type: ignore[attr-defined]
-        "error": {"code": "tool_use_failed", "message": message, "failed_generation": generation}
-    }
-    return exc
-
-
-def _unbound(tool: str) -> Exception:
-    """Verbatim from production (reference 9ec6fba20186), with the tool swapped in."""
-    return _groq_tool_use_failed(
-        f"Tool call validation failed: tool call validation failed: attempted to call tool '{tool}' "
-        "which was not in request.tools",
-        f'{{"name": "{tool}", "arguments": {{"query": "2026 sprint weekends", "top_n": 10}}}}',
-    )
-
-
-WIDENED = TOOLS | {"perform_web_search"}
-
-
-@pytest.mark.unit
-async def test_a_call_to_an_unoffered_tool_is_retried_with_that_tool_bound(monkeypatch):
-    """The model now sees the real schema, so the retried call has valid arguments."""
-    search = AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "2026 sprints"})])
-    llm = _install_llm(monkeypatch, [_unbound("perform_web_search"), search])
-
-    result = await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert result.response is search
-    assert result.tool_names == WIDENED
-    assert llm.bound_to == [TOOLS, WIDENED]
-
-
-@pytest.mark.unit
-async def test_a_malformed_call_on_the_retry_is_still_recovered(monkeypatch):
-    """Widening is one repair; a retry that trips the other still gets the parser."""
-    malformed = _groq_tool_use_failed(
-        "parameters for tool perform_web_search did not match schema",
-        '{"name": "perform_web_search", "arguments": {"query": "2026 sprints"}}',
-    )
-    _install_llm(monkeypatch, [_unbound("perform_web_search"), malformed])
-
-    result = await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert result.response.tool_calls == [
-        {"name": "perform_web_search", "args": {"query": "2026 sprints"}, "id": "recovered_0", "type": "tool_call"}
-    ]
-    assert result.tool_names == WIDENED
-
-
-@pytest.mark.unit
-async def test_the_unoffered_tool_retry_happens_only_once(monkeypatch):
-    """A model that keeps reaching for new tools must not loop through every schema.
-
-    The second refusal is parsed instead of retried, so the call still runs.
-    """
-    llm = _install_llm(monkeypatch, [_unbound("perform_web_search"), _unbound("consult_rulebook")])
-
-    result = await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert llm.bound_to == [TOOLS, WIDENED]
-    assert result.response.tool_calls[0]["name"] == "consult_rulebook"
-    assert result.tool_names == WIDENED
-
-
-@pytest.mark.unit
-def test_a_retry_that_hits_the_rate_limit_says_so(client, monkeypatch):
-    """The retry re-sends the whole prompt, so on the free tier it can be the
-    request that tips the quota — that must read as a rate limit, not a crash."""
-    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
-    _install_llm(monkeypatch, [_unbound("perform_web_search"), RuntimeError("Rate limit reached for model")])
-
-    assert "rate-limited" in _post(client)
-
-
-@pytest.mark.unit
-async def test_an_unoffered_tool_that_does_not_exist_is_not_bound(monkeypatch):
-    """A hallucinated name has no schema to offer; binding it would raise a KeyError."""
-    llm = _install_llm(monkeypatch, [_unbound("summon_safety_car")])
-    monkeypatch.setattr(chat_router, "recover_tool_calls", lambda exc: [])
-
-    with pytest.raises(RuntimeError):
-        await chat_router._ainvoke_with_recovery([], TOOLS)
-
-    assert llm.bound_to == [TOOLS]
+    assert set(chat_router._llm_cache) == {(ENGINE, True), (ENGINE, False), (OTHER, True)}
 
 
 # ---------------------------------------------------------------------------
@@ -462,10 +323,10 @@ async def test_an_unoffered_tool_that_does_not_exist_is_not_bound(monkeypatch):
 async def test_the_final_turn_binds_no_tools_and_says_why(monkeypatch):
     llm = _install_llm(monkeypatch, [AIMessage(content="Verstappen won.")])
 
-    result = await chat_router._ainvoke_final([HumanMessage(content="who won?")])
+    result = await chat_router._ainvoke_final(ENGINE, [HumanMessage(content="who won?")])
 
     assert result.content == "Verstappen won."
-    assert llm.bound_to == [frozenset()], "the cheap path sends no schemas"
+    assert llm.tools_offered == [False], "the cheap path sends no schemas"
     assert llm.seen[0][-1].content == chat_router.FINAL_TURN_DIRECTIVE
 
 
@@ -479,53 +340,44 @@ def _gathered_history() -> list:
     ]
 
 
-# Verbatim from production: gpt-oss ignores tool_choice="none".
-_REFUSED_FINAL = "Tool choice is none, but model called a tool"
+def _still_calling() -> AIMessage:
+    """A reply that asks for a tool on a turn that offered none."""
+    return AIMessage(content="", tool_calls=[_tool_call("get_race_results", {"year": 2026}, "call-2")])
 
 
 @pytest.mark.unit
-async def test_a_refused_final_turn_retries_with_the_tool_history_as_plain_text(monkeypatch):
-    """gpt-oss keeps calling tools while the history holds structured calls —
-    with none offered, and even under tool_choice="none", which Groq then
-    refuses. Rewritten as prose, the results are context, not an invitation."""
-    llm = _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), AIMessage(content="answer")])
+async def test_a_final_turn_that_still_calls_a_tool_retries_with_the_history_as_plain_text(monkeypatch):
+    """A model that has just made several tool calls may reach for one more even
+    with none offered. Rewritten as prose, the results are context, not an
+    invitation."""
+    llm = _install_llm(monkeypatch, [_still_calling(), AIMessage(content="answer")])
 
-    result = await chat_router._ainvoke_final(_gathered_history())
+    result = await chat_router._ainvoke_final(ENGINE, _gathered_history())
 
     assert result.content == "answer"
-    assert llm.bound_to == [frozenset(), frozenset()], "neither attempt offers a tool"
-    assert llm.bindings == [], "tool_choice='none' is not a fix for gpt-oss"
+    assert llm.tools_offered == [False, False], "neither attempt offers a tool"
     retry = llm.seen[1]
     assert not any(isinstance(m, ToolMessage) or getattr(m, "tool_calls", None) for m in retry)
     assert "VER P1" in retry[-1].content
 
 
 @pytest.mark.unit
-async def test_a_final_turn_refused_twice_comes_back_empty_rather_than_raising(monkeypatch):
+async def test_a_final_turn_that_calls_tools_twice_comes_back_empty_rather_than_raising(monkeypatch):
     """Empty routes the loop to its notice; raising would stream a System Error."""
-    _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), _groq_tool_use_failed(_REFUSED_FINAL)])
+    _install_llm(monkeypatch, [_still_calling(), _still_calling()])
 
-    result = await chat_router._ainvoke_final(_gathered_history())
+    result = await chat_router._ainvoke_final(ENGINE, _gathered_history())
 
     assert result.content == ""
 
 
 @pytest.mark.unit
-async def test_a_rate_limit_on_the_plain_text_retry_still_surfaces(monkeypatch):
-    """Only a refused tool call is absorbed; a quota must reach its own message."""
-    _install_llm(monkeypatch, [_groq_tool_use_failed(_REFUSED_FINAL), RuntimeError("Rate limit reached for model")])
-
-    with pytest.raises(RuntimeError, match="Rate limit"):
-        await chat_router._ainvoke_final(_gathered_history())
-
-
-@pytest.mark.unit
-async def test_an_unrelated_final_turn_failure_is_reraised(monkeypatch):
-    _install_llm(monkeypatch, [ConnectionError("groq unreachable")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
+async def test_an_engine_failure_on_the_final_turn_is_not_absorbed(monkeypatch):
+    """It belongs to the failover, which can hand the question to another engine."""
+    _install_llm(monkeypatch, [ConnectionError("engine unreachable")])
 
     with pytest.raises(ConnectionError):
-        await chat_router._ainvoke_final([])
+        await chat_router._ainvoke_final(ENGINE, [])
 
 
 @pytest.mark.unit
@@ -676,7 +528,7 @@ def test_the_last_permitted_turn_forces_an_answer_from_the_data_gathered(client,
 
     assert body.endswith("From the results: Verstappen won.")
     assert "maximum number of reasoning steps" not in body
-    assert llm.bound_to[-1] == frozenset(), "the final turn offers no tools"
+    assert llm.tools_offered[-1] is False, "the final turn offers no tools"
     assert saved[-1] == ("u-5", "default", "assistant", "From the results: Verstappen won.")
 
 
@@ -706,69 +558,18 @@ def test_a_model_that_says_nothing_on_the_last_turn_gets_the_notice(client, monk
 
 
 @pytest.mark.unit
-def test_only_the_tools_the_question_needs_are_offered(client, monkeypatch):
-    questions: list[str] = []
-
-    def _select(text):
-        questions.append(text)
-        return TOOLS
-
-    monkeypatch.setattr(chat_router, "select_tools", _select)
+def test_every_tool_turn_runs_on_the_tool_bound_model_of_the_answering_engine(client, monkeypatch):
     llm = _install_llm(monkeypatch, [AIMessage(content="ok")])
 
     _post(client)
 
-    assert questions == ["who won?"]
-    assert llm.bound_to == [TOOLS]
-
-
-@pytest.mark.unit
-def test_a_question_that_needs_an_unoffered_tool_is_answered_not_errored(client, monkeypatch):
-    """The production failure, end to end: it used to stream a System Error."""
-    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
-    _install_llm(
-        monkeypatch,
-        [
-            _unbound("perform_web_search"),
-            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "2026 sprints"})]),
-            AIMessage(content="Five sprint weekends so far."),
-        ],
-    )
-    monkeypatch.setitem(chat_router.TOOL_MAP, "perform_web_search", _FakeTool("China, Miami, ..."))
-
-    body = _post(client)
-
-    assert "System Error" not in body
-    assert "[TOOL_START]Perform Web Search[/TOOL_START]" in body
-    assert body.endswith("Five sprint weekends so far.")
-
-
-@pytest.mark.unit
-def test_a_tool_bound_mid_loop_stays_bound_for_the_rest_of_it(client, monkeypatch):
-    """Dropping it again would just earn the same refusal on the next turn."""
-    monkeypatch.setattr(chat_router, "select_tools", lambda _text: TOOLS)
-    monkeypatch.setattr(chat_router, "MAX_AGENT_TURNS", 2)
-    llm = _install_llm(
-        monkeypatch,
-        [
-            _unbound("perform_web_search"),
-            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "q"})]),
-            AIMessage(content="", tool_calls=[_tool_call("perform_web_search", {"query": "q2"})]),
-            AIMessage(content="answer"),
-        ],
-    )
-    monkeypatch.setitem(chat_router.TOOL_MAP, "perform_web_search", _FakeTool("results"))
-
-    body = _post(client)
-
-    assert body.endswith("answer")
-    assert llm.bound_to == [TOOLS, WIDENED, WIDENED, frozenset()]
+    assert llm.tools_offered == [True]
+    assert llm.engines == ["primary"]
 
 
 @pytest.mark.unit
 def test_a_final_turn_the_model_keeps_refusing_ends_in_the_notice_not_an_error(client, monkeypatch):
-    """The production failure after the schedule fix: two tool rounds, then a
-    final turn gpt-oss refused under tool_choice="none" — a System Error."""
+    """A final turn that keeps asking for tools used to stream a System Error."""
     saved: list[tuple] = []
     monkeypatch.setattr(chat_router, "MAX_AGENT_TURNS", 1)
     monkeypatch.setattr(chat_router, "save_message", lambda *args: saved.append(args))
@@ -776,8 +577,8 @@ def test_a_final_turn_the_model_keeps_refusing_ends_in_the_notice_not_an_error(c
         monkeypatch,
         [
             AIMessage(content="", tool_calls=[_tool_call("get_race_results")]),
-            _groq_tool_use_failed(_REFUSED_FINAL),
-            _groq_tool_use_failed(_REFUSED_FINAL),
+            _still_calling(),
+            _still_calling(),
         ],
     )
     monkeypatch.setitem(chat_router.TOOL_MAP, "get_race_results", _FakeTool("data"))
@@ -792,7 +593,6 @@ def test_a_final_turn_the_model_keeps_refusing_ends_in_the_notice_not_an_error(c
 @pytest.mark.unit
 def test_a_rate_limit_gets_its_own_message(client, monkeypatch):
     _install_llm(monkeypatch, [RuntimeError("Rate limit reached for model")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
 
     body = _post(client)
 
@@ -803,8 +603,9 @@ def test_a_rate_limit_gets_its_own_message(client, monkeypatch):
 
 @pytest.mark.unit
 def test_an_http_429_is_recognised_as_a_rate_limit(client, monkeypatch):
-    _install_llm(monkeypatch, [RuntimeError("Received 429 from upstream")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
+    quota = RuntimeError("Error code: 429")
+    quota.status_code = 429  # type: ignore[attr-defined]
+    _install_llm(monkeypatch, [quota])
 
     assert "rate-limited" in _post(client)
 
@@ -812,12 +613,19 @@ def test_an_http_429_is_recognised_as_a_rate_limit(client, monkeypatch):
 @pytest.mark.unit
 def test_a_crash_renders_through_the_client_safe_error_path(client, monkeypatch):
     _install_llm(monkeypatch, [RuntimeError("connection to db.abcdefgh.supabase.co failed")])
-    monkeypatch.setattr(chat_router, "is_tool_use_failed", lambda exc: False)
 
     body = _post(client)
 
     assert "System Error" in body
     assert "supabase.co" not in body
+
+
+@pytest.mark.unit
+def test_an_answer_in_content_blocks_is_streamed_as_its_text(client, monkeypatch):
+    """Gemini answers in blocks; str() of them put a Python list on the user's screen."""
+    _install_llm(monkeypatch, [AIMessage(content=[{"type": "text", "text": "Verstappen won.", "extras": {}}])])
+
+    assert _post(client) == "Verstappen won."
 
 
 @pytest.mark.unit

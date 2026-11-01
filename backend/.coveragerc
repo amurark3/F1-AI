@@ -1,9 +1,9 @@
 # Coverage configuration for the backend suite.
 #
 # The target is a literal 100% of the backend: app/, main.py, mcp_server.py,
-# scripts/ and the gate tooling. Nothing is omitted — modules that talk to Groq,
-# Supabase, FastF1 or torch are covered with those boundaries mocked rather than
-# excluded.
+# scripts/ and the gate tooling. Nothing is omitted — modules that talk to the
+# LLM engines, Supabase, FastF1 or torch are covered with those boundaries mocked
+# rather than excluded.
 #
 # `tools/` and `../.githooks` are in scope on purpose: they decide whether every
 # future commit is allowed to land, so a bug there fails open and silently

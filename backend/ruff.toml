@@ -120,7 +120,7 @@ ignore = [
     # `global` is the memoisation, and there are no alternatives that keep the
     # lazy-import property above.
     "PLW0603",  # global-statement
-    # `except Exception` at an external boundary (Groq, Supabase, FastF1, OpenF1)
+    # `except Exception` at an external boundary (LLM engines, Supabase, FastF1, OpenF1)
     # is graceful degradation, not a swallowed error — every site logs and
     # returns a fallback. `S110` and `SIM105` stay ON below and are what actually
     # catch a silently-dropped exception.

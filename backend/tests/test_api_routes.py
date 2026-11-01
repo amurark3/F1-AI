@@ -95,7 +95,7 @@ def test_importing_the_app_does_not_require_a_tavily_key(monkeypatch):
     process could not start at all and *every* endpoint was down, not just web
     search. The client is now built lazily inside the tool, matching how the
     rest of the codebase treats optional third-party credentials:
-    `build_chat_llm()` raises only when a chat request actually needs Groq, and
+    `build_chat_llm()` raises only when a chat request actually needs an engine, and
     the embedder degrades to ``None``.
 
     This asserts the import stays credential-free, which is the property that

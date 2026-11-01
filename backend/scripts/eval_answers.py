@@ -9,10 +9,12 @@ This runs real questions through the real agent and scores what comes back.
     python -m scripts.eval_answers --question sprint-weekends --samples 5
     python -m scripts.eval_answers --json reports/eval.json
 
-It calls live Groq, so it spends free-tier tokens, and it pauses between
-samples (``--pause``, default 75 s) to stay under the tokens-per-minute limit.
-Groq at temperature 0 is not deterministic: read the results as rates over
-samples, never as a verdict from one.
+It calls the live chat engines (app/api/llm.py), so it spends free-tier quota,
+and it pauses between samples (``--pause``, default 10 s) to stay under AMD
+Token Lab's 20 requests a minute — a question takes two to four requests. To
+measure one engine, set only that engine's key. An engine at temperature 0 is
+not deterministic: read the results as rates over samples, never as a verdict
+from one.
 
 Each answer is scored on:
 - status: answered, or the error / rate-limit / notice text the user would see
@@ -50,7 +52,7 @@ if TYPE_CHECKING:
 
 SEASON = 2026
 DEFAULT_SAMPLES = 3
-DEFAULT_PAUSE_SECONDS = 75.0
+DEFAULT_PAUSE_SECONDS = 10.0
 
 _TOOL_MARKER = re.compile(r"\[TOOL_START\](.*?)\[/TOOL_START\]")
 _ANY_MARKER = re.compile(r"\[TOOL_(?:START|END)\].*?\[/TOOL_(?:START|END)\]")
@@ -326,8 +328,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pause", type=float, default=DEFAULT_PAUSE_SECONDS, help="seconds between samples")
     parser.add_argument("--json", type=Path, help="write every scored answer here")
     args = parser.parse_args(argv)
-    # Here, not at import: only GROQ_API_KEY is needed, and it is read when the
-    # model is first built. Loading at import would leak credentials into tests.
+    # Here, not at import: only the engine keys are needed, and they are read
+    # when a model is first built. Loading at import would leak credentials into
+    # tests.
     load_dotenv()
     selected = tuple(q for q in QUESTIONS if not args.question or q.id in args.question)
     scores = asyncio.run(run(selected, args.samples, args.pause))

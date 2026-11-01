@@ -22,6 +22,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 import structlog
 
 from app.api.claim_check import Misattribution, find_misattributions, roster_from_tables
+from app.api.llm import message_text
 from app.data.f1db_query import constructor_names
 
 if TYPE_CHECKING:
@@ -65,7 +66,7 @@ async def _repair(answer: str, flags: list[Misattribution], ask: Ask) -> str | N
     except Exception as exc:
         logger.warning("answer.repair_failed", error=str(exc))
         return None
-    text = str(reply.content).strip() if reply else ""
+    text = message_text(reply)
     if not text:
         logger.warning("answer.repair_empty", refused=reply is None)
     return text or None

@@ -143,11 +143,11 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
 
         from langchain_core.messages import HumanMessage
 
-        from app.api.llm import build_chat_llm
+        from app.api.llm import build_chat_llm, message_text
 
         llm = build_chat_llm()
         response = llm.invoke([HumanMessage(content=_postmortem_prompt(year, round_num, review, misses))])
-        summary = str(response.content).strip()
+        summary = message_text(response)
     except Exception as exc:
         logger.warning("self_improvement.postmortem_llm_unavailable", error=str(exc))
         return None

@@ -9,7 +9,7 @@ every failure this eval exists for — invented teams, miscounted wins, a
   checked against the season's rows and the tools' own tables, known-wrong
   claims caught, required facts (computed from f1db) checked, numbers matched
   as digits or words.
-* **The run is paced** between samples (the Groq free tier rate-limits back-to-
+* **The run is paced** between samples (free-tier engines rate-limit back-to-
   back questions) and never before the first.
 * **The exit code** fails only on a wrong answer, not on a rate-limited one.
 
@@ -161,7 +161,7 @@ def test_unstated_absolutes_are_counted_as_a_risk_signal(fake_f1db):
 
 @pytest.mark.unit
 async def test_ask_collects_the_answer_the_tools_used_and_their_tables(monkeypatch):
-    async def _stream(messages, tool_names, conversation):
+    async def _stream(messages, conversation):
         assert conversation.user_id is None, "an eval must not write to anyone's memory"
         messages.append(ToolMessage(tool_call_id="c1", content="| a | team |", name="query_f1_database"))
         yield "[TOOL_START]Query F1 Database[/TOOL_START]"

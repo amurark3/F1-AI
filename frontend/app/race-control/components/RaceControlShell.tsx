@@ -2,7 +2,6 @@
 
 import {
   Activity,
-  BarChart3,
   Bot,
   BookOpenCheck,
   CalendarRange,
@@ -27,7 +26,17 @@ import SiteFooter from "@/app/components/SiteFooter";
 import { API_BASE } from "@/app/constants/api";
 import { fetcher } from "@/app/utils/fetcher";
 
-const NAV_GROUPS = [
+import type { LucideIcon } from "lucide-react";
+
+interface NavEntry {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Other path prefixes the item owns, so their pages highlight it too. */
+  match?: readonly string[];
+}
+
+const NAV_GROUPS: Array<{ label: string; items: NavEntry[] }> = [
   {
     label: "Operations",
     items: [
@@ -41,6 +50,12 @@ const NAV_GROUPS = [
       { href: "/race-control/grand-prix", label: "Grand Prix Hub", icon: CalendarRange },
       { href: "/race-control/telemetry", label: "Telemetry Lab", icon: Activity },
       { href: "/race-control/teams", label: "Standings", icon: Users },
+      {
+        href: "/race-control/constructors",
+        label: "Teams & Drivers",
+        icon: Flag,
+        match: ["/race-control/drivers"],
+      },
       { href: "/race-control/power-units", label: "Power Units", icon: Cpu },
     ],
   },
@@ -48,7 +63,6 @@ const NAV_GROUPS = [
     label: "Reference",
     items: [
       { href: "/race-control/champions", label: "Champions", icon: Trophy },
-      { href: "/race-control/intel", label: "Rival Intel", icon: BarChart3 },
       { href: "/race-control/debriefs", label: "Race Debriefs", icon: ClipboardList },
       { href: "/race-control/rulebook", label: "Rules Search", icon: BookOpenCheck },
     ],
@@ -56,6 +70,11 @@ const NAV_GROUPS = [
 ];
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
+
+function isActive(item: NavEntry, pathname: string): boolean {
+  if (item.href === "/race-control") return pathname === item.href;
+  return [item.href, ...(item.match ?? [])].some((prefix) => pathname.startsWith(prefix));
+}
 
 const rcHeaderFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };
 
@@ -162,8 +181,9 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate?: (
         <div key={group.label}>
           <p className="mb-1 px-2 text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{group.label}</p>
           <div className="space-y-0.5">
-            {group.items.map(({ href, label, icon: Icon }) => {
-              const active = href === "/race-control" ? pathname === href : pathname.startsWith(href);
+            {group.items.map((item) => {
+              const { href, label, icon: Icon } = item;
+              const active = isActive(item, pathname);
               return (
                 <Link
                   key={href}
@@ -387,9 +407,7 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
     contentRef.current?.scrollTo({ top: 0, left: 0 });
   }, [pathname]);
 
-  const currentSection = ALL_NAV.find(({ href }) =>
-    href === "/race-control" ? pathname === href : pathname.startsWith(href),
-  );
+  const currentSection = ALL_NAV.find((item) => isActive(item, pathname));
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#07090D] text-[15px] text-white">

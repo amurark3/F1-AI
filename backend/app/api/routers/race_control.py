@@ -20,6 +20,7 @@ from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
 from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
+from app.services.race_glance import build_race_glance
 from app.services.race_grid import build_starting_grid
 from app.services.race_strategy_board import build_race_strategy
 from app.services.weekend_sessions import build_weekend_sessions
@@ -210,7 +211,31 @@ async def search_rulebook(request: RulebookSearchRequest) -> dict:
 
 @router.get("/intel/{team_slug}")
 async def get_intel(team_slug: str) -> dict:
-    return build_intel(team_slug)
+    try:
+        return await asyncio.to_thread(build_intel, team_slug)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "threats": [],
+            "opportunities": [],
+            "upgrade_watch": [],
+            **client_error("api.race_control_intel.error", exc, team_slug=team_slug),
+        }
+
+
+@router.get("/glance/{year}/{round_num}")
+async def get_race_glance(year: int, round_num: int) -> dict:
+    """Last edition's winner and pole here, and this round's PU penalty decisions."""
+    try:
+        return await asyncio.to_thread(build_race_glance, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "previous": None,
+            "power_units": {"available": False, "reason": None, "decisions": []},
+            **client_error("api.race_control_glance.error", exc, year=year, round=round_num),
+        }
 
 
 @router.get("/health")

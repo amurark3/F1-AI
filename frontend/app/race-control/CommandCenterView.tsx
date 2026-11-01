@@ -4,7 +4,6 @@ import { AlertTriangle, ArrowRight, CalendarClock, CloudRain, Target, Timer, Tro
 import Link from "next/link";
 import useSWR from "swr";
 
-
 import { API_BASE } from "@/app/constants/api";
 import { useServerStatus } from "@/app/hooks/useServerStatus";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
@@ -36,6 +35,7 @@ import {
   SkeletonPanel,
   rcFont,
 } from "./components/RaceControlPrimitives";
+import { DriverLink, TeamLink } from "./profiles/EntityLinks";
 
 const SWR_OPTIONS = { revalidateOnFocus: false, dedupingInterval: 120_000 };
 
@@ -89,11 +89,10 @@ function useOverviewSegment<T extends { error?: string | null }>(
   seed: T | null,
   backendReady: boolean,
 ): Segment<T> {
-  const { data, error, isLoading } = useSWR<T, Error>(
-    `${API_BASE}/api/race-control/overview/${year}${path}`,
-    fetcher,
-    { ...SWR_OPTIONS, ...seededWith(seed) },
-  );
+  const { data, error, isLoading } = useSWR<T, Error>(`${API_BASE}/api/race-control/overview/${year}${path}`, fetcher, {
+    ...SWR_OPTIONS,
+    ...seededWith(seed),
+  });
 
   return {
     data,
@@ -314,8 +313,14 @@ function ProjectedPodiumPanel({ podium }: { podium: NonNullable<Overview["predic
                 P{index + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-bold text-white">{driver.driver_name}</p>
-                <p className="truncate text-xs text-neutral-500">{driver.team}</p>
+                <p className="truncate text-sm font-bold text-white">
+                  <DriverLink code={driver.driver_code} name={driver.driver_name}>
+                    {driver.driver_name}
+                  </DriverLink>
+                </p>
+                <p className="truncate text-xs text-neutral-500">
+                  <TeamLink name={driver.team}>{driver.team}</TeamLink>
+                </p>
               </div>
               <span className="text-sm font-mono text-[#00FF78]">{confidence}%</span>
             </div>
@@ -385,10 +390,22 @@ function ChampionshipControlPanel({ championship }: { championship: Overview["ch
         Championship Control
       </h2>
       <div className="flex flex-col gap-3">
-        <LeaderCard label="Drivers" name={driverLeader?.driver ?? "No standings"} points={driverLeader?.points ?? 0} />
+        <LeaderCard
+          label="Drivers"
+          name={
+            driverLeader ? <DriverLink name={driverLeader.driver}>{driverLeader.driver}</DriverLink> : "No standings"
+          }
+          points={driverLeader?.points ?? 0}
+        />
         <LeaderCard
           label="Constructors"
-          name={constructorLeader?.team ?? "No standings"}
+          name={
+            constructorLeader ? (
+              <TeamLink name={constructorLeader.team}>{constructorLeader.team}</TeamLink>
+            ) : (
+              "No standings"
+            )
+          }
           points={constructorLeader?.points ?? 0}
         />
       </div>
@@ -417,7 +434,7 @@ function DataAssumptionsPanel({ context }: { context?: StrategyContext }) {
   );
 }
 
-function LeaderCard({ label, name, points }: { label: string; name: string; points: number }) {
+function LeaderCard({ label, name, points }: { label: string; name: React.ReactNode; points: number }) {
   return (
     <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">{label}</p>

@@ -15,23 +15,14 @@ from app.data.f1db_standings import (
     constructor_standings_detailed,
     driver_standings_detailed,
 )
+from app.data.identity import NEUTRAL_TEAM_COLOR, TEAM_COLORS as IDENTITY_TEAM_COLORS
 
 logger = structlog.get_logger()
 
 
-TEAM_COLORS = {
-    "red-bull": "#3671C6",
-    "mclaren": "#FF8000",
-    "ferrari": "#E8002D",
-    "mercedes": "#27F4D2",
-    "aston-martin": "#229971",
-    "williams": "#64C4FF",
-    "rb": "#6692FF",
-    "haas": "#B6BABD",
-    "alpine": "#FF87BC",
-    "audi": "#E0E0E0",
-    "cadillac": "#B6BABD",
-}
+# Keyed by slug, which matches the f1db constructor id for every current team;
+# "rb" is the slug of the 2024-25 "RB F1 Team" name.
+TEAM_COLORS = {**IDENTITY_TEAM_COLORS, "rb": IDENTITY_TEAM_COLORS["racing-bulls"]}
 MAX_GRID_POSITION = 22
 
 
@@ -101,7 +92,7 @@ def team_slug(name: str) -> str:
 
 def team_color(team_name: str) -> str:
     slug = team_slug(team_name)
-    return TEAM_COLORS.get(slug, "#6B7280")
+    return TEAM_COLORS.get(slug, NEUTRAL_TEAM_COLOR)
 
 
 def format_points_value(value: float) -> str:

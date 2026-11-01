@@ -4,6 +4,7 @@ import { CalendarClock } from "lucide-react";
 import { useState } from "react";
 
 import { SectionLoader } from "../components/RaceControlPrimitives";
+import { TabPanel, Tabs } from "../components/Tabs";
 
 import { GridPenalties } from "./GridPenalties";
 import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
@@ -63,39 +64,7 @@ function SessionBody({ session, raceName }: { session: WeekendSession; raceName:
   );
 }
 
-function SessionTabs({
-  sessions,
-  activeId,
-  onSelect,
-}: {
-  sessions: WeekendSession[];
-  activeId: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Weekend sessions">
-      {sessions.map((session) => {
-        const active = session.id === activeId;
-        return (
-          <button
-            key={session.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(session.id)}
-            className={`rounded-md border px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ${
-              active
-                ? "border-[#E10600]/60 bg-[#E10600]/[0.1] text-white"
-                : "border-[#1E2633] bg-[#0D111B] text-[#8E96A8] hover:border-[#E10600]/40 hover:text-white"
-            }`}
-          >
-            {session.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const SESSION_TABS_ID = "weekend-sessions";
 
 /**
  * Every session the weekend ran, each on its own tab.
@@ -146,14 +115,23 @@ export function WeekendSessions({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SessionTabs sessions={sessions} activeId={active.id} onSelect={setSelectedId} />
+        <Tabs
+          items={sessions.map((session) => ({ key: session.id, label: session.label }))}
+          active={active.id}
+          onChange={setSelectedId}
+          idPrefix={SESSION_TABS_ID}
+          label="Weekend sessions"
+          variant="segmented"
+        />
         {data?.is_sprint && (
           <span className="rounded border border-[#F5C542]/40 bg-[#F5C542]/10 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#F5C542]">
             Sprint weekend
           </span>
         )}
       </div>
-      <SessionBody session={active} raceName={raceName} />
+      <TabPanel idPrefix={SESSION_TABS_ID} active={active.id}>
+        <SessionBody session={active} raceName={raceName} />
+      </TabPanel>
     </div>
   );
 }

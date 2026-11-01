@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 # without importing them itself. `pytest_plugins` is only honoured in the
 # rootdir conftest, which this is not, so a plain import is the supported route.
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
+from tests.profiles_support import profiles_f1db  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Environment scrubbing — must run before `app.*` is imported anywhere.

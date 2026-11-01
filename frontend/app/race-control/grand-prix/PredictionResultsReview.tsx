@@ -2,16 +2,24 @@
 
 import { useMemo } from "react";
 
-import type { DriverPrediction } from "@/app/components/PredictionDriverCard";
 import { getTeamColor } from "@/app/lib/teamColors";
 
 import { StatusPill } from "../components/RaceControlPrimitives";
+import { DriverLink } from "../profiles/EntityLinks";
 
 import { ConsoleHeader, ConsolePanel, StatBlock } from "./predictionConsole";
-import { deltaColor, deltaLabel, driverDisplayName, reviewBadgeLabel, reviewColor, shortName } from "./predictionHelpers";
+import {
+  deltaColor,
+  deltaLabel,
+  driverDisplayName,
+  reviewBadgeLabel,
+  reviewColor,
+  shortName,
+} from "./predictionHelpers";
 
 import type {
   DriverLookup,
+  DriverPrediction,
   PredictionDriverResult,
   PredictionReview,
   PredictionsResponse,
@@ -82,15 +90,13 @@ function DriverComparisonRow({ row, identities }: { row: PredictionDriverResult;
       <td className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="h-5 w-[3px] rounded-full" style={{ background: teamColor(identity.team) }} />
-          <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">
-            {row.driver_code}
-          </span>
-          <span className="truncate text-[#AEB5C5]">{shortName(identity.name)}</span>
+          <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">{row.driver_code}</span>
+          <DriverLink code={row.driver_code} name={identity.name} className="truncate text-[#AEB5C5]">
+            {shortName(identity.name)}
+          </DriverLink>
         </div>
       </td>
-      <td
-        className={`px-4 py-3 font-mono font-bold ${row.exact ? "text-[#00FF78]" : "text-white"}`}
-      >
+      <td className={`px-4 py-3 font-mono font-bold ${row.exact ? "text-[#00FF78]" : "text-white"}`}>
         {positionLabel(row.actual_position)}
       </td>
       <td className={`px-4 py-3 text-right font-mono font-bold ${deltaColor(beatenBy)}`}>
@@ -103,16 +109,8 @@ function DriverComparisonRow({ row, identities }: { row: PredictionDriverResult;
   );
 }
 
-function DriverComparisonTable({
-  rows,
-  identities,
-}: {
-  rows: PredictionDriverResult[];
-  identities: IdentityLookup;
-}) {
-  const within3 = rows.filter(
-    (row) => row.position_delta != null && Math.abs(row.position_delta) <= 3,
-  ).length;
+function DriverComparisonTable({ rows, identities }: { rows: PredictionDriverResult[]; identities: IdentityLookup }) {
+  const within3 = rows.filter((row) => row.position_delta != null && Math.abs(row.position_delta) <= 3).length;
   const exact = rows.filter((row) => row.exact).length;
   const compared = rows.filter((row) => row.position_delta != null).length;
 
@@ -161,14 +159,14 @@ function WinnerCallPanel({ review, identities }: { review: PredictionReview; ide
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Predicted winner</p>
         <p className="mt-1 text-xl font-black text-white">
-          {predicted ? identityFor(predicted, identities).name : "-"}
+          {predicted ? <DriverLink code={predicted}>{identityFor(predicted, identities).name}</DriverLink> : "-"}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{predicted ?? "no stored call"}</p>
       </div>
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Actual winner</p>
         <p className={`mt-1 text-xl font-black ${review.winner_correct ? "text-[#00FF78]" : "text-[#FF4655]"}`}>
-          {actual ? identityFor(actual, identities).name : "-"}
+          {actual ? <DriverLink code={actual}>{identityFor(actual, identities).name}</DriverLink> : "-"}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{actual ?? "not recorded"}</p>
       </div>
@@ -237,10 +235,7 @@ export function ResultsReview({
   predictions: DriverPrediction[];
   driverLookup: DriverLookup;
 }) {
-  const identities = useMemo(
-    () => buildIdentityLookup(predictions, driverLookup),
-    [predictions, driverLookup],
-  );
+  const identities = useMemo(() => buildIdentityLookup(predictions, driverLookup), [predictions, driverLookup]);
   const evaluated = Boolean(review?.evaluated);
   const rows = review?.driver_results ?? [];
 

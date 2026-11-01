@@ -48,7 +48,10 @@ export interface RaceWinner {
   race_name: string;
   date: string | null;
   winner: string;
+  /** f1db ids, so the current season's winners can link to their pages. */
+  driver_id?: string | null;
   team: string | null;
+  team_id?: string | null;
 }
 
 export interface SeasonDetail {

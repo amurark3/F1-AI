@@ -151,7 +151,8 @@ def get_season_detail(year: int) -> dict:
         winners = conn.execute(
             """
             SELECT r.round, r.official_name AS race_name, r.date,
-                   d.full_name AS winner, con.name AS team
+                   d.full_name AS winner, d.id AS driver_id,
+                   con.name AS team, rd.constructor_id AS team_id
             FROM race_data rd
             JOIN race r ON r.id = rd.race_id
             JOIN driver d ON d.id = rd.driver_id
@@ -186,7 +187,9 @@ def get_season_detail(year: int) -> dict:
                 "race_name": w["race_name"],
                 "date": w["date"],
                 "winner": w["winner"],
+                "driver_id": w["driver_id"],
                 "team": w["team"],
+                "team_id": w["team_id"],
             }
             for w in winners
         ],

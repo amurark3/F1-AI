@@ -8,9 +8,10 @@ import {
   scheduleRaces,
 } from "@/app/lib/server/raceControl";
 
-import { GrandPrixView, type DriversResponse, type GrandPrixSeed } from "./GrandPrixView";
+import { GrandPrixHub } from "./GrandPrixHub";
 import { resolveDefaultRace } from "./predictionHelpers";
 
+import type { DriversResponse, GrandPrixSeed } from "./GrandPrixView";
 import type { StartingGridResponse } from "./gridModel";
 import type { PredictionsResponse } from "./predictionModel";
 import type { WeekendSessionsResponse } from "./sessionsModel";
@@ -62,5 +63,5 @@ export default async function GrandPrixHubPage() {
     strategy: null,
   };
 
-  return <GrandPrixView seed={seed} />;
+  return <GrandPrixHub seed={seed} />;
 }

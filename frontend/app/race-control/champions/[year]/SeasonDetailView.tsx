@@ -18,8 +18,8 @@ import {
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
+import { DriverLink, TeamLink } from "@/app/race-control/profiles/EntityLinks";
 import { fetcher } from "@/app/utils/fetcher";
-
 
 export function SeasonDetailView({ year, initial }: { year: string; initial: SeasonDetail | null }) {
   // Seeded by the server when it reached the backend in time, fetched here when
@@ -80,7 +80,8 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
         {data.is_in_progress && <StatusPill color="#FFF200">In Progress</StatusPill>}
       </div>
 
-      <RaceWinnersList winners={winners} />
+      {/* Team and driver pages cover the current season only. */}
+      <RaceWinnersList winners={winners} linkable={data.season === new Date().getFullYear()} />
     </div>
   );
 }
@@ -130,7 +131,7 @@ function SeasonChampionMetrics({
   );
 }
 
-function RaceWinnersList({ winners }: { winners: RaceWinner[] }) {
+function RaceWinnersList({ winners, linkable }: { winners: RaceWinner[]; linkable: boolean }) {
   if (winners.length === 0) {
     return (
       <InlineNotice title="No races yet" tone="info">
@@ -148,10 +149,14 @@ function RaceWinnersList({ winners }: { winners: RaceWinner[] }) {
             <span className="w-8 shrink-0 font-mono text-sm font-bold text-[#6F7789]">R{race.round}</span>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">{race.winner}</p>
+              <p className="truncate text-sm font-semibold text-white">
+                {linkable ? <DriverLink id={race.driver_id}>{race.winner}</DriverLink> : race.winner}
+              </p>
               <p className="truncate text-xs text-[#8E96A8]">{race.race_name}</p>
             </div>
-            <span className="hidden shrink-0 text-xs text-[#6F7789] sm:block">{race.team}</span>
+            <span className="hidden shrink-0 text-xs text-[#6F7789] sm:block">
+              {linkable ? <TeamLink id={race.team_id}>{race.team}</TeamLink> : race.team}
+            </span>
           </div>
         );
       })}

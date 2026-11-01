@@ -5,6 +5,8 @@ import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
 
+import { DriverLink, TeamLink } from "../profiles/EntityLinks";
+
 import { buildGridLayout, gridSourceLabel, penaltyChipLabel, type GridRow } from "./gridHelpers";
 import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { shortName } from "./predictionHelpers";
@@ -34,8 +36,14 @@ function GridBox({ slot }: { slot: GridSlot }) {
         <p className="truncate font-mono text-[13px] font-black uppercase tracking-[0.1em] text-white">
           {slot.driver_code}
         </p>
-        <p className="truncate text-[11px] leading-tight text-[#8E96A8]">{shortName(slot.driver_name)}</p>
-        <p className="truncate text-[10px] leading-tight text-[#596173]">{slot.team || "-"}</p>
+        <p className="truncate text-[11px] leading-tight text-[#8E96A8]">
+          <DriverLink code={slot.driver_code} name={slot.driver_name}>
+            {shortName(slot.driver_name)}
+          </DriverLink>
+        </p>
+        <p className="truncate text-[10px] leading-tight text-[#596173]">
+          {slot.team ? <TeamLink name={slot.team}>{slot.team}</TeamLink> : "-"}
+        </p>
       </div>
       {penalty && (
         <span className="shrink-0 self-start rounded border border-[#F5C542]/40 bg-[#F5C542]/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-[#F5C542]">
@@ -72,9 +80,7 @@ function PitLaneRow({ slots }: { slots: GridSlot[] }) {
 
   return (
     <div className="mt-10 border-t border-dashed border-[#2A3342] pt-4">
-      <p className="mb-2 font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[#F5C542]">
-        Pit lane start
-      </p>
+      <p className="mb-2 font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[#F5C542]">Pit lane start</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {slots.map((slot) => (
           <GridBox key={slot.driver_code} slot={slot} />
@@ -159,10 +165,7 @@ export function StartingGrid({ data, raceName }: StartingGridProps) {
 
       {layout.rows.length === 0 && layout.pitLane.length === 0 ? (
         <NoGridPanel
-          reason={
-            data?.warnings?.[0] ??
-            "The starting order appears here once qualifying has run for this Grand Prix."
-          }
+          reason={data?.warnings?.[0] ?? "The starting order appears here once qualifying has run for this Grand Prix."}
         />
       ) : (
         <div className="overflow-x-auto p-4 sm:p-6">

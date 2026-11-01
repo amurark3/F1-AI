@@ -1,11 +1,11 @@
 import {
   Activity,
   ArrowRight,
-  BarChart3,
   Bot,
   BookOpenCheck,
   ClipboardList,
   Cpu,
+  Flag,
   Gauge,
   LayoutDashboard,
   Trophy,
@@ -68,8 +68,9 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     items: [
       {
         href: "/race-control/grand-prix",
-        label: "Race Predictions",
-        description: "Model-ranked finishing order, with the reasoning behind each driver's placement.",
+        label: "Grand Prix Hub",
+        description:
+          "Every round of the season: the weekend schedule, session results, the starting grid, tyre stints and the model's prediction.",
         icon: Gauge,
       },
       {
@@ -84,6 +85,13 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
         label: "Standings",
         description: "Drivers' and constructors' championship tables for the current season.",
         icon: Users,
+      },
+      {
+        href: "/race-control/constructors",
+        label: "Teams & Drivers",
+        description:
+          "Each team's line-up and race wins, every driver's finish in every round, and the power units their cars have used.",
+        icon: Flag,
       },
       {
         href: "/race-control/power-units",
@@ -103,12 +111,6 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
         label: "Champions",
         description: "Every title winner from 1950 to the present, drivers and constructors.",
         icon: Trophy,
-      },
-      {
-        href: "/race-control/intel",
-        label: "Rival Intel",
-        description: "Head-to-head pace comparisons and competitor threat analysis.",
-        icon: BarChart3,
       },
       {
         href: "/race-control/debriefs",

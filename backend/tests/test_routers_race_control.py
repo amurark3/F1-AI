@@ -9,9 +9,9 @@ call in a worker thread. The properties pinned here:
   crashing the dashboard;
 * ``/teams/{team_slug}/{year}`` returns ``team: None`` plus a plain message for
   an unknown slug — a miss is a normal outcome, not an error;
-* two handlers (``/battle``, ``/intel``) are deliberately **unguarded**, so a
-  service exception propagates. That asymmetry is easy to introduce by accident,
-  so it is asserted rather than assumed.
+* one handler (``/battle``) is deliberately **unguarded**, so a service
+  exception propagates. That asymmetry is easy to introduce by accident, so it
+  is asserted rather than assumed.
 """
 
 from __future__ import annotations
@@ -247,10 +247,35 @@ def test_intel_returns_the_service_payload(client, monkeypatch):
 
 
 @pytest.mark.unit
-def test_intel_is_unguarded_and_surfaces_a_service_failure(client, monkeypatch):
+def test_intel_failure_answers_200_with_empty_lists_and_an_error_id(client, monkeypatch):
     monkeypatch.setattr(rc_router, "build_intel", _boom)
 
-    assert client.get("/race-control/intel/ferrari").status_code == 500
+    response = client.get("/race-control/intel/ferrari")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["status"] == "error"
+    assert body["threats"] == body["opportunities"] == body["upgrade_watch"] == []
+    assert "error_id" in body
+    assert "f1db" not in body["error"]
+
+
+@pytest.mark.unit
+def test_glance_returns_the_service_payload(client, monkeypatch):
+    monkeypatch.setattr(rc_router, "build_race_glance", lambda year, rnd: {"year": year, "round": rnd})
+
+    assert client.get("/race-control/glance/2026/19").json() == {"year": 2026, "round": 19}
+
+
+@pytest.mark.unit
+def test_glance_failure_keeps_the_card_shape_and_adds_an_error_id(client, monkeypatch):
+    monkeypatch.setattr(rc_router, "build_race_glance", _boom)
+
+    body = client.get("/race-control/glance/2026/19").json()
+
+    assert body["previous"] is None
+    assert body["power_units"] == {"available": False, "reason": None, "decisions": []}
+    assert "error_id" in body
 
 
 @pytest.mark.unit

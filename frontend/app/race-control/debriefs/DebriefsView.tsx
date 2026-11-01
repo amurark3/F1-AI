@@ -21,6 +21,7 @@ import {
   WorkspaceSplit,
   rcFont,
 } from "../components/RaceControlPrimitives";
+import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
 import { resolveDefaultDebriefRace, type Debrief } from "./debriefModel";
 
@@ -384,8 +385,14 @@ function ClassificationTable({ rows }: { rows: NonNullable<Debrief["classificati
             {rows.slice(0, 10).map((row) => (
               <tr key={`${row.position}-${row.driver}`} className="bg-white/[0.02]">
                 <td className="px-3 py-3 font-mono text-neutral-300">P{row.position}</td>
-                <td className="px-3 py-3 font-bold text-white">{row.full_name || row.driver}</td>
-                <td className="px-3 py-3 text-neutral-400">{row.team}</td>
+                <td className="px-3 py-3 font-bold text-white">
+                  <DriverLink code={row.driver} name={row.full_name}>
+                    {row.full_name || row.driver}
+                  </DriverLink>
+                </td>
+                <td className="px-3 py-3 text-neutral-400">
+                  <TeamLink name={row.team}>{row.team}</TeamLink>
+                </td>
                 <td className="px-3 py-3 font-mono text-neutral-400">{row.grid ? `G${row.grid}` : "-"}</td>
                 <td className="px-3 py-3 font-mono text-[#00FF78]">{row.points}</td>
                 <td className="px-3 py-3 text-neutral-400">{row.status || "Finished"}</td>

@@ -25,8 +25,8 @@ import pandas as pd
 import pytest
 
 from app.data import openf1_stints as module
+from app.data.openf1 import client as client_module, sessions as sessions_module
 from app.data.openf1_stints import (
-    OpenF1UnavailableError,
     laps_in_progress,
     openf1_race_stints,
     red_flag_moments,
@@ -264,12 +264,12 @@ def openf1(monkeypatch):
 
     def install(routes: dict) -> FakeOpenF1:
         fake = FakeOpenF1(routes)
-        monkeypatch.setattr(module, "_new_client", lambda: httpx.Client(transport=httpx.MockTransport(fake)))
+        monkeypatch.setattr(module, "new_client", lambda: httpx.Client(transport=httpx.MockTransport(fake)))
         return fake
 
     schedule = pd.DataFrame([{"RoundNumber": 13, "Location": "Monza", "EventDate": pd.Timestamp("2026-09-06")}])
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", lambda *_args, **_kwargs: schedule)
-    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(sessions_module.fastf1, "get_event_schedule", lambda *_args, **_kwargs: schedule)
+    monkeypatch.setattr(client_module.time, "sleep", lambda _seconds: None)
     return install
 
 
@@ -364,7 +364,7 @@ def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch):
         raise ValueError("schedule backend down")
 
     openf1(_monza())
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", broken)
+    monkeypatch.setattr(sessions_module.fastf1, "get_event_schedule", broken)
 
     assert openf1_race_stints(2026, 13) == ()
 
@@ -372,69 +372,9 @@ def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch):
 @pytest.mark.unit
 def test_a_rate_limited_request_is_retried_after_the_advertised_wait(openf1, monkeypatch):
     waits: list[float] = []
-    monkeypatch.setattr(module.time, "sleep", waits.append)
+    monkeypatch.setattr(client_module.time, "sleep", waits.append)
     answers = iter([httpx.Response(429, headers={"retry-after": "3"}), httpx.Response(200, json=MEETINGS)])
     openf1(_monza(meetings=lambda _request: next(answers)))
 
     assert len(openf1_race_stints(2026, 13)) == 2
     assert waits == [3.0]
-
-
-# ---------------------------------------------------------------------------
-# One request
-# ---------------------------------------------------------------------------
-
-
-def _get(handler) -> list[dict]:
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        return module._get_json(client, "stints", {"session_key": 1})
-
-
-@pytest.mark.unit
-def test_a_request_that_stays_rate_limited_gives_up(monkeypatch):
-    waits: list[float] = []
-    monkeypatch.setattr(module.time, "sleep", waits.append)
-
-    with pytest.raises(OpenF1UnavailableError, match="rate limited"):
-        _get(lambda request: httpx.Response(429))
-
-    assert waits == [module.DEFAULT_RETRY_AFTER_SECONDS] * module.RATE_LIMIT_ATTEMPTS
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(("header", "expected"), [("120", 10.0), ("soon", 2.0), ("-4", 0.0)])
-def test_the_advertised_wait_is_bounded(header, expected):
-    assert module._retry_after(httpx.Response(429, headers={"retry-after": header})) == expected
-
-
-@pytest.mark.unit
-def test_an_unreachable_openf1_is_unavailable():
-    def refuse(request):
-        raise httpx.ConnectError("unreachable", request=request)
-
-    with pytest.raises(OpenF1UnavailableError, match="unreachable"):
-        _get(refuse)
-
-
-@pytest.mark.unit
-def test_a_server_error_is_unavailable():
-    with pytest.raises(OpenF1UnavailableError, match="HTTP 503"):
-        _get(lambda request: httpx.Response(503))
-
-
-@pytest.mark.unit
-def test_a_page_that_is_not_json_is_unavailable():
-    with pytest.raises(OpenF1UnavailableError, match="not JSON"):
-        _get(lambda request: httpx.Response(200, content=b"<html>maintenance</html>"))
-
-
-@pytest.mark.unit
-def test_an_object_where_a_list_belongs_is_unavailable():
-    with pytest.raises(OpenF1UnavailableError, match="detail"):
-        _get(lambda request: httpx.Response(200, json={"detail": "restricted"}))
-
-
-@pytest.mark.unit
-def test_the_default_client_carries_the_configured_timeout():
-    with module._new_client() as client:
-        assert client.timeout.read == module.OPENF1_HTTP_TIMEOUT_SECONDS

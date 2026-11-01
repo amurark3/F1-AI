@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   BarChart3,
   Bot,
   BookOpenCheck,
@@ -38,6 +39,7 @@ const NAV_GROUPS = [
     label: "Decision Tools",
     items: [
       { href: "/race-control/grand-prix", label: "Grand Prix Hub", icon: CalendarRange },
+      { href: "/race-control/telemetry", label: "Telemetry Lab", icon: Activity },
       { href: "/race-control/teams", label: "Standings", icon: Users },
       { href: "/race-control/power-units", label: "Power Units", icon: Cpu },
     ],

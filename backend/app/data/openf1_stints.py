@@ -38,77 +38,27 @@ retries rather than caches.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-import time
+from typing import TYPE_CHECKING
 
-import fastf1
-import httpx
 import structlog
 
-from app.config import OPENF1_HTTP_TIMEOUT_SECONDS
+from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
+from app.data.openf1.sessions import find_session
 from app.data.stint_model import Stint, clean_compound
-from app.services.live_timing import match_meeting, parse_iso
+from app.services.live_timing import parse_iso
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    import httpx
 
 logger = structlog.get_logger()
 
-OPENF1_BASE = "https://api.openf1.org/v1"
-# By name: a sprint's session_type is "Race" as well.
-RACE_SESSION_NAME = "Race"
 RED_FLAG = "RED"
 FIRST_LAP = 1
 
-# A rate-limited request is tried this many times, waiting what OpenF1 asks for
-# between attempts, within bounds: this runs on a worker thread a page waits on.
-RATE_LIMIT_ATTEMPTS = 3
-DEFAULT_RETRY_AFTER_SECONDS = 2.0
-MAX_RETRY_AFTER_SECONDS = 10.0
-
 # Red-flag laps per driver number.
 RedFlagLaps = dict[int, frozenset[int]]
-
-
-class OpenF1UnavailableError(RuntimeError):
-    """OpenF1 gave no usable answer: unreachable, rate limited, or closed for a live session."""
-
-
-def _new_client() -> httpx.Client:
-    return httpx.Client(timeout=OPENF1_HTTP_TIMEOUT_SECONDS)
-
-
-def _retry_after(response: httpx.Response) -> float:
-    try:
-        wait = float(response.headers.get("retry-after", DEFAULT_RETRY_AFTER_SECONDS))
-    except ValueError:
-        wait = DEFAULT_RETRY_AFTER_SECONDS
-    return min(max(wait, 0.0), MAX_RETRY_AFTER_SECONDS)
-
-
-def _get_json(client: httpx.Client, path: str, params: dict) -> list[dict]:
-    """The rows OpenF1 holds for a query; empty when the query matches nothing.
-
-    OpenF1 answers a filter that matches nothing with ``404 "No results found."``,
-    which is an empty answer, not an outage.
-    """
-    for _attempt in range(RATE_LIMIT_ATTEMPTS):
-        try:
-            response = client.get(f"{OPENF1_BASE}/{path}", params=params)
-        except httpx.HTTPError as exc:
-            raise OpenF1UnavailableError(f"{path}: {exc}") from exc
-        if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
-            time.sleep(_retry_after(response))
-            continue
-        if response.status_code == httpx.codes.NOT_FOUND:
-            return []
-        if response.status_code != httpx.codes.OK:
-            raise OpenF1UnavailableError(f"{path}: HTTP {response.status_code}")
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise OpenF1UnavailableError(f"{path}: not JSON") from exc
-        if not isinstance(payload, list):
-            raise OpenF1UnavailableError(f"{path}: {str(payload)[:120]}")
-        return payload
-    raise OpenF1UnavailableError(f"{path}: rate limited")
 
 
 def red_flag_moments(messages: list[dict]) -> tuple[datetime, ...]:
@@ -202,49 +152,33 @@ def stints_from_openf1(rows: list[dict], drivers: dict[int, dict], red_flag_laps
     return tuple(sorted(stints, key=lambda stint: (stint.driver_code, stint.stint)))
 
 
-def _race_identity(year: int, round_num: int) -> tuple[str, datetime] | None:
-    """The round's circuit location and date, from FastF1's calendar (which still loads)."""
-    schedule = fastf1.get_event_schedule(year, include_testing=False)
-    matches = schedule[schedule["RoundNumber"] == round_num]
-    if matches.empty:
-        return None
-    row = matches.iloc[0]
-    return str(row["Location"]), row["EventDate"].to_pydatetime().replace(tzinfo=UTC)
-
-
 def _race_session_key(client: httpx.Client, year: int, round_num: int) -> int | None:
-    identity = _race_identity(year, round_num)
-    if identity is None:
+    race = find_session(client, year, round_num, "R")
+    if race is None:
+        logger.warning("openf1_stints.race_unmatched", year=year, round=round_num)
         return None
-    location, event_date = identity
-    meeting = match_meeting(_get_json(client, "meetings", {"year": year}), location, event_date)
-    if meeting is None:
-        logger.warning("openf1_stints.meeting_unmatched", year=year, round=round_num, location=location)
-        return None
-    sessions = _get_json(client, "sessions", {"meeting_key": meeting["meeting_key"]})
-    race = next((session for session in sessions if session.get("session_name") == RACE_SESSION_NAME), None)
-    return None if race is None else race.get("session_key")
+    return race.session_key
 
 
 def _session_stints(client: httpx.Client, session_key: int) -> tuple[Stint, ...]:
     query = {"session_key": session_key}
-    rows = _get_json(client, "stints", query)
+    rows = get_json(client, "stints", query)
     if not rows:
         return ()
-    drivers = {row["driver_number"]: row for row in _get_json(client, "drivers", query) if "driver_number" in row}
+    drivers = {row["driver_number"]: row for row in get_json(client, "drivers", query) if "driver_number" in row}
     if not drivers:
         # Stored, a numbers-only answer would outlive the gap that caused it.
         raise OpenF1UnavailableError("drivers: no entry list for a session with stints")
-    moments = red_flag_moments(_get_json(client, "race_control", query))
+    moments = red_flag_moments(get_json(client, "race_control", query))
     # Lap timings place a red flag and are the largest feed, so only then.
-    red_flag_laps = laps_in_progress(_get_json(client, "laps", query), moments) if moments else {}
+    red_flag_laps = laps_in_progress(get_json(client, "laps", query), moments) if moments else {}
     return stints_from_openf1(rows, drivers, red_flag_laps)
 
 
 def openf1_race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     """Every tyre stint of a race, by driver then stint; empty when OpenF1 cannot say."""
     try:
-        with _new_client() as client:
+        with new_client() as client:
             session_key = _race_session_key(client, year, round_num)
             stints = () if session_key is None else _session_stints(client, session_key)
     # The calendar lookup reaches FastF1's schedule backend, which raises

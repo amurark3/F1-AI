@@ -69,6 +69,18 @@ def _normalise(value: object) -> str:
     return str(value or "").strip().lower()
 
 
+def _nearest(meetings: list[dict], event_date: datetime | None) -> dict:
+    """The meeting starting nearest the event date; the first listed without one."""
+    if event_date is None or len(meetings) == 1:
+        return meetings[0]
+
+    def distance(meeting: dict) -> timedelta:
+        start = parse_iso(meeting.get("date_start"))
+        return timedelta.max if start is None else abs(start - event_date)
+
+    return min(meetings, key=distance)
+
+
 def match_meeting(
     meetings: list[dict],
     location: str,
@@ -79,12 +91,16 @@ def match_meeting(
     Positional lookup (``meetings[round - 1]``) is unusable: the two calendars
     disagree about which events exist, so a mismatch silently shifts every
     later round onto a different race. Location is stable across both sources.
+
+    Location alone is not unique, though. Pre-season testing at Sakhir is listed
+    a week before the Bahrain Grand Prix at the same location, and it has no
+    qualifying or race. Among meetings at the location, the one nearest the
+    event date is the round.
     """
     target = _normalise(location)
-    if target:
-        for meeting in meetings:
-            if _normalise(meeting.get("location")) == target:
-                return meeting
+    located = [meeting for meeting in meetings if target and _normalise(meeting.get("location")) == target]
+    if located:
+        return _nearest(located, event_date)
 
     if event_date is None:
         return None

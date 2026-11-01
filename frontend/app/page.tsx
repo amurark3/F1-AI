@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowRight,
   BarChart3,
   Bot,
@@ -70,6 +71,13 @@ const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
         label: "Race Predictions",
         description: "Model-ranked finishing order, with the reasoning behind each driver's placement.",
         icon: Gauge,
+      },
+      {
+        href: "/race-control/telemetry",
+        label: "Telemetry Lab",
+        description:
+          "A lap mapped round the circuit by speed, two drivers' laps compared corner by corner, and how fast each tyre compound wore — from car telemetry since 2023.",
+        icon: Activity,
       },
       {
         href: "/race-control/teams",

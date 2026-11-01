@@ -1,5 +1,7 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { LocalCountdown, LocalTime } from "@/app/components/LocalTime";
@@ -187,6 +189,20 @@ function PredictionAlerts({
   );
 }
 
+/** A way into the Telemetry Lab for the round on screen. */
+function TelemetryLink({ round, tab, label }: { round: number | null; tab: string; label: string }) {
+  if (round === null) return null;
+  return (
+    <Link
+      href={`/race-control/telemetry?tab=${tab}&round=${round}`}
+      className="inline-flex items-center gap-1.5 font-mono text-xs text-[#86B6EF] hover:text-white"
+    >
+      {label}
+      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+    </Link>
+  );
+}
+
 /** What each driver ran, and every stop that punctuated it. */
 function StintsSection({
   strategy,
@@ -313,7 +329,10 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
       {activeTab === "weekend" && <WeekendPanel selectedRace={props.selectedRace} />}
 
       {activeTab === "sessions" && (
-        <WeekendSessions data={props.sessions} loading={props.sessionsLoading} raceName={props.raceName} />
+        <>
+          <WeekendSessions data={props.sessions} loading={props.sessionsLoading} raceName={props.raceName} />
+          <TelemetryLink round={props.selectedRound} tab="map" label="Speed maps and lap-by-lap comparisons" />
+        </>
       )}
 
       {activeTab === "grid" && (
@@ -321,7 +340,10 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
       )}
 
       {activeTab === "stints" && (
-        <StintsSection strategy={props.strategy} strategyLoading={props.strategyLoading} />
+        <>
+          <StintsSection strategy={props.strategy} strategyLoading={props.strategyLoading} />
+          <TelemetryLink round={props.selectedRound} tab="tyres" label="Tyre degradation for this race" />
+        </>
       )}
 
       {isPredictionTab(activeTab) && (

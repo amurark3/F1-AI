@@ -14,7 +14,7 @@
 -- for the public API.  Do NOT add a permissive `USING (true)` policy — that
 -- would re-open the hole the advisor is reporting.
 --
--- The application DDL (store.py, memory.py, rag/pgvector_store.py) applies the
+-- The application DDL (store.py, memory.py, analysis_cache.py, rag/pgvector_store.py) applies the
 -- same ALTER TABLE on startup, so a rebuilt database comes up hardened.  Run
 -- this file once against an existing database — e.g. in the Supabase SQL
 -- editor — to fix tables that were created before this was added.
@@ -25,6 +25,7 @@ ALTER TABLE IF EXISTS public.app_documents  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.user_profile   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.chat_message   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rulebook_chunk ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.analysis_cache ENABLE ROW LEVEL SECURITY;
 
 -- Defence in depth: RLS alone already blocks these roles, but revoking the
 -- grants means a future accidental policy cannot hand them access either.
@@ -48,7 +49,7 @@ BEGIN
 END
 $$;
 
--- Verify: `rls_enabled` must be true for all four rows.
+-- Verify: `rls_enabled` must be true for all five rows.
 --   SELECT tablename, rowsecurity AS rls_enabled
 --     FROM pg_tables
 --    WHERE schemaname = 'public'

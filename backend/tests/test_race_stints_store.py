@@ -170,6 +170,48 @@ def test_a_failed_read_is_retried_after_a_backoff(store, monkeypatch):
 
 
 @pytest.mark.unit
+def test_a_dropped_race_is_gone_and_the_others_are_kept(store):
+    fake = store(payload=_document({"2026-12": [asdict(STINT)], "2026-19": [asdict(STINT)]}))
+    cache = RaceStintsStore()
+
+    cache.drop(2026, 19)
+
+    assert fake.payload == _document({"2026-12": [asdict(STINT)]})
+    assert cache.get(2026, 19) is None
+    assert RaceStintsStore().get(2026, 19) is None, "a fresh process does not read it back"
+
+
+@pytest.mark.unit
+def test_dropping_a_race_that_is_not_stored_writes_nothing(store):
+    fake = store(payload=_document({"2026-12": [asdict(STINT)]}))
+
+    RaceStintsStore().drop(2026, 19)
+
+    assert fake.writes == []
+
+
+@pytest.mark.unit
+def test_nothing_is_dropped_after_a_failed_read(store):
+    fake = store(readable=False)
+
+    RaceStintsStore().drop(2026, 19)
+
+    assert fake.writes == [], "writing now would upload an empty document over every race"
+
+
+@pytest.mark.unit
+def test_a_failed_drop_is_logged_and_kept_in_memory(store):
+    store(payload=_document({"2026-19": [asdict(STINT)]}), writable=False)
+    cache = RaceStintsStore()
+
+    with structlog.testing.capture_logs() as logs:
+        cache.drop(2026, 19)
+
+    assert [entry["event"] for entry in logs] == ["race_stints_store.dropped", "race_stints_store.write_failed"]
+    assert cache.get(2026, 19) is None
+
+
+@pytest.mark.unit
 def test_a_failed_write_is_logged_and_kept_in_memory(store):
     fake = store(payload=None, writable=False)
     cache = RaceStintsStore()

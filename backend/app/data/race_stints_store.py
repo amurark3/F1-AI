@@ -20,11 +20,15 @@ from __future__ import annotations
 from dataclasses import asdict
 import threading
 import time
+from typing import TYPE_CHECKING
 
 import structlog
 
 from app.data.stint_model import Stint
 from app.data.store import DOCUMENT_RACE_STINTS, document_store
+
+if TYPE_CHECKING:
+    from app.data.store_types import WriteResult
 
 logger = structlog.get_logger()
 
@@ -92,12 +96,27 @@ class RaceStintsStore:
                 logger.warning("race_stints_store.write_skipped", year=year, round=round_num, reason="unread")
                 return
             updated = {**races, _key(year, round_num): [asdict(stint) for stint in stints]}
-            # Held in memory either way: a failed Postgres write is retried by
-            # the store on its next write, and this process can still serve it.
-            self._races = updated
-            result = document_store.write(DOCUMENT_RACE_STINTS, {"version": SCHEMA_VERSION, "races": updated})
+            result = self._write(updated)
         if not result.ok:
             logger.warning("race_stints_store.write_failed", year=year, round=round_num, error=result.error)
+
+    def drop(self, year: int, round_num: int) -> None:
+        """Forget a race's stints: kept for a race that had not run, they came from another session."""
+        with self._lock:
+            races = self._loaded()
+            if races is None or _key(year, round_num) not in races:
+                return
+            result = self._write({key: rows for key, rows in races.items() if key != _key(year, round_num)})
+        logger.warning("race_stints_store.dropped", year=year, round=round_num)
+        if not result.ok:
+            logger.warning("race_stints_store.write_failed", year=year, round=round_num, error=result.error)
+
+    def _write(self, races: dict[str, list[dict]]) -> WriteResult:
+        """Replace the stored races. Call under the lock, after a successful read."""
+        # Held in memory either way: a failed Postgres write is retried by the
+        # store on its next write, and this process can still serve it.
+        self._races = races
+        return document_store.write(DOCUMENT_RACE_STINTS, {"version": SCHEMA_VERSION, "races": races})
 
 
 stint_store = RaceStintsStore()

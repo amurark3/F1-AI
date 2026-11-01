@@ -40,7 +40,8 @@ Caching is not optional. ``session.load()`` re-parses the whole session on every
 call, measured at ~28s warm and over two minutes cold for a single race. A
 completed race is cached for the life of the process and kept in the store; only
 an *empty* result is retried, on a short interval, in case the race simply has
-not run yet.
+not run yet. Because a kept answer is final, no source is asked until the
+calendar says the race could have finished.
 
 Thread safety: FastF1 session loads are wrapped with ``_fastf1_lock``, the
 process-wide lock every FastF1 caller shares.
@@ -48,6 +49,7 @@ process-wide lock every FastF1 caller shares.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import math
 import threading
 import time
@@ -56,6 +58,8 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
+from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
+from app.data.openf1.sessions import weekend_schedule
 from app.data.openf1_stints import openf1_race_stints
 from app.data.race_stints_store import stint_store
 from app.data.stint_model import Stint, clean_compound
@@ -80,6 +84,10 @@ _cache_lock = threading.Lock()
 
 #: How long an empty result is trusted before the sources are tried again.
 EMPTY_RETRY_SECONDS = 300.0
+
+#: The longest a Grand Prix can last from its start: two hours of racing, three
+#: in all when it is suspended (FIA Sporting Regulations).
+RACE_TIME_LIMIT = timedelta(hours=3)
 
 #: FastF1 concatenates the single-digit track statuses seen during a lap, so a
 #: red-flagged lap reads e.g. "1245". Code 5 is the red flag.
@@ -203,6 +211,26 @@ def _fastf1_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     return _stints_from_laps(laps, _driver_codes(session.results))
 
 
+def _race_not_over(year: int, round_num: int) -> bool:
+    """Whether the calendar puts the race ahead, under way, or still settling.
+
+    No source is asked before then. OpenF1 answered Mexico 2026's race with
+    its FP3 stints the night before it ran, and once stored that answer would
+    have stood in for the race for good. A missing start time proves nothing,
+    so it never hides a race.
+    """
+    try:
+        start = next((session.start for session in weekend_schedule(year, round_num) if session.code == "R"), None)
+    # FastF1's schedule backend raises ValueError/KeyError for a bad season and
+    # OSError for a network failure.
+    except (ValueError, KeyError, OSError) as exc:
+        logger.warning("race_stints.calendar_unavailable", year=year, round=round_num, error=str(exc))
+        return False
+    if start is None:
+        return False
+    return datetime.now(UTC) < start + RACE_TIME_LIMIT + timedelta(minutes=ANALYSIS_SESSION_SETTLE_MINUTES)
+
+
 def race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     """Every tyre stint of a race, by driver then stint order.
 
@@ -214,6 +242,12 @@ def race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     cached = _cached(key)
     if cached is not None:
         return cached
+
+    if _race_not_over(year, round_num):
+        # Anything kept for it came from another session.
+        stint_store.drop(year, round_num)
+        _store(key, ())
+        return ()
 
     stored = stint_store.get(year, round_num)
     if stored:

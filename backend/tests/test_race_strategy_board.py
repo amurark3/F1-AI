@@ -9,6 +9,7 @@ without either being able to fabricate the other — a race can have stops
 published before its timing data is cached, and vice versa.
 """
 
+from datetime import UTC, datetime, timedelta
 import sqlite3
 
 import pandas as pd
@@ -16,6 +17,7 @@ import pytest
 
 from app.data import f1db_pitstops, race_stints as stints_module
 from app.data.f1db_pitstops import race_pit_stops
+from app.data.openf1.sessions import ScheduledSession
 from app.data.race_stints import Stint, race_stints
 from app.services import race_strategy_board
 from app.services.race_strategy_board import build_race_strategy
@@ -133,19 +135,31 @@ class FakeStintStore:
     def put(self, year, round_num, stints):
         self.races[(year, round_num)] = stints
 
+    def drop(self, year, round_num):
+        self.races.pop((year, round_num), None)
+
 
 @pytest.fixture
 def fake_fastf1(monkeypatch):
     """FastF1 as the only source that answers: OpenF1 and the store are empty.
 
     ``state["openf1"]`` and ``state["store"]`` let a test give the other two
-    sources something to say.
+    sources something to say. The calendar puts every race long finished unless
+    ``state["race_start"]`` or ``state["calendar_error"]`` says otherwise.
     """
     # Stints are cached for the life of the process, so each test starts from
     # an empty cache or it would read the previous test's race.
     monkeypatch.setattr(stints_module, "_cache", {})
     monkeypatch.setattr(stints_module, "_empty_until", {})
-    state = {"session": None, "raise": None, "openf1": (), "store": FakeStintStore(), "loads": 0}
+    state = {
+        "session": None,
+        "raise": None,
+        "openf1": (),
+        "store": FakeStintStore(),
+        "loads": 0,
+        "race_start": datetime(2024, 5, 26, 13, tzinfo=UTC),
+        "calendar_error": None,
+    }
 
     def get_session(year, rnd, kind):
         state["loads"] += 1
@@ -153,7 +167,16 @@ def fake_fastf1(monkeypatch):
             raise state["raise"]
         return state["session"]
 
+    def weekend_schedule(year, rnd):
+        if state["calendar_error"] is not None:
+            raise state["calendar_error"]
+        return (
+            ScheduledSession(code="Q", name="Qualifying", start=None),
+            ScheduledSession(code="R", name="Race", start=state["race_start"]),
+        )
+
     monkeypatch.setattr(stints_module.fastf1, "get_session", get_session)
+    monkeypatch.setattr(stints_module, "weekend_schedule", weekend_schedule)
     monkeypatch.setattr(stints_module, "openf1_race_stints", lambda year, rnd: state["openf1"])
     monkeypatch.setattr(stints_module, "stint_store", state["store"])
     return state
@@ -377,6 +400,69 @@ def test_no_stints_are_never_stored(fake_fastf1):
     race_stints(2026, 22)
 
     assert fake_fastf1["store"].races == {}
+
+
+# --- a race that cannot have finished ------------------------------------------
+
+
+def test_a_race_still_ahead_has_no_stints_whatever_a_source_says(fake_fastf1):
+    """OpenF1 answered Mexico 2026's race with its FP3 stints the night before it ran.
+
+    Stored, that answer would have stood in for the race for good.
+    """
+    fake_fastf1["race_start"] = datetime.now(UTC) + timedelta(hours=14)
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 19) == ()
+    assert fake_fastf1["loads"] == 0
+    assert fake_fastf1["store"].races == {}
+
+
+def test_a_race_under_way_has_no_stints_until_it_could_have_finished(fake_fastf1):
+    # Two hours of racing, three with a suspension, and its data settling after.
+    fake_fastf1["race_start"] = datetime.now(UTC) - timedelta(hours=3, minutes=30)
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 19) == ()
+
+
+def test_a_race_that_has_finished_and_settled_is_looked_up(fake_fastf1):
+    fake_fastf1["race_start"] = datetime.now(UTC) - timedelta(hours=4, minutes=5)
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 19) == (OPENF1_STINT,)
+
+
+def test_stints_stored_for_a_race_still_ahead_are_dropped(fake_fastf1):
+    # They came from another session, and once the race had run they would be
+    # served in place of it.
+    fake_fastf1["race_start"] = datetime.now(UTC) + timedelta(hours=14)
+    fake_fastf1["store"].races[(2026, 19)] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 19) == ()
+    assert fake_fastf1["store"].races == {}
+
+
+def test_a_race_still_ahead_is_not_asked_about_again_within_the_retry_window(fake_fastf1):
+    fake_fastf1["race_start"] = datetime.now(UTC) + timedelta(hours=14)
+    race_stints(2026, 19)
+    fake_fastf1["race_start"] = datetime.now(UTC) - timedelta(days=1)
+    fake_fastf1["openf1"] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 19) == ()
+
+
+@pytest.mark.parametrize(
+    ("race_start", "calendar_error"),
+    [(None, None), (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable"))],
+    ids=["no start time", "calendar unreachable"],
+)
+def test_an_unknown_race_start_does_not_hide_a_stored_race(fake_fastf1, race_start, calendar_error):
+    fake_fastf1["race_start"] = race_start
+    fake_fastf1["calendar_error"] = calendar_error
+    fake_fastf1["store"].races[(2026, 13)] = (OPENF1_STINT,)
+
+    assert race_stints(2026, 13) == (OPENF1_STINT,)
 
 
 # --- the joined board ------------------------------------------------------

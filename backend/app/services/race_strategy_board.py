@@ -35,16 +35,27 @@ The counts a caller gets are deliberately three different facts:
 suspension gave them, and ``timed_stops`` is how many of the former have a
 published stationary time. They differ, and flattening them hides either a
 strategy or a gap in the source.
+
+**How each race ended comes from the classification, never from the stints.**
+A last stint with no stop after it looks the same whether the car took the
+flag or stopped on track, and reading it as the flag labelled Lindblad's
+Mexico 2026 retirement on lap 58 a finish. Each driver therefore carries the
+``status`` and ``laps_completed`` the classification publishes
+(:mod:`app.data.race_classification`), and the rows follow its order. With no
+classification published both are null, which the chart reports as unknown.
+A retiring car that goes into the pits and stays there leaves a pit-sheet entry
+on its last lap with no stint after it; that is the retirement, not a stop.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import structlog
 
 from app.data.f1db_pitstops import PitStop, race_pit_stops
 from app.data.f1db_results import race_results
+from app.data.race_classification import RaceClassification, race_classification
 from app.data.race_stints import Stint, race_stints
 
 logger = structlog.get_logger()
@@ -53,18 +64,28 @@ logger = structlog.get_logger()
 # classified runner, then alphabetically so the order is at least stable.
 UNPLACED = 999
 
+# Statuses of a car whose race ended before the flag, so a pit entry on its
+# last lap can be the retirement.
+ENDED_EARLY = frozenset({"dnf", "not_classified"})
+
 STINTS_UNAVAILABLE = (
     "Tyre stint data is not available for this race yet. It is published once "
     "the race has been run, and can be out of reach while another session is live."
 )
-STOPS_UNAVAILABLE = "No pit stops are published for this race yet."
+STOPS_UNAVAILABLE = "No pit stop times are published for this race yet."
 
 
 def _partial_stops_warning(published: int, made: int) -> str:
     return (
         f"Only {published} of the {made} pit stops made in this race have a "
-        "published stationary time. The stint chart shows every stop; the "
-        "table below lists the ones the stop sheet timed."
+        "published stationary time. The others are marked as not published yet."
+    )
+
+
+def _untimed_stops_note(made: int) -> str:
+    return (
+        "Stop times are not published for this race yet. The chart shows the "
+        f"{made} pit stop(s) the timing data records."
     )
 
 
@@ -127,6 +148,63 @@ def _align_to_stop_sheet(stints: tuple[Stint, ...], stops: tuple[PitStop, ...]) 
     return tuple(aligned), realigned
 
 
+@dataclass(frozen=True)
+class _Place:
+    """Where a driver sits in the result, and how their race ended when that is published."""
+
+    order: int
+    finish_position: int | None
+    status: str | None = None
+    laps_completed: int | None = None
+
+
+def _places(year: int, round_num: int, classification: RaceClassification) -> dict[str, _Place]:
+    """Each driver's place: the classification's when published, else f1db's finishing order.
+
+    f1db's order carries no status. It knows how the race ended, but trusting
+    it here would mean a third source for a fact two others already publish.
+    """
+    if classification.drivers:
+        return {
+            driver.driver_code: _Place(
+                order=index,
+                finish_position=driver.position,
+                status=driver.status,
+                laps_completed=driver.laps_completed,
+            )
+            for index, driver in enumerate(classification.drivers, start=1)
+        }
+    return {
+        code: _Place(order=position, finish_position=position)
+        for code, position in race_results(year, round_num).items()
+    }
+
+
+def _retirements_in_pits(
+    stints: tuple[Stint, ...], stops: tuple[PitStop, ...], places: dict[str, _Place]
+) -> frozenset[tuple[str, int]]:
+    """Pit-sheet entries that were a retirement, as ``(driver, lap)``.
+
+    A car whose race ended early, with a pit entry on or after its last
+    completed lap and no stint after it, went into the pits and stayed there.
+    A new stint after the entry means fresh tyres went on and the car left
+    again, so that entry stays a stop.
+    """
+    final: dict[str, Stint] = {}
+    for stint in stints:
+        if stint.driver_code not in final or stint.stint > final[stint.driver_code].stint:
+            final[stint.driver_code] = stint
+    retired: set[tuple[str, int]] = set()
+    for stop in stops:
+        place, last = places.get(stop.driver_code), final.get(stop.driver_code)
+        if place is None or place.status not in ENDED_EARLY or last is None:
+            continue
+        last_lap = last.end_lap if place.laps_completed is None else place.laps_completed
+        if stop.lap >= max(last_lap, last.start_lap):
+            retired.add((stop.driver_code, stop.lap))
+    return frozenset(retired)
+
+
 def _stop_payload(stop: PitStop) -> dict:
     return {
         "driver_code": stop.driver_code,
@@ -170,49 +248,69 @@ def _is_pit_stop(stint: dict, is_last: bool) -> bool:
 def _driver_rows(
     stints: tuple[Stint, ...],
     stops: tuple[PitStop, ...],
-    finishing_order: dict[str, int],
+    places: dict[str, _Place],
+    retired_in_pits: frozenset[str],
 ) -> list[dict]:
     """Group stints per driver, attaching the stop that closed each one.
 
-    Ordered by finishing position, not alphabetically. A strategy chart is read
+    Ordered by the result, not alphabetically. A strategy chart is read
     against the result it produced — the winner's stint plan belongs at the top
     — and an alphabetical list puts ALB above the race winner for no reason.
     Drivers the result does not place (or a race with no published result yet)
     fall to the bottom in a stable alphabetical order rather than an arbitrary
-    one.
+    one. A classified car with no stints at all (it never started) is still
+    listed, so its status is shown rather than the car silently missing.
     """
     by_driver_lap = {(stop.driver_code, stop.lap): stop for stop in stops}
-
-    drivers: dict[str, list[dict]] = {}
-    teams: dict[str, str] = {}
+    grouped: dict[str, list[Stint]] = {}
     for stint in stints:
-        teams.setdefault(stint.driver_code, stint.team)
+        grouped.setdefault(stint.driver_code, []).append(stint)
+
+    rows = []
+    for code, driver_stints in grouped.items():
+        ordered = sorted(driver_stints, key=lambda stint: stint.stint)
+        last_index = len(ordered) - 1
         # A stop is recorded on the lap the car came in, which is the last lap
-        # of the stint it ends.
-        stop = by_driver_lap.get((stint.driver_code, stint.end_lap))
-        drivers.setdefault(stint.driver_code, []).append(_stint_payload(stint, stop))
+        # of the stint it ends. The last stint ends at the flag or the
+        # retirement, never in a stop.
+        stint_rows = [
+            _stint_payload(stint, None if index == last_index else by_driver_lap.get((code, stint.end_lap)))
+            for index, stint in enumerate(ordered)
+        ]
+        payload = _driver_payload(code, ordered[0].team, stint_rows, places.get(code))
+        rows.append({**payload, "retired_in_pits": code in retired_in_pits})
+    if stints:
+        rows.extend(
+            _driver_payload(code, "", [], place)
+            for code, place in places.items()
+            if code not in grouped and place.status is not None
+        )
 
-    rows = [_driver_payload(code, stint_rows, teams, finishing_order) for code, stint_rows in drivers.items()]
-    rows.sort(key=lambda row: (row["finish_position"] or UNPLACED, row["driver_code"]))
-    return rows
+    def order(row: dict) -> tuple[int, str]:
+        place = places.get(row["driver_code"])
+        return (UNPLACED if place is None else place.order, row["driver_code"])
+
+    return sorted(rows, key=order)
 
 
-def _driver_payload(
-    code: str,
-    rows: list[dict],
-    teams: dict[str, str],
-    finishing_order: dict[str, int],
-) -> dict:
+def _driver_payload(code: str, team: str, rows: list[dict], place: _Place | None) -> dict:
     last_index = len(rows) - 1
     # Counted from stint boundaries rather than the published stop sheet, which
     # can be incomplete — but excluding the boundaries that were not stops.
     stops = sum(1 for index, row in enumerate(rows) if _is_pit_stop(row, index == last_index))
     return {
         "driver_code": code,
-        "team": teams.get(code, ""),
+        "team": team,
         # Null when the result does not place this driver, which is a different
         # state from finishing last.
-        "finish_position": finishing_order.get(code),
+        "finish_position": None if place is None else place.finish_position,
+        # How the race ended (finished, dnf, dns, dsq, not_classified), and how
+        # far the car got. Both null until a classification is published.
+        "status": None if place is None else place.status,
+        "laps_completed": None if place is None else place.laps_completed,
+        # Went into the pits on its last lap and retired there: not a stop.
+        # Set by the caller, which knows the pit sheet.
+        "retired_in_pits": False,
         "stints": rows,
         "stops": stops,
         # Free tyre changes handed to the whole field by a suspended race.
@@ -230,6 +328,31 @@ def _fastest_stop(stops: tuple[PitStop, ...]) -> dict | None:
     return _stop_payload(min(timed, key=lambda stop: stop.millis or 0))
 
 
+def _stop_warnings(has_stints: bool, published: int, made: int) -> list[str]:
+    """One note on how far the stop sheet covers the stops made, never two that contradict.
+
+    The two sources can legitimately disagree, and the gap is the interesting
+    part: the stop sheet is published separately from timing data and is
+    sometimes incomplete, or still empty, for a recent round.
+    """
+    if not published:
+        return [_untimed_stops_note(made)] if has_stints and made else [STOPS_UNAVAILABLE]
+    if has_stints and made > published:
+        return [_partial_stops_warning(published, made)]
+    return []
+
+
+def _unmatched_stops(drivers: list[dict], stops: tuple[PitStop, ...]) -> list[dict]:
+    """Stops whose lap matches no stint boundary: reported, never forced."""
+    attached = {
+        (row["driver_code"], stint["end_lap"])
+        for row in drivers
+        for stint in row["stints"]
+        if stint["ended_by_stop"] is not None
+    }
+    return [_stop_payload(stop) for stop in stops if (stop.driver_code, stop.lap) not in attached]
+
+
 def build_race_strategy(year: int, round_num: int) -> dict:
     """Stints and pit stops for one race, each reported on its own terms.
 
@@ -238,36 +361,23 @@ def build_race_strategy(year: int, round_num: int) -> dict:
     the reverse happens too. The payload says which is missing rather than
     presenting a half-built strategy as a whole one.
     """
-    stops = race_pit_stops(year, round_num)
-    stints, realigned = _align_to_stop_sheet(race_stints(year, round_num), stops)
+    classification = race_classification(year, round_num)
+    places = _places(year, round_num, classification)
+    raw_stints = race_stints(year, round_num)
+    sheet = race_pit_stops(year, round_num)
+    retirements = _retirements_in_pits(raw_stints, sheet, places)
+    stops = tuple(stop for stop in sheet if (stop.driver_code, stop.lap) not in retirements)
+    stints, realigned = _align_to_stop_sheet(raw_stints, stops)
 
-    warnings = []
-    if not stints:
-        warnings.append(STINTS_UNAVAILABLE)
-    if not stops:
-        warnings.append(STOPS_UNAVAILABLE)
-    if realigned:
-        warnings.append(_realigned_note(realigned))
-
-    drivers = _driver_rows(stints, stops, race_results(year, round_num))
-
-    # Stops whose lap matches no stint boundary: reported, never forced.
-    attached = {
-        (row["driver_code"], stint["end_lap"])
-        for row in drivers
-        for stint in row["stints"]
-        if stint["ended_by_stop"] is not None
-    }
-    unmatched = [_stop_payload(stop) for stop in stops if (stop.driver_code, stop.lap) not in attached]
-
+    drivers = _driver_rows(stints, stops, places, frozenset(code for code, _lap in retirements))
+    unmatched = _unmatched_stops(drivers, stops)
     stops_made = sum(driver["stops"] for driver in drivers)
     red_flag_changes = sum(driver["red_flag_changes"] for driver in drivers)
 
-    # The two sources can legitimately disagree, and the gap is the interesting
-    # part: the stop sheet is published separately from timing data and is
-    # sometimes incomplete for a recent round.
-    if stints and stops_made > len(stops):
-        warnings.append(_partial_stops_warning(len(stops), stops_made))
+    warnings = [STINTS_UNAVAILABLE] if not stints else []
+    if realigned:
+        warnings.append(_realigned_note(realigned))
+    warnings.extend(_stop_warnings(bool(stints), len(stops), stops_made))
     if red_flag_changes:
         warnings.append(_red_flag_note(red_flag_changes))
 
@@ -281,6 +391,8 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         red_flag_changes=red_flag_changes,
         unmatched=len(unmatched),
         realigned_drivers=realigned,
+        retired_in_pits=len(retirements),
+        classification_source=classification.source,
     )
     return {
         "year": year,
@@ -288,6 +400,9 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         "available": bool(stints or stops),
         "has_stints": bool(stints),
         "has_stops": bool(stops),
+        # Where each driver's status and the row order came from; null when no
+        # classification is published yet.
+        "classification_source": classification.source,
         "drivers": drivers,
         "stops": [_stop_payload(stop) for stop in stops],
         # Stops the field actually made, from stint boundaries.

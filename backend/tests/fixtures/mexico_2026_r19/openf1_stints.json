@@ -1,0 +1,642 @@
+[
+ {
+  "driver_number": 30,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 1,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 1,
+  "tyre_age_at_start": 1
+ },
+ {
+  "driver_number": 14,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 3,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 18,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 3,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 18,
+  "stint_number": 2,
+  "compound": "UNKNOWN",
+  "lap_start": 4,
+  "lap_end": 5,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 14,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 4,
+  "lap_end": 5,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 6,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 7,
+  "tyre_age_at_start": 2
+ },
+ {
+  "driver_number": 10,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 17,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 23,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 18,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 81,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 26,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 16,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 27,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 3,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 27,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 44,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 28,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 30,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 77,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 30,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 27,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 31,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 63,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 33,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 43,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 34,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 41,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 35,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 55,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 36,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 5,
+  "stint_number": 1,
+  "compound": "MEDIUM",
+  "lap_start": 1,
+  "lap_end": 38,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 1,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 39,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 87,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 40,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 6,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 8,
+  "lap_end": 41,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 23,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 19,
+  "lap_end": 41,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 30,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 2,
+  "lap_end": 42,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 12,
+  "stint_number": 1,
+  "compound": "SOFT",
+  "lap_start": 1,
+  "lap_end": 43,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 77,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 31,
+  "lap_end": 42,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 44,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 29,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 2,
+  "lap_end": 43,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 31,
+  "lap_end": 43,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 63,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 34,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 81,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 27,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 10,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 18,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 3,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 28,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 16,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 28,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 30,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 43,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 55,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 37,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 12,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 44,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 44,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 1,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 40,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 44,
+  "lap_end": 44,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 23,
+  "stint_number": 3,
+  "compound": "MEDIUM",
+  "lap_start": 42,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 44,
+  "lap_end": 44,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 63,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 41,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 36,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 81,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 43,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 35,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 27,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 32,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 87,
+  "stint_number": 2,
+  "compound": "MEDIUM",
+  "lap_start": 41,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 5,
+  "stint_number": 2,
+  "compound": "SOFT",
+  "lap_start": 39,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 10,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 6,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 42,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 30,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 55,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 1
+ },
+ {
+  "driver_number": 23,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 45,
+  "lap_end": 45,
+  "tyre_age_at_start": 4
+ },
+ {
+  "driver_number": 87,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 47,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 41,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 58,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 27,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 59,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 5,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 59,
+  "tyre_age_at_start": 2
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 5,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 59,
+  "tyre_age_at_start": 4
+ },
+ {
+  "driver_number": 3,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 44,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 12,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 4
+ },
+ {
+  "driver_number": 16,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 1,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 2
+ },
+ {
+  "driver_number": 63,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 4
+ },
+ {
+  "driver_number": 81,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 0
+ },
+ {
+  "driver_number": 43,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 2
+ },
+ {
+  "driver_number": 30,
+  "stint_number": 5,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 4
+ },
+ {
+  "driver_number": 10,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 5,
+  "stint_number": 3,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 6,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ },
+ {
+  "driver_number": 50,
+  "stint_number": 6,
+  "compound": "SOFT",
+  "lap_start": 60,
+  "lap_end": 71,
+  "tyre_age_at_start": 8
+ },
+ {
+  "driver_number": 23,
+  "stint_number": 5,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 5
+ },
+ {
+  "driver_number": 55,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 46,
+  "lap_end": 71,
+  "tyre_age_at_start": 1
+ },
+ {
+  "driver_number": 27,
+  "stint_number": 4,
+  "compound": "SOFT",
+  "lap_start": 60,
+  "lap_end": 71,
+  "tyre_age_at_start": 17
+ },
+ {
+  "driver_number": 11,
+  "stint_number": 6,
+  "compound": "SOFT",
+  "lap_start": 60,
+  "lap_end": 71,
+  "tyre_age_at_start": 3
+ }
+]

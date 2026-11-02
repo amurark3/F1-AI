@@ -14,10 +14,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.data.current_standings import current_standings
 from app.data.profiles import driver_season, team_season
+from app.data.title_rule import CONSTRUCTORS, Remaining, can_still_beat
 from app.services import race_control_championship as championship
 from app.services.profiles import build_directory
-from app.services.race_control import overview, strategy_context
+from app.services.race_control import overview, strategy_context, table_reach
+from app.services.race_control_common import team_slug
 from app.services.race_control_standings import build_intel
 from tests.standings_support import Feeds, mexico_feeds
 
@@ -65,7 +68,7 @@ SEASON = [event(round_num) for round_num in RACE_DAYS]
 
 @pytest.fixture
 def feeds(tmp_path, monkeypatch) -> Iterator[Feeds]:
-    for module in (overview, strategy_context):
+    for module in (overview, strategy_context, table_reach):
         monkeypatch.setattr(module, "season_events", lambda _year: SEASON)
     yield from mexico_feeds(tmp_path, monkeypatch)
 
@@ -188,6 +191,66 @@ def test_intel_for_an_unknown_team_still_says_how_fresh_its_table_is(feeds):
     assert intel["status"] == "team_not_found"
     assert freshness(intel) == AFTER_ROUND_19
     assert {"slug": "red-bull", "name": "Red Bull"} in intel["available_teams"]
+
+
+# --- team intel on the title rule -----------------------------------------------------
+
+# Four Grands Prix after Mexico: four one-twos, 172 points, for a team.
+FOUR_RACES_LEFT = Remaining(races=4, sprints=0)
+
+
+def test_red_bull_248_behind_with_172_left_is_not_told_it_can_close_the_championship_gap(feeds):
+    tendency = build_intel("red-bull", 2026)["team"]["strategy_tendency"]
+
+    assert "close the championship gap" not in tendency
+    assert tendency == (
+        "Red Bull is P3, 248 points off the constructor lead with 172 points still on offer: out of the title fight. "
+        "The highest place still in reach is P2: Ferrari, 122 points ahead."
+    )
+
+
+def test_ferrari_126_behind_with_172_left_is_still_in_the_title_fight(feeds):
+    tendency = build_intel("ferrari", 2026)["team"]["strategy_tendency"]
+
+    assert tendency.startswith("Ferrari is P2, 126 points off the constructor lead with 172 points still on offer. ")
+    assert "close the championship gap" in tendency
+
+
+def test_mercedes_still_has_ferrari_to_protect_against_after_round_19(feeds):
+    intel = build_intel("mercedes", 2026)
+
+    assert intel["team"]["strategy_tendency"].startswith("Mercedes leads the constructors' table with 630 points.")
+    assert "Protect against Ferrari by prioritising finishes that keep the gap above 126." in intel["opportunities"]
+
+
+def _intel_text(intel: dict) -> str:
+    return " ".join(
+        [intel["team"]["strategy_tendency"], *intel["upgrade_watch"], *intel["threats"], *intel["opportunities"]]
+    )
+
+
+def test_every_catchable_claim_in_the_intel_agrees_with_the_title_rule(feeds):
+    """Each team's intel says a rival is catchable exactly when ``title_rule.can_still_beat`` says so."""
+    teams = current_standings(2026).teams
+    leader = teams[0]
+
+    def beats(chaser, target) -> bool:
+        return can_still_beat(target, chaser, FOUR_RACES_LEFT, CONSTRUCTORS)
+
+    for index, row in enumerate(teams):
+        text = _intel_text(build_intel(team_slug(row.key), 2026))
+        assert ("close the championship gap" in text) == (index > 0 and beats(row, leader)), row.key
+        assert "has clinched the constructors' title" not in text, row.key
+        if index > 0:
+            ahead = teams[index - 1]
+            assert (f"Close the gap to {ahead.key} " in text) == beats(row, ahead), row.key
+            if "covering them can matter immediately" in text:
+                assert beats(row, ahead), row.key
+        if index + 1 < len(teams):
+            behind = teams[index + 1]
+            assert (f"Protect against {behind.key} " in text) == beats(behind, row), row.key
+            if "one race swing can change the order" in text:
+                assert beats(behind, row), row.key
 
 
 # --- the championship forecast --------------------------------------------------------

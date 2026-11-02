@@ -134,6 +134,17 @@ def _latest_team_by_driver_id(conn: sqlite3.Connection, year: int) -> dict[str, 
     return {row["driver_id"]: row["team"] for row in rows}
 
 
+def standings_round(year: int) -> int | None:
+    """The last round of ``year`` the f1db standings include; None before any.
+
+    f1db cuts a release a day or two after each race, so for that long the
+    standings trail the calendar. Anything reasoning about points still to be
+    won must count from here, not from the clock.
+    """
+    with connect() as conn:
+        return _latest_round(conn, year) or None
+
+
 def driver_standings_detailed(year: int) -> list[dict]:
     """Rich latest-round driver standings for the UI.
 

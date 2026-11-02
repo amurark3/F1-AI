@@ -21,7 +21,7 @@ const neverChanges = () => {
  * that depends on the browser — time zone, locale, the current time — has to
  * wait one render before it can appear.
  */
-function useIsHydrated(): boolean {
+export function useIsHydrated(): boolean {
   return useSyncExternalStore(
     neverChanges,
     () => true,

@@ -99,8 +99,8 @@ export function GridPenalties({ data }: { data?: StartingGridResponse }) {
       {penalties.length > 0 && (
         <p className="border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#596173]">
           &ldquo;Net&rdquo; is the slots actually dropped between qualifying and the grid, which is smaller than the
-          penalty whenever a driver ahead is also penalised. The offence behind each penalty is not published in
-          this data source and is not shown.
+          penalty whenever a driver ahead is also penalised. The offence behind each penalty is not published in this
+          data source and is not shown.
         </p>
       )}
     </ConsolePanel>

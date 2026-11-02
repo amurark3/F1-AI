@@ -40,17 +40,17 @@ Set these in **Render → the service → Environment**. That dashboard is the o
 place they exist — `render.yaml` is not applied to this service (§4), so adding a
 variable there does nothing on its own.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `TOKENLAB_API_KEY` | **One of these two** | Primary chat engine — AMD Token Lab ([notebooks.amd.com/tokenlab](https://notebooks.amd.com/tokenlab)). Beta: extend its 30-day access from that page before it lapses |
-| `GOOGLE_API_KEY` | **One of these two** | Fallback chat engine — Gemini free tier. Key must come from an AI Studio project with **no billing linked** |
-| `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
-| `TAVILY_API_KEY` | No | Web-search tool |
-| `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
-| `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
-| `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
-| `ENABLE_LOCAL_MODELS` | **Yes** | Must be `false` on the free tier — see below |
-| `PYTHON_VERSION` | **Yes** | Pinned to `3.13.17` (must match `backend/.python-version`) |
+| Variable                 | Required             | Purpose                                                                                                                                                                                                                                          |
+| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TOKENLAB_API_KEY`       | **One of these two** | Primary chat engine — AMD Token Lab ([notebooks.amd.com/tokenlab](https://notebooks.amd.com/tokenlab)). Beta: extend its 30-day access from that page before it lapses                                                                           |
+| `GOOGLE_API_KEY`         | **One of these two** | Fallback chat engine — Gemini free tier. Key must come from an AI Studio project with **no billing linked**                                                                                                                                      |
+| `DATABASE_URL`           | **Yes**              | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below                                                                                                                                                          |
+| `TAVILY_API_KEY`         | No                   | Web-search tool                                                                                                                                                                                                                                  |
+| `OPENWEATHERMAP_API_KEY` | No                   | The chat agent's weather tool, and the Command Center's current-conditions fallback when Open-Meteo has no race-day forecast. Without it those show as offline. The per-session forecast (Open-Meteo) and circuit maps (MultiViewer) need no key |
+| `ALLOWED_ORIGINS`        | Recommended          | CORS — comma-separated frontend origin(s)                                                                                                                                                                                                        |
+| `HF_TOKEN`               | No                   | Faster/rate-limit-free HuggingFace model downloads                                                                                                                                                                                               |
+| `ENABLE_LOCAL_MODELS`    | **Yes**              | Must be `false` on the free tier — see below                                                                                                                                                                                                     |
+| `PYTHON_VERSION`         | **Yes**              | Pinned to `3.13.17` (must match `backend/.python-version`)                                                                                                                                                                                       |
 
 ### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
 
@@ -147,10 +147,11 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 **`--upgrade pip` is load-bearing.** Render's image ships **pip 23.0.1** (three
 years stale), and that — not torch — was the root cause of the outage described
 below. Upgrading is safe to do blindly here because every runtime dependency is
-`==` pinned: a newer pip changes resolution *mechanics*, never which versions get
+`==` pinned: a newer pip changes resolution _mechanics_, never which versions get
 installed. It costs a few seconds.
 
 Why this build is fast:
+
 - **No torch** — `sentence-transformers` lives in `requirements-ingest.txt`, not
   `requirements.txt`. Every import of it is behind `ENABLE_LOCAL_MODELS` (§2),
   which must stay `false` here, so installing it would mean downloading ~2 GB the
@@ -175,7 +176,7 @@ drags in from PyPI. It failed with **no repo change**, via three compounding ste
    from the URL path (`/whl/cpu/typing-extensions/`) while the file's own metadata
    said `typing_extensions`. **pip 23.0.1 compares those without normalizing**, so
    it rejected the wheel: `has inconsistent Name: expected 'typing-extensions',
-   but metadata has 'typing_extensions'`.
+but metadata has 'typing_extensions'`.
 2. Having discarded the wheel, pip fell back to the **sdist**, which needs a build
    backend (`flit_core`).
 3. `--index-url` **replaces** PyPI rather than adding to it, so `flit_core` was
@@ -192,7 +193,7 @@ Two things worth knowing, both verified against pip 23.0.1 on Python 3.10:
   same `typing_extensions-4.16.0`. The pin above stays anyway, as insurance
   against the next stale-pip incompatibility.
 
-**If torch is ever genuinely needed here again**, upgrade pip *and* keep PyPI in
+**If torch is ever genuinely needed here again**, upgrade pip _and_ keep PyPI in
 the search path — `--extra-index-url https://pypi.org/simple` plus a `==<ver>+cpu`
 pin, since the `+cpu` local version exists only on the PyTorch index and so PyPI
 cannot silently serve the CUDA build instead.
@@ -214,20 +215,20 @@ does not have.
 > command or an environment variable must be **typed into the dashboard** to take
 > effect; a commit alone will not do it.
 >
-> Code pushes *do* still auto-deploy — that is the service's own Auto-Deploy
+> Code pushes _do_ still auto-deploy — that is the service's own Auto-Deploy
 > setting (below), which is unrelated to Blueprints.
 
 Keep these dashboard settings in sync with `render.yaml` (Render → the service →
 Settings):
 
-| Setting | Value |
-|---|---|
-| **Build Command** | the pip + CPU-torch command in §3 |
-| **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
-| **Root Directory** | `backend` |
-| **Health Check Path** | `/api/health` |
-| **Auto-Deploy** | On Commit |
-| **Environment** | the variables in §2 |
+| Setting               | Value                                          |
+| --------------------- | ---------------------------------------------- |
+| **Build Command**     | the pip + CPU-torch command in §3              |
+| **Start Command**     | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| **Root Directory**    | `backend`                                      |
+| **Health Check Path** | `/api/health`                                  |
+| **Auto-Deploy**       | On Commit                                      |
+| **Environment**       | the variables in §2                            |
 
 ⚠️ The Build Command must **not** contain `python app/rag/ingest.py` — that step
 fails now that the PDF libraries live in `requirements-ingest.txt`, and the
@@ -239,11 +240,11 @@ rulebook is populated separately in pgvector (§6).
 
 One Postgres database backs several things; tables are auto-created on first use:
 
-| Table | Written by | Purpose |
-|---|---|---|
-| `app_documents` | prediction cache + accuracy history | durable JSON docs (off Render's ephemeral disk) |
-| `user_profile`, `chat_message` | chat memory | personalization + pgvector conversation recall |
-| `rulebook_chunk` | `app.rag.ingest` | FIA regulation embeddings (pgvector, 384-dim, HNSW index) |
+| Table                          | Written by                          | Purpose                                                   |
+| ------------------------------ | ----------------------------------- | --------------------------------------------------------- |
+| `app_documents`                | prediction cache + accuracy history | durable JSON docs (off Render's ephemeral disk)           |
+| `user_profile`, `chat_message` | chat memory                         | personalization + pgvector conversation recall            |
+| `rulebook_chunk`               | `app.rag.ingest`                    | FIA regulation embeddings (pgvector, 384-dim, HNSW index) |
 
 Requires the `vector` extension (auto-enabled by the app). Free-tier Supabase
 pauses after ~1 week idle — first request after a pause is slow.
@@ -315,10 +316,10 @@ Standings, results, and championship history are read from the f1db SQLite dump,
 which f1db re-publishes as a tagged GitHub release within a day or two of every
 race. `app.data.f1db_source` keeps the local copy on the newest release:
 
-| When | What runs |
-|---|---|
+| When       | What runs                                                     |
+| ---------- | ------------------------------------------------------------- |
 | Every boot | the readiness warm-up calls `sync_to_latest()` before serving |
-| Every 6 h | the `_refresh_f1db_dataset` loop in `main.py` re-checks |
+| Every 6 h  | the `_refresh_f1db_dataset` loop in `main.py` re-checks       |
 
 Both paths are cheap when nothing changed — one small request, no download. The
 newest tag is read from the redirect at
@@ -372,11 +373,11 @@ curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_sync
 
 ## 9. GitHub Actions secrets
 
-| Secret | Used by | Notes |
-|---|---|---|
-| `DATABASE_URL` | ingest-rulebook | Supabase connection string |
-| `RETRAIN_PAT` | retrain | Optional — only if `main` requires approvals |
-| `HF_TOKEN` | ingest-rulebook | Optional — faster model downloads |
+| Secret         | Used by         | Notes                                        |
+| -------------- | --------------- | -------------------------------------------- |
+| `DATABASE_URL` | ingest-rulebook | Supabase connection string                   |
+| `RETRAIN_PAT`  | retrain         | Optional — only if `main` requires approvals |
+| `HF_TOKEN`     | ingest-rulebook | Optional — faster model downloads            |
 
 Set at **GitHub → Settings → Secrets and variables → Actions**.
 

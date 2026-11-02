@@ -8,6 +8,7 @@ import type {
   OverviewStrategy,
   OverviewWeather,
 } from "./components/CommandCenterPanels";
+import type { OverviewCircuit } from "./weekend/weekendTypes";
 import type { Metadata } from "next";
 
 /**
@@ -20,23 +21,24 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: "Race Weekend Command Center | F1 AI",
   description:
-    "Pre-race operating view for a Formula 1 weekend — session timing, baseline strategy, competitor threats, weather risk, and championship pressure.",
+    "The Formula 1 race weekend at a glance — circuit map, session-by-session weather, championship stakes, projected podium, circuit history, and baseline strategy.",
 };
 
 export default async function RaceControlHome() {
   const year = currentSeason();
 
-  // Four parallel requests, each its own cache entry, so one slow segment
+  // Five parallel requests, each its own cache entry, so one slow segment
   // neither blocks the others nor invalidates their cached copies. Any that
   // does not arrive in time is simply left unseeded — the browser fetches it.
-  const [shell, strategy, predictions, weather] = await Promise.all([
+  const [shell, strategy, predictions, weather, circuit] = await Promise.all([
     getOverviewSegment<OverviewShell>(year, "/shell"),
     getOverviewSegment<OverviewStrategy>(year, "/strategy"),
     getOverviewSegment<OverviewPredictions>(year, "/predictions"),
     getOverviewSegment<OverviewWeather>(year, "/weather"),
+    getOverviewSegment<OverviewCircuit>(year, "/circuit"),
   ]);
 
-  const seed: OverviewSeed = { year, shell, strategy, predictions, weather };
+  const seed: OverviewSeed = { year, shell, strategy, predictions, weather, circuit };
 
   return <CommandCenterView seed={seed} />;
 }

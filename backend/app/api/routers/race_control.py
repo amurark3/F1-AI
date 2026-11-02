@@ -10,6 +10,7 @@ from app.api.schemas.race_control import RulebookSearchRequest
 from app.services import rulebook
 from app.services.race_control import (
     build_overview,
+    build_overview_circuit,
     build_overview_predictions,
     build_overview_shell,
     build_overview_strategy,
@@ -37,7 +38,7 @@ async def get_overview(year: int) -> dict:
         return {"year": year, **client_error("api.race_control_overview.error", exc, year=year)}
 
 
-# The command centre fetches these four in parallel and renders each as it
+# The command centre fetches these five in parallel and renders each as it
 # lands, so a cold telemetry load no longer holds the whole page hostage.
 
 
@@ -59,6 +60,21 @@ async def get_overview_weather(year: int) -> dict:
             "year": year,
             "risk_register": [],
             **client_error("api.race_control_overview_weather.error", exc, year=year),
+        }
+
+
+@router.get("/overview/{year}/circuit")
+async def get_overview_circuit(year: int) -> dict:
+    """Circuit map, layout facts and history. Waits on MultiViewer and OpenF1 once, then cache."""
+    try:
+        return await asyncio.to_thread(build_overview_circuit, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "record": None,
+            "lap_record": None,
+            "map": None,
+            **client_error("api.race_control_overview_circuit.error", exc, year=year),
         }
 
 

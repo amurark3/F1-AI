@@ -299,6 +299,11 @@ _SEGMENTS = [
     # (path, service name, empty fields the panel destructures)
     ("/race-control/overview/2026/shell", "build_overview_shell", {"year": 2026}),
     ("/race-control/overview/2026/weather", "build_overview_weather", {"year": 2026, "risk_register": []}),
+    (
+        "/race-control/overview/2026/circuit",
+        "build_overview_circuit",
+        {"year": 2026, "record": None, "lap_record": None, "map": None},
+    ),
     ("/race-control/overview/2026/predictions", "build_overview_predictions", {"year": 2026, "predicted_podium": []}),
     ("/race-control/overview/2026/strategy", "build_overview_strategy", {"year": 2026, "workstreams": []}),
     (

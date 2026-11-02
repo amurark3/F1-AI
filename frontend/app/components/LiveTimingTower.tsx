@@ -17,9 +17,7 @@ function SessionLine({ sessionStatus }: { sessionStatus: SessionStatus }) {
       <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">
         {sessionStatus.session_name ?? "Session"}
       </span>
-      {sessionStatus.lap != null && (
-        <span className="text-xs font-mono text-neutral-500">LAP {sessionStatus.lap}</span>
-      )}
+      {sessionStatus.lap != null && <span className="text-xs font-mono text-neutral-500">LAP {sessionStatus.lap}</span>}
     </div>
   );
 }
@@ -51,9 +49,7 @@ export default function LiveTimingTower({ positions, sessionStatus, isConnected 
   if (positions.length === 0) {
     const session = sessionStatus?.session_name;
     return (
-      <TowerNotice spinning>
-        {session ? `Waiting for ${session} timing data...` : "No session on track"}
-      </TowerNotice>
+      <TowerNotice spinning>{session ? `Waiting for ${session} timing data...` : "No session on track"}</TowerNotice>
     );
   }
 
@@ -73,20 +69,13 @@ export default function LiveTimingTower({ positions, sessionStatus, isConnected 
           </thead>
           <tbody>
             {positions.map((p) => (
-              <tr
-                key={p.driver_number}
-                className="border-b border-white/5 hover:bg-white/5 transition-colors"
-              >
+              <tr key={p.driver_number} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="py-2 pr-4 text-neutral-400 font-mono text-xs">P{p.position}</td>
                 <td className="py-2 pr-4 text-neutral-500 font-mono text-xs">{p.driver_number}</td>
-                <td
-                  className={`py-2 pr-4 font-mono font-bold ${p.position === 1 ? "text-white" : "text-neutral-300"}`}
-                >
+                <td className={`py-2 pr-4 font-mono font-bold ${p.position === 1 ? "text-white" : "text-neutral-300"}`}>
                   {p.driver}
                 </td>
-                <td className="py-2 text-neutral-400 font-mono text-xs">
-                  {p.gap === "LEADER" ? "—" : p.gap}
-                </td>
+                <td className="py-2 text-neutral-400 font-mono text-xs">{p.gap === "LEADER" ? "—" : p.gap}</td>
               </tr>
             ))}
           </tbody>

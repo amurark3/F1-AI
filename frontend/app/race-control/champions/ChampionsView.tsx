@@ -1,10 +1,8 @@
 "use client";
 
-
 import { Trophy, Users, Flag, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
-
 
 import { API_BASE } from "@/app/constants/api";
 import type { ChampionsResponse, SeasonChampion, StatsResponse } from "@/app/lib/server/champions";

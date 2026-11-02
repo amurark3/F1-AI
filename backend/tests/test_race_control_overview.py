@@ -1,9 +1,9 @@
 """Tests for app.services.race_control.overview — the command-center composer.
 
 ``build_overview`` is the single payload the Race Control page renders, and it
-is assembled from four feeds that fail independently: the schedule/standings
-dashboard, the cached race prediction, the circuit telemetry reference, and the
-weather forecast. The risk is a partial outage arriving as a confident page:
+is assembled from feeds that fail independently: the schedule/standings
+dashboard, the cached race prediction, the circuit telemetry reference, the
+per-session forecast (with current conditions behind it), and the circuit map. The risk is a partial outage arriving as a confident page:
 a dead prediction service or an unraced circuit must degrade the blocks that
 depend on it (and say so through ``data_source.mode``, the workstream statuses
 and the risk register) without blanking or faking the rest.
@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.services.race_control import overview as module, weather as weather_module
+from app.services.race_control import overview as module, session_weather, weather as weather_module
 
 _PREDICTIONS = {
     "predictions": [
@@ -40,6 +40,22 @@ _REFERENCE = {
     "source_year": 2025,
     "sample_size": 19,
 }
+
+
+# No session has a forecast, so the summary card falls back to current conditions.
+_NO_SESSION_FORECAST = {"status": "pending", "note": "later", "sessions": []}
+_RACE_DAY_FORECAST = {
+    "status": "ready",
+    "note": None,
+    "sessions": [
+        {
+            "name": "Race",
+            "phase": "upcoming",
+            "forecast": {"rain_probability_pct": 55, "track_temp_c": 31.0, "wind_kph": 14.0},
+        }
+    ],
+}
+_CIRCUIT = {"record": {"circuit_id": "monaco"}, "lap_record": None, "map": None}
 
 
 def _dashboard(**fields) -> dict:
@@ -69,7 +85,7 @@ def _dashboard(**fields) -> dict:
 
 
 def _patch_feeds(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
-    """Stub the four boundaries ``build_overview`` composes.
+    """Stub the boundaries ``build_overview`` composes.
 
     Each value is returned as-is, or raised when it is an exception — that is
     how the "one feed is down" cases are driven.
@@ -83,6 +99,10 @@ def _patch_feeds(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
     monkeypatch.setattr(module, "build_strategy_dashboard", lambda _year: _serve(feeds.get("dashboard", _dashboard())))
     monkeypatch.setattr(module, "get_or_compute_race_prediction", lambda *_a: _serve(feeds.get("predictions")))
     monkeypatch.setattr(module, "circuit_strategy_reference", lambda *_a: _serve(feeds.get("reference")))
+    monkeypatch.setattr(
+        module, "build_session_weather", lambda _race: _serve(feeds.get("sessions", _NO_SESSION_FORECAST))
+    )
+    monkeypatch.setattr(module, "build_circuit_segment", lambda _year, _race: _serve(feeds.get("circuit", _CIRCUIT)))
 
     async def _weather(_location):
         return _serve(feeds.get("weather", {"error": "OpenWeatherMap API key not configured."}))
@@ -108,10 +128,13 @@ def test_overview_keeps_every_dashboard_key_and_adds_the_command_center_blocks(m
         "predicted_podium",
         "strategy_context",
         "weather",
+        "session_weather",
+        "circuit",
         "risk_register",
         "workstreams",
         "live_status",
     }
+    assert payload["circuit"] == _CIRCUIT
 
 
 @pytest.mark.unit
@@ -146,6 +169,27 @@ def test_overview_derives_the_risk_register_from_the_live_weather_block(monkeypa
     assert register["Elevated rain risk"]["level"] == "High"
     # A 10-point constructor gap is the closest-rival input, not a fixed card.
     assert "Ferrari" in register["Rival offset plans"]["detail"]
+
+
+@pytest.mark.unit
+def test_the_race_day_forecast_outranks_current_conditions_on_the_summary_card(monkeypatch):
+    _patch_feeds(
+        monkeypatch,
+        sessions=_RACE_DAY_FORECAST,
+        weather={"current": {"rain_probability_pct": 5, "track_temp_c": 40}},
+    )
+
+    payload = module.build_overview(2026)
+
+    assert payload["weather"] == {
+        "rain_risk": 55,
+        "track_temp_c": 31.0,
+        "wind_kph": 14.0,
+        "confidence": session_weather.RACE_DAY_FORECAST,
+    }
+    assert payload["session_weather"] == _RACE_DAY_FORECAST
+    register = {card["title"]: card for card in payload["risk_register"]}
+    assert "55%" in register["Elevated rain risk"]["detail"]
 
 
 @pytest.mark.unit

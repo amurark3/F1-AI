@@ -1,4 +1,9 @@
-"""The weather card, live from OpenWeatherMap or honestly blank."""
+"""The weather card's fallback: current conditions from OpenWeatherMap, or honestly blank.
+
+The card prefers the race-day forecast (see session_weather.py). This block is
+what it shows when there is none — and it is labelled as current conditions,
+because that is what OpenWeatherMap's free tier gives, not a forecast.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ from app.data.weather import get_weather_for_circuit
 logger = structlog.get_logger()
 
 WEATHER_FEED_OFFLINE = "External forecast feed not connected"
-WEATHER_FEED_LIVE = "Live forecast (OpenWeatherMap)"
+WEATHER_FEED_LIVE = "Current conditions (OpenWeatherMap)"
 
 
 def _offline_weather_block() -> dict:

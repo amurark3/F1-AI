@@ -45,9 +45,9 @@ services:
     envVars:
       # Chat engines — at least one required; set both so a lapsed engine fails
       # over to the other. Models are code constants (LLM_PROVIDERS, app/config.py).
-      - key: TOKENLAB_API_KEY      # primary — AMD Token Lab (beta, extend access by hand)
+      - key: TOKENLAB_API_KEY # primary — AMD Token Lab (beta, extend access by hand)
         sync: false
-      - key: GOOGLE_API_KEY        # fallback — Gemini free tier (key from a no-billing project)
+      - key: GOOGLE_API_KEY # fallback — Gemini free tier (key from a no-billing project)
         sync: false
       # Required — Supabase Postgres + pgvector. MUST be the Supavisor session
       # pooler host (aws-<n>-<region>.pooler.supabase.com:5432), never the direct
@@ -56,13 +56,13 @@ services:
       # that every cold start erases. See DEPLOYMENT.md.
       - key: DATABASE_URL
         sync: false
-      - key: TAVILY_API_KEY        # optional — web search tool
+      - key: TAVILY_API_KEY # optional — web search tool
         sync: false
-      - key: OPENWEATHERMAP_API_KEY # optional — live weather (falls back to historical)
+      - key: OPENWEATHERMAP_API_KEY # optional — weather tool + current-conditions fallback (session forecast is Open-Meteo, keyless)
         sync: false
-      - key: ALLOWED_ORIGINS       # CORS: comma-separated frontend origin(s)
+      - key: ALLOWED_ORIGINS # CORS: comma-separated frontend origin(s)
         sync: false
-      - key: HF_TOKEN              # optional — faster HuggingFace model downloads
+      - key: HF_TOKEN # optional — faster HuggingFace model downloads
         sync: false
       # Must stay false on the free tier. Loading the sentence-transformers
       # embedder and cross-encoder reranker in-process exhausts the 512MB

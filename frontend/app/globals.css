@@ -52,6 +52,22 @@
   --animate-lights-out: lights-out 0.35s ease-out both;
   --animate-overlay-in: overlay-in 0.25s ease-out both;
   --animate-overlay-out: overlay-out 1.2s ease-in both;
+
+  /* Race-weekend showcase: weather glyphs, circuit map, entrance motion */
+  --animate-wx-spin: wx-spin 18s linear infinite;
+  --animate-wx-drift: wx-drift 6s ease-in-out infinite;
+  --animate-wx-fall: wx-fall 1.1s linear infinite;
+  --animate-wx-snow: wx-snow 3.2s linear infinite;
+  --animate-wx-flash: wx-flash 3.6s ease-in-out infinite;
+  --animate-wx-twinkle: wx-twinkle 2.6s ease-in-out infinite;
+  --animate-wx-sway: wx-sway 2.8s ease-in-out infinite;
+  --animate-wx-rain: wx-rain 0.9s linear infinite;
+  --animate-wx-glow: wx-glow 4s ease-in-out infinite;
+  --animate-fill-x: fill-x 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise-y: rise-y 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-track-draw: track-draw 2.4s cubic-bezier(0.65, 0, 0.35, 1) both;
+  --animate-gauge-fill: gauge-fill 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ================================================
@@ -224,6 +240,149 @@ body {
   }
 }
 
+/* Weather glyphs: sun rays turn, clouds drift, rain and snow fall, lightning
+   strikes. Every one is applied through `motion-safe:`, so a reader who asks
+   for reduced motion sees the glyph still, in its resting pose. */
+@keyframes wx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wx-drift {
+  0%,
+  100% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes wx-fall {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@keyframes wx-snow {
+  0% {
+    transform: translate(0, -4px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate(2px, 5px);
+  }
+  100% {
+    transform: translate(-1px, 12px);
+    opacity: 0;
+  }
+}
+
+@keyframes wx-flash {
+  0%,
+  84%,
+  100% {
+    opacity: 0;
+  }
+  86%,
+  91% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes wx-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes wx-sway {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+/* Rain streaks sliding across a session card */
+@keyframes wx-rain {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -40px 120px;
+  }
+}
+
+@keyframes wx-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+/* Bars and podium steps grow from zero to the size they are drawn at */
+@keyframes fill-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes rise-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* The circuit outline draws itself: paths carry pathLength="1" */
+@keyframes track-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Radial gauges carry pathLength="100" and fill from empty */
+@keyframes gauge-fill {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
 /* ================================================
    Utility classes
    ================================================ */
@@ -297,6 +456,12 @@ body {
 /* Points/championship progress bar */
 @utility champ-bar {
   animation: bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Diagonal rain streaks behind a wet session card */
+@utility wx-rain-streaks {
+  background-image: repeating-linear-gradient(110deg, transparent 0 14px, rgba(76, 141, 255, 0.16) 14px 15px);
+  background-size: 40px 120px;
 }
 
 /* Scroll-snap utilities (race calendar) */

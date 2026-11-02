@@ -10,7 +10,15 @@ import httpx
 import pytest
 
 from app.data import multiviewer as module
-from app.data.multiviewer import CircuitInfo, Corner, load_circuit_info, parse_circuit_info
+from app.data.multiviewer import (
+    CircuitInfo,
+    CircuitLayout,
+    Corner,
+    load_circuit_info,
+    load_circuit_layout,
+    parse_circuit_info,
+    parse_circuit_layout,
+)
 from tests.openf1_support import fresh_cache
 
 pytestmark = pytest.mark.unit
@@ -106,4 +114,87 @@ def test_a_session_without_a_circuit_key_asks_nothing(multiviewer):
     calls = multiviewer(lambda request: httpx.Response(200, json=AUSTIN))
 
     assert load_circuit_info(None, 2026) is None
+    assert calls == []
+
+
+# -- circuit outline ------------------------------------------------------------
+
+OUTLINE = {
+    **AUSTIN,
+    "rotation": 90,
+    "x": [float(index) for index in range(module.MIN_OUTLINE_POINTS)],
+    "y": [float(index * 2) for index in range(module.MIN_OUTLINE_POINTS)],
+}
+
+
+def test_an_outline_is_read_with_its_rotation_and_corners():
+    layout = parse_circuit_layout(OUTLINE, 2026)
+
+    assert layout is not None
+    assert (layout.season, layout.rotation) == (2026, 90.0)
+    assert layout.x[:3] == (0.0, 1.0, 2.0)
+    assert layout.y[:3] == (0.0, 2.0, 4.0)
+    assert [corner.number for corner in layout.corners] == [1, 2]
+    assert CircuitLayout.from_json(layout.to_json()) == layout
+
+
+def test_an_outline_without_corners_still_draws():
+    layout = parse_circuit_layout({"x": OUTLINE["x"], "y": OUTLINE["y"], "rotation": "north"}, 2025)
+
+    assert layout is not None
+    assert (layout.rotation, layout.corners) == (0.0, ())
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        {"x": "none", "y": []},
+        {"x": OUTLINE["x"], "y": OUTLINE["y"][:-1]},
+        {"x": OUTLINE["x"][:5], "y": OUTLINE["y"][:5]},
+        {"x": [*OUTLINE["x"][:-1], "far"], "y": OUTLINE["y"]},
+        {"x": [*OUTLINE["x"][:-1], True], "y": OUTLINE["y"]},
+    ],
+    ids=["null", "not-lists", "uneven", "too-short", "not-numbers", "boolean"],
+)
+def test_an_unusable_outline_is_none(payload):
+    assert parse_circuit_layout(payload, 2026) is None
+
+
+def test_the_seasons_outline_is_fetched_once_and_then_kept(multiviewer):
+    calls = multiviewer(lambda request: httpx.Response(200, json=OUTLINE))
+
+    first = load_circuit_layout(14, 2026)
+
+    assert first is not None
+    assert first.season == 2026
+    assert load_circuit_layout(14, 2026) == first
+    assert calls == [f"{module.MULTIVIEWER_BASE}/14/2026"]
+
+
+def test_a_season_multiviewer_has_not_mapped_falls_back_to_the_last(multiviewer):
+    calls = multiviewer(
+        lambda request: httpx.Response(404) if request.url.path.endswith("/2026") else httpx.Response(200, json=OUTLINE)
+    )
+
+    layout = load_circuit_layout(14, 2026)
+
+    assert layout is not None
+    assert layout.season == 2025
+    # The fallback is kept under the season it came from, so the new season is
+    # asked for again until MultiViewer maps it.
+    assert load_circuit_layout(14, 2026) == layout
+    assert calls == [f"{module.MULTIVIEWER_BASE}/14/{year}" for year in (2026, 2025, 2026)]
+
+
+def test_no_outline_in_either_season_is_none(multiviewer):
+    multiviewer(lambda request: httpx.Response(404))
+
+    assert load_circuit_layout(14, 2026) is None
+
+
+def test_no_circuit_key_asks_for_no_outline(multiviewer):
+    calls = multiviewer(lambda request: httpx.Response(200, json=OUTLINE))
+
+    assert load_circuit_layout(None, 2026) is None
     assert calls == []

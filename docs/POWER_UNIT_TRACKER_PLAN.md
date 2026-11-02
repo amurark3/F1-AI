@@ -56,13 +56,13 @@ What changed from the plan below, and why:
 - **How many are allowed (2026)?** ICE 4 · TC 4 · EXH 4 · MGU-K 3 · ES 3 · PU-CE 3 · PU-ANC 6 per driver (§3).
 - **Everything the screen needs exists:**
 
-  | Need | Source |
-  |---|---|
-  | Allowance | Regulations |
-  | Used count | FIA Technical Delegate (TD) report |
-  | Event where each new element arrived | FIA TD report |
-  | Penalty for it | Stewards' decision |
-  | How it landed on the grid | f1db |
+  | Need                                 | Source                             |
+  | ------------------------------------ | ---------------------------------- |
+  | Allowance                            | Regulations                        |
+  | Used count                           | FIA Technical Delegate (TD) report |
+  | Event where each new element arrived | FIA TD report                      |
+  | Penalty for it                       | Stewards' decision                 |
+  | How it landed on the grid            | f1db                               |
 
 - **Main catch:** usage belongs to the **seat**, not the person (B8.2.7). A stand-in uses the original driver's
   allocation (§4, case 2).
@@ -73,11 +73,11 @@ What changed from the plan below, and why:
 
 All three were checked on the 2026 Singapore, Italian and US GPs.
 
-| Document | Published | What it gives | Example |
-|---|---|---|---|
-| TD report: "PU Elements used per Driver up to now" | Friday, once per event | Each driver's cumulative count per element going into the weekend | [Singapore](https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_pu_elements_used_per_driver_up_to_now.pdf) |
-| TD report: "New PU elements for this Competition" | One or more per event (`…competition.pdf`, `…_0.pdf`, `…_1.pdf`; Monza had three) | For each new element fitted at this event: car, driver, team, "previously used" count, and the allowance in words ("the sixth (6th) of the four (4) new exhaust sets allowed") | [US GP](https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_new_pu_elements_for_this_competition.pdf) |
-| Stewards' decision: "Infringement – Car N – …PU element(s)…" | Per offending driver, sometimes several per event | Element ordinals, the session first used, the decision (grid drop of N, or pit lane), the 10-vs-5 reasoning, articles cited | [Russell, Singapore](https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_infringement_-_car_63_-_changes_to_pu_elements.pdf) |
+| Document                                                     | Published                                                                         | What it gives                                                                                                                                                                  | Example                                                                                                                                                 |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TD report: "PU Elements used per Driver up to now"           | Friday, once per event                                                            | Each driver's cumulative count per element going into the weekend                                                                                                              | [Singapore](https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_pu_elements_used_per_driver_up_to_now.pdf)                   |
+| TD report: "New PU elements for this Competition"            | One or more per event (`…competition.pdf`, `…_0.pdf`, `…_1.pdf`; Monza had three) | For each new element fitted at this event: car, driver, team, "previously used" count, and the allowance in words ("the sixth (6th) of the four (4) new exhaust sets allowed") | [US GP](https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_new_pu_elements_for_this_competition.pdf)                    |
+| Stewards' decision: "Infringement – Car N – …PU element(s)…" | Per offending driver, sometimes several per event                                 | Element ordinals, the session first used, the decision (grid drop of N, or pit lane), the 10-vs-5 reasoning, articles cited                                                    | [Russell, Singapore](https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_infringement_-_car_63_-_changes_to_pu_elements.pdf) |
 
 Two lookalikes are not useful:
 
@@ -113,6 +113,7 @@ parc fermé decision with no PU element (Lawson, Monza, doc 57) must be rejected
   - The new-elements text gives the round as a word ("eighteenth Competition").
 
   Match to f1db by date and name, and use the round number as a cross-check.
+
 - **Locating text.** Find content by its anchor text, not by page number. Every document has a cover page and
   then a body.
 
@@ -131,15 +132,15 @@ that the way `race_grid.py` already handles its provisional state.
 
 Source: 2026 F1 Regulations, Section B, Issue 04, 10 Dec 2025, in `backend/data/raw/2026/`.
 
-| Element | B8.2.2 base | 2026 (B8.2.3a adds 1) | Confirmed by FIA report wording |
-|---|---|---|---|
-| ICE | 3 | **4** | "four (4) new internal combustion engines" |
-| TC | 3 | **4** | "four (4) new turbochargers" |
-| EXH | 3 | **4** | "four (4) new exhaust sets" |
-| MGU-K | 2 | **3** | Russell's 4th MGU-K was penalised |
-| ES | 2 | **3** | "three (3) new energy store units" |
-| PU-CE | 2 | **3** | "three (3) new control electronics units" |
-| PU-ANC | 5 | **6** | "six (6) new power unit ancillary components" |
+| Element | B8.2.2 base | 2026 (B8.2.3a adds 1) | Confirmed by FIA report wording               |
+| ------- | ----------- | --------------------- | --------------------------------------------- |
+| ICE     | 3           | **4**                 | "four (4) new internal combustion engines"    |
+| TC      | 3           | **4**                 | "four (4) new turbochargers"                  |
+| EXH     | 3           | **4**                 | "four (4) new exhaust sets"                   |
+| MGU-K   | 2           | **3**                 | Russell's 4th MGU-K was penalised             |
+| ES      | 2           | **3**                 | "three (3) new energy store units"            |
+| PU-CE   | 2           | **3**                 | "three (3) new control electronics units"     |
+| PU-ANC  | 5           | **6**                 | "six (6) new power unit ancillary components" |
 
 - **B8.2.3b (first-year bonus).** A PU manufacturer in its first year of supply gets one extra of each element.
   From 2027 this is the only bonus: Appendix B6 lists no B8.2 change for 2027–29. So the allowance depends on
@@ -347,14 +348,14 @@ Work test-first. Each phase ends green on pytest and the coverage gate, and on
 
 ## 9. Risks
 
-| Risk | Mitigation |
-|---|---|
-| FIA changes the wording or layout mid-season | Fixtures for each format; fail closed; unread documents are visible on the screen |
-| fia.com blocks automated requests | Descriptive user agent, 10 s delay, fetch only new URLs; try from a runner first (Render is untested) |
-| Corrected or re-issued documents | Key decisions by (event, car, set of elements); a later document number supersedes |
-| A stand-in's seat is ambiguous | Count-continuity check, then a flag, then a manual override via `driver_availability` |
-| f1db lags on the grid outcome | A "pending grid sheet" state, as `race_grid.py` already does |
-| The FIA season id changes each year | Read it from the FIA index page |
+| Risk                                         | Mitigation                                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| FIA changes the wording or layout mid-season | Fixtures for each format; fail closed; unread documents are visible on the screen                     |
+| fia.com blocks automated requests            | Descriptive user agent, 10 s delay, fetch only new URLs; try from a runner first (Render is untested) |
+| Corrected or re-issued documents             | Key decisions by (event, car, set of elements); a later document number supersedes                    |
+| A stand-in's seat is ambiguous               | Count-continuity check, then a flag, then a manual override via `driver_availability`                 |
+| f1db lags on the grid outcome                | A "pending grid sheet" state, as `race_grid.py` already does                                          |
+| The FIA season id changes each year          | Read it from the FIA index page                                                                       |
 
 ## 10. Open decisions
 

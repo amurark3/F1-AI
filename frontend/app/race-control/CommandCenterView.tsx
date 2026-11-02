@@ -1,7 +1,5 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CalendarClock, CloudRain, Target, Timer, Trophy } from "lucide-react";
-import Link from "next/link";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
@@ -10,32 +8,25 @@ import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
 import { fetcher } from "@/app/utils/fetcher";
 
 import {
-  AssumptionStat,
   BaselineStrategyPanel,
-  CallSheetPanel,
-  CompetitorMatrixPanel,
-  StintPlanPanel,
-  formatCircuitDetail,
-  formatWeatherMetric,
-  type Overview,
+  RiskRegisterPanel,
   type OverviewPredictions,
   type OverviewShell,
   type OverviewStrategy,
   type OverviewWeather,
-  type RaceEvent,
   type StrategyContext,
 } from "./components/CommandCenterPanels";
+import { Disclosure } from "./components/Disclosure";
 import { LiveTimingPanel } from "./components/LiveTimingPanel";
-import {
-  InlineNotice,
-  MetricCard,
-  MetricRow,
-  Panel,
-  SectionHeader,
-  SkeletonPanel,
-  rcFont,
-} from "./components/RaceControlPrimitives";
-import { DriverLink, TeamLink } from "./profiles/EntityLinks";
+import { InlineNotice, Panel, SectionHeader, SkeletonPanel } from "./components/RaceControlPrimitives";
+import { ChampionshipStakes } from "./weekend/ChampionshipStakes";
+import { CircuitHistoryPanel } from "./weekend/CircuitHistoryPanel";
+import { KeyNumbers, type TileState } from "./weekend/KeyNumbers";
+import { PodiumPanel } from "./weekend/PodiumPanel";
+import { WeekendForecast } from "./weekend/WeekendForecast";
+import { WeekendHero } from "./weekend/WeekendHero";
+
+import type { OverviewCircuit } from "./weekend/weekendTypes";
 
 const SWR_OPTIONS = { revalidateOnFocus: false, dedupingInterval: 120_000 };
 
@@ -72,9 +63,9 @@ function describeFailure(error: Error | undefined, backendReady: boolean): strin
 /**
  * Fetch one overview segment.
  *
- * The command centre is assembled from four of these rather than one response,
- * so a slow telemetry read costs only the panels that depend on it — each
- * segment is its own cache entry and revalidates on its own clock.
+ * The command centre is assembled from five of these rather than one response,
+ * so a slow input costs only the panels that depend on it — each segment is its
+ * own cache entry and revalidates on its own clock.
  *
  * SWR owns the request; the server render only seeds it. That split matters:
  * when the server could not reach the backend in time, the seed is absent and
@@ -111,6 +102,14 @@ function combined(...states: SegmentState[]): SegmentState {
   };
 }
 
+const pending = (state: SegmentState) => state.loading || state.warming;
+
+/** A key-number tile follows its own segment: pending, failed, or ready. */
+function tileState(state: SegmentState): TileState {
+  if (pending(state)) return "pending";
+  return state.failure === null ? "ready" : "failed";
+}
+
 /**
  * Renders a panel once its segment has landed: a skeleton while it is still in
  * flight, and the reason it is missing if it failed outright.
@@ -128,7 +127,7 @@ function SegmentSlot({
 }) {
   // A waking backend is not a fault, so it keeps the skeleton rather than
   // filling the page with red panels the reader can do nothing about.
-  if (state.loading || state.warming) return <SkeletonPanel className={height} />;
+  if (pending(state)) return <SkeletonPanel className={height} />;
   if (state.failure !== null) {
     return (
       <Panel className="p-5">
@@ -141,72 +140,101 @@ function SegmentSlot({
   return <>{children}</>;
 }
 
-/** Metric values track their own segment: pending, failed, or ready. */
-function metricValue(state: SegmentState, value: string): string {
-  if (state.loading || state.warming) return "…";
-  if (state.failure !== null) return "Unavailable";
-  return value;
-}
-
-interface CommandMetricsProps {
-  race: RaceEvent | null | undefined;
-  context: StrategyContext | undefined;
-  weather: Overview["weather"];
-  focus: string | undefined;
-  shell: SegmentState;
-  strategy: SegmentState;
-  weatherState: SegmentState;
-}
-
-function CommandMetrics({ race, context, weather, focus, shell, strategy, weatherState }: CommandMetricsProps) {
-  const weekendSub = race ? `${race.status} · ${race.location}` : "Awaiting schedule";
-  const pitValue = context ? `${context.pit_model.pit_loss_seconds}s` : "No model";
-  const pitSub = context
-    ? `Undercut ${context.pit_model.undercut_delta}s · overcut ${context.pit_model.overcut_delta}s${context.pit_model.undercut_modeled ? " · modeled" : ""}`
-    : "Baseline model unavailable";
-  const rainSub = weather?.confidence ?? "Live feed offline";
-  const weekendState = combined(shell, strategy);
-
-  return (
-    <MetricRow>
-      <MetricCard
-        label="Weekend state"
-        value={metricValue(weekendState, context?.phase ?? focus ?? "Pre-race")}
-        sub={weekendSub}
-        icon={Target}
-      />
-      <MetricCard
-        label="Circuit profile"
-        value={metricValue(shell, race?.circuit?.circuit_name ?? race?.location ?? "No circuit")}
-        sub={formatCircuitDetail(race)}
-        icon={CalendarClock}
-        color="#FF8000"
-      />
-      <MetricCard
-        label="Pit lane delta"
-        value={metricValue(strategy, pitValue)}
-        sub={pitSub}
-        icon={Timer}
-        color="#3671C6"
-      />
-      <MetricCard
-        label="Rain risk"
-        value={metricValue(weatherState, formatWeatherMetric(weather?.rain_risk, "%"))}
-        sub={rainSub}
-        icon={CloudRain}
-        color="#BE3AFF"
-      />
-    </MetricRow>
-  );
-}
-
-/** The four overview payloads the server managed to prefetch. */
+/** The five overview payloads the server managed to prefetch. */
 export interface OverviewSeed {
   year: number;
   shell: OverviewShell | null;
   strategy: OverviewStrategy | null;
   predictions: OverviewPredictions | null;
   weather: OverviewWeather | null;
+  circuit: OverviewCircuit | null;
+}
+
+interface HeroSlotProps {
+  shell: Segment<OverviewShell>;
+  circuit: Segment<OverviewCircuit>;
+  weather: Segment<OverviewWeather>;
+}
+
+function HeroSlot({ shell, circuit, weather }: HeroSlotProps) {
+  const race = shell.data?.race;
+  if (pending(shell)) return <SkeletonPanel className="mb-5 h-[460px]" />;
+  if (!race) {
+    return (
+      <SectionHeader
+        eyebrow="Race Weekend Command Center"
+        title="Command Center"
+        description={shell.failure ?? "The next race weekend appears here once the calendar is published."}
+      />
+    );
+  }
+  return (
+    <WeekendHero
+      race={race}
+      totalRounds={shell.data?.season?.total_events ?? null}
+      circuit={circuit.data}
+      circuitLoading={pending(circuit)}
+      forecast={weather.data?.session_weather?.sessions ?? []}
+    />
+  );
+}
+
+function pitDetail(context: StrategyContext | undefined): string {
+  const pit = context?.pit_model;
+  if (!pit) return "Baseline model unavailable";
+  return `Undercut ${pit.undercut_delta}s · overcut ${pit.overcut_delta}s${pit.undercut_modeled ? " · modeled" : ""}`;
+}
+
+interface WeekendNumbersProps {
+  shell: Segment<OverviewShell>;
+  strategy: Segment<OverviewStrategy>;
+  weather: Segment<OverviewWeather>;
+  circuit: Segment<OverviewCircuit>;
+}
+
+/** The four headline numbers, each following the segment it is read from. */
+function WeekendNumbers({ shell, strategy, weather, circuit }: WeekendNumbersProps) {
+  const card = weather.data?.weather;
+  const context = strategy.data?.strategy_context;
+  const raceForecast = weather.data?.session_weather?.sessions.find((row) => row.name === "Race")?.forecast;
+  return (
+    <KeyNumbers
+      rain={{
+        value: card?.rain_risk ?? null,
+        source: card?.confidence ?? "Forecast feed offline",
+        forecast: raceForecast ?? null,
+        state: tileState(weather),
+      }}
+      pit={{
+        lossSeconds: context?.pit_model.pit_loss_seconds ?? null,
+        detail: pitDetail(context),
+        state: tileState(strategy),
+      }}
+      title={{ stakes: shell.data?.stakes?.drivers, state: tileState(shell) }}
+      history={{ record: circuit.data?.record, state: tileState(circuit) }}
+    />
+  );
+}
+
+/** Where every number on the page comes from, and what the strategy model assumes. */
+function SourcesDisclosure({ assumptions }: { assumptions: string[] }) {
+  const sources = [
+    "Weather: Open-Meteo hourly forecast (CC BY 4.0), read over each session's hours. Track temperature is estimated.",
+    "Circuit map and corner numbers: MultiViewer (unofficial). Layout facts and history: f1db.",
+    "Standings and stakes: f1db standings. Points left count every race (25) and sprint (8) the standings do not include yet — f1db publishes a day or two after each race, so a race just run still counts until it does.",
+    "Podium: the race model's latest stored snapshot for this round.",
+  ];
+  return (
+    <Disclosure title="Sources & assumptions" hint={`${sources.length + assumptions.length} notes`}>
+      <ul className="space-y-2 p-4 text-sm leading-relaxed text-neutral-400">
+        {[...sources, ...assumptions].map((line) => (
+          <li key={line} className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2">
+            {line}
+          </li>
+        ))}
+      </ul>
+    </Disclosure>
+  );
 }
 
 export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
@@ -221,225 +249,51 @@ export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
   const strategy = useOverviewSegment<OverviewStrategy>(year, "/strategy", seed.strategy, backendReady);
   const predictions = useOverviewSegment<OverviewPredictions>(year, "/predictions", seed.predictions, backendReady);
   const weather = useOverviewSegment<OverviewWeather>(year, "/weather", seed.weather, backendReady);
+  const circuit = useOverviewSegment<OverviewCircuit>(year, "/circuit", seed.circuit, backendReady);
 
   const race = shell.data?.race;
   const context = strategy.data?.strategy_context;
-  const sessions = race ? Object.entries(race.sessions).slice(0, 5) : [];
-  const forecast = weather.data?.weather;
+  const venue = race?.location.split(",")[0] ?? "this round";
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Race Weekend Command Center"
-        title={race?.name ?? "Command Center"}
-        description="Pre-race operating view for session timing, baseline strategy, competitor threats, and open assumptions."
-      />
-
-      <CommandMetrics
-        race={race}
-        context={context}
-        weather={forecast}
-        focus={shell.data?.focus}
-        shell={shell}
-        strategy={strategy}
-        weatherState={weather}
-      />
+      <HeroSlot shell={shell} circuit={circuit} weather={weather} />
+      <WeekendNumbers shell={shell} strategy={strategy} weather={weather} circuit={circuit} />
 
       <div className="space-y-5">
         <LiveTimingPanel year={year} race={race} />
 
-        <SegmentSlot state={combined(shell, strategy)} title="Baseline strategy unavailable" height="h-[420px]">
-          <BaselineStrategyPanel context={context} race={race} sessions={sessions} />
+        <SegmentSlot state={weather} title="Weather feed unavailable" height="h-[440px]">
+          <WeekendForecast weather={weather.data?.session_weather} />
         </SegmentSlot>
 
-        <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <SegmentSlot state={predictions} title="Prediction snapshot unavailable" height="h-96">
-            <ProjectedPodiumPanel podium={predictions.data?.predicted_podium ?? []} />
+        <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
+          <SegmentSlot state={shell} title="Championship standings unavailable" height="h-[420px]">
+            <ChampionshipStakes stakes={shell.data?.stakes} venue={venue} />
           </SegmentSlot>
-          <SegmentSlot state={weather} title="Weather feed unavailable" height="h-96">
-            <WeatherRiskPanel weather={forecast} risks={weather.data?.risk_register ?? []} />
+          <SegmentSlot state={predictions} title="Prediction snapshot unavailable" height="h-[420px]">
+            <PodiumPanel podium={predictions.data?.predicted_podium ?? []} />
           </SegmentSlot>
-          <SegmentSlot state={shell} title="Championship standings unavailable" height="h-96">
-            <ChampionshipControlPanel championship={shell.data?.championship} />
-          </SegmentSlot>
-        </div>
-
-        <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0 [&>*]:flex-1">
-          <SegmentSlot state={strategy} title="Call sheet unavailable" height="h-96">
-            <CallSheetPanel context={context} />
-          </SegmentSlot>
-          <SegmentSlot state={strategy} title="Stint plan unavailable" height="h-96">
-            <StintPlanPanel context={context} />
+          <SegmentSlot state={circuit} title="Circuit history unavailable" height="h-[420px]">
+            <CircuitHistoryPanel record={circuit.data?.record} />
           </SegmentSlot>
         </div>
 
-        <SegmentSlot state={strategy} title="Competitor matrix unavailable" height="h-72">
-          <CompetitorMatrixPanel context={context} />
-        </SegmentSlot>
-        <SegmentSlot state={strategy} title="Data assumptions unavailable" height="h-40">
-          <DataAssumptionsPanel context={context} />
-        </SegmentSlot>
-      </div>
-    </div>
-  );
-}
-
-function ProjectedPodiumPanel({ podium }: { podium: NonNullable<Overview["predicted_podium"]> }) {
-  return (
-    <Panel className="p-5">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>
-            Prediction snapshot
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>
-            Projected Podium
-          </h2>
-        </div>
-        <Trophy className="h-5 w-5 text-[#E10600]" />
-      </div>
-      <div className="space-y-2">
-        {podium.length === 0 && (
-          <p className="text-sm text-neutral-500">Prediction snapshot will populate when model inputs are available.</p>
-        )}
-        {podium.map((driver, index) => {
-          const confidence = Math.round((driver.confidence_low + driver.confidence_high) / 2);
-          return (
-            <div
-              key={driver.driver_code}
-              className="flex items-center gap-3 rounded-lg bg-white/[0.035] border border-white/8 px-3 py-2.5"
-            >
-              <span className="w-8 text-sm font-semibold text-neutral-400" style={rcFont}>
-                P{index + 1}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-bold text-white">
-                  <DriverLink code={driver.driver_code} name={driver.driver_name}>
-                    {driver.driver_name}
-                  </DriverLink>
-                </p>
-                <p className="truncate text-xs text-neutral-500">
-                  <TeamLink name={driver.team}>{driver.team}</TeamLink>
-                </p>
-              </div>
-              <span className="text-sm font-mono text-[#00FF78]">{confidence}%</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-5 border-t border-white/10 pt-4">
-        <Link
-          href="/race-control/grand-prix"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-3 text-sm font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
-        >
-          Open predictions
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-    </Panel>
-  );
-}
-
-function WeatherRiskPanel({
-  weather,
-  risks,
-}: {
-  weather: Overview["weather"];
-  risks: NonNullable<Overview["risk_register"]>;
-}) {
-  const weatherLive = typeof weather?.rain_risk === "number";
-  return (
-    <Panel className="p-5">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white" style={rcFont}>
-          Weather & Risk
-        </h2>
-        <AlertTriangle className="h-5 w-5 text-[#FFF200]" />
-      </div>
-      {!weatherLive && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#FFF200] shrink-0" />
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-            {weather?.confidence ?? "Live forecast feed offline"}
-          </p>
-        </div>
-      )}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row [&>*]:flex-1">
-        <AssumptionStat label="Rain" value={formatWeatherMetric(weather?.rain_risk, "%")} />
-        <AssumptionStat label="Track" value={formatWeatherMetric(weather?.track_temp_c, "°C")} />
-        <AssumptionStat label="Wind" value={formatWeatherMetric(weather?.wind_kph, " kph")} />
-      </div>
-      <div className="space-y-3">
-        {risks.slice(0, 3).map((risk) => (
-          <div key={risk.title} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-            <p className="text-sm font-bold text-white">{risk.title}</p>
-            <p className="mt-1 text-xs text-neutral-500 leading-relaxed">{risk.detail}</p>
+        <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0">
+          <div className="flex-1">
+            <SegmentSlot state={combined(shell, strategy)} title="Baseline strategy unavailable" height="h-[420px]">
+              <BaselineStrategyPanel context={context} />
+            </SegmentSlot>
           </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function ChampionshipControlPanel({ championship }: { championship: Overview["championship"] }) {
-  const driverLeader = championship?.drivers?.[0];
-  const constructorLeader = championship?.constructors?.[0];
-  return (
-    <Panel className="p-5">
-      <h2 className="mb-5 text-xl font-semibold text-white" style={rcFont}>
-        Championship Control
-      </h2>
-      <div className="flex flex-col gap-3">
-        <LeaderCard
-          label="Drivers"
-          name={
-            driverLeader ? <DriverLink name={driverLeader.driver}>{driverLeader.driver}</DriverLink> : "No standings"
-          }
-          points={driverLeader?.points ?? 0}
-        />
-        <LeaderCard
-          label="Constructors"
-          name={
-            constructorLeader ? (
-              <TeamLink name={constructorLeader.team}>{constructorLeader.team}</TeamLink>
-            ) : (
-              "No standings"
-            )
-          }
-          points={constructorLeader?.points ?? 0}
-        />
-      </div>
-    </Panel>
-  );
-}
-
-function DataAssumptionsPanel({ context }: { context?: StrategyContext }) {
-  const assumptions = context?.assumptions ?? [];
-  return (
-    <Panel className="p-5">
-      <h2 className="mb-4 text-xl font-semibold text-white" style={rcFont}>
-        Data Assumptions
-      </h2>
-      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap [&>*]:min-w-[260px] [&>*]:flex-1">
-        {assumptions.map((assumption) => (
-          <div
-            key={assumption}
-            className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-neutral-400"
-          >
-            {assumption}
+          <div className="xl:w-[400px] xl:shrink-0">
+            <SegmentSlot state={weather} title="Risk register unavailable" height="h-[420px]">
+              <RiskRegisterPanel risks={weather.data?.risk_register ?? []} />
+            </SegmentSlot>
           </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
+        </div>
 
-function LeaderCard({ label, name, points }: { label: string; name: React.ReactNode; points: number }) {
-  return (
-    <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">{label}</p>
-      <p className="mt-1 truncate text-base font-bold text-white">{name}</p>
-      <p className="mt-1 text-sm text-neutral-500">{points} pts</p>
+        <SourcesDisclosure assumptions={context?.assumptions ?? []} />
+      </div>
     </div>
   );
 }

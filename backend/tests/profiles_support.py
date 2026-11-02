@@ -193,11 +193,18 @@ def build_profiles_db(path: Path) -> Path:
 
 @pytest.fixture
 def profiles_f1db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    """Point f1db at the profiles dataset, with no directory cached from elsewhere."""
-    from app.data import f1db_source, identity
+    """Point f1db at the profiles dataset, with no directory or table cached from elsewhere.
+
+    The dataset is all there is: no OpenF1 round is published past it, so every
+    standings table it serves is f1db's own, confirmed.
+    """
+    from app.data import current_standings, f1db_source, identity
+    from app.utils.ttl_cache import TtlCache
 
     db_path = build_profiles_db(tmp_path / "f1db.db")
     monkeypatch.setattr(f1db_source, "DB_PATH", db_path)
+    monkeypatch.setattr(current_standings, "later_rounds", lambda _year, _after: ())
+    monkeypatch.setattr(current_standings, "_cache", TtlCache())
     identity.clear_cache()
     yield db_path
     identity.clear_cache()

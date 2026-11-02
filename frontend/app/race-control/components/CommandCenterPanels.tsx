@@ -7,6 +7,8 @@
  */
 import { ShieldAlert } from "lucide-react";
 
+import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+
 import { Panel, StatusPill, rcFont } from "./RaceControlPrimitives";
 
 import type { ChampionshipStakes, LapRecord, RiskCard, SessionWeather } from "../weekend/weekendTypes";
@@ -72,7 +74,7 @@ export interface OverviewShell {
   focus?: string;
   race?: RaceEvent | null;
   season?: { total_events: number; completed_events: number; upcoming_events: number };
-  championship?: {
+  championship?: StandingsFreshness & {
     drivers: Array<{ position: number; driver: string; team: string; points: number }>;
     constructors: Array<{ position: number; team: string; points: number }>;
   };

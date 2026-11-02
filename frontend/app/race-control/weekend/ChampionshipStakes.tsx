@@ -3,6 +3,7 @@
 import { Crown, Swords, Trophy } from "lucide-react";
 import { useState } from "react";
 
+import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
 
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
@@ -149,6 +150,7 @@ function StakesTable({ stakes, table, venue }: { stakes: TableStakes; table: Tab
 export function ChampionshipStakes({ stakes, venue }: { stakes: Stakes | null | undefined; venue: string }) {
   const [table, setTable] = useState<Table>("drivers");
   const current = stakes?.[table] ?? null;
+  const freshness = standingsLabel(stakes);
   return (
     <Panel className="flex h-full flex-col p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -169,7 +171,7 @@ export function ChampionshipStakes({ stakes, venue }: { stakes: Stakes | null | 
       )}
       {stakes && (
         <p className="mt-auto pt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[#6F7789]">
-          {stakes.through_round ? `Standings after round ${stakes.through_round} · ` : ""}
+          {freshness ? `Standings ${freshness} · ` : ""}
           {stakes.races_left} races · {stakes.sprints_left} sprints to count
           {current ? ` · ${formatPoints(current.max_available)} pts max` : ""}
         </p>

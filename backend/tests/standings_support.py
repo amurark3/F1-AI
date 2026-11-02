@@ -11,6 +11,9 @@ feed had the table right, so its tests run on what the feeds published then:
   one: OpenF1's driver table gave Hirakawa no point for his 10th place.
 * ``mexico_2026_r19/f1db_standings_after_r19.json``: the table f1db v2026.19.0
   published after round 19, which matches the FIA.
+
+:func:`standings_from_rows` builds a :class:`CurrentStandings` from endpoint-shaped
+rows, for the consumers' unit tests that only need some table to read.
 """
 
 from __future__ import annotations
@@ -32,6 +35,8 @@ from app.data import (
     standings_cross_check,
     standings_rounds,
 )
+from app.data.current_standings import CurrentStandings
+from app.data.standings_table import Standing
 from app.utils.ttl_cache import TtlCache
 from tests.openf1_support import serve
 from tests.profiles_support import SCHEMA
@@ -58,7 +63,15 @@ def install_f1db_through_r18(path: Path) -> Path:
             "INSERT INTO driver (id, name, abbreviation, permanent_number) VALUES (?, ?, ?, ?)", data["drivers"]
         )
         conn.executemany("INSERT INTO constructor (id, name, full_name) VALUES (?, ?, ?)", data["constructors"])
-        conn.executemany("INSERT INTO race (id, year, round) VALUES (?, 2026, ?)", [(rnd, rnd) for rnd in rounds])
+        # The profile pages name each round; the fixture has no names, so each round is its own Grand Prix.
+        conn.executemany(
+            "INSERT INTO grand_prix (id, name, full_name, short_name) VALUES (?, ?, ?, NULL)",
+            [(f"round-{rnd}", f"Round {rnd}", f"Round {rnd} Grand Prix") for rnd in rounds],
+        )
+        conn.executemany(
+            "INSERT INTO race (id, year, round, grand_prix_id) VALUES (?, 2026, ?, ?)",
+            [(rnd, rnd, f"round-{rnd}") for rnd in rounds],
+        )
         conn.executemany(
             """INSERT INTO race_data (race_id, type, driver_id, constructor_id, driver_number, position_number, race_points)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -188,3 +201,35 @@ def mexico_feeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Fe
 
 def route_error(status: int) -> httpx.Response:
     return httpx.Response(status, json={"detail": "error"})
+
+
+def _standing(row: dict, *, key: str, name: str) -> Standing:
+    """A table row as ``current_standings`` holds it: wins are the Grand Prix firsts."""
+    return Standing(
+        key=key,
+        name=name,
+        team=row["team"],
+        points=row["points"],
+        finishes=(1,) * row.get("wins", 0),
+        position=row["position"],
+    )
+
+
+def standings_from_rows(
+    drivers: list[dict],
+    teams: list[dict],
+    *,
+    year: int = 2026,
+    as_of_round: int | None = None,
+    provisional: bool = False,
+    sources: tuple[dict, ...] = (),
+) -> CurrentStandings:
+    """A :class:`CurrentStandings` holding rows in the shape ``driver_rows``/``team_rows`` return."""
+    return CurrentStandings(
+        year=year,
+        drivers=tuple(_standing(row, key=row["code"], name=row["driver"]) for row in drivers),
+        teams=tuple(_standing(row, key=row["team"], name=row["team"]) for row in teams),
+        as_of_round=as_of_round,
+        provisional=provisional,
+        sources=sources,
+    )

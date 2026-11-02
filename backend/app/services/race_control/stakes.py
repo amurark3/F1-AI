@@ -4,11 +4,12 @@ Three facts, all arithmetic on the standings and the calendar: how many points
 are still on offer, which contenders can still mathematically win, and whether
 the leader can settle it at this round.
 
-Points left are counted against the standings, not the clock. f1db publishes a
-race's standings a day or two after it, and for that long a race that has run
-is still worth its points to anyone reading the table; counting it as spent
-would knock contenders out before their points arrived. Every way this can be
-wrong overstates what is left, which only ever delays a verdict.
+Points left are counted against the standings, not the clock: the table is
+``current_standings``'s (f1db's last round plus each later round's published
+points), and a race whose points it does not hold yet is still worth them to
+anyone reading it. Counting it as spent would knock contenders out before their
+points arrived. Every way this can be wrong overstates what is left, which only
+ever delays a verdict.
 
 A tie on points is decided on countback, which this module does not model, so
 a tie is never presented as a clinch — a contender level on maximum points is
@@ -19,8 +20,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from app.services.race_control.session_weather import session_slots
+
+if TYPE_CHECKING:
+    from app.data.current_standings import CurrentStandings
 
 RACE_SESSION = "Race"
 SPRINT_SESSION = "Sprint"
@@ -53,14 +58,6 @@ class PointsLeft:
     sprints_here: int
 
 
-@dataclass(frozen=True)
-class Standings:
-    drivers: list[dict]
-    constructors: list[dict]
-    # The last round the tables include; None when unknown (the live Ergast fallback).
-    through_round: int | None
-
-
 def _paying_sessions(event: dict | None, now: datetime | None) -> tuple[int, int]:
     """Races and sprints at ``event``; only those not yet finished when ``now`` is given."""
     names = [slot.name for slot in session_slots(event) if now is None or now < slot.end]
@@ -71,7 +68,8 @@ def _unscored(event: dict | None, through_round: int | None, now: datetime) -> t
     """Races and sprints at ``event`` whose points the standings do not hold yet.
 
     With a known standings round, a later round's sessions all count, run or
-    not. Without one, the clock is the best guide: a session counts until it ends.
+    not. Without one (no round in the table yet), the clock is the best guide: a
+    session counts until it ends.
     """
     if through_round is None:
         return _paying_sessions(event, now)
@@ -157,15 +155,15 @@ def table_stakes(standings: list[dict], left: PointsLeft, scoring: Scoring) -> d
 def build_championship_stakes(
     events: list[dict],
     selected: dict | None,
-    standings: Standings,
+    standings: CurrentStandings,
     now: datetime | None = None,
 ) -> dict:
-    """Both championships' stakes for the selected round."""
-    left = points_left(events, selected, standings.through_round, now or datetime.now(UTC))
+    """Both championships' stakes for the selected round, with the table's round, status and sources."""
+    left = points_left(events, selected, standings.as_of_round, now or datetime.now(UTC))
     return {
-        "through_round": standings.through_round,
+        **standings.meta(),
         "races_left": left.races,
         "sprints_left": left.sprints,
-        "drivers": table_stakes(standings.drivers, left, DRIVERS),
-        "constructors": table_stakes(standings.constructors, left, CONSTRUCTORS),
+        "drivers": table_stakes(standings.driver_rows(), left, DRIVERS),
+        "constructors": table_stakes(standings.team_rows(), left, CONSTRUCTORS),
     }

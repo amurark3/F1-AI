@@ -9,12 +9,12 @@ import pandas as pd
 import structlog
 
 from app.api.circuits import get_circuit_info, is_street_circuit
-from app.data.f1db_standings import standings_round
+from app.data.current_standings import current_standings
 from app.services.race_control.live import live_session
 from app.services.race_control.risk import RIVAL_GAP_MODERATE
-from app.services.race_control.stakes import Standings, build_championship_stakes
+from app.services.race_control.stakes import build_championship_stakes
 from app.services.race_control.workstreams import focus_for_event
-from app.services.race_control_common import get_standings_snapshot, safe_int
+from app.services.race_control_common import safe_int
 from app.utils.f1_values import utc_isoformat
 
 logger = structlog.get_logger()
@@ -97,11 +97,15 @@ def select_event(events: list[dict]) -> dict | None:
 
 
 def build_strategy_dashboard(year: int) -> dict:
-    """Build the command-center shell from schedule and standings data."""
+    """Build the command-center shell from schedule and standings data.
+
+    The standings are ``current_standings``'s, so the stakes count from the
+    newest round with published points, not f1db's last release.
+    """
 
     events = season_events(year)
     selected_event = select_event(events)
-    drivers, constructors = get_standings_snapshot(year)
+    standings = current_standings(year)
 
     return {
         "year": year,
@@ -114,12 +118,11 @@ def build_strategy_dashboard(year: int) -> dict:
             "upcoming_events": len([event for event in events if event["status"] == "upcoming"]),
         },
         "championship": {
-            "drivers": drivers[:5],
-            "constructors": constructors[:5],
+            "drivers": standings.driver_rows()[:5],
+            "constructors": standings.team_rows()[:5],
+            **standings.meta(),
         },
-        "stakes": build_championship_stakes(
-            events, selected_event, Standings(drivers, constructors, standings_round(year))
-        ),
+        "stakes": build_championship_stakes(events, selected_event, standings),
     }
 
 

@@ -9,9 +9,7 @@ import structlog
 
 from app.data.current_standings import current_standings
 from app.services.race_control_common import (
-    completed_race_count,
     format_points_value,
-    get_standings_snapshot,
     safe_float,
     safe_int,
     team_color,
@@ -251,12 +249,14 @@ def _intel_opportunities(context: IntelContext) -> list[str]:
 
 
 def build_intel(team_slug_value: str, year: int | None = None) -> dict:
+    """A team's place in the constructors' table and the rivals either side, as of ``current_standings``."""
     resolved_year = year or datetime.now(UTC).year
-    drivers, constructors = get_standings_snapshot(resolved_year)
+    standings = current_standings(resolved_year)
+    drivers, constructors = standings.driver_rows(), standings.team_rows()
+    table = {"year": resolved_year, "source": TEAMS_SOURCE, **standings.meta()}
     if not constructors:
         return {
-            "year": resolved_year,
-            "source": "jolpica-ergast-standings",
+            **table,
             "status": "data_unavailable",
             "team": profile_for_team(team_slug_value.replace("-", " ").title()),
             "upgrade_watch": [],
@@ -268,8 +268,7 @@ def build_intel(team_slug_value: str, year: int | None = None) -> dict:
     match = next((row for row in constructors if team_slug(row["team"]) == team_slug_value), None)
     if not match:
         return {
-            "year": resolved_year,
-            "source": "jolpica-ergast-standings",
+            **table,
             "status": "team_not_found",
             "team": profile_for_team(team_slug_value.replace("-", " ").title()),
             "upgrade_watch": [],
@@ -280,14 +279,12 @@ def build_intel(team_slug_value: str, year: int | None = None) -> dict:
         }
 
     roster = [driver for driver in drivers if driver["team"] == match["team"]]
-    leader_points = constructors[0]["points"] if constructors else 0
-    completed_events = completed_race_count(resolved_year) or 0
-    profile = build_team_profile(match, roster, leader_points, completed_events)
+    # Points per GP divides by the rounds the table covers, as on the standings page.
+    profile = build_team_profile(match, roster, constructors[0]["points"], standings.as_of_round or 0)
     context = _intel_context(match, roster, constructors)
 
     return {
-        "year": resolved_year,
-        "source": "jolpica-ergast-constructor-and-driver-standings",
+        **table,
         "status": "ok",
         "team": profile,
         "drivers": roster,

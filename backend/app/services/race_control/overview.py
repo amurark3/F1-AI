@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import structlog
 
+from app.data.current_standings import current_standings
 from app.data.strategy import circuit_strategy_reference
 from app.services.predictions import get_cached_race_prediction, get_or_compute_race_prediction
 from app.services.race_control.circuit import build_circuit_segment
@@ -27,7 +28,6 @@ from app.services.race_control.strategy_context import (
 )
 from app.services.race_control.weather import build_weather_block
 from app.services.race_control.workstreams import build_workstreams
-from app.services.race_control_common import get_standings_snapshot
 
 logger = structlog.get_logger()
 
@@ -64,8 +64,7 @@ def _selected_race(year: int) -> dict | None:
 
 
 def _top_constructors(year: int) -> list[dict]:
-    _, constructors = get_standings_snapshot(year)
-    return constructors[:5]
+    return current_standings(year).team_rows()[:5]
 
 
 def build_overview_shell(year: int) -> dict:

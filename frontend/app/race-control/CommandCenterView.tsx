@@ -221,7 +221,7 @@ function SourcesDisclosure({ assumptions }: { assumptions: string[] }) {
   const sources = [
     "Weather: Open-Meteo hourly forecast (CC BY 4.0), read over each session's hours. Track temperature is estimated.",
     "Circuit map and corner numbers: MultiViewer (unofficial). Layout facts and history: f1db.",
-    "Standings and stakes: f1db standings. Points left count every race (25) and sprint (8) the standings do not include yet — f1db publishes a day or two after each race, so a race just run still counts until it does.",
+    "Standings and stakes: f1db's last published round plus each later round's points from OpenF1 results, provisional until f1db publishes them. Points left count every race (25) and sprint (8) the standings do not include yet.",
     "Podium: the race model's latest stored snapshot for this round.",
   ];
   return (

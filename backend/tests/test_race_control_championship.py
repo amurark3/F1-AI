@@ -20,6 +20,7 @@ import pytest
 
 from app.services import race_control_championship as module
 from app.services.race_control_championship import EntrantAccessors, SeasonProgress
+from tests.standings_support import standings_from_rows
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -73,11 +74,8 @@ def _stub_season(
     ``classifications`` maps a round number to either the detail dict
     ``load_race_classification`` would return or an exception to raise.
     """
-    monkeypatch.setattr(
-        module,
-        "get_standings_snapshot",
-        lambda year: (list(drivers or []), list(constructors or [])),
-    )
+    standings = standings_from_rows(list(drivers or []), list(constructors or []))
+    monkeypatch.setattr(module, "current_standings", lambda year: standings)
     monkeypatch.setattr(
         module,
         "completed_race_rounds",
@@ -467,6 +465,6 @@ def test_forecast_envelope_names_its_sources_and_states_its_limits(
 
     assert result["year"] == 2024
     assert result["generated_at"].endswith("+00:00")
-    assert result["source"] == "jolpica-ergast-standings + FastF1 recent race classifications"
+    assert result["source"] == "computed-standings + FastF1 recent race classifications"
     assert len(result["notes"]) == 3
     assert any("sprint" in note for note in result["notes"])

@@ -16,12 +16,15 @@ computed:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
-from app.data.current_standings import CurrentStandings
-from app.data.standings_table import Standing
 from app.services import race_control_standings as module
+from tests.standings_support import standings_from_rows
+
+if TYPE_CHECKING:
+    from app.data.current_standings import CurrentStandings
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -51,43 +54,25 @@ def _stub_snapshot(
     completed_events: int | None = 10,
     provisional: bool = False,
 ) -> list[int]:
-    """Serve fixed standings; returns the list of years the module asked for."""
+    """Serve a fixed computed table; returns the list of years the module asked for."""
     seen_years: list[int] = []
-
-    def _snapshot(year: int) -> tuple[list[dict], list[dict]]:
-        seen_years.append(year)
-        return list(drivers or []), list(constructors or [])
 
     def _current(year: int) -> CurrentStandings:
         seen_years.append(year)
-        return CurrentStandings(
+        return standings_from_rows(
+            list(drivers or []),
+            list(constructors or []),
             year=year,
-            drivers=tuple(_standing(row, key=row["code"], name=row["driver"]) for row in drivers or []),
-            teams=tuple(_standing(row, key=row["team"], name=row["team"]) for row in constructors or []),
             as_of_round=completed_events,
             provisional=provisional,
             sources=SOURCES,
         )
 
-    monkeypatch.setattr(module, "get_standings_snapshot", _snapshot)
     monkeypatch.setattr(module, "current_standings", _current)
-    monkeypatch.setattr(module, "completed_race_count", lambda year: completed_events)
     return seen_years
 
 
 SOURCES = ({"source": "f1db", "role": "base", "through_round": 18, "version": "v2026.18.0"},)
-
-
-def _standing(row: dict, *, key: str, name: str) -> Standing:
-    """A table row as ``current_standings`` holds it: wins are the Grand Prix firsts."""
-    return Standing(
-        key=key,
-        name=name,
-        team=row["team"],
-        points=row["points"],
-        finishes=(1,) * row["wins"],
-        position=row["position"],
-    )
 
 
 # ---------------------------------------------------------------------------

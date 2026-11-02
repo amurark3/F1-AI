@@ -9,6 +9,8 @@
  * carries whole cars, plus the rounds that were theirs and who else drove them.
  */
 
+import { standingsLabel, type StandingsFreshness } from "@/app/lib/standingsFreshness";
+
 import type { DocumentRef, ElementInfo, PowerUnitCar } from "../power-units/powerUnitsModel";
 
 export interface DirectoryDriver {
@@ -30,7 +32,8 @@ export interface DirectoryTeam {
   aliases: string[];
 }
 
-export interface SeasonDirectory {
+/** Teams come in the order of the same table the team pages show. */
+export interface SeasonDirectory extends Partial<StandingsFreshness> {
   year: number;
   status?: "ok" | "error";
   drivers: DirectoryDriver[];
@@ -127,7 +130,7 @@ export interface TeamRound extends RoundRef {
   cumulative_points: number | null;
 }
 
-export interface TeamProfile {
+export interface TeamProfile extends StandingsFreshness {
   year: number;
   status: "ok";
   team: TeamSummary;
@@ -194,7 +197,7 @@ export interface DriverCar extends PowerUnitCar {
   shared_with: CarShare[];
 }
 
-export interface DriverProfile {
+export interface DriverProfile extends StandingsFreshness {
   year: number;
   status: "ok";
   driver: DriverSummary;
@@ -265,6 +268,12 @@ export function formatPoints(points: number): string {
 
 export function ordinalPosition(position: number | null): string {
   return position === null ? "—" : `P${position}`;
+}
+
+/** "382 pts · after round 19 · provisional": championship points and how fresh the table is. */
+export function championshipPoints(points: number, freshness: Partial<StandingsFreshness>): string {
+  const label = standingsLabel(freshness);
+  return label ? `${formatPoints(points)} pts · ${label}` : `${formatPoints(points)} pts`;
 }
 
 /** "Results through R18 United States Grand Prix", or a plain "no results yet". */

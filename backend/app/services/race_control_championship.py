@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.current_standings import current_standings
 from app.services.race_control_common import (
     completed_race_rounds,
-    get_standings_snapshot,
     safe_float,
     safe_int,
 )
@@ -48,7 +48,8 @@ class EntrantAccessors:
 
 
 def build_championship_forecast(year: int) -> dict:
-    drivers, constructors = get_standings_snapshot(year)
+    standings = current_standings(year)
+    drivers, constructors = standings.driver_rows(), standings.team_rows()
     completed_rounds, total_events = completed_race_rounds(year)
     completed_events = len(completed_rounds)
     remaining_events = max(0, total_events - completed_events)
@@ -104,7 +105,8 @@ def build_championship_forecast(year: int) -> dict:
     return {
         "year": year,
         "generated_at": datetime.now(UTC).isoformat(),
-        "source": "jolpica-ergast-standings + FastF1 recent race classifications",
+        "source": "computed-standings + FastF1 recent race classifications",
+        **standings.meta(),
         "completed_events": completed_events,
         "remaining_events": remaining_events,
         "recent_window": loaded_recent_events,

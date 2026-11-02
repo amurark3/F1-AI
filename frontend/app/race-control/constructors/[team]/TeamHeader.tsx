@@ -7,7 +7,7 @@ import { teamHref } from "@/app/lib/entityLinks";
 
 import { MetricCard, MetricRow, SectionHeader } from "../../components/RaceControlPrimitives";
 import {
-  formatPoints,
+  championshipPoints,
   freshnessLine,
   ordinalPosition,
   type DirectoryTeam,
@@ -56,7 +56,7 @@ export function TeamHeader({ profile, teams }: { profile: TeamProfile; teams: Di
         <MetricCard
           label="Championship"
           value={ordinalPosition(team.position)}
-          sub={`${formatPoints(team.points)} pts`}
+          sub={championshipPoints(team.points, profile)}
           icon={Trophy}
           color={team.color}
         />

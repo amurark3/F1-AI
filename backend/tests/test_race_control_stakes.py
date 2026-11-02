@@ -15,11 +15,11 @@ from app.services.race_control.stakes import (
     CONSTRUCTORS,
     DRIVERS,
     PointsLeft,
-    Standings,
     build_championship_stakes,
     points_left,
     table_stakes,
 )
+from tests.standings_support import standings_from_rows
 
 pytestmark = pytest.mark.unit
 
@@ -192,18 +192,39 @@ def test_rows_without_a_points_total_are_left_out_rather_than_read_as_zero():
 # -- both tables -----------------------------------------------------------------
 
 
+SOURCES = ({"source": "f1db", "role": "base", "through_round": 19, "version": "v2026.19.0"},)
+
+
 def test_the_block_carries_both_tables_and_the_sessions_left():
     drivers = [driver(1, "Norris", 400), driver(2, "Piastri", 380)]
     constructors = [{"position": 1, "team": "McLaren", "points": 780}]
+    standings = standings_from_rows(drivers, constructors, as_of_round=19, sources=SOURCES)
 
-    stakes = build_championship_stakes(SEASON, SAO_PAULO, Standings(drivers, constructors, 19), now=NOW)
+    stakes = build_championship_stakes(SEASON, SAO_PAULO, standings, now=NOW)
 
-    assert (stakes["through_round"], stakes["races_left"], stakes["sprints_left"]) == (19, 3, 2)
+    assert (stakes["as_of_round"], stakes["races_left"], stakes["sprints_left"]) == (19, 3, 2)
     assert stakes["drivers"]["leader"]["name"] == "Norris"
     assert stakes["constructors"]["leader"]["name"] == "McLaren"
 
 
-def test_the_clock_defaults_to_now():
-    stakes = build_championship_stakes([], None, Standings([], [], None))
+def test_the_block_says_which_round_the_table_is_after_and_whether_it_is_provisional():
+    standings = standings_from_rows([driver(1, "Norris", 400)], [], as_of_round=20, provisional=True, sources=SOURCES)
 
-    assert stakes == {"through_round": None, "races_left": 0, "sprints_left": 0, "drivers": None, "constructors": None}
+    stakes = build_championship_stakes(SEASON, SAO_PAULO, standings, now=NOW)
+
+    assert (stakes["as_of_round"], stakes["provisional"], stakes["sources"]) == (20, True, list(SOURCES))
+    assert (stakes["races_left"], stakes["sprints_left"]) == (2, 1), "round 20's race and sprint are already counted"
+
+
+def test_the_clock_defaults_to_now():
+    stakes = build_championship_stakes([], None, standings_from_rows([], []))
+
+    assert stakes == {
+        "as_of_round": None,
+        "provisional": False,
+        "sources": [],
+        "races_left": 0,
+        "sprints_left": 0,
+        "drivers": None,
+        "constructors": None,
+    }

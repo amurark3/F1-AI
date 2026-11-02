@@ -42,8 +42,8 @@ class _StandingsResponse:
 def _stub_ergast(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
     """Swap the Ergast client for one serving fixed frames or raising.
 
-    ``feeds`` accepts ``drivers=`` / ``constructors=``; each value is either a
-    list of DataFrames (the real ``.content`` shape) or an exception to raise.
+    ``feeds`` accepts ``drivers=``: either a list of DataFrames (the real
+    ``.content`` shape) or an exception to raise.
     """
 
     def _serve(value):
@@ -54,9 +54,6 @@ def _stub_ergast(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
     class _Client:
         def get_driver_standings(self, season):
             return _serve(feeds.get("drivers"))
-
-        def get_constructor_standings(self, season):
-            return _serve(feeds.get("constructors"))
 
     monkeypatch.setattr(module, "Ergast", _Client)
 
@@ -286,118 +283,6 @@ def test_format_points_value_drops_the_trailing_zero_on_whole_points(value, expe
 )
 def test_pluralise_matches_the_noun_to_the_count(value, singular, plural, expected):
     assert module.pluralise(value, singular, plural) == expected
-
-
-# ---------------------------------------------------------------------------
-# get_standings_snapshot
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-def test_standings_snapshot_reads_the_local_f1db_dataset_first(fake_f1db, monkeypatch):
-    """f1db has no rate limit, so Ergast must not be touched when it has the season."""
-    _stub_ergast(monkeypatch, drivers=RuntimeError("Ergast must not be called"))
-
-    drivers, constructors = module.get_standings_snapshot(2026)
-
-    assert [row["code"] for row in drivers] == ["VER", "LEC"]
-    # The snapshot re-keys the f1db row (``name`` -> ``driver``) and drops the
-    # detail columns the command center does not render; the team string itself
-    # is whatever f1db resolved for a driver who switched teams mid-season.
-    assert set(drivers[0]) == {"position", "code", "driver", "team", "points", "wins"}
-    assert (drivers[0]["position"], drivers[0]["driver"], drivers[0]["points"], drivers[0]["wins"]) == (
-        1,
-        "Verstappen",
-        50.0,
-        2,
-    )
-    assert [(row["team"], row["points"]) for row in constructors] == [("Red Bull", 50.0), ("Ferrari", 44.0)]
-
-
-@pytest.mark.unit
-def test_standings_snapshot_falls_back_to_ergast_when_f1db_lacks_the_season(monkeypatch):
-    monkeypatch.setattr(module, "driver_standings_detailed", lambda _year: [])
-    monkeypatch.setattr(module, "constructor_standings_detailed", lambda _year: [])
-    _stub_ergast(
-        monkeypatch,
-        drivers=[
-            pd.DataFrame(
-                [
-                    {
-                        "position": 1,
-                        "driverCode": "VER",
-                        "givenName": "Max",
-                        "familyName": "Verstappen",
-                        "constructorNames": ["Red Bull"],
-                        "points": 310.0,
-                        "wins": 9,
-                    }
-                ]
-            )
-        ],
-        constructors=[pd.DataFrame([{"position": 1, "constructorName": "Red Bull", "points": 500.0, "wins": 9}])],
-    )
-
-    drivers, constructors = module.get_standings_snapshot(2019)
-
-    assert drivers == [
-        {"position": 1, "code": "VER", "driver": "Max Verstappen", "team": "Red Bull", "points": 310.0, "wins": 9}
-    ]
-    assert constructors == [{"position": 1, "team": "Red Bull", "points": 500.0, "wins": 9}]
-
-
-@pytest.mark.unit
-def test_standings_snapshot_numbers_rows_by_order_when_ergast_omits_position(monkeypatch):
-    monkeypatch.setattr(module, "driver_standings_detailed", lambda _year: [])
-    monkeypatch.setattr(module, "constructor_standings_detailed", lambda _year: [])
-    _stub_ergast(
-        monkeypatch,
-        drivers=[pd.DataFrame([{"driverCode": "VER"}, {"driverCode": "LEC"}])],
-        constructors=[pd.DataFrame([{"constructorName": "Red Bull"}, {"constructorName": "Ferrari"}])],
-    )
-
-    drivers, constructors = module.get_standings_snapshot(2019)
-
-    assert [row["position"] for row in drivers] == [1, 2]
-    assert [row["position"] for row in constructors] == [1, 2]
-    assert [row["points"] for row in constructors] == [0.0, 0.0]
-
-
-@pytest.mark.unit
-def test_standings_snapshot_returns_empty_sides_when_ergast_has_no_content(monkeypatch):
-    monkeypatch.setattr(module, "driver_standings_detailed", lambda _year: [])
-    monkeypatch.setattr(module, "constructor_standings_detailed", lambda _year: [])
-    _stub_ergast(monkeypatch)
-
-    assert module.get_standings_snapshot(1962) == ([], [])
-
-
-@pytest.mark.unit
-def test_standings_snapshot_degrades_each_side_independently_when_ergast_fails(monkeypatch, capsys):
-    """A dead driver feed must not blank the constructor table as well."""
-    monkeypatch.setattr(module, "driver_standings_detailed", lambda _year: [])
-    monkeypatch.setattr(module, "constructor_standings_detailed", lambda _year: [])
-    _stub_ergast(
-        monkeypatch,
-        drivers=ConnectionError("ergast down"),
-        constructors=[pd.DataFrame([{"constructorName": "Ferrari", "points": 100.0, "wins": 2}])],
-    )
-
-    drivers, constructors = module.get_standings_snapshot(2019)
-
-    assert drivers == []
-    assert [row["team"] for row in constructors] == ["Ferrari"]
-    assert "race_control.driver_snapshot.failed" in capsys.readouterr().out
-
-
-@pytest.mark.unit
-def test_standings_snapshot_logs_a_failing_constructor_feed(monkeypatch, capsys):
-    monkeypatch.setattr(module, "driver_standings_detailed", lambda _year: [])
-    monkeypatch.setattr(module, "constructor_standings_detailed", lambda _year: [])
-    _stub_ergast(monkeypatch, constructors=ConnectionError("ergast down"))
-
-    assert module.get_standings_snapshot(2019) == ([], [])
-    assert "race_control.constructor_snapshot.failed" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------

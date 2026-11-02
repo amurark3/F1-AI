@@ -11,10 +11,7 @@ from fastf1.ergast import Ergast
 import pandas as pd
 import structlog
 
-from app.data.f1db_standings import (
-    constructor_standings_detailed,
-    driver_standings_detailed,
-)
+from app.data.f1db_standings import driver_standings_detailed
 from app.data.identity import NEUTRAL_TEAM_COLOR, TEAM_COLORS as IDENTITY_TEAM_COLORS
 
 logger = structlog.get_logger()
@@ -101,73 +98,6 @@ def format_points_value(value: float) -> str:
 
 def pluralise(value: int, singular: str, plural: str | None = None) -> str:
     return f"{value} {singular if value == 1 else plural or singular + 's'}"
-
-
-def get_standings_snapshot(year: int) -> tuple[list[dict], list[dict]]:
-    # f1db first — no rate limits and carries the current in-progress season;
-    # fall back to live Ergast only if the season isn't in the local dataset yet.
-    f1db_drivers = driver_standings_detailed(year)
-    f1db_constructors = constructor_standings_detailed(year)
-    if f1db_drivers or f1db_constructors:
-        drivers = [
-            {
-                "position": row["position"],
-                "code": row["code"],
-                "driver": row["name"],
-                "team": row["team"],
-                "points": row["points"],
-                "wins": row["wins"],
-            }
-            for row in f1db_drivers
-        ]
-        constructors = [
-            {
-                "position": row["position"],
-                "team": row["team"],
-                "points": row["points"],
-                "wins": row["wins"],
-            }
-            for row in f1db_constructors
-        ]
-        return drivers, constructors
-
-    ergast = Ergast()
-    drivers = []
-    constructors = []
-
-    try:
-        driver_data = ergast.get_driver_standings(season=year)
-        if driver_data.content:
-            for idx, (_, row) in enumerate(driver_data.content[0].iterrows(), start=1):
-                drivers.append(
-                    {
-                        "position": safe_int(row.get("position", idx), idx),
-                        "code": driver_code_from_row(row),
-                        "driver": driver_full_name(row),
-                        "team": constructor_name_from_row(row),
-                        "points": safe_float(row.get("points", 0)),
-                        "wins": safe_int(row.get("wins", 0)),
-                    }
-                )
-    except Exception as exc:
-        logger.warning("race_control.driver_snapshot.failed", year=year, error=str(exc))
-
-    try:
-        constructor_data = ergast.get_constructor_standings(season=year)
-        if constructor_data.content:
-            for idx, (_, row) in enumerate(constructor_data.content[0].iterrows(), start=1):
-                constructors.append(
-                    {
-                        "position": safe_int(row.get("position", idx), idx),
-                        "team": safe_str(row, "constructorName", "Unknown"),
-                        "points": safe_float(row.get("points", 0)),
-                        "wins": safe_int(row.get("wins", 0)),
-                    }
-                )
-    except Exception as exc:
-        logger.warning("race_control.constructor_snapshot.failed", year=year, error=str(exc))
-
-    return drivers, constructors
 
 
 def load_driver_standings(year: int) -> list[dict]:

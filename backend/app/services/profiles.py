@@ -18,11 +18,14 @@ import structlog
 from app.data.identity import season_directory
 from app.data.profiles import driver_season, team_season
 from app.data.profiles.results import rounds_label
+from app.data.profiles.standings import season_standings
 from app.services.power_units import build_power_units
 from app.services.race_control_common import team_slug
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
+
+    from app.data.profiles.standings import Standing
 
 logger = structlog.get_logger()
 
@@ -92,9 +95,34 @@ def _driver_cars(driver_id: str) -> Callable[[list[dict]], list[dict]]:
     return select
 
 
+def _placed(team: dict, standing: Standing | None) -> dict:
+    return {
+        **team,
+        "position": standing.position if standing else None,
+        "points": standing.points if standing else 0.0,
+    }
+
+
+def _in_table_order(teams: list[dict], table: Mapping[str, Standing]) -> list[dict]:
+    """Each team with its place and points in ``table``, in championship order, unranked teams last."""
+    placed = [_placed(team, table.get(team["id"])) for team in teams]
+    return sorted(placed, key=lambda team: (team["position"] is None, team["position"] or 0, team["name"]))
+
+
 def build_directory(year: int) -> dict:
-    """Every driver and team of ``year``, for links and the team dropdown."""
-    return {**season_directory(year).as_dict(), "status": "ok"}
+    """Every driver and team of ``year``, for links and the team dropdown.
+
+    Teams are ordered by the same table the team pages show (``season_standings``),
+    so the dropdown and the "open the leader" redirect agree with them.
+    """
+    directory = season_directory(year).as_dict()
+    standings = season_standings(year)
+    return {
+        **directory,
+        "teams": _in_table_order(directory["teams"], standings.teams),
+        **standings.meta,
+        "status": "ok",
+    }
 
 
 def build_team_profile(year: int, team_id: str) -> dict:

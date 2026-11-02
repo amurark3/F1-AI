@@ -111,6 +111,25 @@ def test_the_constructors_stakes_read_the_computed_table_too(feeds):
     ]
 
 
+def test_after_round_19_the_drivers_title_is_decided_for_antonelli(feeds):
+    """380 against Verstappen's 261 with four races and no sprints left: a 119-point lead, 100 to play for."""
+    drivers = overview.build_overview_shell(2026)["stakes"]["drivers"]
+
+    assert (drivers["leader"]["code"], drivers["leader"]["points"]) == ("ANT", 380)
+    assert (drivers["max_available"], drivers["rivals_alive"], drivers["decided"]) == (100, 0, True)
+    assert drivers["clinch"] is None, "a decided title has nothing left to clinch"
+
+
+def test_after_round_19_the_constructors_title_is_still_open(feeds):
+    """Mercedes 630 against Ferrari 504: a 126-point lead with 172 (four one-twos) left."""
+    teams = overview.build_overview_shell(2026)["stakes"]["constructors"]
+
+    assert [(row["name"], row["points"]) for row in teams["contenders"][:2]] == [("Mercedes", 630), ("Ferrari", 504)]
+    assert (teams["max_available"], teams["rivals_alive"], teams["decided"]) == (172, 1, False)
+    # Round 20 is worth 43 to a team, leaving 129: Mercedes settle it there by outscoring Ferrari by 4.
+    assert teams["clinch"] == {"rival": "Ferrari", "margin_needed": 4, "possible": True, "rivals_in_play": 1}
+
+
 def test_the_championship_block_is_the_top_five_after_round_19(feeds):
     championship_block = overview.build_overview_shell(2026)["championship"]
 

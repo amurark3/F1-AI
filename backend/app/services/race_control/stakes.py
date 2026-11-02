@@ -11,9 +11,12 @@ anyone reading it. Counting it as spent would knock contenders out before their
 points arrived. Every way this can be wrong overstates what is left, which only
 ever delays a verdict.
 
-A tie on points is decided on countback, which this module does not model, so
-a tie is never presented as a clinch — a contender level on maximum points is
-still alive, and a leader whose lead only equals what is left has not won.
+Whether a rival is still in, and so whether the title is decided, is
+``app.data.title_rule``'s call, the rule every title read shares: a lead larger
+than what is left decides it, and a lead exactly equal to it decides it only
+when the leader would win the count-back. The margin to clinch *at this round*
+is quoted on points alone (a lead past what is left after the round): a finish
+level with that margin turns on this weekend's places, which nobody knows yet.
 """
 
 from __future__ import annotations
@@ -22,10 +25,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from app.data import title_rule
+from app.data.title_rule import Remaining, Scoring, can_still_beat, max_points
 from app.services.race_control.session_weather import session_slots
 
 if TYPE_CHECKING:
     from app.data.current_standings import CurrentStandings
+    from app.data.standings_table import Standing
 
 RACE_SESSION = "Race"
 SPRINT_SESSION = "Sprint"
@@ -34,18 +40,15 @@ CONTENDER_ROWS = 6
 
 
 @dataclass(frozen=True)
-class Scoring:
-    """The most one entrant can score in a race and in a sprint."""
+class Championship:
+    """One championship: how its entrants score (``title_rule``), and whether its rows name a driver code."""
 
-    per_race: int
-    per_sprint: int
-    name_key: str
+    scoring: Scoring
+    coded: bool
 
 
-# A driver's best is a win. A constructor scores with both cars, so its best is a
-# one-two: 25 + 18 in a race and 8 + 7 in a sprint.
-DRIVERS = Scoring(per_race=25, per_sprint=8, name_key="driver")
-CONSTRUCTORS = Scoring(per_race=25 + 18, per_sprint=8 + 7, name_key="team")
+DRIVERS = Championship(scoring=title_rule.DRIVERS, coded=True)
+CONSTRUCTORS = Championship(scoring=title_rule.CONSTRUCTORS, coded=False)
 
 
 @dataclass(frozen=True)
@@ -90,65 +93,60 @@ def points_left(events: list[dict], selected: dict | None, through_round: int | 
     )
 
 
-def _contender(row: dict, leader_points: float, available: int, scoring: Scoring) -> dict:
-    gap = leader_points - row["points"]
+def _contender(row: Standing, leader: Standing, alive: bool, championship: Championship) -> dict:
     return {
-        "position": row["position"],
-        "name": row[scoring.name_key],
-        "code": row.get("code"),
-        "team": row.get("team"),
-        "points": row["points"],
-        "gap": gap,
-        "alive": gap <= available,
+        "position": row.position,
+        "name": row.name,
+        "code": row.key if championship.coded else None,
+        "team": row.team,
+        "points": row.points,
+        "gap": leader.points - row.points,
+        "alive": alive,
     }
 
 
-def _clinch(rows: list[dict], available: int, here: int, scoring: Scoring) -> dict | None:
+def _clinch(rows: tuple[Standing, ...], available: int, here: int) -> dict | None:
     """Whether the leader can settle the title at this round, and by what margin.
 
     Settled means a lead over every rival larger than what is left after the
     round. The closest rival binds, so the margin is quoted against them; the
     leader must also stay far enough clear of the others still in play.
     """
-    if len(rows) < 2 or here == 0:
-        return None
     leader, rival = rows[0], rows[1]
-    lead = leader["points"] - rival["points"]
-    if lead > available:
-        return None
+    lead = leader.points - rival.points
     after = available - here
     margin = after - lead + 1
     return {
-        "rival": rival[scoring.name_key],
+        "rival": rival.name,
         "margin_needed": margin,
         "possible": margin <= here,
-        "rivals_in_play": sum(1 for row in rows[1:] if leader["points"] - row["points"] <= after),
+        "rivals_in_play": sum(1 for row in rows[1:] if leader.points - row.points <= after),
     }
 
 
-def _scored(rows: list[dict]) -> list[dict]:
-    """Rows with a points total; one without cannot be placed against the leader."""
-    return [row for row in rows if isinstance(row.get("points"), (int, float)) and not isinstance(row["points"], bool)]
-
-
-def table_stakes(standings: list[dict], left: PointsLeft, scoring: Scoring) -> dict | None:
+def table_stakes(rows: tuple[Standing, ...], left: PointsLeft, championship: Championship) -> dict | None:
     """One championship's stakes; None when there are no standings to read."""
-    rows = _scored(standings)
     if not rows:
         return None
-    available = left.races * scoring.per_race + left.sprints * scoring.per_sprint
-    here = left.races_here * scoring.per_race + left.sprints_here * scoring.per_sprint
-    leader_points = rows[0]["points"]
-    contenders = [_contender(row, leader_points, available, scoring) for row in rows[:CONTENDER_ROWS]]
-    rivals_alive = sum(1 for row in rows[1:] if leader_points - row["points"] <= available)
+    scoring = championship.scoring
+    remaining = Remaining(races=left.races, sprints=left.sprints)
+    available = max_points(remaining, scoring)
+    here = max_points(Remaining(races=left.races_here, sprints=left.sprints_here), scoring)
+    leader = rows[0]
+    alive = (True, *(can_still_beat(leader, row, remaining, scoring) for row in rows[1:]))
+    rivals_alive = sum(alive[1:])
+    decided = len(rows) > 1 and rivals_alive == 0
     return {
         "max_available": available,
         "max_this_weekend": here,
-        "leader": contenders[0],
-        "contenders": contenders,
+        "leader": _contender(leader, leader, True, championship),
+        "contenders": [
+            _contender(row, leader, is_alive, championship)
+            for row, is_alive in zip(rows[:CONTENDER_ROWS], alive, strict=False)
+        ],
         "rivals_alive": rivals_alive,
-        "decided": len(rows) > 1 and rivals_alive == 0,
-        "clinch": _clinch(rows, available, here, scoring),
+        "decided": decided,
+        "clinch": None if decided or len(rows) < 2 or here == 0 else _clinch(rows, available, here),
     }
 
 
@@ -164,6 +162,6 @@ def build_championship_stakes(
         **standings.meta(),
         "races_left": left.races,
         "sprints_left": left.sprints,
-        "drivers": table_stakes(standings.driver_rows(), left, DRIVERS),
-        "constructors": table_stakes(standings.team_rows(), left, CONSTRUCTORS),
+        "drivers": table_stakes(standings.drivers, left, DRIVERS),
+        "constructors": table_stakes(standings.teams, left, CONSTRUCTORS),
     }

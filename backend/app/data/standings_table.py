@@ -64,12 +64,13 @@ class Table:
     teams: tuple[Standing, ...] = ()
 
 
-def _countback(finishes: tuple[int, ...]) -> tuple[int, ...]:
+def countback(finishes: tuple[int, ...]) -> tuple[int, ...]:
+    """A sort key for Grand Prix places: the lower key wins the count-back (most wins, then seconds, ...)."""
     return tuple(-finishes.count(place) for place in range(1, COUNTBACK_PLACES + 1))
 
 
 def _order(row: Standing) -> tuple:
-    return (-row.points, _countback(row.finishes), row.position is None, row.position or 0, row.key)
+    return (-row.points, countback(row.finishes), row.position is None, row.position or 0, row.key)
 
 
 def ranked(rows: Iterable[Standing]) -> tuple[Standing, ...]:

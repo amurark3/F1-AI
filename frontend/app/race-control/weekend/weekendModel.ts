@@ -137,7 +137,11 @@ export type ClinchTone = "decided" | "possible" | "open";
 /** Championship points, which are whole except in the odd half-points race. */
 export const formatPoints = (points: number): string => (Number.isInteger(points) ? String(points) : points.toFixed(1));
 
-/** The one-line headline for a championship this weekend. */
+/**
+ * The one-line headline for a championship this weekend. A thin reader: whether
+ * the title is decided is the backend's `decided` (its shared title rule, which
+ * settles a lead equal to the points left on count-back), never worked out here.
+ */
 export function clinchLine(stakes: TableStakes, venue: string): { tone: ClinchTone; text: string } {
   const leader = stakes.leader.name;
   if (stakes.decided) return { tone: "decided", text: `${leader} has already clinched the title.` };
@@ -161,8 +165,9 @@ export function clinchLine(stakes: TableStakes, venue: string): { tone: ClinchTo
 }
 
 /**
- * Where on a leader-scaled bar a rival must reach to stay in contention.
- * Null when every bar clears it (nobody can be out yet).
+ * Where on a leader-scaled bar a rival must reach to stay in contention on
+ * points. A bar ending exactly on it is the count-back's call; its row's `alive`
+ * says which way that went. Null when every bar clears it (nobody can be out yet).
  */
 export function reachLine(stakes: TableStakes): number | null {
   const leaderPoints = stakes.leader.points;

@@ -18,7 +18,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 | ID   | Task                                                                               | Status | Commit / PR                   | Evidence / notes                                               |
 | ---- | ---------------------------------------------------------------------------------- | ------ | ----------------------------- | -------------------------------------------------------------- |
-| P0.1 | Stints: status from the classification (OpenF1 `session_result`)                   | todo   |                               |                                                                |
+| P0.1 | Stints: status from the classification (OpenF1 `session_result`)                   | in_progress (2026-11-02) |                               |                                                                |
 | P0.2 | Stops and times from the official pit sheet; red-flag entries excluded             | todo   |                               |                                                                |
 | P0.3 | Prediction roster: 22 cars, ≤2 per team, seat TBC                                  | todo   |                               |                                                                |
 | P0.4 | Prediction factor text agrees with attribution                                     | todo   |                               |                                                                |
@@ -81,3 +81,4 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 - **2026-11-02 · P1.7 done.**
   - Committed `docs/DATA_SOURCES.md`, `docs/design/redesign/` (19 mockups + index, `system.css`, B1 logo), `docs/plans/2026-11-redesign/`, `frontend/public/hero-car.jpg` and the `CLAUDE.md` pointer.
   - Deleted the first-round logos and rejected racing-line variants B2–B8 at the user's request.
+- **2026-11-02 · decision (user):** no full revamp of the Command Center. It is the reference design and gets only the alignment pass already in P0.6, P1.2, P1.4, P1.5, P2, P3.1 and P7.3–P7.5. Its new parts (FIA live feed, forecast vs measured, restyled timing tower) have **no mockup by choice**. Build them in P7 from the shared kit and the existing Command Center look; don't stop to ask for one.

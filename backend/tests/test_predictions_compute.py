@@ -22,6 +22,7 @@ orchestration, not the loaders, which have their own suites. That includes
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 import pandas as pd
@@ -94,6 +95,7 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
         "grid_deltas": {"VER": 1.5},
         "recent_sprint_form": {},
         "roster": [],
+        "seats": (),
         # Keyed by round: the weekend being predicted, and any earlier one the
         # compute falls back to before this weekend's entry list exists.
         "entry_lists": {},
@@ -136,6 +138,7 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
     monkeypatch.setattr(module, "_load_grid_to_finish_delta", lambda year, rnd, key: _resolve("grid_deltas"))
     monkeypatch.setattr(module, "_load_recent_sprint_form", lambda year, rnd: _resolve("recent_sprint_form"))
     monkeypatch.setattr(module, "driver_standings_detailed", lambda year: _resolve("roster"))
+    monkeypatch.setattr(module, "season_seats", lambda year, rnd: _resolve("seats"))
     monkeypatch.setattr(module, "load_weekend_entry_list", lambda year, rnd: state["entry_lists"].get(rnd, UNAVAILABLE))
     monkeypatch.setattr(module, "load_weekend_availability", lambda year, rnd: _resolve("availability"))
     monkeypatch.setattr(module, "resolve_grid", _resolve_grid)
@@ -392,6 +395,7 @@ def test_the_weekend_entry_list_decides_the_grid_once_a_session_has_run(pipeline
     assert call["entry_lists"].previous == UNAVAILABLE, "a current entry list needs no stand-in"
     assert call["timed_drivers"] == [_quali("VER", 1)]
     assert call["championship_roster"] == pipeline["roster"]
+    assert call["entry_lists"].seats == pipeline["seats"]
     assert call["availability"] == pipeline["availability"]
 
 
@@ -404,7 +408,7 @@ def test_before_the_weekend_the_previous_weekends_lineup_stands_in(pipeline):
 
     [call] = pipeline["grid_calls"]
     assert call["entry_lists"].current == UNAVAILABLE
-    assert call["entry_lists"].previous == _entry_list("VER", "LAW")
+    assert call["entry_lists"].previous == replace(_entry_list("VER", "LAW"), event="Round 4")
     assert call["timed_drivers"] == []
 
 
@@ -414,7 +418,14 @@ def test_an_unpublished_entry_list_also_falls_back_to_the_previous_weekend(pipel
 
     module._build_roster(2024, 5, _event(4, 5), _session_data())
 
-    assert pipeline["grid_calls"][0]["entry_lists"].previous == _entry_list("VER")
+    assert pipeline["grid_calls"][0]["entry_lists"].previous.codes == {"VER"}
+
+
+@pytest.mark.unit
+def test_a_previous_weekend_with_no_list_is_passed_on_as_unavailable(pipeline):
+    module._build_roster(2024, 5, _event(4, 5), _session_data(started=False))
+
+    assert pipeline["grid_calls"][0]["entry_lists"].previous is UNAVAILABLE
 
 
 @pytest.mark.unit
@@ -455,6 +466,7 @@ def test_a_failing_championship_roster_warns_and_resolves_without_it(pipeline):
     roster = module._build_roster(2024, 5, _event(5), _session_data(quali=[_quali("VER", 1)]))
 
     assert pipeline["grid_calls"][0]["championship_roster"] == []
+    assert pipeline["grid_calls"][0]["entry_lists"].seats == ()
     assert [driver["driver_code"] for driver in roster.drivers] == ["VER"]
     assert roster.warnings == ["Could not load full-grid roster: f1db unavailable"]
 
@@ -731,3 +743,54 @@ def test_risk_predictions_receive_the_ranked_grid_keyed_by_driver(pipeline, monk
     assert set(seen["by_code"]) == {"VER", "NOR"}
     assert seen["by_code"]["VER"]["score"] == 1.0
     assert (seen["year"], seen["round"]) == (2024, 5)
+
+
+# ---------------------------------------------------------------------------
+# the roster check and the seat flags
+# ---------------------------------------------------------------------------
+
+
+def _grid(*cars: tuple[str, str], tbc: str | None = None) -> GridRoster:
+    rows = (
+        {"driver_code": code, "team": team, "position": pos, "seat_tbc_reason": tbc}
+        for pos, (code, team) in enumerate(cars, 1)
+    )
+    return GridRoster(drivers=tuple(rows))
+
+
+@pytest.mark.unit
+def test_a_roster_with_three_cars_for_one_team_is_not_published(pipeline, monkeypatch: pytest.MonkeyPatch):
+    errors: list[tuple[str, dict]] = []
+    monkeypatch.setattr(module.logger, "error", lambda event, **fields: errors.append((event, fields)))
+    pipeline["grid"] = _grid(("BEA", "Haas"), ("OCO", "Haas"), ("HIR", "Haas F1 Team"))
+
+    result = module.compute_race_predictions(2026, 20)
+
+    assert result["predictions"] == []
+    assert "Haas has 3 cars (BEA, HIR, OCO)" in result["error"]
+    assert pipeline["saved"] == [], "a broken roster must never reach prediction history"
+    assert errors == [
+        (
+            "predictions.roster_invalid",
+            {"year": 2026, "round": 20, "cars": 3, "over_limit": {"Haas": ["BEA", "HIR", "OCO"]}},
+        )
+    ]
+
+
+@pytest.mark.unit
+def test_a_seat_in_doubt_is_flagged_on_its_prediction_row(pipeline):
+    pipeline["grid"] = _grid(("HIR", "Haas"), tbc="Ryo Hirakawa raced Haas's car in place of Esteban Ocon")
+
+    [row] = module.compute_race_predictions(2026, 20)["predictions"]
+
+    assert row["seat_tbc"] is True
+    assert row["seat_tbc_reason"] == "Ryo Hirakawa raced Haas's car in place of Esteban Ocon"
+
+
+@pytest.mark.unit
+def test_a_confirmed_seat_says_so(pipeline):
+    pipeline["grid"] = _grid(("VER", "Red Bull"))
+
+    [row] = module.compute_race_predictions(2026, 20)["predictions"]
+
+    assert (row["seat_tbc"], row["seat_tbc_reason"]) == (False, None)

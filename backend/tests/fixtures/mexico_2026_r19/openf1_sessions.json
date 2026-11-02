@@ -1,0 +1,47 @@
+[
+  {
+    "session_key": 11397,
+    "session_name": "Practice 1",
+    "date_start": "2026-10-30T18:30:00+00:00",
+    "date_end": "2026-10-30T19:30:00+00:00",
+    "meeting_key": 1298,
+    "circuit_key": 65,
+    "is_cancelled": false
+  },
+  {
+    "session_key": 11398,
+    "session_name": "Practice 2",
+    "date_start": "2026-10-30T22:00:00+00:00",
+    "date_end": "2026-10-30T23:00:00+00:00",
+    "meeting_key": 1298,
+    "circuit_key": 65,
+    "is_cancelled": false
+  },
+  {
+    "session_key": 11399,
+    "session_name": "Practice 3",
+    "date_start": "2026-10-31T17:30:00+00:00",
+    "date_end": "2026-10-31T18:30:00+00:00",
+    "meeting_key": 1298,
+    "circuit_key": 65,
+    "is_cancelled": false
+  },
+  {
+    "session_key": 11400,
+    "session_name": "Qualifying",
+    "date_start": "2026-10-31T21:00:00+00:00",
+    "date_end": "2026-10-31T22:00:00+00:00",
+    "meeting_key": 1298,
+    "circuit_key": 65,
+    "is_cancelled": false
+  },
+  {
+    "session_key": 11404,
+    "session_name": "Race",
+    "date_start": "2026-11-01T20:00:00+00:00",
+    "date_end": "2026-11-01T22:00:00+00:00",
+    "meeting_key": 1298,
+    "circuit_key": 65,
+    "is_cancelled": false
+  }
+]

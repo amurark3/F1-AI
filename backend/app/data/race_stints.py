@@ -195,7 +195,7 @@ def _fastf1_stints(year: int, round_num: int) -> tuple[Stint, ...]:
             session.load(telemetry=False, weather=False, messages=False)
         laps = session.laps
     # Deliberately broad, matching every other FastF1 loader in this package
-    # (``session_entries``, ``predictions``, ``strategy``). The failure surface
+    # (``predictions``, ``strategy``). The failure surface
     # is genuinely open: FastF1 raises ``SessionNotAvailableError`` from its
     # *private* ``_api`` module for an unpublished session, plus its own public
     # error family, plus requests/OSError from the network read. Catching the

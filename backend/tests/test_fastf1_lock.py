@@ -13,7 +13,7 @@ import threading
 import pytest
 
 from app.api import race_detail
-from app.data import race_stints, session_entries
+from app.data import race_stints
 from app.data.predictions import form, history, sessions
 from app.data.strategy import history as strategy_history, session as strategy_session
 from app.utils.fastf1_lock import FASTF1_LOCK
@@ -28,7 +28,6 @@ FASTF1_MODULES = [
     history,
     sessions,
     race_stints,
-    session_entries,
     strategy_history,
     strategy_session,
 ]

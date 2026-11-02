@@ -214,6 +214,21 @@ def test_pre_qualifying_reads_the_same_number_as_practice_pace_not_a_grid_slot(q
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("quali_pos", [1, 19])
+def test_a_pre_qualifying_slot_with_no_session_time_reads_as_an_estimate_not_as_pace(quali_pos):
+    """A back-filled slot (behind practice, or the championship order) is no evidence of pace."""
+    factors = _generate_factors(FactorInputs(quali_pos=quali_pos, is_pre_qualifying=True, no_session_time=True))
+    assert f"Expected grid P{quali_pos} (pre-qualifying estimate)" in factors
+    assert not any("ractice" in factor for factor in factors)
+
+
+@pytest.mark.unit
+def test_after_qualifying_a_slot_with_no_session_time_still_reads_as_its_grid_slot():
+    factors = _generate_factors(FactorInputs(quali_pos=21, no_session_time=True))
+    assert "Qualifying P21" in factors
+
+
+@pytest.mark.unit
 def test_a_driver_with_no_session_position_gets_no_qualifying_factor():
     factors = _generate_factors(FactorInputs(quali_pos=None, team_pos=3))
     assert not any("ualifying" in factor or "ractice" in factor for factor in factors)

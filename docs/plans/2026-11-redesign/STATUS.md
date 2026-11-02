@@ -10,7 +10,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Next task:** P0.4
+- **Next task:** P0.5
 - **Branch:** `dev`
 - **Open PR:** none
 
@@ -21,7 +21,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 | P0.1 | Stints: status from the classification (OpenF1 `session_result`)                   | done   | `git log --grep "Task: P0.1"` | R19 fixture tests pass (LIN dnf 58, STR/ALO dnf 5, 17 finished); backend 3944 passed, coverage 100.00%; lint/typecheck/build clean; phrase gone (grep -ri)                                                                    |
 | P0.2 | Stops and times from the official pit sheet; red-flag entries excluded             | done   | `git log --grep "Task: P0.2"` | R19 sheet: VER 1, HAM 2, LAW 2, HIR 3, STR 1; no lap-45 entry; 24 suspension entries out; >120 s test; backend 3983 passed, coverage 100.00%; lint/typecheck/build clean                                                      |
 | P0.3 | Prediction roster: 22 cars, ≤2 per team, seat TBC                                  | done   | `git log --grep "Task: P0.3"` | R20 roster from the R19 race list: 22 cars, ≤2 per team, HIR `seat_tbc` (in place of OCO), no TSU/OCO; championship fallback 22, TSU absent for R16–R20; backend 4035 passed, coverage 100.00%; ruff/format/module-size clean |
-| P0.4 | Prediction factor text agrees with attribution                                     | todo   |                               |                                                                                                                                                                                                                               |
+| P0.4 | Prediction factor text agrees with attribution                                     | done   | `git log --grep "Task: P0.4"` | R20 field back-filled from P1: no back-of-grid or practice claim, grid input "expected grid (pre-qualifying estimate)"; consistency test, 3 weekend shapes; backend 4047 passed, coverage 100.00%; ruff/format/size clean     |
 | P0.5 | Computed, provisional, cross-checked standings                                     | todo   |                               |                                                                                                                                                                                                                               |
 | P0.6 | Clinch state everywhere                                                            | todo   |                               |                                                                                                                                                                                                                               |
 | P1.1 | Test infrastructure (Vitest, MSW, Playwright, CI, no-ignore lint rule)             | todo   |                               |                                                                                                                                                                                                                               |
@@ -114,3 +114,10 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
   - **Decision: `PREDICTION_LOGIC_VERSION` stays 5.** A bump would mark every stored snapshot stale, so production would recompute each race on its next read. The roster is unchanged wherever the old entry list loaded. **After deploy (user's call):** recompute R20 with `scripts/backfill_predictions.py` and restart Render (clobber hazard).
   - **Once prod has f1db v2026.19.0** (with HIR's R19 start), the championship fallback also keeps BEA and HIR for Haas and flags HIR.
   - **Live check (local, real OpenF1 + f1db v2026.18.0):** R20 own list unavailable; R19 race list 22, HIR → "Haas F1 Team"; roster 22, max 2 per team, no violation, TBC = [HIR], no TSU or OCO.
+- **2026-11-02 · P0.4 done.**
+  - **Cause:** before any R20 session, `weekend_grid` back-fills the whole field from P1 in championship order with `no_qualifying_time: true`. `_build_factors` read that flag as "placed at back of grid" in every phase, while the model credited the leader's `grid_position = 1` with −3.8 places.
+  - **Fix:** pre-qualifying drops the back-of-grid flag; the model's grid input is relabelled "expected grid (pre-qualifying estimate)" in `model_attribution` and its phrase (`app/ml/explain.label_as_pre_qualifying`). Post-qualifying is unchanged ("grid position", back-of-grid flag behind every qualifier).
+  - **Same bug, also fixed:** with no session run, the old heuristic said "Strong practice pace (P1 in sessions)". A pre-qualifying slot with no session time now reads "Expected grid P{n} (pre-qualifying estimate)" at the weakest factor weight (0.5). Real practice times keep their practice-pace wording.
+  - **Test:** `test_no_reasoning_factor_contradicts_the_model_attribution` scores a 22-car field for three weekend shapes (no session run, practice proxy, post-qualifying) against a linear grid term and flags any factor that names another slot, says back of grid wrongly, cites qualifying before it ran, cites practice without a time, or reads an attribution's direction wrongly.
+  - **No `PREDICTION_LOGIC_VERSION` bump:** scores and order are unchanged, only the reasoning text and the label. Stored snapshots keep the old text until recomputed; the R20 recompute after deploy (already due from P0.3) refreshes it.
+  - **Frontend unchanged:** the "Why the model picks" chart renders the label as sent. The longer label may wrap or clip on its 120 px Y axis (not checked visually); P4.3 restyles that panel.

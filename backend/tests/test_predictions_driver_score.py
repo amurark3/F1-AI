@@ -10,6 +10,10 @@ that justify it, so the tests pin the arithmetic and the wording together:
   result on a sprint weekend takes an explicit back-of-grid penalty rather than
   a zero, and a back-filled driver's synthetic grid slot is flagged in the
   reasoning.
+* **The reasoning must agree with the model's inputs, in both phases.** Before
+  qualifying the grid input is an estimate, so no factor may call it a
+  qualifying result or a back-of-grid slot while the attribution credits it as
+  a front-row start (the R20 pre-qualifying bug).
 * **Advertised sources must be sources actually used.** The ``used_*`` flags
   decide what the response claims it consulted.
 
@@ -19,13 +23,15 @@ scoring helpers and feature builder are the real ones.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+import re
 from typing import Any
 
 import pytest
 
 from app.data.predictions import driver_score as module
 from app.data.predictions.driver_score import RaceSignals
-from app.ml.explain import FeatureContribution
+from app.ml.explain import FEATURE_LABELS, FeatureContribution
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -158,7 +164,7 @@ def test_every_available_signal_widens_the_confidence_input_set():
 def test_no_attribution_from_the_model_yields_no_reasoning(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(module, "_ml_explanation", lambda features: None)
 
-    assert module._model_reasoning({"grid_position": 3.0}) == (None, [])
+    assert module._model_reasoning({"grid_position": 3.0}, is_pre_qualifying=False) == (None, [])
 
 
 @pytest.mark.unit
@@ -172,7 +178,7 @@ def test_model_reasoning_serialises_contributions_and_phrases_the_top_two(
     ]
     monkeypatch.setattr(module, "_ml_explanation", lambda features: contributions)
 
-    attribution, phrases = module._model_reasoning({"grid_position": 3.0})
+    attribution, phrases = module._model_reasoning({"grid_position": 3.0}, is_pre_qualifying=False)
 
     assert [row["feature"] for row in attribution] == [
         "grid_position",
@@ -186,9 +192,30 @@ def test_model_reasoning_serialises_contributions_and_phrases_the_top_two(
     ]
 
 
+@pytest.mark.unit
+def test_before_qualifying_the_model_reasoning_names_the_grid_input_as_an_estimate(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    contributions = [
+        _contribution("grid_position", "grid position", 1.0, -3.8),
+        _contribution("team_standing", "car/team strength", 1.0, -0.9),
+    ]
+    monkeypatch.setattr(module, "_ml_explanation", lambda features: contributions)
+
+    attribution, phrases = module._model_reasoning({"grid_position": 1.0}, is_pre_qualifying=True)
+
+    assert [row["label"] for row in attribution] == ["expected grid (pre-qualifying estimate)", "car/team strength"]
+    assert phrases == [
+        "Expected grid (pre-qualifying estimate) lifts the projection ~3.8 places",
+        "Car/team strength lifts the projection ~0.9 places",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # _build_factors
 # ---------------------------------------------------------------------------
+
+_POST_QUALIFYING_CONTEXT = {"ml_score": None, "correction": None, "is_pre_qualifying": False}
 
 
 @pytest.mark.unit
@@ -197,7 +224,7 @@ def test_heuristic_reasoning_is_capped_at_three_factors():
         _driver(),
         ["one", "two", "three", "four"],
         [],
-        {"ml_score": None, "correction": None},
+        _POST_QUALIFYING_CONTEXT,
     )
 
     assert factors == ["one", "two", "three"]
@@ -209,7 +236,7 @@ def test_a_model_backed_prediction_leads_with_its_projection_and_allows_five_fac
         _driver(),
         ["one", "two", "three"],
         ["phrase one", "phrase two"],
-        {"ml_score": 2.4, "correction": None},
+        {**_POST_QUALIFYING_CONTEXT, "ml_score": 2.4},
     )
 
     assert factors == ["Trained model projects P2.4", "phrase one", "phrase two", "one", "two"]
@@ -228,7 +255,7 @@ def test_a_meaningful_adaptive_correction_is_explained(correction: float, expect
         _driver(),
         ["one"],
         [],
-        {"ml_score": None, "correction": {"correction": correction, "samples": 4}},
+        {**_POST_QUALIFYING_CONTEXT, "correction": {"correction": correction, "samples": 4}},
     )
 
     assert factors == ["one", expected]
@@ -240,7 +267,7 @@ def test_a_sub_place_correction_is_not_worth_reporting():
         _driver(),
         ["one"],
         [],
-        {"ml_score": None, "correction": {"correction": 0.4, "samples": 4}},
+        {**_POST_QUALIFYING_CONTEXT, "correction": {"correction": 0.4, "samples": 4}},
     )
 
     assert factors == ["one"]
@@ -252,11 +279,24 @@ def test_a_back_filled_driver_leads_with_the_missing_qualifying_flag():
         _driver(no_qualifying_time=True),
         ["one", "two", "three"],
         [],
-        {"ml_score": None, "correction": None},
+        _POST_QUALIFYING_CONTEXT,
     )
 
     assert factors[0] == "No qualifying time set — placed at back of grid"
     assert factors[1:] == ["one", "two", "three"]
+
+
+@pytest.mark.unit
+def test_before_qualifying_a_back_filled_driver_is_not_said_to_start_from_the_back():
+    """Nobody has a qualifying time yet, and the slot may be P1 (championship order)."""
+    factors = module._build_factors(
+        _driver(position=1, no_qualifying_time=True),
+        ["one", "two", "three"],
+        [],
+        {**_POST_QUALIFYING_CONTEXT, "is_pre_qualifying": True},
+    )
+
+    assert factors == ["one", "two", "three"]
 
 
 # ---------------------------------------------------------------------------
@@ -402,3 +442,148 @@ def test_a_back_filled_driver_is_flagged_in_its_own_reasoning():
     result = module.score_driver(_driver(position=20, no_qualifying_time=True), _signals())
 
     assert result.scored["factors"][0] == "No qualifying time set — placed at back of grid"
+
+
+# ---------------------------------------------------------------------------
+# the reasoning agrees with the model's inputs, in both phases
+# ---------------------------------------------------------------------------
+
+# The trained StandardScaler -> Ridge model reduced to its grid term: a slot
+# ahead of the training mean helps, one behind it hurts. P1 comes out at about
+# -4 places, which is what the R20 pre-qualifying attribution showed.
+_MODEL_GRID_MEAN = 10.5
+_MODEL_GRID_COEF = 0.4
+_FIELD_SIZE = 22
+_PRE_QUALIFYING_GRID_LABEL = "expected grid (pre-qualifying estimate)"
+
+# A factor that names a grid slot: "Qualifying P7", "Practice pace P16",
+# "Pole position (qualifying P1)", "Expected grid P3 (pre-qualifying estimate)".
+_GRID_SLOT_CLAIM = re.compile(r"(?i:qualifying|practice|grid)\D*?P(\d+)")
+# A model phrase: "<Label> lifts|drags the projection ~x places".
+_MODEL_PHRASE = re.compile(r"^(?P<label>.+) (?P<verb>lifts|drags) the projection")
+
+
+def _grid_term(features: dict[str, float]) -> list[FeatureContribution]:
+    grid = features["grid_position"]
+    contribution = _MODEL_GRID_COEF * (grid - _MODEL_GRID_MEAN)
+    return [_contribution("grid_position", FEATURE_LABELS["grid_position"], grid, contribution)]
+
+
+@dataclass(frozen=True)
+class _Weekend:
+    """How far a weekend got, which decides what the grid input really is."""
+
+    name: str
+    pre_qualifying: bool
+    # Cars with a time in the session the grid was read from. The rest are
+    # back-filled behind them, or from P1 in championship order when none ran.
+    timed: int
+    weights: dict[str, float]
+
+
+_WEEKENDS = (
+    _Weekend("pre-qualifying, no session run (R20)", pre_qualifying=True, timed=0, weights={"recent_form": 1.0}),
+    _Weekend("pre-qualifying, practice pace", pre_qualifying=True, timed=18, weights=dict(_EVEN_WEIGHTS)),
+    _Weekend("post-qualifying", pre_qualifying=False, timed=20, weights=dict(_EVEN_WEIGHTS)),
+)
+
+
+def _field(weekend: _Weekend) -> list[dict]:
+    """The whole grid as the weekend roster hands it to the scorer."""
+    return [
+        _driver(f"D{slot:02d}", position=slot, **({"no_qualifying_time": True} if slot > weekend.timed else {}))
+        for slot in range(1, _FIELD_SIZE + 1)
+    ]
+
+
+def _names_another_slot(factor: str, grid: dict) -> bool:
+    claim = _GRID_SLOT_CLAIM.search(factor)
+    return claim is not None and int(claim.group(1)) != grid["value"]
+
+
+def _misplaces_at_the_back(factor: str, grid: dict, weekend: _Weekend) -> bool:
+    """ "Back of grid" holds only behind every timed car, with the slot hurting the projection."""
+    if "back of grid" not in factor:
+        return False
+    behind_every_timed_car = 0 < weekend.timed < grid["value"]
+    return weekend.pre_qualifying or not behind_every_timed_car or grid["direction"] == "helps"
+
+
+def _cites_qualifying_before_it_ran(factor: str, weekend: _Weekend) -> bool:
+    return weekend.pre_qualifying and "qualifying" in factor.lower().replace("pre-qualifying", "")
+
+
+def _cites_practice_without_a_time(factor: str, *, timed: bool) -> bool:
+    return not timed and "practice" in factor.lower()
+
+
+def _misreads_the_attribution(factor: str, attribution: list[dict]) -> bool:
+    phrase = _MODEL_PHRASE.match(factor)
+    if phrase is None:
+        return False
+    verbs = {row["label"].capitalize(): "lifts" if row["direction"] == "helps" else "drags" for row in attribution}
+    return verbs.get(phrase["label"]) != phrase["verb"]
+
+
+def _contradictions(scored: dict, weekend: _Weekend, *, timed: bool) -> list[str]:
+    """Every factor that disagrees with the inputs the model was actually given."""
+    attribution = scored["model_attribution"]
+    grid = next(row for row in attribution if row["feature"] == "grid_position")
+    checks = (
+        lambda factor: _names_another_slot(factor, grid),
+        lambda factor: _misplaces_at_the_back(factor, grid, weekend),
+        lambda factor: _cites_qualifying_before_it_ran(factor, weekend),
+        lambda factor: _cites_practice_without_a_time(factor, timed=timed),
+        lambda factor: _misreads_the_attribution(factor, attribution),
+    )
+    return [factor for factor in scored["factors"] if any(check(factor) for check in checks)]
+
+
+@pytest.fixture
+def _linear_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(module, "_ml_finish_score", lambda features: features["grid_position"])
+    monkeypatch.setattr(module, "_ml_explanation", _grid_term)
+
+
+@pytest.mark.unit
+@pytest.mark.usefixtures("_linear_model")
+@pytest.mark.parametrize("weekend", _WEEKENDS, ids=lambda weekend: weekend.name)
+def test_no_reasoning_factor_contradicts_the_model_attribution(weekend: _Weekend):
+    signals = _signals(is_pre_qualifying=weekend.pre_qualifying, active_weights=weekend.weights)
+
+    contradictions = {}
+    for driver in _field(weekend):
+        scored = module.score_driver(driver, signals).scored
+        found = _contradictions(scored, weekend, timed=not driver.get("no_qualifying_time"))
+        if found:
+            contradictions[driver["driver_code"]] = found
+
+    assert contradictions == {}
+
+
+@pytest.mark.unit
+@pytest.mark.usefixtures("_linear_model")
+@pytest.mark.parametrize(
+    ("pre_qualifying", "label"),
+    [(True, _PRE_QUALIFYING_GRID_LABEL), (False, "grid position")],
+)
+def test_the_grid_input_is_labelled_for_the_phase_it_was_read_in(pre_qualifying: bool, label: str):
+    driver = _driver("ANT", position=1, no_qualifying_time=pre_qualifying)
+
+    scored = module.score_driver(driver, _signals(is_pre_qualifying=pre_qualifying)).scored
+
+    grid = scored["model_attribution"][0]
+    assert (grid["feature"], grid["label"], grid["value"], grid["direction"]) == ("grid_position", label, 1.0, "helps")
+    assert f"{label.capitalize()} lifts the projection ~3.8 places" in scored["factors"]
+
+
+@pytest.mark.unit
+@pytest.mark.usefixtures("_linear_model")
+def test_the_r20_pre_qualifying_leader_reads_as_an_expected_grid_slot():
+    """Before any session the field is back-filled from P1 in championship order."""
+    leader = _driver("ANT", position=1, no_qualifying_time=True)
+
+    scored = module.score_driver(leader, _signals(is_pre_qualifying=True, active_weights={"recent_form": 1.0})).scored
+
+    assert "Expected grid P1 (pre-qualifying estimate)" in scored["factors"]
+    assert not any("back of grid" in factor or "practice" in factor for factor in scored["factors"])

@@ -75,6 +75,9 @@ class FactorInputs:
     grid_delta: float = 0.0
     is_pre_qualifying: bool = False
     sprint_pos: int | None = None
+    # The driver set no time in the session the grid was read from, so
+    # ``quali_pos`` is a back-filled slot rather than a measured one.
+    no_session_time: bool = False
 
 
 # Each builder returns one weighted phrase, or None when it has nothing to say.
@@ -105,13 +108,23 @@ def _practice_factor(position: int) -> Factor:
     return (0.5, f"Practice pace P{position}")
 
 
+def _expected_grid_factor(position: int) -> Factor:
+    """A pre-qualifying slot that no session measured.
+
+    It is back-filled behind the practice times, or from P1 in championship order
+    before any session has run. An estimate is no evidence of pace, so it ranks
+    with the weakest factors.
+    """
+    return (0.5, f"Expected grid P{position} (pre-qualifying estimate)")
+
+
 def _qualifying_factor(inputs: FactorInputs) -> Factor | None:
     """Grid position, or practice pace when qualifying has not happened yet."""
     position = inputs.quali_pos
     if position is None:
         return None
     if inputs.is_pre_qualifying:
-        return _practice_factor(position)
+        return _expected_grid_factor(position) if inputs.no_session_time else _practice_factor(position)
     if position == 1:
         return (5.0, "Pole position (qualifying P1)")
     if position <= 3:

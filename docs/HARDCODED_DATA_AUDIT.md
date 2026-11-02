@@ -40,7 +40,7 @@ resolves both.
 > feed-offline banner instead of fabricated numbers.
 >
 > **Follow-up (2026-11-01).** Without a One Call 3.0 subscription, OpenWeatherMap answers from
-> its 2.5 *current conditions* endpoint, whose rain figure is a weather-code heuristic (5% for
+> its 2.5 _current conditions_ endpoint, whose rain figure is a weather-code heuristic (5% for
 > any sky under 80% cloud), so "Live forecast" still overstated it. The card now reads the
 > **race session's** forecast from Open-Meteo (`app/services/race_control/session_weather.py`,
 > hourly, 16 days out, keyless), and the OpenWeatherMap block is only a fallback, relabelled
@@ -48,6 +48,7 @@ resolves both.
 > the Command Center.
 
 ### [x] 1.1 — Invented weather lookup table in the frontend
+
 - **File:** `frontend/app/race-control/page.tsx:70-74`
 - **What:** `HISTORICAL_WEATHER` = three hardcoded rows:
   ```ts
@@ -68,6 +69,7 @@ resolves both.
     `mixed` bucket. **Label/value mismatch.**
 
 ### [x] 1.2 — Backend weather block hardcoded to null
+
 - **File:** `backend/app/services/race_control.py:212-217`
 - **What:**
   ```python
@@ -79,6 +81,7 @@ resolves both.
 - **Why:** forces `weatherLive = false` in the frontend (`page.tsx:104`), which triggers 1.1.
 
 ### Fix plan for Tier 1
+
 1. In `build_overview` (`backend/app/services/race_control.py:188`), call
    `get_weather_for_circuit(race["location"])` when a race + location exists, wrapped in
    try/except (mirror the existing `predictions` / `strategy_reference` error handling at
@@ -108,6 +111,7 @@ Real-ish but derived from formulas, not data. Currently disclosed in fine print;
 to make disclosure louder or actually compute them.
 
 ### [~] 2.1 — Undercut / overcut deltas are circuit-shape formulas
+
 - **File:** `backend/app/services/race_control.py` (`build_strategy_context`)
   ```python
   undercut_delta = undercut_from_ref or round(1.2 + (0.4 if is_street else 0.2), 1)
@@ -127,6 +131,7 @@ to make disclosure louder or actually compute them.
   is worse than an honestly-flagged estimate. When done, the modeled flags flip to false automatically.
 
 ### [x] 2.2 — `traffic_threshold` hardcoded to "medium"
+
 - **File:** `backend/app/services/race_control.py` (`derive_traffic_threshold` + `build_strategy_context`)
 - **Was:** `"traffic_threshold": "medium"` — **always** "medium", never computed.
 - **DONE (2026-07-22).** New `derive_traffic_threshold(ref, is_street)` computes the value from the
@@ -138,12 +143,14 @@ to make disclosure louder or actually compute them.
   fallback case.
 
 ### [~] 2.3 — Pit-loss / tyre-window heuristic fallback
+
 - **File:** `backend/app/services/race_control.py:250-259` (`24 if is_street else 21`, stops from
   `laps * 0.42`, etc.)
 - **Least problematic of the tier:** honestly flagged via `data_source.mode = "heuristic"`
   (`race_control.py:321`) and the "no completed edition" assumption. Leave unless upgrading.
 
 ### [~] 2.4 — Competitor threat labels & thresholds
+
 - **File:** `backend/app/services/race_control.py:294-311`
 - Points/gaps are real (from standings), but `"Primary"/"High"/"Monitor"`, the `gap <= 60` cutoff,
   and the `operating_read` sentences are hardcoded editorial thresholds. Fine as heuristics; just
@@ -164,6 +171,7 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
 > decision-gate and stint prose is built from the values `build_strategy_context` already computes.
 
 ### [x] 3.1 — Risk register static cards
+
 - **File:** `backend/app/services/race_control.py` (`build_risk_register` + `_weather_risk` + `_rival_risk`)
 - **Was:** fixed "Weather confirmation" and "Rival offset plans" Medium risks on every event.
 - **Now:** the weather risk is graded from the live forecast — offline → Medium "Weather feed
@@ -172,6 +180,7 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
   actual nearest rival). Returns no rival card when there is no trailing rival in the standings.
 
 ### [x] 3.2 — Workstreams static statuses
+
 - **File:** `backend/app/services/race_control.py` (`build_workstreams` + `_*_status` helpers)
 - **Was:** statuses `"Build"`, `"Monitor"`, `"Standby"` hardcoded; never reflected progress.
 - **Now:** every status is derived — Weekend Brief from event status (Waiting/Ready/Live/Complete);
@@ -180,6 +189,7 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
   Complete). P1/P2 priorities are kept static — they are fixed operational weightings, not live data.
 
 ### [x] 3.3 — Decision gates & stint targets prose
+
 - **File:** `backend/app/services/race_control.py` (`build_strategy_context`)
 - **Was:** lap windows computed, but "decision"/"target" strings were fixed copy (e.g. the hardcoded
   "rival gap is inside 2.5s").
@@ -190,6 +200,7 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
   web Command Center; the fields are still in the `/strategy` payload.
 
 ### [keep] 3.4 — Prompt / question suggestion chips
+
 - `frontend/app/race-control/engineer/page.tsx:10` (`PROMPTS`),
   `frontend/app/race-control/rulebook/page.tsx:33` (`QUICK_QUESTIONS`).
 - These are UI affordances, not data. **Leave as-is.**
@@ -210,6 +221,7 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
 ## Verified-clean surfaces (no fabricated data)
 
 For reference, these were checked and genuinely derive from real data — no action needed:
+
 - **Intel / Rival page** — `backend/app/services/race_control_standings.py:139` (from standings feed)
 - **Debriefs** — `backend/app/services/race_control_debriefs.py` (from race classification)
 - **Championship forecast** — `backend/app/services/race_control_championship.py`

@@ -410,11 +410,10 @@ export default function RaceControlShell({ children }: { children: React.ReactNo
   // telemetry or model behind it. The full overview took as long as its
   // slowest input, which held the sidebar and its countdown hostage on every
   // Race Control page.
-  const { data } = useSWR<SessionOverview, Error>(
-    `${API_BASE}/api/race-control/overview/${year}/shell`,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 120000 },
-  );
+  const { data } = useSWR<SessionOverview, Error>(`${API_BASE}/api/race-control/overview/${year}/shell`, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 120000,
+  });
 
   const nextSession = useNextSession(data?.race?.sessions ?? undefined);
   const isLive = data?.live_status?.connected === true;

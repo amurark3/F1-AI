@@ -5,13 +5,13 @@
 `pre-commit` blocks a commit when any gate fails. Frontend and backend run the
 same set of gates through different tools:
 
-| Gate | Frontend | Backend | Runs when |
-| --- | --- | --- | --- |
-| **format** | — (Prettier is not gated) | `ruff format --check` | backend `.py` staged |
-| **lint** | ESLint — correctness, type hygiene, imports, style | Ruff — same categories | matching file staged |
-| **sonar** | the `sonarjs/*` rules + complexity/size budgets | the code-smell families + complexity budgets | matching file staged |
-| **size** | ESLint `max-lines` (part of sonar) | `tools/check_module_size.py` | backend `.py` staged |
-| **test** | — | `pytest` | backend `.py` staged |
+| Gate       | Frontend                                           | Backend                                      | Runs when            |
+| ---------- | -------------------------------------------------- | -------------------------------------------- | -------------------- |
+| **format** | — (Prettier is not gated)                          | `ruff format --check`                        | backend `.py` staged |
+| **lint**   | ESLint — correctness, type hygiene, imports, style | Ruff — same categories                       | matching file staged |
+| **sonar**  | the `sonarjs/*` rules + complexity/size budgets    | the code-smell families + complexity budgets | matching file staged |
+| **size**   | ESLint `max-lines` (part of sonar)                 | `tools/check_module_size.py`                 | backend `.py` staged |
+| **test**   | —                                                  | `pytest`                                     | backend `.py` staged |
 
 Frontend gates run on a staged `frontend/**/*.{ts,tsx,js,jsx,mjs,cjs}`; backend
 gates on a staged `backend/**/*.py`.

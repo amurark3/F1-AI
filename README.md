@@ -58,18 +58,18 @@ like a pit wall. The sidebar groups the screens into Operations, Decision Tools
 and Reference. Older top-level routes (`/calendar`, `/standings`, `/champions`,
 `/predictions`, `/consumer`, `/live`) redirect into `/race-control`.
 
-| Screen | Route | Description |
-|---|---|---|
-| **Command Center** | `/race-control` | The current race weekend at a glance: animated circuit map, countdown to the next session, the weather for every session, title stakes, projected podium, circuit history, and the baseline strategy with its risk register. The live timing tower appears here only while a session is live |
-| **AI Engineer** | `/race-control/engineer` | Streaming race-engineer chat with tool status, saved chats, voice dictation and spoken replies, and per-user memory |
-| **Grand Prix Hub** | `/race-control/grand-prix` | One race weekend at a time: Weekend, Sessions, Grid (with grid penalties), Stints, and Predictions (order, podium, risk, model factors, post-race review). Round, tab and view are kept in the URL |
-| **Telemetry Lab** | `/race-control/telemetry` | Track speed map, head-to-head lap traces, and tyre degradation (raw slope beside the fuel-corrected one), from OpenF1 |
-| **Standings** | `/race-control/teams` | WDC and WCC tables with charts |
-| **Teams & Drivers** | `/race-control/constructors/[team]`, `/race-control/drivers/[driver]` | Current-season profiles: line-up, wins, per-round results, cumulative points, and the power units of each car |
-| **Power Units** | `/race-control/power-units` | Element usage per car against the allowance, and the grid penalties it cost — every figure taken from an FIA document |
-| **Champions** | `/race-control/champions` | Every champion 1950→present, title leaderboards, and every race winner per season |
-| **Race Debriefs** | `/race-control/debriefs` | Post-race debrief built from the classification: podium, biggest movers, constructor impact |
-| **Rules Search** | `/race-control/rulebook` | Semantic search of FIA regulations with reranking and page citations |
+| Screen              | Route                                                                 | Description                                                                                                                                                                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Command Center**  | `/race-control`                                                       | The current race weekend at a glance: animated circuit map, countdown to the next session, the weather for every session, title stakes, projected podium, circuit history, and the baseline strategy with its risk register. The live timing tower appears here only while a session is live |
+| **AI Engineer**     | `/race-control/engineer`                                              | Streaming race-engineer chat with tool status, saved chats, voice dictation and spoken replies, and per-user memory                                                                                                                                                                          |
+| **Grand Prix Hub**  | `/race-control/grand-prix`                                            | One race weekend at a time: Weekend, Sessions, Grid (with grid penalties), Stints, and Predictions (order, podium, risk, model factors, post-race review). Round, tab and view are kept in the URL                                                                                           |
+| **Telemetry Lab**   | `/race-control/telemetry`                                             | Track speed map, head-to-head lap traces, and tyre degradation (raw slope beside the fuel-corrected one), from OpenF1                                                                                                                                                                        |
+| **Standings**       | `/race-control/teams`                                                 | WDC and WCC tables with charts                                                                                                                                                                                                                                                               |
+| **Teams & Drivers** | `/race-control/constructors/[team]`, `/race-control/drivers/[driver]` | Current-season profiles: line-up, wins, per-round results, cumulative points, and the power units of each car                                                                                                                                                                                |
+| **Power Units**     | `/race-control/power-units`                                           | Element usage per car against the allowance, and the grid penalties it cost — every figure taken from an FIA document                                                                                                                                                                        |
+| **Champions**       | `/race-control/champions`                                             | Every champion 1950→present, title leaderboards, and every race winner per season                                                                                                                                                                                                            |
+| **Race Debriefs**   | `/race-control/debriefs`                                              | Post-race debrief built from the classification: podium, biggest movers, constructor impact                                                                                                                                                                                                  |
+| **Rules Search**    | `/race-control/rulebook`                                              | Semantic search of FIA regulations with reranking and page citations                                                                                                                                                                                                                         |
 
 While the backend cold-starts on Render, the app is blocked behind a warm-up
 screen that shows each startup stage, and rechecks when a stale tab comes back.
@@ -124,11 +124,11 @@ without a database.
 
 ## Prerequisites
 
-| Tool | Version |
-|---|---|
-| Node.js | 20+ |
-| Python | 3.13 |
-| Xcode | 15+ (iOS only) |
+| Tool    | Version        |
+| ------- | -------------- |
+| Node.js | 20+            |
+| Python  | 3.13           |
+| Xcode   | 15+ (iOS only) |
 
 ---
 
@@ -226,85 +226,85 @@ All endpoints are mounted under `/api`.
 
 ### Core
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/chat` | Streaming agentic AI chat with tool orchestration |
-| `GET` | `/api/schedule/{year}` | Season calendar with UTC session times |
-| `GET` | `/api/standings/drivers/{year}` | WDC standings (f1db, Ergast fallback) |
-| `GET` | `/api/standings/constructors/{year}` | WCC standings |
-| `GET` | `/api/race/{year}/{round_num}` | Enriched race + qualifying + sprint detail |
-| `GET` | `/api/compare/{year}/{driver1}/{driver2}` | Season head-to-head comparison |
-| `WS` | `/api/live/{year}/{round_num}` | Real-time timing WebSocket |
-| `GET` | `/api/health` | Liveness probe |
-| `GET` | `/api/ready` | Warm-up progress, store health, and the f1db release on disk |
-| `GET` | `/api/health/deep` | Database reachability (503 when degraded) |
+| Method | Path                                      | Description                                                  |
+| ------ | ----------------------------------------- | ------------------------------------------------------------ |
+| `POST` | `/api/chat`                               | Streaming agentic AI chat with tool orchestration            |
+| `GET`  | `/api/schedule/{year}`                    | Season calendar with UTC session times                       |
+| `GET`  | `/api/standings/drivers/{year}`           | WDC standings (f1db, Ergast fallback)                        |
+| `GET`  | `/api/standings/constructors/{year}`      | WCC standings                                                |
+| `GET`  | `/api/race/{year}/{round_num}`            | Enriched race + qualifying + sprint detail                   |
+| `GET`  | `/api/compare/{year}/{driver1}/{driver2}` | Season head-to-head comparison                               |
+| `WS`   | `/api/live/{year}/{round_num}`            | Real-time timing WebSocket                                   |
+| `GET`  | `/api/health`                             | Liveness probe                                               |
+| `GET`  | `/api/ready`                              | Warm-up progress, store health, and the f1db release on disk |
+| `GET`  | `/api/health/deep`                        | Database reachability (503 when degraded)                    |
 
 ### Predictions
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/predictions/{year}/{round_num}` | Race outcome predictions |
-| `GET` | `/api/predictions/{year}/{round_num}/snapshot` | Persisted pre-race snapshot |
-| `GET` | `/api/predictions/{year}/{round_num}/postmortem` | Prediction vs. actual post-mortem |
-| `POST` | `/api/predictions/{year}/{round_num}/compute` | Force (re)computation |
+| Method | Path                                             | Description                       |
+| ------ | ------------------------------------------------ | --------------------------------- |
+| `GET`  | `/api/predictions/{year}/{round_num}`            | Race outcome predictions          |
+| `GET`  | `/api/predictions/{year}/{round_num}/snapshot`   | Persisted pre-race snapshot       |
+| `GET`  | `/api/predictions/{year}/{round_num}/postmortem` | Prediction vs. actual post-mortem |
+| `POST` | `/api/predictions/{year}/{round_num}/compute`    | Force (re)computation             |
 
 ### Champions
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/champions` | Every season's driver + constructor champions (1950→) |
-| `GET` | `/api/champions/stats` | Aggregate title leaderboards |
-| `GET` | `/api/champions/{year}` | Champions + every race winner for a season |
+| Method | Path                    | Description                                           |
+| ------ | ----------------------- | ----------------------------------------------------- |
+| `GET`  | `/api/champions`        | Every season's driver + constructor champions (1950→) |
+| `GET`  | `/api/champions/stats`  | Aggregate title leaderboards                          |
+| `GET`  | `/api/champions/{year}` | Champions + every race winner for a season            |
 
 ### Race Control
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/race-control/overview/{year}` | Every Command Center segment in one response (the web app fetches the segments below instead) |
-| `GET` | `/api/race-control/overview/{year}/shell` | Schedule, standings, session state and championship stakes (no telemetry) |
-| `GET` | `/api/race-control/overview/{year}/weather` | Forecast for every session of the weekend, the race-day summary, and the risk register it grades |
-| `GET` | `/api/race-control/overview/{year}/circuit` | Circuit map (MultiViewer), layout facts, lap record and history at the circuit |
-| `GET` | `/api/race-control/overview/{year}/predictions` | Projected podium from the stored model snapshot |
-| `GET` | `/api/race-control/overview/{year}/strategy` | Baseline strategy context and workstreams |
-| `GET` | `/api/race-control/teams/{year}` | All teams for a season |
-| `GET` | `/api/race-control/teams/{team_slug}/{year}` | Single team breakdown |
-| `GET` | `/api/race-control/drivers/{year}` | Driver grid |
-| `GET` | `/api/race-control/grid/{year}/{round_num}` | Starting grid and the grid penalties applied to it |
-| `GET` | `/api/race-control/sessions/{year}/{round_num}` | Every session the weekend ran |
-| `GET` | `/api/race-control/stints/{year}/{round_num}` | Race tyre stints and pit stops |
-| `GET` | `/api/race-control/forecast/{year}` | Championship forecast |
-| `GET` | `/api/race-control/battle/{year}/{driver1}/{driver2}` | Driver battle |
-| `GET` | `/api/race-control/debrief/{year}/{round_num}` | Post-race debrief |
-| `POST` | `/api/race-control/rulebook/search` | Regulation semantic search |
-| `GET` | `/api/race-control/intel/{team_slug}` | Team championship picture |
-| `GET` | `/api/race-control/glance/{year}/{round_num}` | Last edition's winner and pole, this round's PU penalty decisions |
-| `GET` | `/api/race-control/power-units/{year}` | Every car's element allowance, usage, and the grid penalties it cost |
+| Method | Path                                                  | Description                                                                                      |
+| ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `GET`  | `/api/race-control/overview/{year}`                   | Every Command Center segment in one response (the web app fetches the segments below instead)    |
+| `GET`  | `/api/race-control/overview/{year}/shell`             | Schedule, standings, session state and championship stakes (no telemetry)                        |
+| `GET`  | `/api/race-control/overview/{year}/weather`           | Forecast for every session of the weekend, the race-day summary, and the risk register it grades |
+| `GET`  | `/api/race-control/overview/{year}/circuit`           | Circuit map (MultiViewer), layout facts, lap record and history at the circuit                   |
+| `GET`  | `/api/race-control/overview/{year}/predictions`       | Projected podium from the stored model snapshot                                                  |
+| `GET`  | `/api/race-control/overview/{year}/strategy`          | Baseline strategy context and workstreams                                                        |
+| `GET`  | `/api/race-control/teams/{year}`                      | All teams for a season                                                                           |
+| `GET`  | `/api/race-control/teams/{team_slug}/{year}`          | Single team breakdown                                                                            |
+| `GET`  | `/api/race-control/drivers/{year}`                    | Driver grid                                                                                      |
+| `GET`  | `/api/race-control/grid/{year}/{round_num}`           | Starting grid and the grid penalties applied to it                                               |
+| `GET`  | `/api/race-control/sessions/{year}/{round_num}`       | Every session the weekend ran                                                                    |
+| `GET`  | `/api/race-control/stints/{year}/{round_num}`         | Race tyre stints and pit stops                                                                   |
+| `GET`  | `/api/race-control/forecast/{year}`                   | Championship forecast                                                                            |
+| `GET`  | `/api/race-control/battle/{year}/{driver1}/{driver2}` | Driver battle                                                                                    |
+| `GET`  | `/api/race-control/debrief/{year}/{round_num}`        | Post-race debrief                                                                                |
+| `POST` | `/api/race-control/rulebook/search`                   | Regulation semantic search                                                                       |
+| `GET`  | `/api/race-control/intel/{team_slug}`                 | Team championship picture                                                                        |
+| `GET`  | `/api/race-control/glance/{year}/{round_num}`         | Last edition's winner and pole, this round's PU penalty decisions                                |
+| `GET`  | `/api/race-control/power-units/{year}`                | Every car's element allowance, usage, and the grid penalties it cost                             |
 
 ### Telemetry Lab
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/analysis/{year}/{round_num}/sessions` | The round's sessions, from the calendar |
-| `GET` | `/api/analysis/{year}/{round_num}/laps` | Every driver's timed laps in a session, quickest first |
-| `GET` | `/api/analysis/{year}/{round_num}/track-map` | One lap coloured by speed, with braking and high-speed zones |
-| `GET` | `/api/analysis/{year}/{round_num}/compare` | Two laps side by side: traces, delta, and where each driver gains |
-| `GET` | `/api/analysis/{year}/{round_num}/tyre-degradation` | Lap time against tyre age per stint and compound, with excluded laps and why |
+| Method | Path                                                | Description                                                                  |
+| ------ | --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `GET`  | `/api/analysis/{year}/{round_num}/sessions`         | The round's sessions, from the calendar                                      |
+| `GET`  | `/api/analysis/{year}/{round_num}/laps`             | Every driver's timed laps in a session, quickest first                       |
+| `GET`  | `/api/analysis/{year}/{round_num}/track-map`        | One lap coloured by speed, with braking and high-speed zones                 |
+| `GET`  | `/api/analysis/{year}/{round_num}/compare`          | Two laps side by side: traces, delta, and where each driver gains            |
+| `GET`  | `/api/analysis/{year}/{round_num}/tyre-degradation` | Lap time against tyre age per stint and compound, with excluded laps and why |
 
 ### Teams & Drivers
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/profiles/{year}/directory` | Every driver and team of the season, by f1db id (with team aliases) |
-| `GET` | `/api/profiles/{year}/teams/{team_id}` | Line-up, wins, results per round, cumulative points, power units |
-| `GET` | `/api/profiles/{year}/drivers/{driver_id}` | Every round's result, wins, stats, and the PU of each car raced |
+| Method | Path                                       | Description                                                         |
+| ------ | ------------------------------------------ | ------------------------------------------------------------------- |
+| `GET`  | `/api/profiles/{year}/directory`           | Every driver and team of the season, by f1db id (with team aliases) |
+| `GET`  | `/api/profiles/{year}/teams/{team_id}`     | Line-up, wins, results per round, cumulative points, power units    |
+| `GET`  | `/api/profiles/{year}/drivers/{driver_id}` | Every round's result, wins, stats, and the PU of each car raced     |
 
 ### Memory (requires `DATABASE_URL`)
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/profile/{user_id}` | Fetch user profile |
-| `PUT` | `/api/profile/{user_id}` | Upsert favourite driver/team + prefs |
-| `GET` | `/api/threads/{user_id}/recall` | Semantic recall of past messages |
+| Method | Path                            | Description                          |
+| ------ | ------------------------------- | ------------------------------------ |
+| `GET`  | `/api/profile/{user_id}`        | Fetch user profile                   |
+| `PUT`  | `/api/profile/{user_id}`        | Upsert favourite driver/team + prefs |
+| `GET`  | `/api/threads/{user_id}/recall` | Semantic recall of past messages     |
 
 ---
 
@@ -358,15 +358,15 @@ heuristic, 1 = pure model; default 0.65) and `PREDICTION_ADAPTIVE_WEIGHT`
 
 ## Scheduled Jobs (GitHub Actions)
 
-| Workflow | Schedule | What it does |
-|---|---|---|
-| `keep-warm.yml` | every 13 min | Pings the Render backend so it doesn't spin down |
+| Workflow                 | Schedule                                 | What it does                                                                      |
+| ------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `keep-warm.yml`          | every 13 min                             | Pings the Render backend so it doesn't spin down                                  |
 | `ingest-power-units.yml` | hourly on race weekends, daily otherwise | Reads FIA documents into the Power Unit Tracker (needs the `DATABASE_URL` secret) |
-| `retrain.yml` | Tuesdays | Retrains the race predictor; promotes only a better model |
-| `ingest-rulebook.yml` | on PDF changes | Re-embeds the FIA regulations into pgvector |
-| `dependency-audit.yml` | Mondays + manifest changes | pip-audit and npm audit-ci |
-| `codeql.yml` | Mondays + PRs to `main` | CodeQL security scan |
-| `pr-auto-review.yml` | PRs | Frontend lint + build, backend Ruff + module-size check, tests at 100% coverage |
+| `retrain.yml`            | Tuesdays                                 | Retrains the race predictor; promotes only a better model                         |
+| `ingest-rulebook.yml`    | on PDF changes                           | Re-embeds the FIA regulations into pgvector                                       |
+| `dependency-audit.yml`   | Mondays + manifest changes               | pip-audit and npm audit-ci                                                        |
+| `codeql.yml`             | Mondays + PRs to `main`                  | CodeQL security scan                                                              |
+| `pr-auto-review.yml`     | PRs                                      | Frontend lint + build, backend Ruff + module-size check, tests at 100% coverage   |
 
 ---
 
@@ -474,21 +474,21 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Web framework | Next.js 16, React 19, TypeScript 5 |
-| Styling | Tailwind CSS 4 |
-| Web UI libs | Recharts, Framer Motion, SWR, react-markdown, lucide-react |
-| Backend | FastAPI, Uvicorn, Python 3.13, structlog |
-| LLM | AMD Token Lab (DeepSeek-V4-Flash), Gemini 3.5 Flash-Lite fallback |
-| LLM orchestration | LangChain (agentic tool-use loop) |
-| F1 data | f1db (SQLite, 1950–present), FastF1, OpenF1 (telemetry + live), Ergast/Jolpica (fallback), FIA documents (power units) |
+| Layer              | Technology                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web framework      | Next.js 16, React 19, TypeScript 5                                                                                                                |
+| Styling            | Tailwind CSS 4                                                                                                                                    |
+| Web UI libs        | Recharts, Framer Motion, SWR, react-markdown, lucide-react                                                                                        |
+| Backend            | FastAPI, Uvicorn, Python 3.13, structlog                                                                                                          |
+| LLM                | AMD Token Lab (DeepSeek-V4-Flash), Gemini 3.5 Flash-Lite fallback                                                                                 |
+| LLM orchestration  | LangChain (agentic tool-use loop)                                                                                                                 |
+| F1 data            | f1db (SQLite, 1950–present), FastF1, OpenF1 (telemetry + live), Ergast/Jolpica (fallback), FIA documents (power units)                            |
 | Weather & circuits | Open-Meteo (hourly forecast, [CC BY 4.0](https://open-meteo.com/en/license)), OpenWeatherMap (current conditions), MultiViewer (circuit outlines) |
-| Vector search | Postgres pgvector + sentence-transformers + cross-encoder reranker |
-| Storage | Supabase Postgres (optional; JSON fallback) |
-| ML | scikit-learn Ridge regression + heuristic blend |
-| Web search | Tavily |
-| MCP | FastMCP |
-| Hosting | Render (backend), Vercel (frontend), Supabase (database) |
-| Observability | Sentry (web + backend), Vercel Analytics, Vercel Speed Insights |
-| iOS (legacy) | SwiftUI, Swift 5.9, Observation framework |
+| Vector search      | Postgres pgvector + sentence-transformers + cross-encoder reranker                                                                                |
+| Storage            | Supabase Postgres (optional; JSON fallback)                                                                                                       |
+| ML                 | scikit-learn Ridge regression + heuristic blend                                                                                                   |
+| Web search         | Tavily                                                                                                                                            |
+| MCP                | FastMCP                                                                                                                                           |
+| Hosting            | Render (backend), Vercel (frontend), Supabase (database)                                                                                          |
+| Observability      | Sentry (web + backend), Vercel Analytics, Vercel Speed Insights                                                                                   |
+| iOS (legacy)       | SwiftUI, Swift 5.9, Observation framework                                                                                                         |

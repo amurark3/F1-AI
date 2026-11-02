@@ -40,9 +40,7 @@ export interface SessionStatus {
 
 /** Messages pushed over the live-timing WebSocket. */
 type LiveMessage =
-  | { type: "positions"; data: LivePosition[] }
-  | { type: "session_status"; data: SessionStatus }
-  | { type: "ping" };
+  { type: "positions"; data: LivePosition[] } | { type: "session_status"; data: SessionStatus } | { type: "ping" };
 
 export function useLiveTiming(year: number, round: number) {
   const [positions, setPositions] = useState<LivePosition[]>([]);

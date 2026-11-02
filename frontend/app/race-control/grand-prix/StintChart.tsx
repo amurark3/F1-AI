@@ -188,26 +188,21 @@ function CompoundLegend({ compounds, anyUnknown }: { compounds: string[]; anyUnk
  * changed the field's tyres for free — and whether the published stop sheet
  * timed every stop that was made.
  */
-function ChartNotes({
-  warnings,
-  fastest,
-}: {
-  warnings?: string[];
-  fastest?: RaceStrategyResponse["fastest_stop"];
-}) {
+function ChartNotes({ warnings, fastest }: { warnings?: string[]; fastest?: RaceStrategyResponse["fastest_stop"] }) {
   if (!warnings?.length && !fastest) return null;
 
   return (
     <div className="space-y-1.5 border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#596173]">
       {fastest && (
         <p>
-          Fastest stop:{" "}
-          <span className="font-mono font-bold text-[#00FF78]">{fastest.time}</span> by{" "}
+          Fastest stop: <span className="font-mono font-bold text-[#00FF78]">{fastest.time}</span> by{" "}
           <span className="font-mono font-bold text-[#AEB5C5]">{fastest.driver_code}</span> on lap {fastest.lap}.
           Stationary time only — the lap-time cost of a stop is larger, and is not published.
         </p>
       )}
-      {warnings?.map((warning) => <p key={warning}>{warning}</p>)}
+      {warnings?.map((warning) => (
+        <p key={warning}>{warning}</p>
+      ))}
     </div>
   );
 }
@@ -232,10 +227,7 @@ export function StintChart({ data }: { data?: RaceStrategyResponse }) {
     [drivers],
   );
   // The full race distance, so a retirement's row is visibly short.
-  const raceLaps = useMemo(
-    () => Math.max(1, ...drivers.map((driver) => driver.total_laps)),
-    [drivers],
-  );
+  const raceLaps = useMemo(() => Math.max(1, ...drivers.map((driver) => driver.total_laps)), [drivers]);
 
   return (
     <ConsolePanel>

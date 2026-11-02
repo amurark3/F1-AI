@@ -16,11 +16,11 @@ the iOS Live tab showed them on a separate "Commentary" segment.
 
 **What was removed.**
 
-| Area    | Removed                                                                                                                                                                                |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend | `backend/app/services/live_commentary.py` (event detection, LLM narration, per-room cooldown), its call from `_run_live_loop` in `backend/app/api/routes.py`, and `backend/tests/test_live_commentary.py` |
+| Area    | Removed                                                                                                                                                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend | `backend/app/services/live_commentary.py` (event detection, LLM narration, per-room cooldown), its call from `_run_live_loop` in `backend/app/api/routes.py`, and `backend/tests/test_live_commentary.py`                      |
 | Web     | `frontend/app/components/CommentaryPanel.tsx`, the `commentary` message and state in `frontend/app/hooks/useLiveTiming.ts`, the commentary column in `LiveView.tsx`, and the commentary starter prompt in the AI Engineer chat |
-| iOS     | `ios/F1AI/Views/Live/CommentaryFeedView.swift`, the `CommentaryEntry` model, `commentaryEntries` on `LiveTimingService` and `LiveTimingViewModel`, and the Timing/Commentary picker in `LiveTab.swift` |
+| iOS     | `ios/F1AI/Views/Live/CommentaryFeedView.swift`, the `CommentaryEntry` model, `commentaryEntries` on `LiveTimingService` and `LiveTimingViewModel`, and the Timing/Commentary picker in `LiveTab.swift`                         |
 
 **What still works.** The live-timing WebSocket (`/api/live/{year}/{round_num}`)
 still streams `session_status` and `positions`. The timing tower on web and iOS
@@ -60,8 +60,8 @@ which never existed.
 
 **What was removed.**
 
-| Area | Removed                                                                                                                                             |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area | Removed                                                                                                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Web  | `frontend/app/race-control/live/` (`page.tsx`, `LiveView.tsx`, `WeekendCountdown.tsx`), `frontend/app/live/page.tsx`, the sidebar entry and the landing tile |
 
 **Where live timing is now.** The Command Center (`/race-control`) renders
@@ -97,8 +97,8 @@ view:
 
 **What was removed.**
 
-| Area | Removed                                                                                                                                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area | Removed                                                                                                                                                                                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Web  | `CallSheetPanel`, `StintPlanPanel`, `CompetitorMatrixPanel` and `RaceWeekendClock` from `frontend/app/race-control/components/CommandCenterPanels.tsx`; `WeatherRiskPanel`, `ChampionshipControlPanel`, `DataAssumptionsPanel` and `ProjectedPodiumPanel` (redrawn as `weekend/PodiumPanel.tsx`) from `CommandCenterView.tsx` |
 
 **What replaced them.**

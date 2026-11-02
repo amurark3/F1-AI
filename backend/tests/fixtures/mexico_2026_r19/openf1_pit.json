@@ -1,0 +1,471 @@
+[
+ {
+  "driver_number": 10,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 77,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 18,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 30,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 1,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 14,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 12,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 41,
+  "lap_number": 1,
+  "lane_duration": null,
+  "stop_duration": null,
+  "pit_duration": null
+ },
+ {
+  "driver_number": 14,
+  "lap_number": 3,
+  "lane_duration": 23.9,
+  "stop_duration": null,
+  "pit_duration": 23.9
+ },
+ {
+  "driver_number": 18,
+  "lap_number": 3,
+  "lane_duration": 27.1,
+  "stop_duration": null,
+  "pit_duration": 27.1
+ },
+ {
+  "driver_number": 6,
+  "lap_number": 7,
+  "lane_duration": 23.9,
+  "stop_duration": null,
+  "pit_duration": 23.9
+ },
+ {
+  "driver_number": 30,
+  "lap_number": 11,
+  "lane_duration": 22.8,
+  "stop_duration": null,
+  "pit_duration": 22.8
+ },
+ {
+  "driver_number": 10,
+  "lap_number": 17,
+  "lane_duration": 22.9,
+  "stop_duration": null,
+  "pit_duration": 22.9
+ },
+ {
+  "driver_number": 23,
+  "lap_number": 18,
+  "lane_duration": 22.0,
+  "stop_duration": null,
+  "pit_duration": 22.0
+ },
+ {
+  "driver_number": 81,
+  "lap_number": 26,
+  "lane_duration": 22.6,
+  "stop_duration": null,
+  "pit_duration": 22.6
+ },
+ {
+  "driver_number": 3,
+  "lap_number": 27,
+  "lane_duration": 22.4,
+  "stop_duration": null,
+  "pit_duration": 22.4
+ },
+ {
+  "driver_number": 16,
+  "lap_number": 27,
+  "lane_duration": 28.7,
+  "stop_duration": null,
+  "pit_duration": 28.7
+ },
+ {
+  "driver_number": 44,
+  "lap_number": 28,
+  "lane_duration": 22.7,
+  "stop_duration": null,
+  "pit_duration": 22.7
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 30,
+  "lane_duration": 28.9,
+  "stop_duration": null,
+  "pit_duration": 28.9
+ },
+ {
+  "driver_number": 77,
+  "lap_number": 30,
+  "lane_duration": 26.7,
+  "stop_duration": null,
+  "pit_duration": 26.7
+ },
+ {
+  "driver_number": 27,
+  "lap_number": 31,
+  "lane_duration": 21.9,
+  "stop_duration": null,
+  "pit_duration": 21.9
+ },
+ {
+  "driver_number": 63,
+  "lap_number": 33,
+  "lane_duration": 33.9,
+  "stop_duration": null,
+  "pit_duration": 33.9
+ },
+ {
+  "driver_number": 43,
+  "lap_number": 34,
+  "lane_duration": 23.3,
+  "stop_duration": null,
+  "pit_duration": 23.3
+ },
+ {
+  "driver_number": 41,
+  "lap_number": 35,
+  "lane_duration": 22.8,
+  "stop_duration": null,
+  "pit_duration": 22.8
+ },
+ {
+  "driver_number": 50,
+  "lap_number": 35,
+  "lane_duration": 22.8,
+  "stop_duration": null,
+  "pit_duration": 22.8
+ },
+ {
+  "driver_number": 55,
+  "lap_number": 36,
+  "lane_duration": 22.5,
+  "stop_duration": null,
+  "pit_duration": 22.5
+ },
+ {
+  "driver_number": 5,
+  "lap_number": 38,
+  "lane_duration": 22.5,
+  "stop_duration": null,
+  "pit_duration": 22.5
+ },
+ {
+  "driver_number": 1,
+  "lap_number": 39,
+  "lane_duration": 24.7,
+  "stop_duration": null,
+  "pit_duration": 24.7
+ },
+ {
+  "driver_number": 87,
+  "lap_number": 40,
+  "lane_duration": 22.5,
+  "stop_duration": null,
+  "pit_duration": 22.5
+ },
+ {
+  "driver_number": 6,
+  "lap_number": 41,
+  "lane_duration": 22.6,
+  "stop_duration": null,
+  "pit_duration": 22.6
+ },
+ {
+  "driver_number": 23,
+  "lap_number": 41,
+  "lane_duration": 25.4,
+  "stop_duration": null,
+  "pit_duration": 25.4
+ },
+ {
+  "driver_number": 30,
+  "lap_number": 42,
+  "lane_duration": 22.5,
+  "stop_duration": null,
+  "pit_duration": 22.5
+ },
+ {
+  "driver_number": 12,
+  "lap_number": 43,
+  "lane_duration": 23.7,
+  "stop_duration": null,
+  "pit_duration": 23.7
+ },
+ {
+  "driver_number": 44,
+  "lap_number": 44,
+  "lane_duration": 23.8,
+  "stop_duration": null,
+  "pit_duration": 23.8
+ },
+ {
+  "driver_number": 50,
+  "lap_number": 43,
+  "lane_duration": 23.8,
+  "stop_duration": null,
+  "pit_duration": 23.8
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 43,
+  "lane_duration": 24.1,
+  "stop_duration": null,
+  "pit_duration": 24.1
+ },
+ {
+  "driver_number": 63,
+  "lap_number": 44,
+  "lane_duration": 22.2,
+  "stop_duration": null,
+  "pit_duration": 22.2
+ },
+ {
+  "driver_number": 81,
+  "lap_number": 44,
+  "lane_duration": 24.5,
+  "stop_duration": null,
+  "pit_duration": 24.5
+ },
+ {
+  "driver_number": 10,
+  "lap_number": 44,
+  "lane_duration": 22.8,
+  "stop_duration": null,
+  "pit_duration": 22.8
+ },
+ {
+  "driver_number": 30,
+  "lap_number": 44,
+  "lane_duration": 2191.6,
+  "stop_duration": null,
+  "pit_duration": 2191.6
+ },
+ {
+  "driver_number": 55,
+  "lap_number": 44,
+  "lane_duration": 2192.4,
+  "stop_duration": null,
+  "pit_duration": 2192.4
+ },
+ {
+  "driver_number": 50,
+  "lap_number": 44,
+  "lane_duration": 2178.9,
+  "stop_duration": null,
+  "pit_duration": 2178.9
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 44,
+  "lane_duration": 2172.9,
+  "stop_duration": null,
+  "pit_duration": 2172.9
+ },
+ {
+  "driver_number": 23,
+  "lap_number": 44,
+  "lane_duration": 2181.8,
+  "stop_duration": null,
+  "pit_duration": 2181.8
+ },
+ {
+  "driver_number": 3,
+  "lap_number": 45,
+  "lane_duration": 2314.9,
+  "stop_duration": null,
+  "pit_duration": 2314.9
+ },
+ {
+  "driver_number": 16,
+  "lap_number": 45,
+  "lane_duration": 2315.8,
+  "stop_duration": null,
+  "pit_duration": 2315.8
+ },
+ {
+  "driver_number": 44,
+  "lap_number": 45,
+  "lane_duration": 2309.6,
+  "stop_duration": null,
+  "pit_duration": 2309.6
+ },
+ {
+  "driver_number": 12,
+  "lap_number": 45,
+  "lane_duration": 2315.3,
+  "stop_duration": null,
+  "pit_duration": 2315.3
+ },
+ {
+  "driver_number": 1,
+  "lap_number": 45,
+  "lane_duration": 2312.4,
+  "stop_duration": null,
+  "pit_duration": 2312.4
+ },
+ {
+  "driver_number": 63,
+  "lap_number": 45,
+  "lane_duration": 2295.3,
+  "stop_duration": null,
+  "pit_duration": 2295.3
+ },
+ {
+  "driver_number": 81,
+  "lap_number": 45,
+  "lane_duration": 2272.0,
+  "stop_duration": null,
+  "pit_duration": 2272.0
+ },
+ {
+  "driver_number": 41,
+  "lap_number": 45,
+  "lane_duration": 2284.6,
+  "stop_duration": null,
+  "pit_duration": 2284.6
+ },
+ {
+  "driver_number": 43,
+  "lap_number": 45,
+  "lane_duration": 2274.5,
+  "stop_duration": null,
+  "pit_duration": 2274.5
+ },
+ {
+  "driver_number": 10,
+  "lap_number": 45,
+  "lane_duration": 2256.2,
+  "stop_duration": null,
+  "pit_duration": 2256.2
+ },
+ {
+  "driver_number": 27,
+  "lap_number": 45,
+  "lane_duration": 2272.9,
+  "stop_duration": null,
+  "pit_duration": 2272.9
+ },
+ {
+  "driver_number": 87,
+  "lap_number": 45,
+  "lane_duration": 2268.4,
+  "stop_duration": null,
+  "pit_duration": 2268.4
+ },
+ {
+  "driver_number": 5,
+  "lap_number": 45,
+  "lane_duration": 2270.0,
+  "stop_duration": null,
+  "pit_duration": 2270.0
+ },
+ {
+  "driver_number": 6,
+  "lap_number": 45,
+  "lane_duration": 2265.5,
+  "stop_duration": null,
+  "pit_duration": 2265.5
+ },
+ {
+  "driver_number": 30,
+  "lap_number": 45,
+  "lane_duration": 60.5,
+  "stop_duration": null,
+  "pit_duration": 60.5
+ },
+ {
+  "driver_number": 55,
+  "lap_number": 45,
+  "lane_duration": 58.6,
+  "stop_duration": null,
+  "pit_duration": 58.6
+ },
+ {
+  "driver_number": 50,
+  "lap_number": 45,
+  "lane_duration": 57.3,
+  "stop_duration": null,
+  "pit_duration": 57.3
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 45,
+  "lane_duration": 57.0,
+  "stop_duration": null,
+  "pit_duration": 57.0
+ },
+ {
+  "driver_number": 23,
+  "lap_number": 45,
+  "lane_duration": 54.8,
+  "stop_duration": null,
+  "pit_duration": 54.8
+ },
+ {
+  "driver_number": 50,
+  "lap_number": 59,
+  "lane_duration": 22.9,
+  "stop_duration": null,
+  "pit_duration": 22.9
+ },
+ {
+  "driver_number": 27,
+  "lap_number": 59,
+  "lane_duration": 34.5,
+  "stop_duration": null,
+  "pit_duration": 34.5
+ },
+ {
+  "driver_number": 11,
+  "lap_number": 59,
+  "lane_duration": 29.8,
+  "stop_duration": null,
+  "pit_duration": 29.8
+ }
+]

@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { getTeamColor } from "@/app/lib/teamColors";
 
 import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
-import { finalStintLabel, resultCode, stintEndingLabel } from "./strategyModel";
+import { finalStintLabel, resultCode, stintEndingLabel, stopTimeLabel } from "./strategyModel";
 import {
   UNKNOWN_COMPOUND_COLOR,
   compoundColor,
@@ -78,14 +78,14 @@ function StintBar({ stint, share, ending }: { stint: DriverStint; share: number;
 /**
  * A pit stop, drawn on the boundary between the stints it separates.
  *
- * With the pit-stop table removed this marker is the only place a stationary
+ * With the pit-stop table removed this marker is the only place a stop's
  * time is surfaced, so it carries the full detail in its tooltip.
  */
 function StopMarker({ stop }: { stop: NonNullable<DriverStint["ended_by_stop"]> }) {
   return (
     <span
       className="relative z-10 -mx-[3px] flex h-7 w-[6px] shrink-0 items-center justify-center bg-[#0D111B]"
-      title={`Pit stop on lap ${stop.lap} - ${stop.time ?? "stationary time not published"} stationary`}
+      title={`Pit stop on lap ${stop.lap} - ${stopTimeLabel(stop)}`}
     >
       <span className="h-full w-[2px] bg-[#8E96A8]" />
     </span>
@@ -250,9 +250,9 @@ function ChartNotes({ warnings, fastest }: { warnings?: string[]; fastest?: Race
     <div className="space-y-1.5 border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#596173]">
       {fastest && (
         <p>
-          Fastest stop: <span className="font-mono font-bold text-[#00FF78]">{fastest.time}</span> by{" "}
+          Quickest stop: <span className="font-mono font-bold text-white">{stopTimeLabel(fastest)}</span> by{" "}
           <span className="font-mono font-bold text-[#AEB5C5]">{fastest.driver_code}</span> on lap {fastest.lap}.
-          Stationary time only — the lap-time cost of a stop is larger, and is not published.
+          Pit-lane time runs from pit entry to pit exit; the car stands still for only part of it.
         </p>
       )}
       {warnings?.map((warning) => (

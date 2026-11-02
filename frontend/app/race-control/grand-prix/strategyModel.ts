@@ -2,7 +2,7 @@
  * Tyre stints and pit stops for a race.
  *
  * Two sources joined by the backend: the compound and lap range come from
- * timing data, the stationary time from the published stop sheet. Either can
+ * timing data, the pit-lane time from the published stop sheet. Either can
  * be absent without the other being useless, so both are flagged separately
  * rather than collapsed into one "available".
  */
@@ -12,9 +12,14 @@ export interface PitStop {
   /** Which stop of the race this was for the driver, counting from 1. */
   stop: number;
   lap: number;
-  /** Stationary time as published, e.g. "24.681" or "1:14.773". */
+  /**
+   * Pit-lane time as the sheet publishes it, entry to exit: e.g. "24.681" or
+   * "1:14.773". Not the time stationary, which is a couple of seconds of it.
+   */
   time: string | null;
   millis: number | null;
+  /** Time stationary in the box, in milliseconds, when OpenF1 publishes it. */
+  stationary_millis: number | null;
 }
 
 export interface DriverStint {
@@ -75,7 +80,7 @@ export interface DriverStrategy {
   stops: number;
   /** Free tyre changes handed to the driver by a suspended race. */
   red_flag_changes: number;
-  /** How many of those stops have a published stationary time. */
+  /** How many of those stops have a published pit-lane time. */
   timed_stops: number;
   total_laps: number;
 }
@@ -97,6 +102,10 @@ export interface RaceStrategyResponse {
   /** Free tyre changes under a suspended race — not pit stops. */
   red_flag_changes: number;
   fastest_stop: PitStop | null;
+  /** Where the stop sheet came from; null when none is published. */
+  stops_source: string | null;
+  /** Sheet entries left out because the race was suspended, not stops. */
+  suspension_entries: number;
   warnings?: string[];
   error?: string;
 }
@@ -151,5 +160,17 @@ export function stintEndingLabel(stint: DriverStint, driver: DriverStrategy, isL
   if (stint.ended_under_red_flag) return "Tyres changed under the red flag";
   const stop = stint.ended_by_stop;
   if (!stop) return "Stop time not published yet";
-  return `Stop ${stop.stop}: ${stop.time ?? "time not published yet"} on lap ${stop.lap}`;
+  return `Stop ${stop.stop} on lap ${stop.lap}: ${stopTimeLabel(stop)}`;
+}
+
+/**
+ * A stop's times in words: the pit-lane time the sheet publishes, and the
+ * stationary time when OpenF1 publishes that too.
+ */
+export function stopTimeLabel(stop: Pick<PitStop, "time" | "stationary_millis">): string {
+  if (stop.time === null) return "pit-lane time not published yet";
+  // "1:00.513" already reads as a time; "22.466" needs its unit.
+  const lane = `${stop.time.includes(":") ? stop.time : `${stop.time} s`} in the pit lane`;
+  if (stop.stationary_millis === null) return lane;
+  return `${lane}, ${(stop.stationary_millis / 1000).toFixed(1)} s stationary`;
 }

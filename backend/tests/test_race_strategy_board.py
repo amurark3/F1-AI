@@ -18,6 +18,7 @@ import pytest
 from app.data import f1db_pitstops, race_stints as stints_module
 from app.data.f1db_pitstops import race_pit_stops
 from app.data.openf1.sessions import ScheduledSession
+from app.data.pit_sheet import PitSheet
 from app.data.race_classification import NO_CLASSIFICATION
 from app.data.race_stints import Stint, race_stints
 from app.services import race_strategy_board
@@ -488,7 +489,7 @@ def stint(code, number, start, end, red_flag=False):
 def board(monkeypatch):
     state = {"stints": (), "stops": (), "results": {}}
     monkeypatch.setattr(race_strategy_board, "race_stints", lambda y, r: state["stints"])
-    monkeypatch.setattr(race_strategy_board, "race_pit_stops", lambda y, r: state["stops"])
+    monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
     monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: NO_CLASSIFICATION)
     return state

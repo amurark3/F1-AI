@@ -28,6 +28,7 @@ from app.data.race_classification import (
     classification_from_openf1,
     race_classification,
 )
+from app.utils.ttl_cache import TtlCache
 from tests.openf1_support import make_session, serve
 
 pytestmark = pytest.mark.unit
@@ -248,7 +249,6 @@ class FakeErgast:
 @pytest.fixture
 def sources(monkeypatch):
     """OpenF1 serving the R19 race, Jolpica serving its results, and an empty cache."""
-    monkeypatch.setattr(module, "_cache", {})
     state = {
         "session": make_session("R"),
         "routes": {
@@ -262,7 +262,7 @@ def sources(monkeypatch):
     }
     monkeypatch.setattr(module, "find_session", lambda client, year, rnd, code: state["session"])
     monkeypatch.setattr(module, "Ergast", lambda: FakeErgast(state))
-    monkeypatch.setattr(module.time, "monotonic", lambda: state["now"])
+    monkeypatch.setattr(module, "_cache", TtlCache(clock=lambda: state["now"]))
     state["openf1"] = serve(monkeypatch, module, state["routes"])
     return state
 

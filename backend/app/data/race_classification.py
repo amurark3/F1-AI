@@ -27,8 +27,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import threading
-import time
 from typing import Literal
 
 from fastf1.ergast import Ergast
@@ -37,6 +35,7 @@ import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.openf1.sessions import entry_list, find_session, session_ended
+from app.utils.ttl_cache import TtlCache
 
 logger = structlog.get_logger()
 
@@ -89,8 +88,7 @@ class RaceClassification:
 
 NO_CLASSIFICATION = RaceClassification(source=None, drivers=())
 
-_cache: dict[tuple[int, int], tuple[float, RaceClassification]] = {}
-_cache_lock = threading.Lock()
+_cache: TtlCache[tuple[int, int], RaceClassification] = TtlCache()
 
 
 def _whole(value: object) -> int | None:
@@ -201,20 +199,6 @@ def _jolpica_classification(year: int, round_num: int) -> tuple[ClassifiedDriver
     return classification_from_jolpica(response.content[0].to_dict("records"))
 
 
-def _cached(key: tuple[int, int]) -> RaceClassification | None:
-    with _cache_lock:
-        hit = _cache.get(key)
-    if hit is None or time.monotonic() >= hit[0]:
-        return None
-    return hit[1]
-
-
-def _keep(key: tuple[int, int], result: RaceClassification) -> None:
-    lifetime = CLASSIFICATION_TTL_SECONDS if result.drivers else EMPTY_RETRY_SECONDS
-    with _cache_lock:
-        _cache[key] = (time.monotonic() + lifetime, result)
-
-
 def race_classification(year: int, round_num: int) -> RaceClassification:
     """The race's classification, from the first source that publishes one.
 
@@ -223,7 +207,7 @@ def race_classification(year: int, round_num: int) -> RaceClassification:
     never assume who finished.
     """
     key = (year, round_num)
-    cached = _cached(key)
+    cached = _cache.get(key)
     if cached is not None:
         return cached
 
@@ -233,6 +217,6 @@ def race_classification(year: int, round_num: int) -> RaceClassification:
         drivers = _jolpica_classification(year, round_num)
         source = JOLPICA_SOURCE
     result = RaceClassification(source=source, drivers=drivers) if drivers else NO_CLASSIFICATION
-    _keep(key, result)
+    _cache.put(key, result, CLASSIFICATION_TTL_SECONDS if drivers else EMPTY_RETRY_SECONDS)
     logger.info("race_classification.loaded", year=year, round=round_num, source=result.source, drivers=len(drivers))
     return result

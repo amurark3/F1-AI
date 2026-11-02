@@ -2,9 +2,10 @@
 
 Two sources, joined because neither answers alone. Timing data (OpenF1, or
 FastF1's lap frame; see :mod:`app.data.race_stints`) knows what compound a car
-was on and for how long; f1db knows how long the crew held it stationary. A stint chart without stop times cannot say whether a slow
-in-lap was the driver or the pit crew, and a stop list without compounds cannot
-say what the stop was *for*.
+was on and for how long; the published pit sheet (:mod:`app.data.pit_sheet`)
+knows how long each stop took in the pit lane. A stint chart without stop
+times cannot say whether a slow in-lap was the driver or the pit crew, and a
+stop list without compounds cannot say what the stop was *for*.
 
 They are joined on (driver, lap) rather than by index: a stop's lap is the lap
 it happened on, which is the lap a stint ends. Where a stop has no matching
@@ -33,7 +34,7 @@ stops.
 The counts a caller gets are deliberately three different facts:
 ``stops`` is what the driver actually did, ``red_flag_changes`` is what the
 suspension gave them, and ``timed_stops`` is how many of the former have a
-published stationary time. They differ, and flattening them hides either a
+published pit-lane time. They differ, and flattening them hides either a
 strategy or a gap in the source.
 
 **How each race ended comes from the classification, never from the stints.**
@@ -50,13 +51,17 @@ on its last lap with no stint after it; that is the retirement, not a stop.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
 import structlog
 
-from app.data.f1db_pitstops import PitStop, race_pit_stops
 from app.data.f1db_results import race_results
+from app.data.pit_sheet import race_pit_sheet, without_suspension
 from app.data.race_classification import RaceClassification, race_classification
 from app.data.race_stints import Stint, race_stints
+
+if TYPE_CHECKING:
+    from app.data.f1db_pitstops import PitStop
 
 logger = structlog.get_logger()
 
@@ -78,7 +83,14 @@ STOPS_UNAVAILABLE = "No pit stop times are published for this race yet."
 def _partial_stops_warning(published: int, made: int) -> str:
     return (
         f"Only {published} of the {made} pit stops made in this race have a "
-        "published stationary time. The others are marked as not published yet."
+        "published pit-lane time. The others are marked as not published yet."
+    )
+
+
+def _suspension_note(entries: int) -> str:
+    return (
+        f"{entries} pit-lane entr{'y' if entries == 1 else 'ies'} on the stop sheet came from the "
+        "red-flag suspension and are not counted as stops."
     )
 
 
@@ -210,8 +222,11 @@ def _stop_payload(stop: PitStop) -> dict:
         "driver_code": stop.driver_code,
         "stop": stop.stop,
         "lap": stop.lap,
+        # Pit-lane time, entry to exit, as the sheet publishes it.
         "time": stop.time,
         "millis": stop.millis,
+        # Time stationary in the box, when OpenF1 publishes it.
+        "stationary_millis": stop.stationary_millis,
     }
 
 
@@ -315,7 +330,7 @@ def _driver_payload(code: str, team: str, rows: list[dict], place: _Place | None
         "stops": stops,
         # Free tyre changes handed to the whole field by a suspended race.
         "red_flag_changes": sum(1 for row in rows if row["ended_under_red_flag"]),
-        # How many of this driver's stops carry a published stationary time.
+        # How many of this driver's stops carry a published pit-lane time.
         "timed_stops": sum(1 for row in rows if row["ended_by_stop"] is not None),
         "total_laps": max((row["end_lap"] for row in rows), default=0),
     }
@@ -353,23 +368,50 @@ def _unmatched_stops(drivers: list[dict], stops: tuple[PitStop, ...]) -> list[di
     return [_stop_payload(stop) for stop in stops if (stop.driver_code, stop.lap) not in attached]
 
 
+@dataclass(frozen=True)
+class _PublishedStops:
+    """The stop sheet's real stops, and what was left out of it."""
+
+    source: str | None
+    stops: tuple[PitStop, ...]
+    #: Pit entries that were a retirement, as ``(driver, lap)``.
+    retirements: frozenset[tuple[str, int]]
+    #: Entries made while the race was suspended.
+    suspension_entries: int
+
+
+def _published_stops(
+    year: int, round_num: int, stints: tuple[Stint, ...], places: dict[str, _Place]
+) -> _PublishedStops:
+    """The published sheet without the red-flag suspension or a retirement in the pits."""
+    sheet = race_pit_sheet(year, round_num)
+    flagged = frozenset(stint.end_lap for stint in stints if stint.ended_under_red_flag)
+    real = without_suspension(sheet.entries, flagged)
+    retirements = _retirements_in_pits(stints, real.stops, places)
+    return _PublishedStops(
+        source=sheet.source,
+        stops=tuple(stop for stop in real.stops if (stop.driver_code, stop.lap) not in retirements),
+        retirements=retirements,
+        suspension_entries=real.suspension_entries,
+    )
+
+
 def build_race_strategy(year: int, round_num: int) -> dict:
     """Stints and pit stops for one race, each reported on its own terms.
 
-    Either source can be absent without the other being useless: f1db often
-    publishes stops for a race whose timing data has not been cached yet, and
+    Either source can be absent without the other being useless: the sheet
+    is often published for a race whose timing data has not been cached yet, and
     the reverse happens too. The payload says which is missing rather than
     presenting a half-built strategy as a whole one.
     """
     classification = race_classification(year, round_num)
     places = _places(year, round_num, classification)
     raw_stints = race_stints(year, round_num)
-    sheet = race_pit_stops(year, round_num)
-    retirements = _retirements_in_pits(raw_stints, sheet, places)
-    stops = tuple(stop for stop in sheet if (stop.driver_code, stop.lap) not in retirements)
+    published = _published_stops(year, round_num, raw_stints, places)
+    stops = published.stops
     stints, realigned = _align_to_stop_sheet(raw_stints, stops)
 
-    drivers = _driver_rows(stints, stops, places, frozenset(code for code, _lap in retirements))
+    drivers = _driver_rows(stints, stops, places, frozenset(code for code, _lap in published.retirements))
     unmatched = _unmatched_stops(drivers, stops)
     stops_made = sum(driver["stops"] for driver in drivers)
     red_flag_changes = sum(driver["red_flag_changes"] for driver in drivers)
@@ -380,6 +422,8 @@ def build_race_strategy(year: int, round_num: int) -> dict:
     warnings.extend(_stop_warnings(bool(stints), len(stops), stops_made))
     if red_flag_changes:
         warnings.append(_red_flag_note(red_flag_changes))
+    if published.suspension_entries:
+        warnings.append(_suspension_note(published.suspension_entries))
 
     logger.info(
         "race_strategy.built",
@@ -391,7 +435,9 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         red_flag_changes=red_flag_changes,
         unmatched=len(unmatched),
         realigned_drivers=realigned,
-        retired_in_pits=len(retirements),
+        retired_in_pits=len(published.retirements),
+        suspension_entries=published.suspension_entries,
+        stops_source=published.source,
         classification_source=classification.source,
     )
     return {
@@ -404,7 +450,11 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         # classification is published yet.
         "classification_source": classification.source,
         "drivers": drivers,
+        # Where the stop sheet came from; null when none is published.
+        "stops_source": published.source,
         "stops": [_stop_payload(stop) for stop in stops],
+        # Sheet entries left out because the race was suspended.
+        "suspension_entries": published.suspension_entries,
         # Stops the field actually made, from stint boundaries.
         "stops_made": stops_made,
         # Free tyre changes under a suspended race — not pit stops.

@@ -9,6 +9,8 @@ inferred when it publishes none.
 
 from __future__ import annotations
 
+from collections import Counter
+from datetime import timedelta
 import json
 from pathlib import Path
 
@@ -16,6 +18,7 @@ import pytest
 
 from app.data.f1db_pitstops import PitStop
 from app.data.openf1_stints import stints_from_openf1
+from app.data.pit_sheet import PitSheet, stops_from_jolpica
 from app.data.race_classification import (
     NO_CLASSIFICATION,
     ClassifiedDriver,
@@ -30,6 +33,8 @@ pytestmark = pytest.mark.unit
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mexico_2026_r19"
 R19_RED_FLAG_LAP = 45
+# Lapped at the red flag, so still on lap 44 when it came out: ALB, PER, LAW, HIR, SAI.
+R19_LAPPED_AT_RED_FLAG = frozenset({23, 11, 30, 50, 55})
 
 
 def stint(code: str, number: int, start: int, end: int, *, red_flag: bool = False) -> Stint:
@@ -63,7 +68,7 @@ def openf1_classification(*drivers: ClassifiedDriver) -> RaceClassification:
 def board(monkeypatch):
     state = {"stints": (), "stops": (), "results": {}, "classification": NO_CLASSIFICATION}
     monkeypatch.setattr(race_strategy_board, "race_stints", lambda y, r: state["stints"])
-    monkeypatch.setattr(race_strategy_board, "race_pit_stops", lambda y, r: state["stops"])
+    monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
     monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: state["classification"])
     return state
@@ -229,9 +234,13 @@ def r19_board() -> tuple[tuple[Stint, ...], RaceClassification]:
     results = json.loads((FIXTURES / "openf1_session_result.json").read_text())
     rows = json.loads((FIXTURES / "openf1_stints.json").read_text())
     by_number = {row["driver_number"]: row for row in drivers}
-    # The race was suspended after lap 45; every car still running changed tyres.
+    # The race was suspended on the leader's lap 45; each car changed tyres on its own lap.
     running = {row["driver_number"] for row in results if (row["number_of_laps"] or 0) >= R19_RED_FLAG_LAP}
-    stints = stints_from_openf1(rows, by_number, {number: frozenset({R19_RED_FLAG_LAP}) for number in running})
+    red_flag_laps = {
+        number: frozenset({R19_RED_FLAG_LAP - 1 if number in R19_LAPPED_AT_RED_FLAG else R19_RED_FLAG_LAP})
+        for number in running
+    }
+    stints = stints_from_openf1(rows, by_number, red_flag_laps)
     codes = {number: row["name_acronym"] for number, row in by_number.items()}
     return stints, openf1_classification(*classification_from_openf1(results, codes))
 
@@ -258,3 +267,67 @@ def test_mexico_2026_rows_follow_the_fia_classification(board):
 
     assert codes[:7] == ["VER", "HAM", "ANT", "LEC", "NOR", "RUS", "LAW"]
     assert codes[-5:] == ["LIN", "BEA", "BOT", "STR", "ALO"]
+
+
+# --- the published stop sheet (Mexico City 2026) --------------------------------------
+
+
+def r19_sheet() -> tuple[PitStop, ...]:
+    pit = json.loads((FIXTURES / "jolpica_pitstops.json").read_text())["PitStops"]
+    results = json.loads((FIXTURES / "jolpica_results.json").read_text())["Results"]
+    codes = {row["Driver"]["driverId"]: row["Driver"]["code"] for row in results}
+    rows = [
+        {
+            "driverId": row["driverId"],
+            "stop": int(row["stop"]),
+            "lap": int(row["lap"]),
+            "duration": ergast(row["duration"]),
+        }
+        for row in pit
+    ]
+    return stops_from_jolpica(rows, codes)
+
+
+def ergast(text: str) -> timedelta:
+    minutes, _, seconds = text.rpartition(":")
+    return timedelta(minutes=int(minutes or 0), seconds=float(seconds))
+
+
+def test_mexico_2026_stop_counts_come_from_the_sheet_without_the_suspension(board):
+    board["stints"], board["classification"] = r19_board()
+    board["stops"] = r19_sheet()
+
+    payload = build_race_strategy(2026, 19)
+    published = Counter(stop["driver_code"] for stop in payload["stops"])
+    rows = rows_by_code(payload)
+
+    expected = {"VER": 1, "HAM": 2, "LAW": 2, "HIR": 3, "STR": 1}
+    assert {code: published[code] for code in expected} == expected
+    assert {code: rows[code]["stops"] for code in expected} == expected
+    assert {code: rows[code]["timed_stops"] for code in expected} == expected
+
+
+def test_mexico_2026_suspension_entries_are_never_stops(board):
+    board["stints"], board["classification"] = r19_board()
+    board["stops"] = r19_sheet()
+
+    payload = build_race_strategy(2026, 19)
+
+    assert all(stop["lap"] != R19_RED_FLAG_LAP for stop in payload["stops"])
+    assert payload["suspension_entries"] == 24
+    assert race_strategy_board._suspension_note(24) in payload["warnings"]
+    assert payload["fastest_stop"]["millis"] < 120_000
+    assert payload["stops_source"] == "f1db-pit-stops"
+
+
+def test_a_stop_carries_its_stationary_time_when_published(board):
+    board["stints"] = (stint("VER", 1, 1, 27), stint("VER", 2, 28, 71))
+    board["stops"] = (PitStop(driver_code="VER", stop=1, lap=27, time="22.466", millis=22466, stationary_millis=2400),)
+
+    stop = build_race_strategy(2026, 19)["drivers"][0]["stints"][0]["ended_by_stop"]
+
+    assert (stop["time"], stop["stationary_millis"]) == ("22.466", 2400)
+
+
+def test_one_suspension_entry_reads_in_the_singular():
+    assert "1 pit-lane entry on" in race_strategy_board._suspension_note(1)

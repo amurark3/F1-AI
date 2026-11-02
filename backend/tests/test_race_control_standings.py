@@ -19,6 +19,8 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.data.current_standings import CurrentStandings
+from app.data.standings_table import Standing
 from app.services import race_control_standings as module
 
 # ---------------------------------------------------------------------------
@@ -47,6 +49,7 @@ def _stub_snapshot(
     drivers: list[dict] | None = None,
     constructors: list[dict] | None = None,
     completed_events: int | None = 10,
+    provisional: bool = False,
 ) -> list[int]:
     """Serve fixed standings; returns the list of years the module asked for."""
     seen_years: list[int] = []
@@ -55,9 +58,36 @@ def _stub_snapshot(
         seen_years.append(year)
         return list(drivers or []), list(constructors or [])
 
+    def _current(year: int) -> CurrentStandings:
+        seen_years.append(year)
+        return CurrentStandings(
+            year=year,
+            drivers=tuple(_standing(row, key=row["code"], name=row["driver"]) for row in drivers or []),
+            teams=tuple(_standing(row, key=row["team"], name=row["team"]) for row in constructors or []),
+            as_of_round=completed_events,
+            provisional=provisional,
+            sources=SOURCES,
+        )
+
     monkeypatch.setattr(module, "get_standings_snapshot", _snapshot)
+    monkeypatch.setattr(module, "current_standings", _current)
     monkeypatch.setattr(module, "completed_race_count", lambda year: completed_events)
     return seen_years
+
+
+SOURCES = ({"source": "f1db", "role": "base", "through_round": 18, "version": "v2026.18.0"},)
+
+
+def _standing(row: dict, *, key: str, name: str) -> Standing:
+    """A table row as ``current_standings`` holds it: wins are the Grand Prix firsts."""
+    return Standing(
+        key=key,
+        name=name,
+        team=row["team"],
+        points=row["points"],
+        finishes=(1,) * row["wins"],
+        position=row["position"],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -219,12 +249,43 @@ def test_build_teams_attaches_each_roster_to_its_own_constructor(monkeypatch: py
     result = module.build_teams(2024)
 
     assert result["error"] is None
-    assert result["source"] == "jolpica-ergast-constructor-standings"
+    assert result["source"] == "computed-standings"
     mclaren, ferrari = result["teams"]
     assert [driver["code"] for driver in mclaren["drivers"]] == ["NOR", "PIA"]
     assert [driver["code"] for driver in ferrari["drivers"]] == ["LEC"]
     assert mclaren["pace_profile"] == mclaren["standing_profile"]
     assert ferrari["weaknesses"][0] == "320 pts behind P1"
+
+
+@pytest.mark.unit
+def test_build_teams_says_which_round_the_table_is_after_and_whether_it_is_provisional(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _stub_snapshot(
+        monkeypatch,
+        drivers=[_driver("ANT", team="Mercedes", points=380.0)],
+        constructors=[_constructor("Mercedes", position=1, points=630.0)],
+        completed_events=19,
+        provisional=True,
+    )
+
+    result = module.build_teams(2026)
+
+    assert (result["as_of_round"], result["provisional"]) == (19, True)
+    assert result["sources"] == list(SOURCES)
+
+
+@pytest.mark.unit
+def test_points_per_gp_divides_by_the_rounds_the_table_covers(monkeypatch: pytest.MonkeyPatch):
+    _stub_snapshot(
+        monkeypatch,
+        constructors=[_constructor("Mercedes", position=1, points=380.0)],
+        completed_events=19,
+    )
+
+    result = module.build_teams(2026)
+
+    assert result["teams"][0]["standing_profile"]["pts per GP"] == 20.0
 
 
 @pytest.mark.unit

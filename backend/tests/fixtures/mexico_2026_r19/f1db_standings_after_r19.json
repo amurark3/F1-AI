@@ -1,0 +1,182 @@
+{
+ "source": "f1db v2026.19.0 (released 2026-11-02 08:30 UTC): the standings after round 19, which match the FIA",
+ "drivers": [
+  {
+   "position": 1,
+   "code": "ANT",
+   "points": 380
+  },
+  {
+   "position": 2,
+   "code": "VER",
+   "points": 261
+  },
+  {
+   "position": 3,
+   "code": "HAM",
+   "points": 259
+  },
+  {
+   "position": 4,
+   "code": "RUS",
+   "points": 250
+  },
+  {
+   "position": 5,
+   "code": "LEC",
+   "points": 245
+  },
+  {
+   "position": 6,
+   "code": "NOR",
+   "points": 221
+  },
+  {
+   "position": 7,
+   "code": "PIA",
+   "points": 144
+  },
+  {
+   "position": 8,
+   "code": "HAD",
+   "points": 107
+  },
+  {
+   "position": 9,
+   "code": "LAW",
+   "points": 83
+  },
+  {
+   "position": 10,
+   "code": "GAS",
+   "points": 42
+  },
+  {
+   "position": 11,
+   "code": "LIN",
+   "points": 38
+  },
+  {
+   "position": 12,
+   "code": "COL",
+   "points": 27
+  },
+  {
+   "position": 13,
+   "code": "BEA",
+   "points": 23
+  },
+  {
+   "position": 14,
+   "code": "BOR",
+   "points": 14
+  },
+  {
+   "position": 15,
+   "code": "HUL",
+   "points": 13
+  },
+  {
+   "position": 16,
+   "code": "OCO",
+   "points": 7
+  },
+  {
+   "position": 17,
+   "code": "ALO",
+   "points": 7
+  },
+  {
+   "position": 18,
+   "code": "SAI",
+   "points": 7
+  },
+  {
+   "position": 19,
+   "code": "ALB",
+   "points": 5
+  },
+  {
+   "position": 20,
+   "code": "TSU",
+   "points": 1
+  },
+  {
+   "position": 21,
+   "code": "HIR",
+   "points": 1
+  },
+  {
+   "position": 22,
+   "code": "STR",
+   "points": 0
+  },
+  {
+   "position": 23,
+   "code": "BOT",
+   "points": 0
+  },
+  {
+   "position": 24,
+   "code": "PER",
+   "points": 0
+  }
+ ],
+ "constructors": [
+  {
+   "position": 1,
+   "team": "Mercedes",
+   "points": 630
+  },
+  {
+   "position": 2,
+   "team": "Ferrari",
+   "points": 504
+  },
+  {
+   "position": 3,
+   "team": "Red Bull",
+   "points": 382
+  },
+  {
+   "position": 4,
+   "team": "McLaren",
+   "points": 365
+  },
+  {
+   "position": 5,
+   "team": "Racing Bulls",
+   "points": 108
+  },
+  {
+   "position": 6,
+   "team": "Alpine",
+   "points": 69
+  },
+  {
+   "position": 7,
+   "team": "Haas",
+   "points": 31
+  },
+  {
+   "position": 8,
+   "team": "Audi",
+   "points": 27
+  },
+  {
+   "position": 9,
+   "team": "Williams",
+   "points": 12
+  },
+  {
+   "position": 10,
+   "team": "Aston Martin",
+   "points": 7
+  },
+  {
+   "position": 11,
+   "team": "Cadillac",
+   "points": 0
+  }
+ ]
+}

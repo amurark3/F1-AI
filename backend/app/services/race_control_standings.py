@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import structlog
 
+from app.data.current_standings import current_standings
 from app.services.race_control_common import (
     completed_race_count,
     format_points_value,
@@ -96,9 +97,16 @@ def points_trend(points: float, completed_events: int) -> list[dict]:
     ]
 
 
+# The tables are computed: f1db's last round plus any later round's points.
+TEAMS_SOURCE = "computed-standings"
+
+
 def build_teams(year: int) -> dict:
-    completed_events = completed_race_count(year) or 0
-    drivers, constructors = get_standings_snapshot(year)
+    """Both championships as of the newest round with published points (``current_standings``)."""
+    standings = current_standings(year)
+    drivers, constructors = standings.driver_rows(), standings.team_rows()
+    # Points per GP divides by the rounds the points cover, not the races the clock says have run.
+    completed_events = standings.as_of_round or 0
 
     teams = []
     leader_points = constructors[0]["points"] if constructors else 0
@@ -117,23 +125,14 @@ def build_teams(year: int) -> dict:
             }
         )
 
-    if teams:
-        return {
-            "year": year,
-            "generated_at": datetime.now(UTC).isoformat(),
-            "source": "jolpica-ergast-constructor-standings",
-            "drivers": drivers,
-            "teams": teams,
-            "error": None,
-        }
-
     return {
         "year": year,
         "generated_at": datetime.now(UTC).isoformat(),
-        "source": "jolpica-ergast-constructor-standings",
+        "source": TEAMS_SOURCE,
+        **standings.meta(),
         "drivers": drivers,
-        "teams": [],
-        "error": "Constructor standings are unavailable for this season.",
+        "teams": teams,
+        "error": None if teams else "Constructor standings are unavailable for this season.",
     }
 
 

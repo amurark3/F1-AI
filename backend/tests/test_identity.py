@@ -21,6 +21,7 @@ from app.data.identity import (
     as_int,
     fold,
     resolve_team,
+    resolve_team_name,
     season_directory,
     team_color,
 )
@@ -174,3 +175,19 @@ def test_resolve_team_matches_exact_names_and_aliases(profiles_f1db, name, expec
 def test_resolve_team_never_guesses(profiles_f1db, name):
     """An empty string is a substring of every name; it must resolve to nothing."""
     assert resolve_team(2026, name) is None
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [("Red Bull Racing", "Red Bull"), ("Cadillac F1 Team", "Cadillac"), ("Ferrari", "Ferrari")],
+    ids=["feed-name", "alias", "f1db-name"],
+)
+def test_resolve_team_name_answers_with_the_f1db_name(profiles_f1db, name, expected):
+    """Standings rows are keyed by f1db's name, so another feed's spelling must land on it."""
+    assert resolve_team_name(2026, name) == expected
+
+
+@pytest.mark.integration
+def test_resolve_team_name_of_an_unknown_team_is_none(profiles_f1db):
+    assert resolve_team_name(2026, "Brawn GP") is None

@@ -70,5 +70,6 @@ backend/data/f1db.db
 backend/data/f1db.db.version
 backend/data/training_dataset.csv
 
-# Claude Code project data
-.claude/
+# Claude Code project data (shared skills are committed)
+.claude/*
+!.claude/skills/

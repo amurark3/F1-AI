@@ -1,8 +1,9 @@
 """Tests for app.services.race_control.stakes: what the title hangs on this weekend.
 
 The arithmetic is small but unforgiving: a contender shown as eliminated who can
-still win, or a clinch promised that a tie on countback would undo, is a false
-headline. Ties are therefore never treated as decided.
+still win, or a clinch promised that a tie on count-back would undo, is a false
+headline. Whether a rival is still in is ``app.data.title_rule``'s call: a tie on
+points is decided only when the leader would win the count-back outright.
 """
 
 from __future__ import annotations
@@ -11,11 +12,12 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.data.current_standings import CurrentStandings
+from app.data.standings_table import Standing
 from app.services.race_control.stakes import (
     CONSTRUCTORS,
     DRIVERS,
     PointsLeft,
-    Standings,
     build_championship_stakes,
     points_left,
     table_stakes,
@@ -44,8 +46,14 @@ SEASON = [
 ]
 
 
-def driver(position: int, name: str, points: float, team: str = "McLaren") -> dict:
-    return {"position": position, "code": name[:3].upper(), "driver": name, "team": team, "points": points}
+def driver(position: int, name: str, points: float, *, finishes: tuple[int, ...] = ()) -> Standing:
+    return Standing(
+        key=name[:3].upper(), name=name, team="McLaren", points=points, finishes=finishes, position=position
+    )
+
+
+def team(position: int, name: str, points: float, *, finishes: tuple[int, ...] = ()) -> Standing:
+    return Standing(key=name, name=name, team=name, points=points, finishes=finishes, position=position)
 
 
 # -- points left -----------------------------------------------------------------
@@ -83,12 +91,12 @@ LEFT = PointsLeft(races=3, sprints=2, races_here=1, sprints_here=1)  # drivers: 
 
 
 def test_contenders_carry_their_gap_and_whether_they_are_still_alive():
-    rows = [
+    rows = (
         driver(1, "Norris", 400),
         driver(2, "Piastri", 380),
         driver(3, "Verstappen", 309),
         driver(4, "Leclerc", 308),
-    ]
+    )
 
     stakes = table_stakes(rows, LEFT, DRIVERS)
 
@@ -106,7 +114,7 @@ def test_contenders_carry_their_gap_and_whether_they_are_still_alive():
 
 
 def test_a_lead_that_needs_more_than_a_perfect_weekend_cannot_clinch_here():
-    rows = [driver(1, "Norris", 400), driver(2, "Piastri", 380)]
+    rows = (driver(1, "Norris", 400), driver(2, "Piastri", 380))
 
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
@@ -115,24 +123,49 @@ def test_a_lead_that_needs_more_than_a_perfect_weekend_cannot_clinch_here():
 
 
 def test_a_lead_within_one_weekend_of_safety_can_clinch_here():
-    rows = [driver(1, "Norris", 400), driver(2, "Piastri", 350), driver(3, "Russell", 345)]
+    rows = (driver(1, "Norris", 400), driver(2, "Piastri", 350), driver(3, "Russell", 345))
 
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
     assert clinch == {"rival": "Piastri", "margin_needed": 9, "possible": True, "rivals_in_play": 2}
 
 
-def test_a_tie_on_points_is_never_counted_as_a_clinch():
-    rows = [driver(1, "Norris", 400), driver(2, "Piastri", 342)]
+def test_the_margin_to_clinch_here_asks_for_a_lead_past_what_is_left_after_the_weekend():
+    """Points alone: a lead that only equals what is left needs this weekend's places to win a count-back."""
+    rows = (driver(1, "Norris", 400), driver(2, "Piastri", 342))
 
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
-    # Lead 58 equals the 58 left after the weekend — a tie is not a title.
+    # Lead 58 equals the 58 left after the weekend: one more point settles it on points.
     assert clinch["margin_needed"] == 1
 
 
+# A deficit equal to the 91 points left: only a perfect run (3 wins, 2 sprint wins) draws level.
+
+
+def test_a_rival_who_can_only_draw_level_and_loses_the_count_back_is_out():
+    rows = (driver(1, "Norris", 400, finishes=(1, 1, 1, 1, 1, 2)), driver(2, "Piastri", 309, finishes=(1, 1)))
+
+    stakes = table_stakes(rows, LEFT, DRIVERS)
+
+    # Level on 400, Piastri would have 5 wins to Norris's 5, and no second place to his one.
+    assert stakes["contenders"][1]["alive"] is False
+    assert (stakes["rivals_alive"], stakes["decided"], stakes["clinch"]) == (0, True, None)
+
+
+def test_a_rival_who_can_draw_level_and_win_the_count_back_is_still_in():
+    rows = (driver(1, "Norris", 400, finishes=(1, 1, 1, 2)), driver(2, "Piastri", 309, finishes=(1, 1)))
+
+    stakes = table_stakes(rows, LEFT, DRIVERS)
+
+    assert stakes["contenders"][1]["alive"] is True
+    assert (stakes["rivals_alive"], stakes["decided"]) == (1, False)
+    # Norris settles it this weekend unless Piastri outscores him by the full 33 a weekend is worth.
+    assert stakes["clinch"] == {"rival": "Piastri", "margin_needed": -32, "possible": True, "rivals_in_play": 0}
+
+
 def test_a_lead_already_beyond_reach_is_decided_with_no_clinch_to_chase():
-    rows = [driver(1, "Norris", 500), driver(2, "Piastri", 380)]
+    rows = (driver(1, "Norris", 500), driver(2, "Piastri", 380))
 
     stakes = table_stakes(rows, LEFT, DRIVERS)
 
@@ -142,7 +175,7 @@ def test_a_lead_already_beyond_reach_is_decided_with_no_clinch_to_chase():
 
 
 def test_a_weekend_with_nothing_left_to_run_has_no_clinch():
-    rows = [driver(1, "Norris", 400), driver(2, "Piastri", 380)]
+    rows = (driver(1, "Norris", 400), driver(2, "Piastri", 380))
 
     stakes = table_stakes(rows, PointsLeft(races=2, sprints=1, races_here=0, sprints_here=0), DRIVERS)
 
@@ -151,10 +184,7 @@ def test_a_weekend_with_nothing_left_to_run_has_no_clinch():
 
 
 def test_constructors_score_with_both_cars():
-    rows = [
-        {"position": 1, "team": "McLaren", "points": 700},
-        {"position": 2, "team": "Mercedes", "points": 500},
-    ]
+    rows = (team(1, "McLaren", 700), team(2, "Mercedes", 500))
 
     stakes = table_stakes(rows, LEFT, CONSTRUCTORS)
 
@@ -172,7 +202,7 @@ def test_constructors_score_with_both_cars():
 
 
 def test_a_lone_entry_has_nobody_to_beat():
-    stakes = table_stakes([driver(1, "Norris", 10)], LEFT, DRIVERS)
+    stakes = table_stakes((driver(1, "Norris", 10),), LEFT, DRIVERS)
 
     assert stakes["decided"] is False
     assert stakes["clinch"] is None
@@ -180,30 +210,61 @@ def test_a_lone_entry_has_nobody_to_beat():
 
 
 def test_no_standings_has_no_stakes():
-    assert table_stakes([], LEFT, DRIVERS) is None
-
-
-def test_rows_without_a_points_total_are_left_out_rather_than_read_as_zero():
-    rows = [{"position": 1, "driver": "Norris"}, {**driver(2, "Piastri", 380), "points": True}]
-
-    assert table_stakes(rows, LEFT, DRIVERS) is None
+    assert table_stakes((), LEFT, DRIVERS) is None
 
 
 # -- both tables -----------------------------------------------------------------
 
 
+SOURCES = ({"source": "f1db", "role": "base", "through_round": 19, "version": "v2026.19.0"},)
+
+
+def standings(
+    drivers: tuple[Standing, ...],
+    teams: tuple[Standing, ...],
+    *,
+    as_of_round: int | None = None,
+    provisional: bool = False,
+) -> CurrentStandings:
+    """The computed table as ``current_standings`` serves it, with f1db as its base once it has a round."""
+    return CurrentStandings(
+        year=2026,
+        drivers=drivers,
+        teams=teams,
+        as_of_round=as_of_round,
+        provisional=provisional,
+        sources=SOURCES if as_of_round else (),
+    )
+
+
 def test_the_block_carries_both_tables_and_the_sessions_left():
-    drivers = [driver(1, "Norris", 400), driver(2, "Piastri", 380)]
-    constructors = [{"position": 1, "team": "McLaren", "points": 780}]
+    table = standings((driver(1, "Norris", 400), driver(2, "Piastri", 380)), (team(1, "McLaren", 780),), as_of_round=19)
 
-    stakes = build_championship_stakes(SEASON, SAO_PAULO, Standings(drivers, constructors, 19), now=NOW)
+    stakes = build_championship_stakes(SEASON, SAO_PAULO, table, now=NOW)
 
-    assert (stakes["through_round"], stakes["races_left"], stakes["sprints_left"]) == (19, 3, 2)
+    assert (stakes["as_of_round"], stakes["races_left"], stakes["sprints_left"]) == (19, 3, 2)
     assert stakes["drivers"]["leader"]["name"] == "Norris"
     assert stakes["constructors"]["leader"]["name"] == "McLaren"
 
 
-def test_the_clock_defaults_to_now():
-    stakes = build_championship_stakes([], None, Standings([], [], None))
+def test_the_block_says_which_round_the_table_is_after_and_whether_it_is_provisional():
+    table = standings((driver(1, "Norris", 400),), (), as_of_round=20, provisional=True)
 
-    assert stakes == {"through_round": None, "races_left": 0, "sprints_left": 0, "drivers": None, "constructors": None}
+    stakes = build_championship_stakes(SEASON, SAO_PAULO, table, now=NOW)
+
+    assert (stakes["as_of_round"], stakes["provisional"], stakes["sources"]) == (20, True, list(SOURCES))
+    assert (stakes["races_left"], stakes["sprints_left"]) == (2, 1), "round 20's race and sprint are already counted"
+
+
+def test_the_clock_defaults_to_now():
+    stakes = build_championship_stakes([], None, standings((), ()))
+
+    assert stakes == {
+        "as_of_round": None,
+        "provisional": False,
+        "sources": [],
+        "races_left": 0,
+        "sprints_left": 0,
+        "drivers": None,
+        "constructors": None,
+    }

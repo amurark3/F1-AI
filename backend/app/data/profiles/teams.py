@@ -21,9 +21,10 @@ from app.data.profiles.results import (
     season_results,
     season_rounds,
 )
-from app.data.profiles.standings import Standing, constructor_standings, driver_standings
+from app.data.profiles.standings import Standing, season_standings
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     import sqlite3
 
 _TEAM_QUERY = "SELECT id, name, full_name FROM constructor WHERE id = ?"
@@ -47,9 +48,11 @@ class _Season:
     entrants: list[sqlite3.Row]
     rounds: tuple[RoundInfo, ...]
     finishes: tuple[Finish, ...]
-    drivers: dict[str, Standing]
+    drivers: Mapping[str, Standing]
     standing: Standing | None
     through: dict | None
+    #: Which round the championship table is after, whether provisional, and its sources.
+    table_meta: dict
 
 
 def _race_finishes(season: _Season) -> list[Finish]:
@@ -162,11 +165,13 @@ def _payload(season: _Season) -> dict:
         "wins": _wins(season),
         "rounds": _rounds(season),
         "results_through": season.through,
+        **season.table_meta,
     }
 
 
 def team_season(year: int, constructor_id: str) -> dict | None:
     """``constructor_id``'s season, or ``None`` when it did not enter ``year``."""
+    standings = season_standings(year)
     with connect() as conn:
         team = conn.execute(_TEAM_QUERY, (constructor_id,)).fetchone()
         entrants = conn.execute(_ENTRANTS_QUERY, (year, constructor_id)).fetchall()
@@ -179,8 +184,9 @@ def team_season(year: int, constructor_id: str) -> dict | None:
             entrants=entrants,
             rounds=rounds,
             finishes=season_results(conn, year, constructor_id=constructor_id),
-            drivers=driver_standings(conn, year),
-            standing=constructor_standings(conn, year).get(constructor_id),
+            drivers=standings.drivers,
+            standing=standings.teams.get(constructor_id),
             through=results_through(conn, year, rounds),
+            table_meta=standings.meta,
         )
     return _payload(season)

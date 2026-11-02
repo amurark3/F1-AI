@@ -8,7 +8,7 @@ follows lives in ``driver_score``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,8 +48,9 @@ from app.data.predictions.sessions import (
 )
 from app.data.predictions.standings import _load_constructor_standings, _load_driver_standings
 from app.data.predictions.version import PREDICTION_LOGIC_VERSION
+from app.data.season_seats import SeasonSeat, season_seats
 from app.data.session_entries import UNAVAILABLE as ENTRY_LIST_UNAVAILABLE, WeekendEntryList, load_weekend_entry_list
-from app.data.weekend_grid import EntryLists, resolve_grid
+from app.data.weekend_grid import EntryLists, RosterViolation, resolve_grid, roster_violation
 
 logger = structlog.get_logger()
 
@@ -246,12 +247,32 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
     )
 
 
+def _event_name(schedule: Any, round_num: int) -> str:
+    row = schedule[schedule["RoundNumber"] == round_num].iloc[0]
+    return str(row.get("EventName") or "")
+
+
 def _previous_weekend_entry_list(schedule: Any, year: int, round_num: int) -> WeekendEntryList:
-    """The latest run weekend's entry list — the provisional lineup for this one."""
+    """The latest run weekend's entry list — the provisional lineup for this one.
+
+    Named after its Grand Prix, so a seat it leaves in doubt can say where the
+    stand-in last raced.
+    """
     previous_round = _previous_started_round(schedule, round_num)
     if previous_round is None:
         return ENTRY_LIST_UNAVAILABLE
-    return load_weekend_entry_list(year, previous_round)
+    entry_list = load_weekend_entry_list(year, previous_round)
+    if not entry_list.available:
+        return entry_list
+    return replace(entry_list, event=_event_name(schedule, previous_round))
+
+
+def _season_history(year: int, round_num: int) -> tuple[list[dict], tuple[SeasonSeat, ...], list[str]]:
+    """The championship table and the race starts before this round, both from f1db."""
+    try:
+        return driver_standings_detailed(year), season_seats(year, round_num), []
+    except Exception as exc:
+        return [], (), [f"Could not load full-grid roster: {exc}"]
 
 
 def _build_roster(year: int, round_num: int, event: EventContext, session: SessionData) -> Roster:
@@ -263,13 +284,7 @@ def _build_roster(year: int, round_num: int, event: EventContext, session: Sessi
     rather than who is at this track. See :mod:`app.data.weekend_grid` for the
     resolution order and for how drivers without a session time are placed.
     """
-    warnings: list[str] = []
-    try:
-        championship_roster = driver_standings_detailed(year)
-    except Exception as exc:
-        championship_roster = []
-        warnings.append(f"Could not load full-grid roster: {exc}")
-
+    championship_roster, seats, warnings = _season_history(year, round_num)
     entry_list = load_weekend_entry_list(year, round_num) if session.weekend_started else ENTRY_LIST_UNAVAILABLE
     previous_entry_list = (
         ENTRY_LIST_UNAVAILABLE
@@ -279,7 +294,7 @@ def _build_roster(year: int, round_num: int, event: EventContext, session: Sessi
     grid = resolve_grid(
         timed_drivers=list(session.quali_data) if session.quali_data else [],
         championship_roster=championship_roster,
-        entry_lists=EntryLists(current=entry_list, previous=previous_entry_list),
+        entry_lists=EntryLists(current=entry_list, previous=previous_entry_list, seats=seats),
         availability=load_weekend_availability(year, round_num),
     )
     return Roster(
@@ -318,6 +333,19 @@ def _active_weights(session: SessionData, support: SupportingData) -> dict[str, 
     return {signal: weight / total for signal, weight in weights.items()}
 
 
+def _with_seat_status(predictions: list[dict], roster: list[dict]) -> list[dict]:
+    """Carry each driver's seat flag from the roster onto their prediction row."""
+    reasons = {driver["driver_code"]: driver.get("seat_tbc_reason") for driver in roster}
+    return [
+        {
+            **row,
+            "seat_tbc": reasons.get(row["driver_code"]) is not None,
+            "seat_tbc_reason": reasons.get(row["driver_code"]),
+        }
+        for row in predictions
+    ]
+
+
 def _rank(scored_drivers: list[dict]) -> list[dict]:
     """Sort by score, lowest first, and assign finishing positions."""
     ordered = sorted(scored_drivers, key=lambda d: d["score"])
@@ -354,6 +382,29 @@ def _response(
     }
 
 
+def _rejected_roster(year: int, round_num: int, violation: RosterViolation) -> dict:
+    """The body for a grid that cannot be real: no prediction, and why.
+
+    Nothing is saved and the snapshot store is never written (it only stores
+    a result with predictions), so the previous snapshot stays live.
+    """
+    logger.error(
+        "predictions.roster_invalid",
+        year=year,
+        round=round_num,
+        cars=violation.cars,
+        over_limit={team: list(codes) for team, codes in violation.over_limit},
+    )
+    return {
+        "predictions": [],
+        "risk_predictions": [],
+        "error": (
+            f"The lineup failed its check ({violation.describe()}), so this prediction was not "
+            "published and the previous one stays."
+        ),
+    }
+
+
 def compute_race_predictions(year: int, round_num: int, *, phase: str | None = None) -> dict:
     """Compute probabilistic race outcome predictions for all drivers.
 
@@ -381,6 +432,16 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     stages = (event, session, support, roster)
     warnings = [warning for stage in stages for warning in stage.warnings]
     data_sources = [source for stage in stages for source in stage.data_sources]
+
+    violation = roster_violation(roster.drivers)
+    if violation is not None:
+        body = _rejected_roster(year, round_num, violation)
+        return _response(
+            year,
+            round_num,
+            event.gp_name,
+            {**body, "data_sources": data_sources, "prediction_phase": resolved_phase, "warnings": warnings},
+        )
 
     if not roster.drivers:
         logger.error("predictions.no_driver_data", year=year, round=round_num)
@@ -428,7 +489,7 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
     if any(result.used_adaptive for result in results):
         data_sources.append("adaptive_history")
 
-    predictions = _rank(scored_drivers)
+    predictions = _with_seat_status(_rank(scored_drivers), roster.drivers)
     result = _response(
         year,
         round_num,

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — Grid (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>.gridwrap{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;row-gap:6px;position:relative;padding:20px 0 0}
+.gridwrap::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;background-image:conic-gradient(#f0f2f6 25%,#0d111b 0 50%,#f0f2f6 0 75%,#0d111b 0);background-size:10px 10px;opacity:.7}
+.slot{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:start}
+.slot.l{grid-column:1}.slot.r{grid-column:2;margin-top:34px}
+.slot .g{font:800 30px/1 var(--display);color:var(--ink-3);text-align:right;padding-top:8px}
+.car{border-left:3px solid;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:3px;padding:9px 12px;background:var(--panel)}
+.car .qp{font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.pen{margin-top:8px;font-size:12px;color:var(--ink-2)}.pen b{font:700 11px/1 var(--mono);color:var(--red-text);margin-right:6px}.pen.gain b{color:var(--gain)}
+.pitlane{margin-top:26px;border:1px dashed rgb(255 70 85/.5);border-radius:4px;padding:14px 16px;display:flex;gap:16px;align-items:center}</style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html" aria-current="page">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html">Teams</a><a href="power-units.html">Power Units</a><a href="engineer.html">AI Engineer</a><a href="#">More ▾</a></nav><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+    <div class="picker"><div class="wrap"><button class="step" type="button" aria-label="Previous round">‹</button><span class="rnum">R19</span><div><p class="rname">Mexico City GP</p><p class="rmeta">Hermanos Rodríguez · 30 Oct–1 Nov</p></div><button class="step" type="button" aria-label="Next round">›</button><div class="season" role="listbox" aria-label="2026 season rounds"><div class="base"></div>
+<span class="tick" style="left:2.45%;background:#27f4d2"></span>
+<span class="tick" style="left:4.90%;background:#27f4d2"></span>
+<span class="tick" style="left:9.79%;background:#27f4d2"></span>
+<span class="tick" style="left:22.03%;background:#27f4d2"></span>
+<span class="tick" style="left:29.37%;background:#27f4d2"></span>
+<span class="tick" style="left:34.27%;background:#27f4d2"></span>
+<span class="tick" style="left:36.71%;background:#e8002d"></span>
+<span class="tick" style="left:41.61%;background:#27f4d2"></span>
+<span class="tick" style="left:44.06%;background:#e8002d"></span>
+<span class="tick" style="left:48.95%;background:#27f4d2"></span>
+<span class="tick" style="left:51.40%;background:#ff8000"></span>
+<span class="tick" style="left:61.19%;background:#ff8000"></span>
+<span class="tick" style="left:66.08%;background:#27f4d2"></span>
+<span class="tick" style="left:68.53%;background:#27f4d2"></span>
+<span class="tick" style="left:73.08%;background:#27f4d2"></span>
+<span class="tick" style="left:75.87%;background:#3671c6"></span>
+<span class="tick" style="left:78.32%;background:#3671c6"></span>
+<span class="tick" style="left:83.22%;background:#27f4d2"></span>
+<span class="tick sel" style="left:85.66%"></span><span class="sel-label" style="left:85.66%">R19</span>
+<span class="tick future" style="left:88.11%"></span>
+<span class="tick future" style="left:93.01%"></span>
+<span class="tick future" style="left:95.45%"></span>
+<span class="tick future" style="left:97.90%"></span>
+<span class="month" style="left:0.00%">MAR</span>
+<span class="month" style="left:10.84%">APR</span>
+<span class="month" style="left:21.33%">MAY</span>
+<span class="month" style="left:32.17%">JUN</span>
+<span class="month" style="left:42.66%">JUL</span>
+<span class="month" style="left:53.50%">AUG</span>
+<span class="month" style="left:64.34%">SEP</span>
+<span class="month" style="left:74.83%">OCT</span>
+<span class="month" style="left:85.66%">NOV</span>
+<span class="month" style="left:96.15%">DEC</span>
+</div></div></div>
+    <main class="wrap page">
+
+<div class="page-title"><p class="eyebrow">Grand Prix · Round 19 · Mexico City GP</p></div>
+<nav class="tabs" aria-label="Sections"><a href="grand-prix.html">Weekend</a><a href="gp-sessions.html">Sessions</a><a href="gp-grid.html" aria-selected="true">Grid</a><a href="gp-stints.html">Stints</a><a href="gp-predictions.html">Predictions</a></nav>
+<div class="split75" style="margin-top:24px">
+  <figure class="panel card">
+    <p class="eyebrow">Starting grid</p>
+    <h3>Three stewards' decisions reshaped the grid</h3>
+    <p class="sub">As the cars lined up · each penalty shows the FIA document it comes from</p>
+    <div class="gridwrap"><div class="slot l rise" style="grid-row:1;animation-delay:0.03s"><span class="g">1</span><div class="car" style="border-left-color:#e8002d"><p><span class="who"><i style="background:#e8002d"></i>Lewis Hamilton <span>HAM</span></span></p><p class="qp">Qualified P1</p></div></div><div class="slot r rise" style="grid-row:1;animation-delay:0.06s"><span class="g">2</span><div class="car" style="border-left-color:#27f4d2"><p><span class="who"><i style="background:#27f4d2"></i>George Russell <span>RUS</span></span></p><p class="qp">Qualified P2</p></div></div><div class="slot l rise" style="grid-row:2;animation-delay:0.09s"><span class="g">3</span><div class="car" style="border-left-color:#e8002d"><p><span class="who"><i style="background:#e8002d"></i>Charles Leclerc <span>LEC</span></span></p><p class="qp">Qualified P3</p></div></div><div class="slot r rise" style="grid-row:2;animation-delay:0.12s"><span class="g">4</span><div class="car" style="border-left-color:#27f4d2"><p><span class="who"><i style="background:#27f4d2"></i>Kimi Antonelli <span>ANT</span></span></p><p class="qp">Qualified P5</p><p class="pen gain"><b>+1</b> promoted by Verstappen's drop</p></div></div><div class="slot l rise" style="grid-row:3;animation-delay:0.15s"><span class="g">5</span><div class="car" style="border-left-color:#3671c6"><p><span class="who"><i style="background:#3671c6"></i>Max Verstappen <span>VER</span></span></p><p class="qp">Qualified P4</p><p class="pen pen"><b>−1 place</b> Turn 14 incident with car 30 in practice · doc 33</p></div></div><div class="slot r rise" style="grid-row:3;animation-delay:0.18s"><span class="g">6</span><div class="car" style="border-left-color:#ff8000"><p><span class="who"><i style="background:#ff8000"></i>Lando Norris <span>NOR</span></span></p><p class="qp">Qualified P6</p></div></div><div class="slot l rise" style="grid-row:4;animation-delay:0.21s"><span class="g">7</span><div class="car" style="border-left-color:#3671c6"><p><span class="who"><i style="background:#3671c6"></i>Isack Hadjar <span>HAD</span></span></p><p class="qp">Qualified P7</p></div></div><div class="slot r rise" style="grid-row:4;animation-delay:0.24s"><span class="g">8</span><div class="car" style="border-left-color:#6692ff"><p><span class="who"><i style="background:#6692ff"></i>Arvid Lindblad <span>LIN</span></span></p><p class="qp">Qualified P8</p></div></div><div class="slot l rise" style="grid-row:5;animation-delay:0.27s"><span class="g">9</span><div class="car" style="border-left-color:#ff87bc"><p><span class="who"><i style="background:#ff87bc"></i>Pierre Gasly <span>GAS</span></span></p><p class="qp">Qualified P9</p></div></div><div class="slot r rise" style="grid-row:5;animation-delay:0.30s"><span class="g">10</span><div class="car" style="border-left-color:#ff0000"><p><span class="who"><i style="background:#ff0000"></i>Nico Hülkenberg <span>HUL</span></span></p><p class="qp">Qualified P10</p></div></div><div class="slot l rise" style="grid-row:6;animation-delay:0.33s"><span class="g">11</span><div class="car" style="border-left-color:#ff87bc"><p><span class="who"><i style="background:#ff87bc"></i>Franco Colapinto <span>COL</span></span></p><p class="qp">Qualified P11</p></div></div><div class="slot r rise" style="grid-row:6;animation-delay:0.36s"><span class="g">12</span><div class="car" style="border-left-color:#ff8000"><p><span class="who"><i style="background:#ff8000"></i>Oscar Piastri <span>PIA</span></span></p><p class="qp">Qualified P12</p></div></div><div class="slot l rise" style="grid-row:7;animation-delay:0.39s"><span class="g">13</span><div class="car" style="border-left-color:#ff0000"><p><span class="who"><i style="background:#ff0000"></i>Gabriel Bortoleto <span>BOR</span></span></p><p class="qp">Qualified P13</p></div></div><div class="slot r rise" style="grid-row:7;animation-delay:0.42s"><span class="g">14</span><div class="car" style="border-left-color:#b6babd"><p><span class="who"><i style="background:#b6babd"></i>Oliver Bearman <span>BEA</span></span></p><p class="qp">Qualified P14</p></div></div><div class="slot l rise" style="grid-row:8;animation-delay:0.45s"><span class="g">15</span><div class="car" style="border-left-color:#64c4ff"><p><span class="who"><i style="background:#64c4ff"></i>Carlos Sainz Jr. <span>SAI</span></span></p><p class="qp">Qualified P15</p></div></div><div class="slot r rise" style="grid-row:8;animation-delay:0.48s"><span class="g">16</span><div class="car" style="border-left-color:#64c4ff"><p><span class="who"><i style="background:#64c4ff"></i>Alexander Albon <span>ALB</span></span></p><p class="qp">Qualified P16</p></div></div><div class="slot l rise" style="grid-row:9;animation-delay:0.51s"><span class="g">17</span><div class="car" style="border-left-color:#229971"><p><span class="who"><i style="background:#229971"></i>Fernando Alonso <span>ALO</span></span></p><p class="qp">Qualified P17</p></div></div><div class="slot r rise" style="grid-row:9;animation-delay:0.54s"><span class="g">18</span><div class="car" style="border-left-color:#b6babd"><p><span class="who"><i style="background:#b6babd"></i>Ryō Hirakawa <span>HIR</span></span></p><p class="qp">Qualified P18</p></div></div><div class="slot l rise" style="grid-row:10;animation-delay:0.57s"><span class="g">19</span><div class="car" style="border-left-color:#229971"><p><span class="who"><i style="background:#229971"></i>Lance Stroll <span>STR</span></span></p><p class="qp">Qualified P19</p></div></div><div class="slot r rise" style="grid-row:10;animation-delay:0.60s"><span class="g">20</span><div class="car" style="border-left-color:#e0d4b8"><p><span class="who"><i style="background:#e0d4b8"></i>Sergio Pérez <span>PER</span></span></p><p class="qp">Qualified P20</p></div></div><div class="slot l rise" style="grid-row:11;animation-delay:0.63s"><span class="g">21</span><div class="car" style="border-left-color:#e0d4b8"><p><span class="who"><i style="background:#e0d4b8"></i>Valtteri Bottas <span>BOT</span></span></p><p class="qp">Qualified P21</p><p class="pen pen"><b>−50 places</b> New power-unit elements beyond the allocation · doc 17</p></div></div></div>
+    <div class="pitlane"><span class="tagx red" style="padding:6px 8px">Pit lane</span><span class="who"><i style="background:#6692ff"></i>Liam Lawson <span>LAW</span></span><span class="muted" style="font-size:12px">Disqualified from qualifying (doc 57) and parc fermé changes (doc 65)</span></div>
+    <p class="note">Grid: FIA final starting grid (doc 67) · reasons: FIA decisions 17, 33, 57, 65 · f1db records places dropped but never the offence</p>
+  </figure>
+  <div class="stack">
+    <div class="panel card"><p class="eyebrow">Penalties applied</p>
+      <div class="rank" style="--rank-cols:1fr 90px"><span class="lbl">Valtteri Bottas <span>BOT</span></span><span class="val" style="color:var(--red-text)">−50 places</span></div>
+      <div class="rank" style="--rank-cols:1fr 90px"><span class="lbl">Liam Lawson <span>LAW</span></span><span class="val" style="color:var(--red-text)">pit lane</span></div>
+      <div class="rank" style="--rank-cols:1fr 90px"><span class="lbl">Max Verstappen <span>VER</span></span><span class="val" style="color:var(--red-text)">−1 place</span></div>
+      <p class="note">Verstappen's drop also adds one penalty point (1 in 12 months)</p></div>
+    <div class="panel card"><p class="eyebrow">From the grid to the flag</p><h3>Verstappen won from fifth</h3><p class="muted" style="font-size:13px">Lawson went from the pit lane to seventh; Bottas retired on lap 42. Full story in the debrief.</p><p style="margin-top:12px"><a class="tagx blue" style="padding:7px 10px" href="debrief.html">Open the debrief →</a></p></div>
+  </div>
+</div>
+    </main>
+  </body>
+</html>

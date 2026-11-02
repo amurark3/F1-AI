@@ -1,5 +1,7 @@
 /** Shared shapes and formatters for the championship hub (standings + team ops). */
 
+import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+
 export interface DriverStanding {
   code?: string;
   driver: string;
@@ -23,7 +25,7 @@ export interface Team {
   pace_profile?: Record<string, number>;
 }
 
-export interface TeamsResponse {
+export interface TeamsResponse extends StandingsFreshness {
   teams: Team[];
   drivers?: DriverStanding[];
   error?: string | null;

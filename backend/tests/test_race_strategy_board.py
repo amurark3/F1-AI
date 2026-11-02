@@ -18,6 +18,8 @@ import pytest
 from app.data import f1db_pitstops, race_stints as stints_module
 from app.data.f1db_pitstops import race_pit_stops
 from app.data.openf1.sessions import ScheduledSession
+from app.data.pit_sheet import PitSheet
+from app.data.race_classification import NO_CLASSIFICATION
 from app.data.race_stints import Stint, race_stints
 from app.services import race_strategy_board
 from app.services.race_strategy_board import build_race_strategy
@@ -487,8 +489,9 @@ def stint(code, number, start, end, red_flag=False):
 def board(monkeypatch):
     state = {"stints": (), "stops": (), "results": {}}
     monkeypatch.setattr(race_strategy_board, "race_stints", lambda y, r: state["stints"])
-    monkeypatch.setattr(race_strategy_board, "race_pit_stops", lambda y, r: state["stops"])
+    monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
+    monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: NO_CLASSIFICATION)
     return state
 
 
@@ -590,13 +593,14 @@ def test_the_race_reports_both_totals(board):
 
 def test_an_incomplete_stop_sheet_is_flagged_not_hidden(board, pit_db):
     """f1db can publish fewer stop times than the race actually had."""
-    board["stints"] = (stint("ALB", 1, 1, 20), stint("ALB", 2, 21, 40), stint("ALB", 3, 41, 53))
-    board["stops"] = ()
+    pit_db("leclerc", 1, 20, "22.0", 22000)
+    board["stints"] = (stint("LEC", 1, 1, 20), stint("LEC", 2, 21, 40), stint("LEC", 3, 41, 53))
+    board["stops"] = race_pit_stops(2026, 13)
 
     payload = build_race_strategy(2026, 13)
 
     assert payload["stops_made"] == 2
-    assert any("published stationary time" in w for w in payload["warnings"])
+    assert race_strategy_board._partial_stops_warning(1, 2) in payload["warnings"]
 
 
 def test_a_tyre_change_counts_as_a_stop_even_with_no_published_time(board):

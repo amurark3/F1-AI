@@ -1,0 +1,140 @@
+[
+  {
+    "code": "ANT",
+    "name": "Kimi Antonelli",
+    "team": "Mercedes",
+    "position": 1
+  },
+  {
+    "code": "RUS",
+    "name": "George Russell",
+    "team": "Mercedes",
+    "position": 2
+  },
+  {
+    "code": "HAM",
+    "name": "Lewis Hamilton",
+    "team": "Ferrari",
+    "position": 3
+  },
+  {
+    "code": "VER",
+    "name": "Max Verstappen",
+    "team": "Red Bull",
+    "position": 4
+  },
+  {
+    "code": "LEC",
+    "name": "Charles Leclerc",
+    "team": "Ferrari",
+    "position": 5
+  },
+  {
+    "code": "NOR",
+    "name": "Lando Norris",
+    "team": "McLaren",
+    "position": 6
+  },
+  {
+    "code": "PIA",
+    "name": "Oscar Piastri",
+    "team": "McLaren",
+    "position": 7
+  },
+  {
+    "code": "HAD",
+    "name": "Isack Hadjar",
+    "team": "Red Bull",
+    "position": 8
+  },
+  {
+    "code": "LAW",
+    "name": "Liam Lawson",
+    "team": "Racing Bulls",
+    "position": 9
+  },
+  {
+    "code": "GAS",
+    "name": "Pierre Gasly",
+    "team": "Alpine",
+    "position": 10
+  },
+  {
+    "code": "LIN",
+    "name": "Arvid Lindblad",
+    "team": "Racing Bulls",
+    "position": 11
+  },
+  {
+    "code": "COL",
+    "name": "Franco Colapinto",
+    "team": "Alpine",
+    "position": 12
+  },
+  {
+    "code": "BEA",
+    "name": "Oliver Bearman",
+    "team": "Haas",
+    "position": 13
+  },
+  {
+    "code": "HUL",
+    "name": "Nico Hülkenberg",
+    "team": "Audi",
+    "position": 14
+  },
+  {
+    "code": "BOR",
+    "name": "Gabriel Bortoleto",
+    "team": "Audi",
+    "position": 15
+  },
+  {
+    "code": "OCO",
+    "name": "Esteban Ocon",
+    "team": "Haas",
+    "position": 16
+  },
+  {
+    "code": "ALO",
+    "name": "Fernando Alonso",
+    "team": "Aston Martin",
+    "position": 17
+  },
+  {
+    "code": "SAI",
+    "name": "Carlos Sainz Jr.",
+    "team": "Williams",
+    "position": 18
+  },
+  {
+    "code": "ALB",
+    "name": "Alexander Albon",
+    "team": "Williams",
+    "position": 19
+  },
+  {
+    "code": "TSU",
+    "name": "Yuki Tsunoda",
+    "team": "Racing Bulls",
+    "position": 20
+  },
+  {
+    "code": "STR",
+    "name": "Lance Stroll",
+    "team": "Aston Martin",
+    "position": 21
+  },
+  {
+    "code": "BOT",
+    "name": "Valtteri Bottas",
+    "team": "Cadillac",
+    "position": 22
+  },
+  {
+    "code": "PER",
+    "name": "Sergio Pérez",
+    "team": "Cadillac",
+    "position": 23
+  }
+]

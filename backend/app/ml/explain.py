@@ -16,7 +16,7 @@ Sign convention (TARGET is finish_position, where 1 = best):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.ml.features import FEATURES
 
@@ -32,6 +32,10 @@ FEATURE_LABELS: dict[str, str] = {
     "driver_standing": "championship standing",
     "grid_delta_avg": "overtaking record here",
 }
+
+# Before qualifying has run the grid input is an estimate (practice pace, or the
+# entry order when no session has run), not a grid slot anyone earned.
+PRE_QUALIFYING_GRID_LABEL = "expected grid (pre-qualifying estimate)"
 
 # Contributions smaller than this (in position units) are treated as noise.
 _MIN_MEANINGFUL_CONTRIBUTION = 0.15
@@ -92,6 +96,11 @@ def explain_prediction(payload: dict, features: dict[str, float]) -> list[Featur
 
     contributions.sort(key=lambda c: abs(c.contribution), reverse=True)
     return contributions
+
+
+def label_as_pre_qualifying(contributions: list[FeatureContribution]) -> list[FeatureContribution]:
+    """Relabel the grid input as the pre-qualifying estimate it is; nothing else changes."""
+    return [replace(c, label=PRE_QUALIFYING_GRID_LABEL) if c.feature == "grid_position" else c for c in contributions]
 
 
 def attribution_dicts(contributions: list[FeatureContribution]) -> list[dict]:

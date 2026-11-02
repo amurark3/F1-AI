@@ -14,6 +14,7 @@ from app.data.driver_availability import (
     DriverAdjustment,
     WeekendAvailability,
 )
+from app.data.season_seats import SeasonSeat
 from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
 from app.data.weekend_grid import (
     SOURCE_CHAMPIONSHIP,
@@ -21,7 +22,9 @@ from app.data.weekend_grid import (
     SOURCE_MANUAL_ADJUSTMENT,
     SOURCE_PREVIOUS_ENTRY_LIST,
     EntryLists,
+    RosterViolation,
     resolve_grid,
+    roster_violation,
 )
 
 CHAMPIONSHIP = [
@@ -277,3 +280,156 @@ class TestAdjustmentsThatWithdrawNobody:
 
         assert codes(grid) == ["ANT", "HAM", "LIN"]
         assert SOURCE_MANUAL_ADJUSTMENT in grid.data_sources
+
+
+def seat(code, name, team, starts, last_round):
+    return SeasonSeat(code=code, name=name, team=team, starts=starts, last_round=last_round)
+
+
+# Haas through Mexico City's previous round: Ocon and Bearman are its regulars.
+HAAS_SEATS = (
+    seat("BEA", "Oliver Bearman", "Haas", 18, 18),
+    seat("OCO", "Esteban Ocon", "Haas", 18, 18),
+)
+HAAS_CHAMPIONSHIP = [
+    {"code": "BEA", "name": "Oliver Bearman", "team": "Haas", "position": 13},
+    {"code": "OCO", "name": "Esteban Ocon", "team": "Haas", "position": 16},
+]
+
+
+def haas_lineup(*cars, session="R", event="Mexico City Grand Prix"):
+    return WeekendEntryList(
+        entries=tuple(EntryListDriver(code=code, name=name, team=team) for code, name, team in cars),
+        session=session,
+        event=event,
+    )
+
+
+MEXICO_HAAS = haas_lineup(("BEA", "Oliver Bearman", "Haas F1 Team"), ("HIR", "Ryo Hirakawa", "Haas F1 Team"))
+
+
+class TestSeatTbc:
+    """A stand-in from last weekend is kept in the car, and the seat is flagged."""
+
+    def test_a_stand_in_carried_over_from_last_weekend_is_flagged(self):
+        grid = resolve_grid(
+            [], HAAS_CHAMPIONSHIP, EntryLists(UNAVAILABLE, MEXICO_HAAS, seats=HAAS_SEATS), WeekendAvailability()
+        )
+
+        hirakawa = next(d for d in grid.drivers if d["driver_code"] == "HIR")
+        assert hirakawa["seat_tbc"] is True
+        assert hirakawa["seat_tbc_reason"] == (
+            "Ryo Hirakawa raced Haas F1 Team's car at the Mexico City Grand Prix in place of Esteban Ocon; "
+            "the model keeps Ryo Hirakawa in the seat until this weekend's entry list is published"
+        )
+        assert any(warning.startswith("Seat TBC: Ryo Hirakawa raced") for warning in grid.warnings)
+
+    def test_a_regular_driver_is_not_flagged(self):
+        grid = resolve_grid(
+            [], HAAS_CHAMPIONSHIP, EntryLists(UNAVAILABLE, MEXICO_HAAS, seats=HAAS_SEATS), WeekendAvailability()
+        )
+
+        bearman = next(d for d in grid.drivers if d["driver_code"] == "BEA")
+        assert bearman["seat_tbc"] is False
+        assert bearman["seat_tbc_reason"] is None
+
+    def test_a_list_with_no_event_still_explains_the_seat(self):
+        lineup = haas_lineup(("BEA", "Oliver Bearman", "Haas"), ("HIR", "Ryo Hirakawa", "Haas"), event="")
+        grid = resolve_grid(
+            [], HAAS_CHAMPIONSHIP, EntryLists(UNAVAILABLE, lineup, seats=HAAS_SEATS), WeekendAvailability()
+        )
+
+        hirakawa = next(d for d in grid.drivers if d["driver_code"] == "HIR")
+        assert hirakawa["seat_tbc_reason"].startswith("Ryo Hirakawa raced Haas's car in place of Esteban Ocon;")
+
+    def test_this_weekends_own_list_is_fact_not_tbc(self):
+        """Once the stand-in is on this weekend's list, the seat is confirmed."""
+        grid = resolve_grid([], HAAS_CHAMPIONSHIP, EntryLists(MEXICO_HAAS, seats=HAAS_SEATS), WeekendAvailability())
+
+        assert not any(d["seat_tbc"] for d in grid.drivers)
+
+    def test_a_timed_driver_keeps_the_seat_flag(self):
+        timed = [{"driver_code": "HIR", "driver_name": "Ryo Hirakawa", "team": "Haas", "position": 1}]
+        grid = resolve_grid(
+            timed, HAAS_CHAMPIONSHIP, EntryLists(UNAVAILABLE, MEXICO_HAAS, seats=HAAS_SEATS), WeekendAvailability()
+        )
+
+        assert grid.drivers[0]["driver_code"] == "HIR"
+        assert grid.drivers[0]["seat_tbc"] is True
+
+
+class TestEntryListGaps:
+    def test_a_blank_team_is_taken_from_the_championship(self):
+        lineup = haas_lineup(("OCO", "Esteban OCON", ""))
+        grid = resolve_grid([], HAAS_CHAMPIONSHIP, EntryLists(lineup), WeekendAvailability())
+
+        assert grid.drivers[0]["team"] == "Haas"
+
+    def test_f1dbs_name_is_preferred_to_the_feeds(self):
+        lineup = haas_lineup(("OCO", "Esteban OCON", "Haas F1 Team"))
+        grid = resolve_grid([], HAAS_CHAMPIONSHIP, EntryLists(lineup), WeekendAvailability())
+
+        assert grid.drivers[0]["driver_name"] == "Esteban Ocon"
+        assert grid.drivers[0]["team"] == "Haas F1 Team"
+
+
+class TestChampionshipFallbackSeats:
+    """With no entry list at all, the championship table is cut to two cars per team."""
+
+    RACING_BULLS = (
+        {"code": "LAW", "name": "Liam Lawson", "team": "Racing Bulls", "position": 9},
+        {"code": "LIN", "name": "Arvid Lindblad", "team": "Racing Bulls", "position": 11},
+        {"code": "TSU", "name": "Yuki Tsunoda", "team": "Racing Bulls", "position": 20},
+    )
+    SEATS = (
+        seat("LAW", "Liam Lawson", "Racing Bulls", 15, 18),
+        seat("LIN", "Arvid Lindblad", "Racing Bulls", 18, 18),
+        seat("TSU", "Yuki Tsunoda", "Racing Bulls", 3, 14),
+    )
+
+    def test_a_stand_in_whose_driver_is_back_is_dropped(self):
+        grid = resolve_grid([], list(self.RACING_BULLS), EntryLists(seats=self.SEATS), WeekendAvailability())
+
+        assert codes(grid) == ["LAW", "LIN"]
+
+    def test_without_race_starts_the_table_is_used_whole(self):
+        grid = resolve_grid([], list(self.RACING_BULLS), EntryLists(), WeekendAvailability())
+
+        assert codes(grid) == ["LAW", "LIN", "TSU"]
+
+
+def roster(*cars):
+    return [{"driver_code": code, "team": team} for code, team in cars]
+
+
+class TestRosterViolation:
+    def test_a_real_grid_passes(self):
+        assert roster_violation(roster(("BEA", "Haas F1 Team"), ("HIR", "Haas F1 Team"))) is None
+
+    def test_a_third_car_for_one_team_is_a_violation(self):
+        violation = roster_violation(roster(("BEA", "Haas F1 Team"), ("HIR", "Haas F1 Team"), ("OCO", "Haas")))
+
+        assert violation == RosterViolation(cars=3, over_limit=(("Haas F1 Team", ("BEA", "HIR", "OCO")),))
+        assert violation.describe() == "Haas F1 Team has 3 cars (BEA, HIR, OCO)"
+
+    def test_more_cars_than_the_grid_holds_is_a_violation(self):
+        violation = roster_violation(roster(*((f"D{index:02d}", f"Team {index}") for index in range(23))))
+
+        assert violation is not None
+        assert violation.over_limit == ()
+        assert violation.describe() == "23 cars for 22 places on the grid"
+
+    def test_both_problems_are_reported_together(self):
+        cars = [
+            *((f"D{index:02d}", f"Team {index}") for index in range(20)),
+            ("A", "Haas"),
+            ("B", "Haas"),
+            ("C", "Haas"),
+        ]
+
+        assert (
+            roster_violation(roster(*cars)).describe() == "23 cars for 22 places on the grid; Haas has 3 cars (A, B, C)"
+        )
+
+    def test_cars_with_no_team_are_not_counted_as_one_team(self):
+        assert roster_violation(roster(("A", ""), ("B", ""), ("C", ""))) is None

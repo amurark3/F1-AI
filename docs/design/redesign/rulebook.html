@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — Rulebook (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>.search{display:flex;gap:10px;margin-top:24px}.search input{flex:1;height:56px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:0 18px;color:var(--ink);font:400 17px var(--sans)}
+.qs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.qs a{font-size:13px;border:1px solid var(--line);border-radius:20px;padding:8px 14px;color:var(--ink-2)}
+.ans{margin-top:28px}.ans p{color:var(--ink-2);line-height:1.7;font-size:15px;max-width:76ch}.ans p b{color:var(--ink)}.cite{font:600 10px/1 var(--mono);background:rgb(225 6 0/.14);color:var(--red-text);border-radius:3px;padding:2px 5px;margin:0 2px}
+.cites{display:grid;gap:10px;margin-top:20px}.cites div{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}.cites b{font:800 20px/1 var(--display);color:var(--red-text)}.cites p{font-size:13px;color:var(--ink-2)}.cites p span{display:block;font:500 10px/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}</style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html">Teams</a><a href="power-units.html">Power Units</a><a href="engineer.html">AI Engineer</a><a href="#" aria-current="page">More ▾</a></nav><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+    
+    <main class="wrap page">
+<div class="page-title"><p class="eyebrow">Rulebook · FIA Formula One Regulations and stewards' decisions</p><h1 class="display">Ask the rulebook</h1><div class="rule grow-x"></div></div>
+<div class="search"><input value="What happens if a team changes the setup in parc fermé?" aria-label="Question"><a class="btn btn-primary" style="height:56px">Search</a></div>
+<div class="qs"><a href="#">What is a power-unit grid penalty?</a><a href="#">When is a driver required to start from the pit lane?</a><a href="#">How do penalty points work?</a><a href="#">What counts as track limits?</a></div>
+<section class="ans panel card">
+  <p class="eyebrow">Answer</p><h3>A setup change under parc fermé without approval means a pit-lane start</h3>
+  <p>Once the car is under parc fermé, its setup can only change with the <b>Technical Delegate's approval</b> <span class="cite">1</span>. In Mexico City 2026, Racing Bulls changed the suspension setup of car 30 without that approval. The stewards found breaches of Articles B3.4.3, B3.5.3 and B3.5.4, and <b>required the car to start the race from the pit lane</b> <span class="cite">2</span>.</p>
+  <div class="cites">
+    <div><b>1</b><p><span>FIA F1 Regulations · Articles B3.5.3, B3.5.4 · as applied in decision 65</span>Changing a car's setup under parc fermé without the Technical Delegate's approval is not in accordance with these articles.</p></div>
+    <div><b>2</b><p><span>Stewards' decision · Mexico City GP 2026 · Document 65</span>"Required to start the Race from the pit lane." Car 30's suspension setup was changed under parc fermé before the start, without the approval of the Technical Delegate.</p></div>
+  </div>
+  <p class="note">Answers quote the regulations and real stewards' decisions, and link the source document</p>
+</section>
+    </main>
+  </body>
+</html>

@@ -34,29 +34,36 @@ async def compare_drivers_endpoint(year: int, driver1: str, driver2: str) -> dic
 
 
 def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) -> dict:
-    """Build season-long head-to-head stats for two drivers (sourced from f1db)."""
-    from app.data.f1db_results import qualifying_positions, race_results, race_schedule
-    from app.data.f1db_standings import driver_standings_detailed
+    """Season-long head-to-head stats for two drivers.
 
-    standings = driver_standings_detailed(year)
-    if not standings:
+    Points and places come from the table as of its newest round
+    (``current_standings``, so provisional until f1db publishes that round);
+    the per-round head-to-heads walk the rounds f1db holds.
+    """
+    from app.data.current_standings import current_standings
+    from app.data.f1db_results import qualifying_positions, race_results, race_schedule
+
+    standings = current_standings(year)
+    if not standings.drivers:
         return {"error": f"No standings data for {year}"}
 
     def find_driver(query: str) -> dict | None:
         q = query.lower().strip()
-        for row in standings:
-            code = str(row.get("code", "")).lower()
-            name = str(row.get("name", "")).lower()
-            if q == code or q in name:
-                return {
-                    "code": row.get("code", ""),
-                    "name": row.get("name", ""),
-                    "team": row.get("team", "Unknown"),
-                    "points": float(row.get("points", 0)),
-                    "wins": int(row.get("wins", 0)),
-                    "position": int(row.get("position", 0)),
+        return next(
+            (
+                {
+                    "code": row.key,
+                    "name": row.name,
+                    "team": row.team,
+                    "points": row.points,
+                    "wins": row.wins,
+                    "position": row.position,
                 }
-        return None
+                for row in standings.drivers
+                if q == row.key.lower() or q in row.name.lower()
+            ),
+            None,
+        )
 
     d1 = find_driver(driver1_query)
     d2 = find_driver(driver2_query)
@@ -115,4 +122,5 @@ def _build_comparison_sync(year: int, driver1_query: str, driver2_query: str) ->
             "d2": round(sum(d2_positions) / len(d2_positions), 1) if d2_positions else None,
         },
         "rounds": rounds,
+        **standings.meta(),
     }

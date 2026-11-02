@@ -25,6 +25,7 @@ import pandas as pd
 import pytest
 
 from app.services.race_control import strategy_context as module
+from tests.standings_support import standings_from_rows
 
 _NOW = datetime.now(UTC).replace(tzinfo=None)
 
@@ -74,11 +75,9 @@ def _stub_schedule(monkeypatch: pytest.MonkeyPatch, rows: list[dict]) -> None:
 
 
 def _stub_standings(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
-    """Serve fixed ``(drivers, constructors)`` for the championship block."""
-    drivers = feeds.get("drivers", [])
-    constructors = feeds.get("constructors", [])
-    monkeypatch.setattr(module, "get_standings_snapshot", lambda _year: (drivers, constructors))
-    monkeypatch.setattr(module, "standings_round", lambda _year: feeds.get("through_round"))
+    """Serve a fixed computed table for the championship block and the stakes."""
+    standings = standings_from_rows(feeds.get("drivers", []), feeds.get("constructors", []))
+    monkeypatch.setattr(module, "current_standings", lambda _year: standings)
 
 
 def _team(rank: int, points: float) -> dict:
@@ -283,7 +282,10 @@ def test_dashboard_truncates_both_championship_tables_to_five_rows(monkeypatch):
     _stub_schedule(monkeypatch, [_upcoming_row()])
     _stub_standings(
         monkeypatch,
-        drivers=[{"position": rank, "code": f"D{rank}"} for rank in range(1, 8)],
+        drivers=[
+            {"position": rank, "code": f"D{rank}", "driver": f"Driver {rank}", "team": "Team 1", "points": 50 - rank}
+            for rank in range(1, 8)
+        ],
         constructors=[_team(rank, 100 - rank) for rank in range(1, 8)],
     )
 
@@ -294,8 +296,8 @@ def test_dashboard_truncates_both_championship_tables_to_five_rows(monkeypatch):
     assert dashboard["year"] == 2026
     assert dashboard["generated_at"].endswith("+00:00")
     # Stakes read the whole table, not the five rows the panel shows.
+    assert len(dashboard["stakes"]["drivers"]["contenders"]) == 6
     assert len(dashboard["stakes"]["constructors"]["contenders"]) == 6
-    assert dashboard["stakes"]["drivers"] is None, "rows without points cannot be placed"
 
 
 # ---------------------------------------------------------------------------

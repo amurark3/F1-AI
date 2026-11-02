@@ -29,6 +29,7 @@ from app.data.f1db_standings import (
     current_driver_standings,
     driver_standings_after_round,
     driver_standings_detailed,
+    season_finishes,
     standings_round,
 )
 from tests.f1db_fixture import build_f1db
@@ -361,3 +362,19 @@ def test_current_constructor_standings_uses_the_latest_driver_standing_round(sql
     )
 
     assert current_constructor_standings(2026) == []
+
+
+@pytest.mark.integration
+def test_season_finishes_are_grand_prix_places_by_driver_and_team(fake_f1db):
+    """The count-back reads Grand Prix places only: LEC's sprint win is not one."""
+    by_driver, by_team = season_finishes(2026, 2)
+
+    assert by_driver == {"VER": (1, 1), "LEC": (2, 2)}
+    assert by_team == {"Red Bull": (1, 1), "Ferrari": (2, 2)}
+
+
+@pytest.mark.integration
+def test_season_finishes_stop_at_the_round_asked_for(fake_f1db):
+    by_driver, _ = season_finishes(2026, 1)
+
+    assert by_driver == {"VER": (1,), "LEC": (2,)}

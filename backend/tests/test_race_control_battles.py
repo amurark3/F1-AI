@@ -39,7 +39,6 @@ def _driver(
         "position": position,
         "points": points,
         "wins": wins,
-        "driver_id": code.lower(),
     }
 
 
@@ -48,13 +47,13 @@ def _stub_feed(
     drivers: list[dict],
     *,
     completed_races: int | None = 10,
-    source: str = "f1db-driver-standings",
+    source: str = "computed-standings",
     error: str | None = None,
 ) -> None:
-    """Serve a fixed standings feed and season progress to the battle builder.
+    """Serve a fixed standings feed, holding ``completed_races`` rounds, to the battle builder.
 
-    Both helpers are imported into the module namespace, so they are patched
-    there rather than on ``race_control_common``.
+    The helper is imported into the module namespace, so it is patched there
+    rather than on ``race_control_common``.
     """
     monkeypatch.setattr(
         module,
@@ -63,10 +62,12 @@ def _stub_feed(
             "year": year,
             "source": source,
             "drivers": drivers,
+            "as_of_round": completed_races,
+            "provisional": False,
+            "sources": [],
             "error": error,
         },
     )
-    monkeypatch.setattr(module, "completed_race_count", lambda year: completed_races)
 
 
 def _fact(result: dict, key: str) -> dict:
@@ -394,12 +395,14 @@ def test_successful_battle_carries_the_source_and_disclaims_telemetry(
 ):
     ver = _driver("VER", position=1, points=310.0, wins=9)
     nor = _driver("NOR", team="McLaren", position=2, points=240.5, wins=4)
-    _stub_feed(monkeypatch, [ver, nor], source="ergast-driver-standings")
+    _stub_feed(monkeypatch, [ver, nor], completed_races=12)
 
     result = module.build_driver_battle(2024, "VER", "NOR")
 
     assert result["year"] == 2024
-    assert result["source"] == "ergast-driver-standings"
+    assert result["source"] == "computed-standings"
+    # The table's freshness travels with the battle built on it.
+    assert (result["as_of_round"], result["provisional"], result["sources"]) == (12, False, [])
     assert result["error"] is None
     assert result["metrics"] == []
     assert result["comparison"] == {

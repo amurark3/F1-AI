@@ -1,9 +1,11 @@
 """Race pit stops from the local f1db dataset.
 
 f1db records each stop under ``race_data.type = 'PIT_STOP'`` with the lap it
-happened on, which stop of the race it was for that driver, and the stationary
-time. The stationary time is the part worth showing: it is the crew's work,
-separate from the pit-lane transit that dominates the lap-time loss.
+happened on, which stop of the race it was for that driver, and the time from
+pit entry to pit exit. That is the pit-lane time (about 22 s), not the couple
+of seconds the car stands still. f1db publishes a race hours to days after it
+runs, so :mod:`app.data.pit_sheet` reads Jolpica's sheet first and falls back
+to this one.
 
 De-duplication is deliberate, not defensive habit. The 2023–2025 seasons are
 clean — every row is a distinct (driver, stop) pair — but the in-progress 2026
@@ -40,16 +42,23 @@ _PIT_STOP_QUERY = """
 
 @dataclass(frozen=True)
 class PitStop:
-    """One stop: which lap, which stop of the race, and how long stationary."""
+    """One stop: which lap, which stop of the race, and how long it took.
+
+    ``time`` is the **pit-lane time**, from pit entry to pit exit (about 22 s),
+    which is what the published sheet records. The car is stationary for only
+    a couple of seconds of it; that figure comes from OpenF1, when published.
+    """
 
     driver_code: str
     #: Which stop of the race this was for the driver, counting from 1.
     stop: int
     lap: int
-    #: Stationary time as published, e.g. ``"24.681"`` or ``"1:14.773"``.
+    #: Pit-lane time as published, e.g. ``"24.681"`` or ``"1:14.773"``.
     time: str | None
     #: The same duration in milliseconds, for ranking.
     millis: int | None
+    #: Time stationary in the box, in milliseconds, when OpenF1 publishes it.
+    stationary_millis: int | None = None
 
 
 def race_pit_stops(year: int, round_num: int) -> tuple[PitStop, ...]:

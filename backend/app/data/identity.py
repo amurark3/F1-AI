@@ -234,6 +234,12 @@ def resolve_team(year: int, name: str) -> str | None:
     return alias if alias in {team.id for team in teams} else None
 
 
+def resolve_team_name(year: int, name: str) -> str | None:
+    """f1db's name for the team ``name`` refers to in ``year`` ("Red Bull Racing" -> "Red Bull"), or ``None``."""
+    team_id = resolve_team(year, name)
+    return next((team.name for team in season_directory(year).teams if team.id == team_id), None)
+
+
 def clear_cache() -> None:
     """Drop every cached directory — for tests."""
     with _cache_lock:

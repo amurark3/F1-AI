@@ -19,7 +19,7 @@ from app.data.profiles.results import (
     season_results,
     season_rounds,
 )
-from app.data.profiles.standings import Standing, driver_standings
+from app.data.profiles.standings import Standing, season_standings
 from app.data.profiles.teams import PODIUM_POSITIONS
 
 if TYPE_CHECKING:
@@ -51,6 +51,8 @@ class _Season:
     finishes: tuple[Finish, ...]
     standing: Standing | None
     through: dict | None
+    #: Which round the championship table is after, whether provisional, and its sources.
+    table_meta: dict
 
 
 def _races(season: _Season) -> list[Finish]:
@@ -144,11 +146,13 @@ def _payload(season: _Season) -> dict:
         ],
         "rounds": _rounds(season),
         "results_through": season.through,
+        **season.table_meta,
     }
 
 
 def driver_season(year: int, driver_id: str) -> dict | None:
     """``driver_id``'s season, or ``None`` when they did not race in ``year``."""
+    standings = season_standings(year)
     with connect() as conn:
         driver = conn.execute(_DRIVER_QUERY, (driver_id,)).fetchone()
         entries = conn.execute(_ENTRIES_QUERY, (year, driver_id)).fetchall()
@@ -161,7 +165,8 @@ def driver_season(year: int, driver_id: str) -> dict | None:
             entries=entries,
             rounds=rounds,
             finishes=season_results(conn, year, driver_id=driver_id),
-            standing=driver_standings(conn, year).get(driver_id),
+            standing=standings.drivers.get(driver_id),
             through=results_through(conn, year, rounds),
+            table_meta=standings.meta,
         )
     return _payload(season)

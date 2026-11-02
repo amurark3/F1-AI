@@ -5,6 +5,7 @@ import useSWR from "swr";
 
 import { LocalTime } from "@/app/components/LocalTime";
 import { API_BASE } from "@/app/constants/api";
+import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
 import { fetcher } from "@/app/utils/fetcher";
 
@@ -53,6 +54,7 @@ export function TeamsView({ year, initialTeams }: TeamsViewProps) {
   const driverLeader = drivers[0];
   const pageLoading = awaitingFirstData(isLoading, teams.length > 0);
   const generatedAt = data?.generated_at ?? null;
+  const freshness = standingsLabel(data);
 
   if (pageLoading) {
     return (
@@ -99,7 +101,7 @@ export function TeamsView({ year, initialTeams }: TeamsViewProps) {
               Data Source
             </p>
             <p className="mt-1 text-sm text-neutral-400">
-              Championship standings feed
+              Championship standings{freshness && ` ${freshness}`}
               {generatedAt && (
                 <>
                   {" · refreshed "}

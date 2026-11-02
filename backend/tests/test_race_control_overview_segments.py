@@ -14,6 +14,7 @@ import pytest
 
 from app.services import race_control as rc
 from app.services.race_control import overview, strategy_context
+from tests.standings_support import standings_from_rows
 
 pytestmark = pytest.mark.unit
 
@@ -22,8 +23,7 @@ pytestmark = pytest.mark.unit
 # ``strategy_context``. Patching the package facade would reach neither.
 _RESOLVED_IN = {
     "season_events": (overview, strategy_context),
-    "get_standings_snapshot": (overview, strategy_context),
-    "standings_round": (strategy_context,),
+    "current_standings": (overview, strategy_context),
     "get_or_compute_race_prediction": (overview,),
     "get_cached_race_prediction": (overview,),
     "circuit_strategy_reference": (overview,),
@@ -149,8 +149,7 @@ def calls(monkeypatch):
         return CIRCUIT
 
     _stub(monkeypatch, "season_events", lambda year: [RACE])
-    _stub(monkeypatch, "get_standings_snapshot", lambda year: (DRIVERS, CONSTRUCTORS))
-    _stub(monkeypatch, "standings_round", lambda year: 14)
+    _stub(monkeypatch, "current_standings", lambda year: standings_from_rows(DRIVERS, CONSTRUCTORS, as_of_round=14))
     _stub(monkeypatch, "get_or_compute_race_prediction", compute)
     _stub(monkeypatch, "get_cached_race_prediction", read)
     _stub(monkeypatch, "circuit_strategy_reference", reference)

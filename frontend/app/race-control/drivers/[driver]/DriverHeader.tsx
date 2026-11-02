@@ -10,7 +10,7 @@ import { grandPrixHref, teamHref } from "@/app/lib/entityLinks";
 
 import { MetricCard, MetricRow, SectionHeader } from "../../components/RaceControlPrimitives";
 import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
-import { formatPoints, freshnessLine, ordinalPosition, type DriverProfile } from "../../profiles/profilesModel";
+import { championshipPoints, freshnessLine, ordinalPosition, type DriverProfile } from "../../profiles/profilesModel";
 
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -48,7 +48,7 @@ export function DriverHeader({ profile }: { profile: DriverProfile }) {
         <MetricCard
           label="Championship"
           value={ordinalPosition(standing.position)}
-          sub={`${formatPoints(standing.points)} pts`}
+          sub={championshipPoints(standing.points, profile)}
           icon={Trophy}
           color={driver.color}
         />

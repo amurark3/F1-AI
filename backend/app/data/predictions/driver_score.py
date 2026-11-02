@@ -123,9 +123,10 @@ def _confidence_signals(measures: Mapping[str, float | None], *, has_recent: boo
     return signals
 
 
-def _model_reasoning(ml_features: dict[str, float]) -> tuple[list[dict] | None, list[str]]:
+def _model_reasoning(ml_features: dict[str, float], *, is_pre_qualifying: bool) -> tuple[list[dict] | None, list[str]]:
     """Return the model's per-feature attribution and its top phrases.
 
+    Before qualifying the grid input is an estimate, so both label it as one.
     Imported lazily: the explanation path is only reached when a model actually
     scored, and ``app.ml.explain`` pulls in the numeric stack.
     """
@@ -133,8 +134,10 @@ def _model_reasoning(ml_features: dict[str, float]) -> tuple[list[dict] | None, 
     if not contributions:
         return None, []
 
-    from app.ml.explain import attribution_dicts, attribution_phrases
+    from app.ml.explain import attribution_dicts, attribution_phrases, label_as_pre_qualifying
 
+    if is_pre_qualifying:
+        contributions = label_as_pre_qualifying(contributions)
     return attribution_dicts(contributions), attribution_phrases(contributions, top_n=2)
 
 
@@ -158,9 +161,11 @@ def _build_factors(
     limit = _MAX_FACTORS_WITH_MODEL if ml_score is not None else _MAX_FACTORS_HEURISTIC
     factors = factors[:limit]
 
-    if driver.get("no_qualifying_time"):
-        # Back-filled from the entry list — flag it so the synthetic
-        # back-of-grid slot isn't mistaken for a real qualifying result.
+    if driver.get("no_qualifying_time") and not context["is_pre_qualifying"]:
+        # Back-filled behind every qualifier — flag it so the synthetic
+        # back-of-grid slot isn't mistaken for a real qualifying result. Before
+        # qualifying nobody has a time and the slot is an estimate (from P1 in
+        # championship order when no session has run), so the flag would be false.
         factors = ["No qualifying time set — placed at back of grid", *factors[:4]]
     return factors
 
@@ -228,19 +233,20 @@ def score_driver(driver: Mapping[str, Any], signals: RaceSignals) -> DriverScore
             grid_delta=driver_delta,
             is_pre_qualifying=signals.is_pre_qualifying,
             sprint_pos=sprint_pos,
+            no_session_time=bool(driver.get("no_qualifying_time")),
         )
     )
 
     model_attribution: list[dict] | None = None
     model_phrases: list[str] = []
     if ml_score is not None:
-        model_attribution, model_phrases = _model_reasoning(ml_features)
+        model_attribution, model_phrases = _model_reasoning(ml_features, is_pre_qualifying=signals.is_pre_qualifying)
 
     factors = _build_factors(
         driver,
         heuristic_factors,
         model_phrases,
-        {"ml_score": ml_score, "correction": correction},
+        {"ml_score": ml_score, "correction": correction, "is_pre_qualifying": signals.is_pre_qualifying},
     )
 
     return DriverScore(

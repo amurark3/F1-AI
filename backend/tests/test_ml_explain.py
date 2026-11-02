@@ -20,11 +20,13 @@ import pytest
 
 from app.ml.explain import (
     FEATURE_LABELS,
+    PRE_QUALIFYING_GRID_LABEL,
     FeatureContribution,
     _unwrap,
     attribution_dicts,
     attribution_phrases,
     explain_prediction,
+    label_as_pre_qualifying,
 )
 from app.ml.features import FEATURES
 
@@ -271,3 +273,20 @@ def test_attribution_phrases_returns_nothing_when_every_effect_is_noise():
     contributions = [FeatureContribution("had_sprint", "sprint weekend", 0.0, 0.05)]
 
     assert attribution_phrases(contributions) == []
+
+
+@pytest.mark.unit
+def test_before_qualifying_only_the_grid_input_is_relabelled_as_an_estimate():
+    contributions = [
+        FeatureContribution(feature="grid_position", label="grid position", value=1.0, contribution=-3.8),
+        FeatureContribution(feature="team_standing", label="car/team strength", value=1.0, contribution=-0.9),
+    ]
+
+    relabelled = label_as_pre_qualifying(contributions)
+
+    assert PRE_QUALIFYING_GRID_LABEL == "expected grid (pre-qualifying estimate)"
+    assert [c.label for c in relabelled] == [PRE_QUALIFYING_GRID_LABEL, "car/team strength"]
+    assert [(c.feature, c.value, c.contribution) for c in relabelled] == [
+        (c.feature, c.value, c.contribution) for c in contributions
+    ]
+    assert contributions[0].label == "grid position"

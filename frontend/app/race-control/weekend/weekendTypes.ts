@@ -6,6 +6,8 @@
  * the championship stakes on `/shell`.
  */
 
+import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+
 export type WeatherCondition =
   "clear" | "partly_cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "storm" | "snow" | "unknown";
 
@@ -136,9 +138,8 @@ export interface TableStakes {
   clinch: Clinch | null;
 }
 
-export interface ChampionshipStakes {
-  /** The last round the standings include; they trail the calendar until f1db publishes. */
-  through_round: number | null;
+/** Counted from the table's `as_of_round`: the newest round with published points. */
+export interface ChampionshipStakes extends StandingsFreshness {
   races_left: number;
   sprints_left: number;
   drivers: TableStakes | null;

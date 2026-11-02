@@ -2,8 +2,8 @@
 
 There is a window — from the moment a withdrawal is announced until the
 weekend's first session produces timing data — in which no automated source in
-this stack knows who is actually racing. FastF1 has no entry list before the
-cars run, and f1db is a pinned snapshot of completed rounds. During that window
+this stack knows who is actually racing. No feed has a trustworthy entry list
+before the cars run, and f1db is a snapshot of completed rounds. During that window
 a driver withdrawn on the Tuesday is still predicted on the Thursday.
 
 This module is the manual bridge across that window: a small, explicit,

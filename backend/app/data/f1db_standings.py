@@ -8,9 +8,9 @@ of a season) can be served from one local file with no API limits.
 
 Note on freshness: ``f1db_source`` tracks the newest published release, checking
 on boot and on a slow background loop, so the in-progress season is current to
-the last release f1db cut — typically a day or two after the race. The Ergast
-fallback in the calling services covers the window between a race finishing and
-that release appearing.
+the last release f1db cut — typically a day or two after the race. Anything
+showing the current table reads ``current_standings`` instead, which adds the
+rounds f1db has not published yet.
 """
 
 from __future__ import annotations
@@ -132,6 +132,35 @@ def _latest_team_by_driver_id(conn: sqlite3.Connection, year: int) -> dict[str, 
     ).fetchall()
     # Later rounds overwrite earlier ones, leaving each driver's latest team.
     return {row["driver_id"]: row["team"] for row in rows}
+
+
+def season_finishes(year: int, through_round: int) -> tuple[dict[str, tuple[int, ...]], dict[str, tuple[int, ...]]]:
+    """Classified Grand Prix places of ``year`` through ``through_round``, by driver code and by team name.
+
+    What the championship count-back compares when points are level. Sprint
+    places take no part in it, and an unclassified car has no place.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.abbreviation AS code, con.name AS team, rd.position_number AS position
+            FROM race_data rd
+            JOIN race r ON r.id = rd.race_id
+            JOIN driver d ON d.id = rd.driver_id
+            JOIN constructor con ON con.id = rd.constructor_id
+            WHERE r.year = ? AND r.round <= ? AND rd.type = 'RACE_RESULT' AND rd.position_number IS NOT NULL
+            ORDER BY r.round, rd.position_number
+            """,
+            (year, through_round),
+        ).fetchall()
+    return _places_by(rows, "code"), _places_by(rows, "team")
+
+
+def _places_by(rows: list[sqlite3.Row], key: str) -> dict[str, tuple[int, ...]]:
+    places: dict[str, tuple[int, ...]] = {}
+    for row in rows:
+        places[row[key]] = (*places.get(row[key], ()), int(row["position"]))
+    return places
 
 
 def standings_round(year: int) -> int | None:

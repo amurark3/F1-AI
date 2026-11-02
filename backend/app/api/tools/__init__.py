@@ -18,8 +18,8 @@ Available tools
   compare_drivers             — Fastest-lap telemetry comparison between two drivers.
   get_race_results            — Full race classification with grid delta and points.
   consult_rulebook            — Semantic search of FIA regulations via pgvector.
-  get_driver_standings        — World Drivers' Championship table (via f1db).
-  get_constructor_standings   — World Constructors' Championship table (via f1db).
+  get_driver_standings        — World Drivers' Championship table, its round and title state.
+  get_constructor_standings   — World Constructors' Championship table, its round and title state.
   get_season_schedule         — Full season calendar with completed/upcoming status.
   get_power_unit_usage        — PU element usage vs allowance per car, and the penalties (FIA documents).
 

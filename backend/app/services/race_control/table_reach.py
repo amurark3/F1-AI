@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from app.data.title_rule import CONSTRUCTORS, Remaining, Scoring, can_still_beat, max_points
+from app.data.title_rule import CONSTRUCTORS, DRIVERS, Remaining, Scoring, can_still_beat, max_points
 from app.services.race_control.stakes import points_left
 from app.services.race_control.strategy_context import season_events
 
@@ -55,14 +55,18 @@ class TableReach:
         rows = {row.key: row for row in self.rows}
         return can_still_beat(rows[target], rows[chaser], self.remaining, self.scoring)
 
-    def decided(self) -> bool | None:
-        """Whether no rival can still finish ahead of the leader."""
+    def rivals_in_reach(self) -> tuple[Standing, ...] | None:
+        """Every row below the leader that can still finish the season ahead of it."""
         if self.remaining is None:
             return None
-        if len(self.rows) < 2:
-            return False
-        leader = self.rows[0].key
-        return not any(self.can_pass(row.key, leader) for row in self.rows[1:])
+        return tuple(row for row in self.rows[1:] if self.can_pass(row.key, self.rows[0].key))
+
+    def decided(self) -> bool | None:
+        """Whether no rival can still finish ahead of the leader."""
+        rivals = self.rivals_in_reach()
+        if rivals is None:
+            return None
+        return len(self.rows) >= 2 and not rivals
 
     def highest_in_reach(self, key: str) -> tuple[int, Standing] | None:
         """The highest place above ``key`` it can still take, and the row holding it."""
@@ -85,6 +89,15 @@ def remaining_after(year: int, as_of_round: int | None) -> Remaining | None:
         return None
     left = points_left(events, None, as_of_round, datetime.now(UTC))
     return Remaining(races=left.races, sprints=left.sprints)
+
+
+def drivers_reach(standings: CurrentStandings) -> TableReach:
+    """The drivers' table and what is left to score after its round."""
+    return TableReach(
+        rows=standings.drivers,
+        scoring=DRIVERS,
+        remaining=remaining_after(standings.year, standings.as_of_round),
+    )
 
 
 def constructors_reach(standings: CurrentStandings) -> TableReach:

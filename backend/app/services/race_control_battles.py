@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from app.services.race_control_common import (
-    completed_race_count,
     find_driver,
     get_driver_options,
     pluralise,
 )
+
+# The fields that say how fresh the standings behind a battle are (``CurrentStandings.meta``).
+FRESHNESS_KEYS = ("as_of_round", "provisional", "sources")
 
 
 def battle_fact(key: str, label: str, drivers: tuple[dict, dict], values: tuple[str, str]) -> dict:
@@ -28,7 +30,13 @@ def battle_fact(key: str, label: str, drivers: tuple[dict, dict], values: tuple[
 
 
 def build_driver_battle(year: int, driver1: str, driver2: str) -> dict:
+    """Two drivers compared on the table as of its newest round, with that table's freshness."""
     driver_feed = get_driver_options(year)
+    freshness = {key: driver_feed[key] for key in FRESHNESS_KEYS}
+    return {**_battle(year, driver_feed, driver1, driver2), **freshness}
+
+
+def _battle(year: int, driver_feed: dict, driver1: str, driver2: str) -> dict:
     standings = driver_feed["drivers"]
     if not standings:
         return {
@@ -56,7 +64,7 @@ def build_driver_battle(year: int, driver1: str, driver2: str) -> dict:
             "metrics": [],
             "summary": f"'{missing}' was not found in the {year} driver standings.",
             "recommendation": "Select drivers from the standings-backed list rather than typing an abbreviation.",
-            "data_limitations": ["Driver matching accepts codes, full names, and Ergast driver ids."],
+            "data_limitations": ["Driver matching accepts codes and full or partial names."],
             "error": f"Driver '{missing}' not found.",
         }
 
@@ -81,7 +89,8 @@ def build_driver_battle(year: int, driver1: str, driver2: str) -> dict:
         total = team_points.get(driver["team"], 0)
         return (driver["points"] / total) * 100 if total else 0
 
-    completed_races = completed_race_count(year)
+    # Grands Prix the table holds, not the clock's count: a round with no points yet adds nothing.
+    completed_races = driver_feed["as_of_round"]
     d1_rate = d1["points"] / completed_races if completed_races else None
     d2_rate = d2["points"] / completed_races if completed_races else None
     points_gap = abs(d1["points"] - d2["points"])

@@ -22,48 +22,12 @@ from app.services.profiles import build_directory
 from app.services.race_control import overview, strategy_context, table_reach
 from app.services.race_control_common import team_slug
 from app.services.race_control_standings import build_intel
-from tests.standings_support import Feeds, mexico_feeds
+from tests.standings_support import AFTER_ROUND_19, BASE_AND_ROUND_19, SEASON, Feeds, mexico_feeds
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 pytestmark = pytest.mark.integration
-
-AFTER_ROUND_19 = {"as_of_round": 19, "provisional": True}
-BASE_AND_ROUND_19 = [
-    {"source": "f1db", "role": "base", "through_round": 18, "version": "v2026.18.0"},
-    {"source": "openf1-session-result", "role": "points", "round": 19, "sessions": ["R"]},
-]
-RACE_DAYS = {
-    18: "2026-10-25T20:00:00Z",
-    19: "2026-11-01T20:00:00Z",
-    20: "2026-11-08T17:00:00Z",
-    21: "2026-11-22T04:00:00Z",
-    22: "2026-11-29T16:00:00Z",
-    23: "2026-12-06T13:00:00Z",
-}
-
-
-def event(round_num: int) -> dict:
-    """A calendar entry as ``season_events`` builds it; rounds after Mexico are still to run."""
-    upcoming = round_num > 19
-    return {
-        "round": round_num,
-        "name": f"Round {round_num} Grand Prix",
-        "location": f"Venue {round_num}, Country",
-        "country": "Country",
-        "status": "upcoming" if upcoming else "completed",
-        "date": RACE_DAYS[round_num][:10],
-        "sessions": {"Race": RACE_DAYS[round_num]},
-        "is_sprint": False,
-        "days_until": 6 if upcoming else None,
-        "circuit": None,
-        "race_session": RACE_DAYS[round_num],
-    }
-
-
-# Four Grands Prix and no sprint after Mexico: 100 points for a driver, 172 for a team.
-SEASON = [event(round_num) for round_num in RACE_DAYS]
 
 
 @pytest.fixture

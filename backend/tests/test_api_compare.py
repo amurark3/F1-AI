@@ -23,6 +23,13 @@ import pytest
 
 from app.api import compare as compare_module
 from app.api.compare import _build_comparison_sync
+from tests.standings_support import f1db_only
+
+
+@pytest.fixture(autouse=True)
+def _f1db_table_only(monkeypatch):
+    """Points and places come through ``current_standings``: here f1db's own table, with no OpenF1 round past it."""
+    f1db_only(monkeypatch)
 
 
 @pytest.fixture
@@ -84,6 +91,9 @@ def test_driver_payload_carries_the_standings_summary(fake_f1db):
     assert result["driver1"]["name"] == "Verstappen"
     assert result["driver1"]["position"] == 1
     assert result["driver1"]["points"] == 50.0
+    # The table's freshness travels with it: f1db's own round 2, confirmed.
+    assert (result["as_of_round"], result["provisional"]) == (2, False)
+    assert result["sources"][0]["source"] == "f1db"
 
 
 @pytest.mark.integration

@@ -1,20 +1,20 @@
 """Tests for app.api.tools.standings — championship tables and the calendar.
 
-Two standings tools that read f1db first and fall back to Ergast, plus the
-season schedule. The risks are source-shaped and date-shaped:
+Two standings tools that read the computed table (``current_standings``), plus
+the season schedule. The risks are freshness-, rule- and date-shaped:
 
-* **f1db is preferred and Ergast is only a fallback.** Ergast is rate limited
-  and does not carry the current season; reaching for it when f1db has the data
-  is the failure this ordering exists to prevent.
-* **An empty f1db answer still produces a table.** ``[]`` is falsy and must
-  route to Ergast rather than render a header with no rows under it.
+* **A table without its round reads as current.** Each result says the round
+  it runs to and whether f1db has confirmed it, so the assistant never quotes a
+  provisional total as final, or a stale one as current.
+* **The assistant doing its own title arithmetic.** Each result states the
+  title state from the shared rule (decided for whom, or who can still finish
+  ahead of the leader), and claims nothing when the calendar is unreadable.
 * **A race's date decides Completed vs Upcoming.** FastF1 hands back a tz-naive
   ``EventDate``; comparing it against a tz-aware now raises, and the raise is
   swallowed by the tool's own except clause, so the whole calendar degrades to
   an error string with nothing pointing at the cause.
 
-FastF1 and Ergast are mocked at their import sites; the frames are real pandas
-so the row iteration and formatting under test are the real ones.
+The R19 morning-after-Mexico reads are in ``test_standings_readers.py``.
 """
 
 from __future__ import annotations
@@ -30,33 +30,31 @@ from app.api.tools.standings import (
     get_driver_standings,
     get_season_schedule,
 )
+from app.data.title_rule import CONSTRUCTORS, DRIVERS, Remaining
+from app.services.race_control.table_reach import TableReach
+from tests.standings_support import standings_from_rows
+
+# Two Grands Prix and a sprint: 58 points for a driver, 101 for a team.
+LEFT = Remaining(races=2, sprints=1)
+CONFIRMED_R22 = {"as_of_round": 22, "provisional": False}
 
 
-class _FakeErgastResponse:
-    def __init__(self, content: list):
-        self.content = content
+def _serve(monkeypatch: pytest.MonkeyPatch, drivers: list[dict], teams: list[dict], **freshness) -> None:
+    """Serve a fixed table, and read its reach with ``LEFT`` still to score (no calendar)."""
+    standings = standings_from_rows(drivers, teams, **(freshness or CONFIRMED_R22))
+    monkeypatch.setattr(standings_module, "current_standings", lambda _year: standings)
+    monkeypatch.setattr(
+        standings_module, "drivers_reach", lambda table: TableReach(table.drivers, DRIVERS, remaining=LEFT)
+    )
+    monkeypatch.setattr(
+        standings_module,
+        "constructors_reach",
+        lambda table: TableReach(table.teams, CONSTRUCTORS, remaining=LEFT),
+    )
 
 
-class _FakeErgast:
-    """Stands in for ``fastf1.ergast.Ergast``; records that it was consulted."""
-
-    def __init__(self, drivers=None, constructors=None):
-        self._drivers = drivers
-        self._constructors = constructors
-        self.calls: list[tuple[str, int]] = []
-
-    def get_driver_standings(self, season: int):
-        self.calls.append(("drivers", season))
-        return _FakeErgastResponse(self._drivers or [])
-
-    def get_constructor_standings(self, season: int):
-        self.calls.append(("constructors", season))
-        return _FakeErgastResponse(self._constructors or [])
-
-
-def _install_ergast(monkeypatch, ergast: _FakeErgast) -> _FakeErgast:
-    monkeypatch.setattr(standings_module, "Ergast", lambda: ergast)
-    return ergast
+def _boom(_year: int) -> None:
+    raise RuntimeError("f1db is locked")
 
 
 # ---------------------------------------------------------------------------
@@ -64,97 +62,59 @@ def _install_ergast(monkeypatch, ergast: _FakeErgast) -> _FakeErgast:
 # ---------------------------------------------------------------------------
 
 
-def _f1db_drivers() -> list[dict]:
+def _drivers() -> list[dict]:
     return [
-        {"position": 1, "code": "VER", "team": "Red Bull", "points": 393.0, "wins": 9},
-        # A driver who changed teams carries both, already joined by f1db.
-        {"position": 2, "code": "NOR", "team": "McLaren", "points": 331.5, "wins": 4},
+        {"position": 1, "code": "VER", "driver": "Max Verstappen", "team": "Red Bull", "points": 393.0, "wins": 9},
+        {"position": 2, "code": "NOR", "driver": "Lando Norris", "team": "McLaren", "points": 331.5, "wins": 4},
     ]
 
 
 @pytest.mark.unit
-def test_driver_standings_render_from_f1db(monkeypatch):
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", lambda year: _f1db_drivers())
+def test_driver_standings_sit_between_their_freshness_and_the_title_state(monkeypatch):
+    _serve(monkeypatch, _drivers(), [])
 
     table = get_driver_standings.invoke({"year": 2026})
 
     assert table.splitlines() == [
         "### Driver Standings (2026)",
+        "After round 22 · confirmed: f1db's published table.",
+        "",
         "| Pos | Driver | Team | Points | Wins |",
         "| :-- | :----- | :--- | :----- | :--- |",
         # ":g" drops the trailing zero on a whole-number total but keeps a half point.
         "| 1 | VER | Red Bull | 393 | 9 |",
         "| 2 | NOR | McLaren | 331.5 | 4 |",
+        "",
+        # 61.5 ahead with 58 left (two wins and a sprint win): out of reach.
+        "**Drivers' title:** decided for Max Verstappen (VER). Leader: 393 points, 61.5 ahead of Lando Norris "
+        "(NOR), with at most 58 points left for one entrant (2 Grands Prix, 1 sprint): no rival can still "
+        "finish ahead.",
     ]
 
 
 @pytest.mark.unit
-def test_driver_standings_do_not_reach_for_ergast_when_f1db_answers(monkeypatch):
-    """Ergast is rate limited; the local dataset must win when it has the season."""
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", lambda year: _f1db_drivers())
-    ergast = _install_ergast(monkeypatch, _FakeErgast())
-
-    get_driver_standings.invoke({"year": 2026})
-
-    assert ergast.calls == []
-
-
-@pytest.mark.unit
-def test_driver_standings_fall_back_to_ergast_when_f1db_is_empty(monkeypatch):
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", lambda year: [])
-    frame = pd.DataFrame(
-        [
-            {
-                "position": 1,
-                "driverCode": "HAM",
-                "points": 413,
-                "wins": 11,
-                "constructorNames": ["Mercedes"],
-            }
-        ]
+def test_a_season_f1db_holds_none_of_is_provisional_on_openf1_alone(monkeypatch):
+    sources = tuple(
+        {"source": "openf1-session-result", "role": "points", "round": rnd, "sessions": ["R"]} for rnd in (1, 2)
     )
-    ergast = _install_ergast(monkeypatch, _FakeErgast(drivers=[frame]))
+    _serve(monkeypatch, _drivers(), [], as_of_round=2, provisional=True, sources=sources)
 
-    table = get_driver_standings.invoke({"year": 2020})
-
-    assert ergast.calls == [("drivers", 2020)]
-    assert "| 1 | HAM | Mercedes | 413 | 11 |" in table
-
-
-@pytest.mark.unit
-def test_a_mid_season_team_switch_lists_every_constructor(monkeypatch):
-    """Ergast returns a list here; str() on it would render Python syntax."""
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", lambda year: [])
-    frame = pd.DataFrame(
-        [
-            {
-                "position": 12,
-                "driverCode": "SAI",
-                "points": 38,
-                "wins": 0,
-                "constructorNames": ["Ferrari", "Williams"],
-            }
-        ]
+    assert get_driver_standings.invoke({"year": 2027}).splitlines()[1] == (
+        "After round 2 · provisional: OpenF1's results for rounds 1, 2 (f1db holds none of this season yet). "
+        "f1db has not confirmed round 2 yet, so post-race penalties can still change it."
     )
-    _install_ergast(monkeypatch, _FakeErgast(drivers=[frame]))
-
-    assert "| 12 | SAI | Ferrari, Williams | 38 | 0 |" in get_driver_standings.invoke({"year": 2024})
 
 
 @pytest.mark.unit
-def test_a_season_neither_source_knows_is_reported_as_missing(monkeypatch):
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", lambda year: [])
-    _install_ergast(monkeypatch, _FakeErgast(drivers=[]))
+def test_a_season_with_no_driver_table_is_reported_as_missing(monkeypatch):
+    _serve(monkeypatch, [], [])
 
     assert get_driver_standings.invoke({"year": 1949}) == "No driver standings found for 1949."
 
 
 @pytest.mark.unit
 def test_a_driver_standings_failure_is_reported_rather_than_raised(monkeypatch):
-    def _boom(year):
-        raise RuntimeError("f1db is locked")
-
-    monkeypatch.setattr(standings_module, "driver_standings_detailed", _boom)
+    monkeypatch.setattr(standings_module, "current_standings", _boom)
 
     assert get_driver_standings.invoke({"year": 2026}) == "Failed to fetch driver standings: f1db is locked"
 
@@ -164,54 +124,47 @@ def test_a_driver_standings_failure_is_reported_rather_than_raised(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+def _teams() -> list[dict]:
+    return [
+        {"position": 1, "team": "McLaren", "points": 666.0, "wins": 12},
+        {"position": 2, "team": "Ferrari", "points": 652.5, "wins": 6},
+        {"position": 3, "team": "Mercedes", "points": 500.0, "wins": 2},
+    ]
+
+
 @pytest.mark.unit
-def test_constructor_standings_render_from_f1db(monkeypatch):
-    monkeypatch.setattr(
-        standings_module,
-        "constructor_standings_detailed",
-        lambda year: [
-            {"position": 1, "team": "McLaren", "points": 666.0, "wins": 12},
-            {"position": 2, "team": "Ferrari", "points": 652.5, "wins": 6},
-        ],
-    )
+def test_constructor_standings_name_every_team_still_able_to_finish_ahead(monkeypatch):
+    _serve(monkeypatch, [], _teams())
 
     table = get_constructor_standings.invoke({"year": 2026})
 
     assert table.splitlines() == [
         "### Constructor Standings (2026)",
+        "After round 22 · confirmed: f1db's published table.",
+        "",
         "| Pos | Team | Points | Wins |",
         "| :-- | :--- | :----- | :--- |",
         "| 1 | McLaren | 666 | 12 |",
         "| 2 | Ferrari | 652.5 | 6 |",
+        "| 3 | Mercedes | 500 | 2 |",
+        "",
+        # A team can score 101 (two one-twos and a sprint one-two): Ferrari 13.5 behind can, Mercedes 166 cannot.
+        "**Constructors' title:** still open. Leader: McLaren, 666 points, with at most 101 points left for one "
+        "entrant (2 Grands Prix, 1 sprint). Only these can still finish ahead of McLaren: Ferrari (652.5 points, "
+        "13.5 behind).",
     ]
 
 
 @pytest.mark.unit
-def test_constructor_standings_fall_back_to_ergast_when_f1db_is_empty(monkeypatch):
-    monkeypatch.setattr(standings_module, "constructor_standings_detailed", lambda year: [])
-    frame = pd.DataFrame([{"position": 1, "constructorName": "Mercedes", "points": 739, "wins": 15}])
-    ergast = _install_ergast(monkeypatch, _FakeErgast(constructors=[frame]))
-
-    table = get_constructor_standings.invoke({"year": 2019})
-
-    assert ergast.calls == [("constructors", 2019)]
-    assert "| 1 | Mercedes | 739 | 15 |" in table
-
-
-@pytest.mark.unit
 def test_a_season_with_no_constructor_data_is_reported_as_missing(monkeypatch):
-    monkeypatch.setattr(standings_module, "constructor_standings_detailed", lambda year: [])
-    _install_ergast(monkeypatch, _FakeErgast(constructors=[]))
+    _serve(monkeypatch, _drivers(), [])
 
     assert get_constructor_standings.invoke({"year": 1949}) == "No constructor standings found for 1949."
 
 
 @pytest.mark.unit
 def test_a_constructor_standings_failure_is_reported_rather_than_raised(monkeypatch):
-    def _boom(year):
-        raise RuntimeError("f1db is locked")
-
-    monkeypatch.setattr(standings_module, "constructor_standings_detailed", _boom)
+    monkeypatch.setattr(standings_module, "current_standings", _boom)
 
     assert get_constructor_standings.invoke({"year": 2026}) == "Failed to fetch constructor standings: f1db is locked"
 

@@ -53,6 +53,44 @@ if TYPE_CHECKING:
 MEXICO_ROUND = 19
 
 
+# What every consumer serves the morning after Mexico: the table after round 19, provisional.
+AFTER_ROUND_19 = {"as_of_round": 19, "provisional": True}
+BASE_AND_ROUND_19 = [
+    {"source": "f1db", "role": "base", "through_round": 18, "version": "v2026.18.0"},
+    {"source": "openf1-session-result", "role": "points", "round": 19, "sessions": ["R"]},
+]
+RACE_DAYS = {
+    18: "2026-10-25T20:00:00Z",
+    19: "2026-11-01T20:00:00Z",
+    20: "2026-11-08T17:00:00Z",
+    21: "2026-11-22T04:00:00Z",
+    22: "2026-11-29T16:00:00Z",
+    23: "2026-12-06T13:00:00Z",
+}
+
+
+def event(round_num: int) -> dict:
+    """A calendar entry as ``season_events`` builds it; rounds after Mexico are still to run."""
+    upcoming = round_num > 19
+    return {
+        "round": round_num,
+        "name": f"Round {round_num} Grand Prix",
+        "location": f"Venue {round_num}, Country",
+        "country": "Country",
+        "status": "upcoming" if upcoming else "completed",
+        "date": RACE_DAYS[round_num][:10],
+        "sessions": {"Race": RACE_DAYS[round_num]},
+        "is_sprint": False,
+        "days_until": 6 if upcoming else None,
+        "circuit": None,
+        "race_session": RACE_DAYS[round_num],
+    }
+
+
+# Four Grands Prix and no sprint after Mexico: 100 points for a driver, 172 for a team.
+SEASON = [event(round_num) for round_num in RACE_DAYS]
+
+
 def install_f1db_through_r18(path: Path) -> Path:
     """An f1db holding f1db v2026.18.0's 2026 season, built at ``path``."""
     data = load(F1DB_2026 / "standings_r18.json")
@@ -197,6 +235,17 @@ def mexico_feeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Fe
     monkeypatch.setattr(current_standings, "installed_version", lambda: "v2026.18.0")
     yield feeds
     identity.clear_cache()
+
+
+def f1db_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``current_standings`` serves f1db's own table: no OpenF1 round past it, and a fresh cache.
+
+    For tests on the seeded f1db (``fake_f1db``) that read the table through
+    ``current_standings``: without this a live season would look to OpenF1 for
+    later rounds, and a table cached by another test could be served.
+    """
+    monkeypatch.setattr(current_standings, "later_rounds", lambda _year, _after: ())
+    monkeypatch.setattr(current_standings, "_cache", TtlCache())
 
 
 def route_error(status: int) -> httpx.Response:

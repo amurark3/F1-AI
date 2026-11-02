@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import fastf1
-from fastf1.ergast import Ergast
 from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
-from app.data.f1db_standings import constructor_standings_detailed, driver_standings_detailed
+from app.api.tools.standings_facts import freshness_line, title_line
+from app.data.current_standings import current_standings
+from app.services.race_control.table_reach import constructors_reach, drivers_reach
 
 logger = structlog.get_logger()
 
@@ -20,44 +21,31 @@ def get_driver_standings(year: int) -> str:
     """
     Fetches the World Drivers' Championship (WDC) standings for `year`.
 
-    Returns a Markdown table of position, driver code, team(s), points, wins.
-    Drivers who competed for multiple teams are shown with all teams listed.
+    Returns the round the table runs to and whether it is provisional or
+    confirmed, a Markdown table of position, driver code, team, points and
+    wins, and where the title stands (decided for whom, or who can still
+    catch the leader). Quote those facts as given; do not work them out.
     """
     logger.info("tool.driver_standings", year=year)
     try:
-        # f1db first — no rate limits and carries the current season.
-        detailed = driver_standings_detailed(year)
-        if detailed:
-            output = [f"### Driver Standings ({year})"]
-            output.append("| Pos | Driver | Team | Points | Wins |")
-            output.append("| :-- | :----- | :--- | :----- | :--- |")
-            output.extend(
-                f"| {row['position']} | {row['code']} | {row['team']} | {row['points']:g} | {row['wins']} |"
-                for row in detailed
-            )
-            return "\n".join(output)
-
-        ergast = Ergast()
-        data = ergast.get_driver_standings(season=year)
-
-        if not data.content:
+        standings = current_standings(year)
+        if not standings.drivers:
             return f"No driver standings found for {year}."
-
-        df = data.content[0]
-        results = df[["position", "driverCode", "points", "wins", "constructorNames"]]
-
-        output = [f"### Driver Standings ({year})"]
-        output.append("| Pos | Driver | Team | Points | Wins |")
-        output.append("| :-- | :----- | :--- | :----- | :--- |")
-
-        for _, row in results.iterrows():
-            # constructorNames is a list when a driver changed teams mid-season.
-            teams = row["constructorNames"]
-            team_str = ", ".join(teams) if isinstance(teams, list) else str(teams)
-            output.append(f"| {row['position']} | {row['driverCode']} | {team_str} | {row['points']} | {row['wins']} |")
-
-        return "\n".join(output)
-
+        return "\n".join(
+            (
+                f"### Driver Standings ({year})",
+                freshness_line(standings),
+                "",
+                "| Pos | Driver | Team | Points | Wins |",
+                "| :-- | :----- | :--- | :----- | :--- |",
+                *(
+                    f"| {row.position} | {row.key} | {row.team} | {row.points:g} | {row.wins} |"
+                    for row in standings.drivers
+                ),
+                "",
+                title_line(drivers_reach(standings), "Drivers'"),
+            )
+        )
     except Exception as e:
         logger.exception("tool.driver_standings.error", error=str(e))
         return f"Failed to fetch driver standings: {e}"
@@ -68,40 +56,30 @@ def get_constructor_standings(year: int) -> str:
     """
     Fetches the World Constructors' Championship (WCC) standings for `year`.
 
-    Returns a Markdown table of position, team name, points, and wins.
+    Returns the round the table runs to and whether it is provisional or
+    confirmed, a Markdown table of position, team name, points and wins, and
+    where the title stands (decided for whom, or who can still catch the
+    leader). Quote those facts as given; do not work them out.
     """
     logger.info("tool.constructor_standings", year=year)
     try:
-        # f1db first — no rate limits and carries the current season.
-        detailed = constructor_standings_detailed(year)
-        if detailed:
-            output = [f"### Constructor Standings ({year})"]
-            output.append("| Pos | Team | Points | Wins |")
-            output.append("| :-- | :--- | :----- | :--- |")
-            output.extend(
-                f"| {row['position']} | {row['team']} | {row['points']:g} | {row['wins']} |" for row in detailed
-            )
-            return "\n".join(output)
-
-        ergast = Ergast()
-        data = ergast.get_constructor_standings(season=year)
-
-        if not data.content:
+        standings = current_standings(year)
+        if not standings.teams:
             return f"No constructor standings found for {year}."
-
-        df = data.content[0]
-        results = df[["position", "constructorName", "points", "wins"]]
-
-        output = [f"### Constructor Standings ({year})"]
-        output.append("| Pos | Team | Points | Wins |")
-        output.append("| :-- | :--- | :----- | :--- |")
-
-        for _, row in results.iterrows():
-            output.append(f"| {row['position']} | {row['constructorName']} | {row['points']} | {row['wins']} |")
-
-        return "\n".join(output)
-
+        return "\n".join(
+            (
+                f"### Constructor Standings ({year})",
+                freshness_line(standings),
+                "",
+                "| Pos | Team | Points | Wins |",
+                "| :-- | :--- | :----- | :--- |",
+                *(f"| {row.position} | {row.key} | {row.points:g} | {row.wins} |" for row in standings.teams),
+                "",
+                title_line(constructors_reach(standings), "Constructors'"),
+            )
+        )
     except Exception as e:
+        logger.exception("tool.constructor_standings.error", error=str(e))
         return f"Failed to fetch constructor standings: {e}"
 
 

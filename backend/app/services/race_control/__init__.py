@@ -5,7 +5,10 @@ existing router contract stable while limiting each file to one block of the
 command center:
 
     live               whether a session is on track — the desk's only clock
-    weather            live forecast card, or an honest blank one
+    session_weather    per-session forecast from Open-Meteo, and the race-day card
+    weather            current-conditions fallback card, or an honest blank one
+    circuit            circuit map (MultiViewer) with its f1db record
+    stakes             points left, contenders alive, and whether the title can end here
     risk               weather and championship-rival risk register
     workstreams        per-workstream status cards
     strategy_context   season calendar, strategy dashboard and the numbers behind it
@@ -15,6 +18,7 @@ command center:
 from app.services.race_control.live import build_live_status
 from app.services.race_control.overview import (
     build_overview,
+    build_overview_circuit,
     build_overview_predictions,
     build_overview_shell,
     build_overview_strategy,
@@ -31,6 +35,7 @@ __all__ = [
     "WEATHER_FEED_OFFLINE",
     "build_live_status",
     "build_overview",
+    "build_overview_circuit",
     "build_overview_predictions",
     "build_overview_shell",
     "build_overview_strategy",

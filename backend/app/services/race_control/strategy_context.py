@@ -9,8 +9,10 @@ import pandas as pd
 import structlog
 
 from app.api.circuits import get_circuit_info, is_street_circuit
+from app.data.f1db_standings import standings_round
 from app.services.race_control.live import live_session
 from app.services.race_control.risk import RIVAL_GAP_MODERATE
+from app.services.race_control.stakes import Standings, build_championship_stakes
 from app.services.race_control.workstreams import focus_for_event
 from app.services.race_control_common import get_standings_snapshot, safe_int
 from app.utils.f1_values import utc_isoformat
@@ -115,6 +117,9 @@ def build_strategy_dashboard(year: int) -> dict:
             "drivers": drivers[:5],
             "constructors": constructors[:5],
         },
+        "stakes": build_championship_stakes(
+            events, selected_event, Standings(drivers, constructors, standings_round(year))
+        ),
     }
 
 

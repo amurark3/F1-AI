@@ -38,6 +38,14 @@ resolves both.
 > it returns nulls + `"External forecast feed not connected"`. The frontend `HISTORICAL_WEATHER`
 > table and `getHistoricalWeather` are deleted; offline now renders honest "—" values and the
 > feed-offline banner instead of fabricated numbers.
+>
+> **Follow-up (2026-11-01).** Without a One Call 3.0 subscription, OpenWeatherMap answers from
+> its 2.5 *current conditions* endpoint, whose rain figure is a weather-code heuristic (5% for
+> any sky under 80% cloud), so "Live forecast" still overstated it. The card now reads the
+> **race session's** forecast from Open-Meteo (`app/services/race_control/session_weather.py`,
+> hourly, 16 days out, keyless), and the OpenWeatherMap block is only a fallback, relabelled
+> `"Current conditions (OpenWeatherMap)"`. The same series powers the per-session forecast on
+> the Command Center.
 
 ### [x] 1.1 — Invented weather lookup table in the frontend
 - **File:** `frontend/app/race-control/page.tsx:70-74`

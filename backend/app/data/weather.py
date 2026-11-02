@@ -66,7 +66,7 @@ def _degrees_to_direction(degrees: float) -> str:
 # ---------------------------------------------------------------------------
 # Track surface temperature estimate
 # ---------------------------------------------------------------------------
-def _estimate_track_temp(air_temp_c: float, cloud_pct: int) -> float:
+def estimate_track_temp(air_temp_c: float, cloud_pct: float) -> float:
     """Estimate track surface temperature from air temperature and cloud cover.
 
     Track surface is typically 15-25C above air temp in direct sunlight,
@@ -241,7 +241,7 @@ def _build_from_onecall(data: dict, _location: str) -> dict:
         rain_prob = hourly_raw[0].get("pop", 0.0)
 
     wind_speed_kph = round(wind_speed_ms * 3.6, 1)
-    track_temp = _estimate_track_temp(air_temp, clouds)
+    track_temp = estimate_track_temp(air_temp, clouds)
 
     current_conditions = {
         "air_temp_c": round(air_temp, 1),
@@ -289,7 +289,7 @@ def _build_from_current(data: dict, _location: str) -> tuple[dict, list[dict]]:
     desc = weather_list[0].get("description", "unknown") if weather_list else "unknown"
 
     wind_speed_kph = round(wind_speed_ms * 3.6, 1)
-    track_temp = _estimate_track_temp(air_temp, clouds_pct)
+    track_temp = estimate_track_temp(air_temp, clouds_pct)
 
     # Rain probability heuristic from current conditions
     # (2.5 API doesn't have pop; use weather code as proxy)

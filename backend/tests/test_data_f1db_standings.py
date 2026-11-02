@@ -29,6 +29,7 @@ from app.data.f1db_standings import (
     current_driver_standings,
     driver_standings_after_round,
     driver_standings_detailed,
+    standings_round,
 )
 from tests.f1db_fixture import build_f1db
 
@@ -234,6 +235,14 @@ def test_driver_standings_detailed_counts_race_wins_only_not_sprints(fake_f1db):
 
 
 @pytest.mark.integration
+def test_standings_round_is_the_last_round_the_table_includes(fake_f1db):
+    assert standings_round(2026) == 2
+
+
+def test_standings_round_is_none_before_a_season_has_standings(fake_f1db):
+    assert standings_round(1999) is None
+
+
 def test_driver_standings_detailed_is_empty_when_the_season_has_no_standings(fake_f1db):
     # 2025 races exist but no per-round standings were released for them.
     assert driver_standings_detailed(2025) == []

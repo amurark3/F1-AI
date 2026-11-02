@@ -2,7 +2,7 @@
 
 The command centre used to arrive in one response, so the page waited on a
 cold FastF1 telemetry load before it could show the race name. It is now built
-from four segments the UI fetches in parallel.
+from five segments the UI fetches in parallel.
 
 The behaviour under test: the shell answers without touching telemetry or the
 race model, each remaining segment carries its own slice, the strategy segment
@@ -23,10 +23,13 @@ pytestmark = pytest.mark.unit
 _RESOLVED_IN = {
     "season_events": (overview, strategy_context),
     "get_standings_snapshot": (overview, strategy_context),
+    "standings_round": (strategy_context,),
     "get_or_compute_race_prediction": (overview,),
     "get_cached_race_prediction": (overview,),
     "circuit_strategy_reference": (overview,),
     "build_weather_block": (overview,),
+    "build_session_weather": (overview,),
+    "build_circuit_segment": (overview,),
 }
 
 
@@ -104,6 +107,10 @@ REFERENCE = {
 }
 
 WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": rc.WEATHER_FEED_LIVE}
+# Beyond the forecast horizon: no session has a forecast, so the summary card
+# falls back to current conditions.
+SESSIONS = {"status": "pending", "note": "Forecasts open later.", "sessions": [{"name": "Race", "forecast": None}]}
+CIRCUIT = {"record": {"circuit_id": "zandvoort"}, "lap_record": None, "map": None}
 
 
 class Calls:
@@ -114,6 +121,7 @@ class Calls:
         self.read_predictions = 0
         self.telemetry = 0
         self.weather = 0
+        self.circuit = 0
 
 
 @pytest.fixture
@@ -136,12 +144,19 @@ def calls(monkeypatch):
         recorder.weather += 1
         return WEATHER
 
+    def circuit(year, race):
+        recorder.circuit += 1
+        return CIRCUIT
+
     _stub(monkeypatch, "season_events", lambda year: [RACE])
     _stub(monkeypatch, "get_standings_snapshot", lambda year: (DRIVERS, CONSTRUCTORS))
+    _stub(monkeypatch, "standings_round", lambda year: 14)
     _stub(monkeypatch, "get_or_compute_race_prediction", compute)
     _stub(monkeypatch, "get_cached_race_prediction", read)
     _stub(monkeypatch, "circuit_strategy_reference", reference)
     _stub(monkeypatch, "build_weather_block", weather)
+    _stub(monkeypatch, "build_session_weather", lambda race: SESSIONS)
+    _stub(monkeypatch, "build_circuit_segment", circuit)
     return recorder
 
 
@@ -156,7 +171,13 @@ def test_shell_answers_without_telemetry_or_the_race_model(calls):
     assert shell["championship"]["constructors"] == CONSTRUCTORS
     assert shell["live_status"]["connected"] is False
     # The whole point of the split: none of the slow inputs are touched.
-    assert (calls.computed_predictions, calls.read_predictions, calls.telemetry, calls.weather) == (0, 0, 0, 0)
+    assert (calls.computed_predictions, calls.read_predictions, calls.telemetry, calls.weather, calls.circuit) == (
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
 
 
 # -- weather ----------------------------------------------------------------
@@ -167,6 +188,7 @@ def test_weather_segment_carries_the_forecast_and_its_risk_register(calls):
 
     assert segment["year"] == YEAR
     assert segment["weather"] == WEATHER
+    assert segment["session_weather"] == SESSIONS
     assert [risk["title"] for risk in segment["risk_register"]] == [
         "Dry conditions expected",
         "Rival offset plans",
@@ -178,6 +200,17 @@ def test_weather_segment_grades_rival_risk_without_building_strategy_context(cal
 
     assert calls.telemetry == 0
     assert calls.computed_predictions == 0
+
+
+# -- circuit ----------------------------------------------------------------
+
+
+def test_circuit_segment_carries_the_map_and_record_without_telemetry_or_the_model(calls):
+    segment = rc.build_overview_circuit(YEAR)
+
+    assert segment == {"year": YEAR, **CIRCUIT}
+    assert calls.circuit == 1
+    assert (calls.telemetry, calls.computed_predictions, calls.weather) == (0, 0, 0)
 
 
 # -- predictions ------------------------------------------------------------
@@ -275,6 +308,8 @@ def test_composite_still_carries_every_segment(calls):
     assert overview["championship"] == shell["championship"]
     assert overview["live_status"] == shell["live_status"]
     assert overview["weather"] == weather["weather"]
+    assert overview["session_weather"] == weather["session_weather"]
+    assert overview["circuit"] == CIRCUIT
     assert overview["risk_register"] == weather["risk_register"]
     assert overview["predicted_podium"] == predictions["predicted_podium"]
     assert overview["strategy_context"] == strategy["strategy_context"]

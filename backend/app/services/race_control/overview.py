@@ -1,10 +1,11 @@
 """Composing the command-center overview from its feature blocks.
 
-The command centre is assembled from four independently fetchable segments so
+The command centre is assembled from five independently fetchable segments so
 the page can render what it has instead of waiting on its slowest input. The
-shell answers from the schedule and standings alone (fast); the other three
-each depend on something that can require a FastF1 session load, and the two
-that do are cached durably, so the cost is paid once rather than per process.
+shell answers from the schedule and standings alone (fast); weather and circuit
+each wait on an outside feed (Open-Meteo; MultiViewer and OpenF1); strategy and
+predictions can require a FastF1 session load, and the two that do are cached
+durably, so the cost is paid once rather than per process.
 """
 
 from __future__ import annotations
@@ -13,8 +14,10 @@ import structlog
 
 from app.data.strategy import circuit_strategy_reference
 from app.services.predictions import get_cached_race_prediction, get_or_compute_race_prediction
+from app.services.race_control.circuit import build_circuit_segment
 from app.services.race_control.live import build_live_status
 from app.services.race_control.risk import build_risk_register
+from app.services.race_control.session_weather import build_session_weather, race_day_block
 from app.services.race_control.strategy_context import (
     build_competitor_rows,
     build_strategy_context,
@@ -72,17 +75,34 @@ def build_overview_shell(year: int) -> dict:
     return {**dashboard, "live_status": build_live_status(dashboard.get("race"))}
 
 
+def weather_blocks(race: dict | None) -> tuple[dict, dict]:
+    """The summary weather card and the per-session forecast it is drawn from.
+
+    The card reads the race session's forecast when there is one; otherwise it
+    falls back to current conditions at the circuit, or an honest blank.
+    """
+    sessions = build_session_weather(race)
+    return race_day_block(sessions) or build_weather_block(race), sessions
+
+
 def build_overview_weather(year: int) -> dict:
-    """Live forecast for the selected circuit, and the risk register it grades."""
+    """The weekend's forecast session by session, and the risk register it grades."""
 
     race = _selected_race(year)
-    weather = build_weather_block(race)
+    weather, sessions = weather_blocks(race)
     competitors = build_competitor_rows(_top_constructors(year))
     return {
         "year": year,
         "weather": weather,
+        "session_weather": sessions,
         "risk_register": build_risk_register(race, weather, competitors),
     }
+
+
+def build_overview_circuit(year: int) -> dict:
+    """The selected circuit's map, layout facts and history."""
+
+    return {"year": year, **build_circuit_segment(year, _selected_race(year))}
 
 
 def build_overview_predictions(year: int) -> dict:
@@ -130,13 +150,15 @@ def build_overview(year: int) -> dict:
 
     predictions = race_predictions(year, race)
     strategy_context = build_strategy_context(race, constructors, predictions, strategy_reference_for(year, race))
-    weather = build_weather_block(race)
+    weather, sessions = weather_blocks(race)
 
     return {
         **dashboard,
         "predicted_podium": (predictions or {}).get("predictions", [])[:3],
         "strategy_context": strategy_context,
         "weather": weather,
+        "session_weather": sessions,
+        "circuit": build_circuit_segment(year, race),
         "risk_register": build_risk_register(race, weather, strategy_context.get("competitors", [])),
         "workstreams": build_workstreams(race, predictions, strategy_context),
         "live_status": build_live_status(race),

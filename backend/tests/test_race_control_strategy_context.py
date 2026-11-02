@@ -78,6 +78,7 @@ def _stub_standings(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
     drivers = feeds.get("drivers", [])
     constructors = feeds.get("constructors", [])
     monkeypatch.setattr(module, "get_standings_snapshot", lambda _year: (drivers, constructors))
+    monkeypatch.setattr(module, "standings_round", lambda _year: feeds.get("through_round"))
 
 
 def _team(rank: int, points: float) -> dict:
@@ -292,6 +293,9 @@ def test_dashboard_truncates_both_championship_tables_to_five_rows(monkeypatch):
     assert len(dashboard["championship"]["constructors"]) == 5
     assert dashboard["year"] == 2026
     assert dashboard["generated_at"].endswith("+00:00")
+    # Stakes read the whole table, not the five rows the panel shows.
+    assert len(dashboard["stakes"]["constructors"]["contenders"]) == 6
+    assert dashboard["stakes"]["drivers"] is None, "rows without points cannot be placed"
 
 
 # ---------------------------------------------------------------------------

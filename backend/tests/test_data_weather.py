@@ -150,7 +150,7 @@ def test_degrees_to_direction_maps_the_compass_rose(degrees, expected):
 
 
 # ---------------------------------------------------------------------------
-# _estimate_track_temp
+# estimate_track_temp
 # ---------------------------------------------------------------------------
 
 
@@ -164,13 +164,13 @@ def test_degrees_to_direction_maps_the_compass_rose(degrees, expected):
     ],
 )
 def test_estimate_track_temp_scales_with_sun_exposure(clouds, expected):
-    assert weather._estimate_track_temp(20.0, clouds) == expected
+    assert weather.estimate_track_temp(20.0, clouds) == expected
 
 
 @pytest.mark.unit
 def test_estimate_track_temp_never_cools_the_track_below_air_temp():
     """Cloud cover above 100% (bad feed) must not produce a sub-air-temp track."""
-    assert weather._estimate_track_temp(20.0, 250) == 25.0
+    assert weather.estimate_track_temp(20.0, 250) == 25.0
 
 
 # ---------------------------------------------------------------------------

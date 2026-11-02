@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — AI Engineer (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>.chatwrap{display:grid;grid-template-columns:260px 1fr;gap:0;border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:760px;margin-top:8px}
+.side{background:var(--hero);border-right:1px solid var(--line);padding:18px}.side p.h{font:600 10px/1 var(--mono);letter-spacing:.18em;color:var(--ink-3);text-transform:uppercase;margin:18px 0 8px}.side a{display:block;padding:9px 10px;border-radius:4px;font-size:13px;color:var(--ink-2)}.side a.on{background:var(--raised);color:var(--ink)}
+.thread{padding:28px 36px;display:flex;flex-direction:column;gap:22px;background:var(--page)}.q{align-self:flex-end;background:var(--raised);padding:12px 16px;border-radius:8px;max-width:70%}
+.a{max-width:86%}.a .who2{display:flex;align-items:center;gap:10px;font:600 11px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px}.a .who2 i{width:22px;height:22px;border-radius:5px;background:url(logo/rl-1-apex.svg) center/cover}
+.a p{color:var(--ink-2);line-height:1.65;margin-bottom:10px}.a p b{color:var(--ink);font-weight:600}.src{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.src span{font:500 10px/1 var(--mono);letter-spacing:.06em;border:1px solid var(--line);border-radius:3px;padding:6px 8px;color:var(--ink-3)}
+.inline{border:1px solid var(--line);border-radius:6px;padding:16px 18px;background:var(--panel);margin:8px 0 10px}.input{margin-top:auto;display:flex;gap:10px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel);color:var(--ink-3)}</style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html">Teams</a><a href="power-units.html">Power Units</a><a href="engineer.html" aria-current="page">AI Engineer</a><a href="#">More ▾</a></nav><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+    
+    <main class="wrap page">
+<div class="page-title"><p class="eyebrow">AI Engineer</p></div>
+<div class="chatwrap">
+  <aside class="side"><a class="btn btn-primary" style="height:38px;font-size:15px;width:100%;justify-content:center">New question</a><p class="h">Today</p><a class="on">Fight for second place</a><a>Why Antonelli lost Mexico</a><p class="h">Earlier</p><a>Bottas engine penalty</a><a>Interlagos winners</a></aside>
+  <div class="thread">
+    <p class="q">Who can still finish second in the championship?</p>
+    <div class="a"><p class="who2"><i></i>Engineer · standings after round 19</p>
+      <p>Five drivers can still finish second. <b>Verstappen leads that fight on 261</b>, two clear of Hamilton, with Russell 11 back and Leclerc 16 back. Four races remain with no sprints, so each driver can add at most 100 points. Norris (221) is 40 behind and can still reach 321, so he is in it too.</p>
+      <div class="inline"><p class="eyebrow">Points today → most possible</p><div class="rank" style="--rank-cols:110px 1fr 70px"><span class="lbl">Verstappen</span><span class="bar"><b class="grow-x" style="width:72%;background:#3671c6"></b><b style="left:72%;width:28%;background:none;border:1px dashed rgb(240 242 246/.3)"></b></span><span class="val">261 → 361</span></div><div class="rank" style="--rank-cols:110px 1fr 70px"><span class="lbl">Hamilton</span><span class="bar"><b class="grow-x" style="width:72%;background:#e8002d"></b><b style="left:72%;width:28%;background:none;border:1px dashed rgb(240 242 246/.3)"></b></span><span class="val">259 → 359</span></div><div class="rank" style="--rank-cols:110px 1fr 70px"><span class="lbl">Russell</span><span class="bar"><b class="grow-x" style="width:69%;background:#27f4d2"></b><b style="left:69%;width:28%;background:none;border:1px dashed rgb(240 242 246/.3)"></b></span><span class="val">250 → 350</span></div><div class="rank" style="--rank-cols:110px 1fr 70px"><span class="lbl">Leclerc</span><span class="bar"><b class="grow-x" style="width:68%;background:#e8002d"></b><b style="left:68%;width:28%;background:none;border:1px dashed rgb(240 242 246/.3)"></b></span><span class="val">245 → 345</span></div><div class="rank" style="--rank-cols:110px 1fr 70px"><span class="lbl">Norris</span><span class="bar"><b class="grow-x" style="width:61%;background:#ff8000"></b><b style="left:61%;width:28%;background:none;border:1px dashed rgb(240 242 246/.3)"></b></span><span class="val">221 → 321</span></div></div>
+      <div class="src"><span>f1db v2026.19.0 · standings after R19</span><span>FIA final classification · Mexico City</span><span>4 races × 25 pts</span></div></div>
+    <p class="q">Why did Antonelli lose the lead in Mexico?</p>
+    <div class="a"><p class="who2"><i></i>Engineer · Mexico City GP</p>
+      <p>He led until he pitted for mediums on <b>lap 43</b>. The Safety Car came out on lap 44 and the race was red-flagged on lap 45. That handed the cars still on track a cheap stop, then a free tyre change under the suspension. Verstappen, who stopped on lap 27, led from lap 44 and kept the lead at the standing restart. Antonelli finished third, which was enough to clinch the title.</p>
+      <div class="src"><span>OpenF1 laps · race control</span><span>Official pit sheet (Jolpica)</span><span>FIA final classification</span></div></div>
+    <div class="input">Ask about any race, driver, rule or prediction…<span style="margin-left:auto" class="tagx">⏎</span></div>
+  </div>
+</div>
+<p class="note">Answers are built from the same data the screens use; every answer lists its sources</p>
+    </main>
+  </body>
+</html>

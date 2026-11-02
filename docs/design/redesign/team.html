@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — Mercedes (redesign direction)</title>
+    <link rel="stylesheet" href="system.css" />
+    <style>
+      /* On an entity page the team colour takes the accent role; red stays in the chrome. */
+      :root {
+        --team: #27f4d2;
+      }
+      main.wrap {
+        padding-top: 24px;
+      }
+      .switch {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .switch a {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        font: 500 11px/1 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .switch a i {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+      }
+      .switch a[aria-current="page"] {
+        border-color: var(--line);
+        background: var(--raised);
+        color: var(--ink);
+      }
+
+      .hero {
+        position: relative;
+        margin-top: 24px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--hero);
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 3px;
+        background: var(--team);
+      }
+      .hero .left {
+        padding: 36px;
+      }
+      .hero h1 {
+        font-size: clamp(64px, 8vw, 120px);
+        margin-top: 14px;
+      }
+      .hero .rule {
+        background: var(--team);
+        margin: 22px 0 16px;
+      }
+      .hero .meta {
+        color: var(--ink-2);
+        font-size: 15px;
+      }
+      .champ {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        margin-top: 34px;
+      }
+      .champ b {
+        font: 800 76px/0.9 var(--display);
+      }
+      .champ span {
+        color: var(--ink-2);
+        font-size: 15px;
+        max-width: 26ch;
+      }
+      .lineup {
+        border-left: 1px solid var(--line);
+        display: grid;
+      }
+      .car {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        align-items: center;
+        gap: 20px;
+        padding: 26px 32px;
+      }
+      .car + .car {
+        border-top: 1px solid var(--line);
+      }
+      .car .num {
+        font: 800 96px/0.85 var(--display);
+        color: var(--team);
+        text-align: right;
+      }
+      .car h2 {
+        font: 800 32px/1 var(--display);
+        text-transform: uppercase;
+      }
+      .car p {
+        color: var(--ink-3);
+        margin-top: 6px;
+        font: 500 12px/1.5 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .car p b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+      .kpis div {
+        padding: 18px 20px 18px 0;
+      }
+      .kpis div + div {
+        border-left: 1px solid var(--line);
+        padding-left: 20px;
+      }
+      .kpis b {
+        display: block;
+        font: 800 40px/1 var(--display);
+        margin-top: 10px;
+      }
+      .kpis div:first-child b {
+        font-size: 56px;
+      }
+      .kpis small {
+        color: var(--ink-3);
+        font-size: 12px;
+      }
+
+      section {
+        padding-top: 64px;
+      }
+      /* Heat grid: every finish, one cell per round */
+      .heat {
+        display: grid;
+        grid-template-columns: 150px repeat(23, 1fr);
+        gap: 4px;
+        align-items: center;
+      }
+      .heat .hd {
+        font: 500 10px/1 var(--mono);
+        color: var(--ink-3);
+        text-align: center;
+        padding-bottom: 4px;
+      }
+      .heat .who {
+        font-weight: 600;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .heat .who span {
+        font: 500 11px/1 var(--mono);
+        color: var(--ink-3);
+      }
+      .cell {
+        height: 40px;
+        border-radius: 3px;
+        display: grid;
+        place-items: center;
+        font: 600 13px/1 var(--mono);
+        color: var(--ink-2);
+        background: rgb(255 255 255 / 0.03);
+      }
+      .cell.p1 {
+        background: var(--gold);
+        color: #1a1400;
+      }
+      .cell.p2 {
+        background: #c9ced8;
+        color: #12151b;
+      }
+      .cell.p3 {
+        background: #c98b52;
+        color: #1a0f05;
+      }
+      .cell.pts {
+        background: rgb(39 244 210 / 0.16);
+        color: var(--ink);
+      }
+      .cell.dnf {
+        background: none;
+        border: 1px solid rgb(255 70 85 / 0.6);
+        color: var(--red-text);
+        font-size: 10px;
+      }
+      .cell.future {
+        background: none;
+        border: 1px dashed var(--line);
+      }
+      .key {
+        display: flex;
+        gap: 18px;
+        margin-top: 16px;
+        font: 500 11px/1 var(--mono);
+        color: var(--ink-3);
+      }
+      .key span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .key i {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+      }
+
+      .weekends {
+        padding: 24px;
+      }
+      .weekends h3 {
+        font: 800 26px/1.05 var(--display);
+        text-transform: uppercase;
+        margin: 8px 0 4px;
+      }
+      .weekends .sub {
+        color: var(--ink-3);
+        font-size: 12px;
+        margin-bottom: 18px;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: repeat(19, 1fr);
+        gap: 8px;
+        align-items: end;
+        height: 200px;
+        padding-top: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .cols div {
+        position: relative;
+        background: rgb(39 244 210 / 0.35);
+        border-radius: 2px 2px 0 0;
+        transform-origin: bottom;
+      }
+      .cols div.best {
+        background: var(--team);
+      }
+      .cols div span {
+        position: absolute;
+        top: -18px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font: 600 11px/1 var(--mono);
+        color: var(--ink-2);
+      }
+      .cols-x {
+        display: grid;
+        grid-template-columns: repeat(19, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+        font: 500 10px/1 var(--mono);
+        color: var(--ink-3);
+        text-align: center;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .cols div {
+          animation: rise-col 0.9s var(--ease) both;
+        }
+      }
+      @keyframes rise-col {
+        from {
+          transform: scaleY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap">
+        <a class="logo" href="home.html">F1<i></i>AI</a>
+        <nav class="nav" aria-label="Main">
+          <a href="#">Race Control</a>
+          <a href="grand-prix.html">Grand Prix</a>
+          <a href="telemetry.html">Telemetry</a>
+          <a href="standings.html">Standings</a>
+          <a href="team.html" aria-current="page">Teams</a>
+          <a href="#">Power Units</a>
+          <a href="#">AI Engineer</a>
+          <a href="#">More ▾</a>
+        </nav>
+        <div class="status"><span class="dot"></span>R20 · Pre-race</div>
+        <button class="menu-btn" type="button">MENU</button>
+      </div>
+      <div class="streak" aria-hidden="true"></div>
+    </header>
+
+    <main class="wrap">
+      <nav class="switch" aria-label="Teams">
+        <a href="#" aria-current="page"><i style="background: #27f4d2"></i>Mercedes</a>
+        <a href="#"><i style="background: #e8002d"></i>Ferrari</a>
+        <a href="#"><i style="background: #3671c6"></i>Red Bull</a>
+        <a href="#"><i style="background: #ff8000"></i>McLaren</a>
+        <a href="#"><i style="background: #6692ff"></i>Racing Bulls</a>
+        <a href="#"><i style="background: #ff87bc"></i>Alpine</a>
+        <a href="#"><i style="background: #b6babd"></i>Haas</a>
+        <a href="#"><i style="background: #ff0000"></i>Audi</a>
+        <a href="#"><i style="background: #64c4ff"></i>Williams</a>
+        <a href="#"><i style="background: #229971"></i>Aston Martin</a>
+        <a href="#"><i style="background: #e0d4b8"></i>Cadillac</a>
+      </nav>
+
+      <section class="hero" style="padding-top: 0">
+        <div class="left">
+          <p class="eyebrow rise">Constructors' championship · 2026</p>
+          <h1 class="display rise" style="animation-delay: 0.06s">Mercedes</h1>
+          <div class="rule grow-x" style="animation-delay: 0.25s"></div>
+          <p class="meta rise" style="animation-delay: 0.12s">Mercedes AMG F1 · Mercedes power unit</p>
+          <div class="champ rise" style="animation-delay: 0.2s">
+            <b>P1</b><span>630 points, 126 clear of Ferrari with four rounds to run. Can clinch in São Paulo.</span>
+          </div>
+        </div>
+        <div class="lineup">
+          <a class="car" href="#">
+            <span class="num">12</span>
+            <div>
+              <h2>Kimi Antonelli</h2>
+              <p><b>380 pts</b> · <span style="color:var(--gold)">2026 champion</span> · 9 wins · 7 poles</p>
+            </div>
+          </a>
+          <a class="car" href="#">
+            <span class="num">63</span>
+            <div>
+              <h2>George Russell</h2>
+              <p><b>250 pts</b> · P4 · 3 wins · 5 poles</p>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <div class="kpis rise" style="animation-delay: 0.3s">
+        <div><span class="eyebrow">Wins</span><b>12<span class="unit">of 19</span></b><small>Antonelli 9 · Russell 3</small></div>
+        <div><span class="eyebrow">Podiums</span><b>24</b><small>of 38 starts</small></div>
+        <div><span class="eyebrow">Poles</span><b>12</b><small>Antonelli 7 · Russell 5</small></div>
+        <div><span class="eyebrow">Retirements</span><b>2</b><small>both Russell · R5, R10</small></div>
+      </div>
+
+      <section>
+        <div class="section-head">
+          <span class="idx">01</span>
+          <h2>Every finish</h2>
+          <span class="aside eyebrow">Race result by round</span>
+        </div>
+        <div class="heat"><span></span>
+<span class="hd">R1</span>
+<span class="hd">R2</span>
+<span class="hd">R3</span>
+<span class="hd">R4</span>
+<span class="hd">R5</span>
+<span class="hd">R6</span>
+<span class="hd">R7</span>
+<span class="hd">R8</span>
+<span class="hd">R9</span>
+<span class="hd">R10</span>
+<span class="hd">R11</span>
+<span class="hd">R12</span>
+<span class="hd">R13</span>
+<span class="hd">R14</span>
+<span class="hd">R15</span>
+<span class="hd">R16</span>
+<span class="hd">R17</span>
+<span class="hd">R18</span>
+<span class="hd" style="color:var(--ink)">R19</span>
+<span class="hd">R20</span>
+<span class="hd">R21</span>
+<span class="hd">R22</span>
+<span class="hd">R23</span>
+<span class="who">Kimi Antonelli <span>ANT</span></span>
+<span class="cell p2 rise" style="animation-delay:0.000s">2</span>
+<span class="cell p1 rise" style="animation-delay:0.025s">1</span>
+<span class="cell p1 rise" style="animation-delay:0.050s">1</span>
+<span class="cell p1 rise" style="animation-delay:0.075s">1</span>
+<span class="cell p1 rise" style="animation-delay:0.100s">1</span>
+<span class="cell p1 rise" style="animation-delay:0.125s">1</span>
+<span class="cell  rise" style="animation-delay:0.150s">16</span>
+<span class="cell p3 rise" style="animation-delay:0.175s">3</span>
+<span class="cell  rise" style="animation-delay:0.200s">15</span>
+<span class="cell p1 rise" style="animation-delay:0.225s">1</span>
+<span class="cell p3 rise" style="animation-delay:0.250s">3</span>
+<span class="cell p2 rise" style="animation-delay:0.275s">2</span>
+<span class="cell p1 rise" style="animation-delay:0.300s">1</span>
+<span class="cell p1 rise" style="animation-delay:0.325s">1</span>
+<span class="cell pts rise" style="animation-delay:0.350s">5</span>
+<span class="cell p2 rise" style="animation-delay:0.375s">2</span>
+<span class="cell p3 rise" style="animation-delay:0.400s">3</span>
+<span class="cell p1 rise" style="animation-delay:0.425s">1</span>
+<span class="cell p3 rise">3</span>
+<span class="cell future"></span>
+<span class="cell future"></span>
+<span class="cell future"></span>
+<span class="cell future"></span>
+<span class="who">George Russell <span>RUS</span></span>
+<span class="cell p1 rise" style="animation-delay:0.000s">1</span>
+<span class="cell p2 rise" style="animation-delay:0.025s">2</span>
+<span class="cell pts rise" style="animation-delay:0.050s">4</span>
+<span class="cell pts rise" style="animation-delay:0.075s">4</span>
+<span class="cell dnf rise" style="animation-delay:0.100s">DNF</span>
+<span class="cell  rise" style="animation-delay:0.125s">12</span>
+<span class="cell p2 rise" style="animation-delay:0.150s">2</span>
+<span class="cell p1 rise" style="animation-delay:0.175s">1</span>
+<span class="cell p2 rise" style="animation-delay:0.200s">2</span>
+<span class="cell dnf rise" style="animation-delay:0.225s">DNF</span>
+<span class="cell pts rise" style="animation-delay:0.250s">7</span>
+<span class="cell p3 rise" style="animation-delay:0.275s">3</span>
+<span class="cell p2 rise" style="animation-delay:0.300s">2</span>
+<span class="cell pts rise" style="animation-delay:0.325s">5</span>
+<span class="cell p1 rise" style="animation-delay:0.350s">1</span>
+<span class="cell  rise" style="animation-delay:0.375s">20</span>
+<span class="cell pts rise" style="animation-delay:0.400s">9</span>
+<span class="cell pts rise" style="animation-delay:0.425s">8</span>
+<span class="cell pts rise">6</span>
+<span class="cell future"></span>
+<span class="cell future"></span>
+<span class="cell future"></span>
+<span class="cell future"></span></div>
+        <div class="key">
+          <span><i style="background: var(--gold)"></i>Win</span>
+          <span><i style="background: #c9ced8"></i>P2</span>
+          <span><i style="background: #c98b52"></i>P3</span>
+          <span><i style="background: rgb(39 244 210 / 0.16)"></i>Points</span>
+          <span><i style="border: 1px solid rgb(255 70 85 / 0.6)"></i>Did not finish</span>
+          <span><i style="border: 1px dashed var(--line)"></i>Still to run</span>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <span class="idx">02</span>
+          <h2>Points by weekend</h2>
+        </div>
+        <figure class="panel weekends">
+          <p class="eyebrow">Including sprints</p>
+          <h3>Scored in every round; China was the biggest haul</h3>
+          <p class="sub">Constructor points per weekend · best weekend highlighted</p>
+          <div class="cols"><div class="" style="height:78.2%;animation-delay:0.00s"><span>43</span></div>
+<div class="best" style="height:100.0%;animation-delay:0.04s"><span>55</span></div>
+<div class="" style="height:67.3%;animation-delay:0.08s"><span>37</span></div>
+<div class="" style="height:81.8%;animation-delay:0.12s"><span>45</span></div>
+<div class="" style="height:70.9%;animation-delay:0.16s"><span>39</span></div>
+<div class="" style="height:45.5%;animation-delay:0.20s"><span>25</span></div>
+<div class="" style="height:32.7%;animation-delay:0.24s"><span>18</span></div>
+<div class="" style="height:72.7%;animation-delay:0.28s"><span>40</span></div>
+<div class="" style="height:56.4%;animation-delay:0.32s"><span>31</span></div>
+<div class="" style="height:45.5%;animation-delay:0.36s"><span>25</span></div>
+<div class="" style="height:38.2%;animation-delay:0.40s"><span>21</span></div>
+<div class="" style="height:83.6%;animation-delay:0.44s"><span>46</span></div>
+<div class="" style="height:78.2%;animation-delay:0.48s"><span>43</span></div>
+<div class="" style="height:63.6%;animation-delay:0.52s"><span>35</span></div>
+<div class="" style="height:63.6%;animation-delay:0.56s"><span>35</span></div>
+<div class="" style="height:32.7%;animation-delay:0.60s"><span>18</span></div>
+<div class="" style="height:40.0%;animation-delay:0.64s"><span>22</span></div>
+<div class="" style="height:52.7%;animation-delay:0.68s"><span>29</span></div><div style="height:41.8%;animation-delay:.72s"><span>23</span></div></div>
+          <div class="cols-x"><span>R1</span><span>R2</span><span>R3</span><span>R4</span><span>R5</span><span>R6</span><span>R7</span><span>R8</span><span>R9</span><span>R10</span><span>R11</span><span>R12</span><span>R13</span><span>R14</span><span>R15</span><span>R16</span><span>R17</span><span>R18</span><span>R19</span></div>
+        </figure>
+      </section>
+      <div style="height: 96px"></div>
+    </main>
+  </body>
+</html>

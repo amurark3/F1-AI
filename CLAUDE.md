@@ -1,5 +1,14 @@
 # F1-AI
 
+## Active plan (Nov 2026): read this first
+
+Work on accuracy fixes, the data platform and the site-wide redesign follows `docs/plans/2026-11-redesign/PLAN.md`. Progress lives in `docs/plans/2026-11-redesign/STATUS.md`.
+
+- **Before any work,** follow PLAN.md's "How to run this plan": check git, open STATUS.md, and re-verify any `in_progress` task before continuing it. Never continue from memory.
+- **Visual spec:** `docs/design/redesign/` (start at `index.html`).
+- **Data rules:** `docs/DATA_SOURCES.md`. The FIA final classification is the authority, and every special state (retired, red-flag change, pit-lane start, provisional) is labelled.
+- **Until task P1.9 lands,** the redesign decisions in PLAN.md ("Locked decisions") override the design notes below where they conflict: Barlow Condensed display titles, the B1 logo, legends allowed.
+
 ## Visual and design work
 
 The `design-director` skill (`.claude/skills/design-director/`) applies to new pages, components, charts, decks and reports. In this repo the existing design system wins: elevate within it — hierarchy, spacing, data presentation — rather than restyling the app.

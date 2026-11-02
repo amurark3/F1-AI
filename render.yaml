@@ -58,7 +58,7 @@ services:
         sync: false
       - key: TAVILY_API_KEY        # optional — web search tool
         sync: false
-      - key: OPENWEATHERMAP_API_KEY # optional — live weather (falls back to historical)
+      - key: OPENWEATHERMAP_API_KEY # optional — weather tool + current-conditions fallback (session forecast is Open-Meteo, keyless)
         sync: false
       - key: ALLOWED_ORIGINS       # CORS: comma-separated frontend origin(s)
         sync: false

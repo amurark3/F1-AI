@@ -46,7 +46,7 @@ variable there does nothing on its own.
 | `GOOGLE_API_KEY` | **One of these two** | Fallback chat engine — Gemini free tier. Key must come from an AI Studio project with **no billing linked** |
 | `DATABASE_URL` | **Yes** | Supabase Postgres + pgvector connection string — **must be the pooler host**, see below |
 | `TAVILY_API_KEY` | No | Web-search tool |
-| `OPENWEATHERMAP_API_KEY` | No | Live weather (falls back to historical averages) |
+| `OPENWEATHERMAP_API_KEY` | No | The chat agent's weather tool, and the Command Center's current-conditions fallback when Open-Meteo has no race-day forecast. Without it those show as offline. The per-session forecast (Open-Meteo) and circuit maps (MultiViewer) need no key |
 | `ALLOWED_ORIGINS` | Recommended | CORS — comma-separated frontend origin(s) |
 | `HF_TOKEN` | No | Faster/rate-limit-free HuggingFace model downloads |
 | `ENABLE_LOCAL_MODELS` | **Yes** | Must be `false` on the free tier — see below |

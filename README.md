@@ -29,12 +29,13 @@ MCP clients (Claude Desktop / Cursor)  ────────┤
                                                ▼
                                    FastAPI Backend (Render)
                                                │
-     ┌──────────────┬──────────────┬───────────┴──────┬────────────────┐
-     │              │              │                  │                │
-  LLM engines   f1db SQLite    FastF1 / OpenF1    Supabase Postgres  Tavily /
-  (Token Lab    (1950–present  (sessions,         + pgvector         OpenWeatherMap
-   → Gemini)     history)       telemetry, live)   (store, memory,    (news, forecast)
-                                                    rulebook vectors)
+     ┌──────────────┬──────────────┬───────────┴──────┬────────────────┬───────────────┐
+     │              │              │                  │                │               │
+  LLM engines   f1db SQLite    FastF1 / OpenF1    Supabase Postgres  Open-Meteo /   Tavily
+  (Token Lab    (1950–present  (sessions,         + pgvector         OpenWeatherMap (web
+   → Gemini)     history)       telemetry, live)   (store, memory,    (weather),     search)
+                                                    rulebook vectors)  MultiViewer
+                                                                       (circuit maps)
 ```
 
 The chat backend runs an **agentic tool-use loop**: the model may call one or
@@ -59,7 +60,7 @@ and Reference. Older top-level routes (`/calendar`, `/standings`, `/champions`,
 
 | Screen | Route | Description |
 |---|---|---|
-| **Command Center** | `/race-control` | Next-race strategy baseline, projected podium, weather risk, championship picture, call sheet, stint plan, competitor matrix. The live timing tower appears here only while a session is live |
+| **Command Center** | `/race-control` | The current race weekend at a glance: animated circuit map, countdown to the next session, the weather for every session, title stakes, projected podium, circuit history, and the baseline strategy with its risk register. The live timing tower appears here only while a session is live |
 | **AI Engineer** | `/race-control/engineer` | Streaming race-engineer chat with tool status, saved chats, voice dictation and spoken replies, and per-user memory |
 | **Grand Prix Hub** | `/race-control/grand-prix` | One race weekend at a time: Weekend, Sessions, Grid (with grid penalties), Stints, and Predictions (order, podium, risk, model factors, post-race review). Round, tab and view are kept in the URL |
 | **Telemetry Lab** | `/race-control/telemetry` | Track speed map, head-to-head lap traces, and tyre degradation (raw slope beside the fuel-corrected one), from OpenF1 |
@@ -72,6 +73,27 @@ and Reference. Older top-level routes (`/calendar`, `/standings`, `/champions`,
 
 While the backend cold-starts on Render, the app is blocked behind a warm-up
 screen that shows each startup stage, and rechecks when a stale tab comes back.
+
+#### Command Center data
+
+Each panel says where its numbers come from, and shows a blank rather than a
+guess when its source is down.
+
+- **Weather** comes from Open-Meteo's hourly forecast (no API key; up to 16
+  days ahead). Each session reads the hours it runs through: the worst hour for
+  rain and wind, the average for temperature. A session too far out says when
+  its forecast opens. The race session's forecast drives the rain figure and
+  the risk register; OpenWeatherMap's current conditions are only a fallback.
+  Track temperature is an estimate from air temperature and cloud.
+- **Circuit map** is MultiViewer's outline and corner numbers. Layout facts and
+  history (recent winners, the grid slot they won from, pole-to-win rate) come
+  from f1db.
+- **Title stakes** compare the f1db standings with the points still to be won.
+  Those are counted from the last round the standings include, not from the
+  calendar: f1db publishes a day or two after each race, and a race it has not
+  published yet still counts.
+- **Animations** are CSS and SVG, and stop for readers who prefer reduced
+  motion.
 
 ### Agentic LLM tools
 
@@ -129,7 +151,7 @@ cp .env.example .env                     # then fill in the keys
 TOKENLAB_API_KEY=your_tokenlab_key                 # primary chat engine (set at least one engine key)
 GOOGLE_API_KEY=your_gemini_key                     # fallback chat engine — Gemini free tier
 TAVILY_API_KEY=your_tavily_key                     # optional — web-search tool
-OPENWEATHERMAP_API_KEY=your_openweathermap_key     # optional — weather tool
+OPENWEATHERMAP_API_KEY=your_openweathermap_key     # optional — weather tool + current-conditions fallback
 DATABASE_URL=postgresql://...                      # optional — memory + durable store
 ENABLE_LOCAL_MODELS=true                           # optional — rulebook search + memory recall
 SENTRY_DSN=                                        # optional — backend error tracking
@@ -238,9 +260,10 @@ All endpoints are mounted under `/api`.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/race-control/overview/{year}` | Season control board |
-| `GET` | `/api/race-control/overview/{year}/shell` | Schedule, standings and session state (no telemetry) |
-| `GET` | `/api/race-control/overview/{year}/weather` | Live forecast for the circuit and the risk register it grades |
+| `GET` | `/api/race-control/overview/{year}` | Every Command Center segment in one response (the web app fetches the segments below instead) |
+| `GET` | `/api/race-control/overview/{year}/shell` | Schedule, standings, session state and championship stakes (no telemetry) |
+| `GET` | `/api/race-control/overview/{year}/weather` | Forecast for every session of the weekend, the race-day summary, and the risk register it grades |
+| `GET` | `/api/race-control/overview/{year}/circuit` | Circuit map (MultiViewer), layout facts, lap record and history at the circuit |
 | `GET` | `/api/race-control/overview/{year}/predictions` | Projected podium from the stored model snapshot |
 | `GET` | `/api/race-control/overview/{year}/strategy` | Baseline strategy context and workstreams |
 | `GET` | `/api/race-control/teams/{year}` | All teams for a season |
@@ -410,9 +433,11 @@ backend/
 │   │   ├── strategy/         pit strategy analysis
 │   │   ├── openf1/           OpenF1 client, sessions, laps, race control, telemetry
 │   │   ├── power_units/      FIA document fetch, parsing, decisions, allowances
-│   │   ├── profiles/         team and driver profile data
+│   │   ├── profiles/         team, driver and circuit records
 │   │   ├── champions.py      champions + race winners
-│   │   ├── weather.py        circuit weather
+│   │   ├── open_meteo.py     hourly forecast behind the per-session weather
+│   │   ├── weather.py        OpenWeatherMap current conditions (chat tool, fallback)
+│   │   ├── multiviewer.py    circuit outlines and corner numbers
 │   │   ├── memory.py         Postgres + pgvector conversation memory/personalization
 │   │   └── store.py          durable Postgres document store (JSON fallback)
 │   ├── services/             predictions, prediction_cache, race_control*, analysis/
@@ -432,7 +457,8 @@ backend/
 
 frontend/app/
 ├── page.tsx                  → redirects to /race-control
-├── race-control/             Command Center, engineer, grand-prix, telemetry, teams
+├── race-control/             Command Center (weekend/ holds its showcase panels),
+│                             engineer, grand-prix, telemetry, teams
 │                             (standings), constructors + drivers + profiles (Teams &
 │                             Drivers), power-units, champions, debriefs, rulebook
 ├── calendar/  standings/  champions/  predictions/  consumer/   → redirects
@@ -457,6 +483,7 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | LLM | AMD Token Lab (DeepSeek-V4-Flash), Gemini 3.5 Flash-Lite fallback |
 | LLM orchestration | LangChain (agentic tool-use loop) |
 | F1 data | f1db (SQLite, 1950–present), FastF1, OpenF1 (telemetry + live), Ergast/Jolpica (fallback), FIA documents (power units) |
+| Weather & circuits | Open-Meteo (hourly forecast, [CC BY 4.0](https://open-meteo.com/en/license)), OpenWeatherMap (current conditions), MultiViewer (circuit outlines) |
 | Vector search | Postgres pgvector + sentence-transformers + cross-encoder reranker |
 | Storage | Supabase Postgres (optional; JSON fallback) |
 | ML | scikit-learn Ridge regression + heuristic blend |

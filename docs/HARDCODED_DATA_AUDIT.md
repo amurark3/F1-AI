@@ -148,6 +148,9 @@ to make disclosure louder or actually compute them.
 - Points/gaps are real (from standings), but `"Primary"/"High"/"Monitor"`, the `gap <= 60` cutoff,
   and the `operating_read` sentences are hardcoded editorial thresholds. Fine as heuristics; just
   know they're not modeled.
+- **2026-11-01:** no longer shown on the web Command Center — the Competitor Matrix was replaced by
+  the title-stakes panel, which reads only real points (see `docs/REMOVED_FEATURES.md`). The labels
+  are still in the `/strategy` payload.
 
 ---
 
@@ -183,6 +186,8 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
 - **Now:** the First-stop-call decision quotes the real `undercut_delta` and `traffic_threshold`, the
   Safety-car-branch decision quotes the real `pit_loss`, and the stint targets name the actual
   opening/finishing compounds and the derived alternate strategy (`alt_word`).
+- **2026-11-01:** the Call Sheet and Stint Plan panels that showed this prose were removed from the
+  web Command Center; the fields are still in the `/strategy` payload.
 
 ### [keep] 3.4 — Prompt / question suggestion chips
 - `frontend/app/race-control/engineer/page.tsx:10` (`PROMPTS`),

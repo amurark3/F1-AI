@@ -4,11 +4,10 @@ import { ArrowRight, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
 
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
-
-import { AnimatedNumber } from "./AnimatedNumber";
 
 export interface PodiumPick {
   driver_code: string;

@@ -3,10 +3,9 @@
 import { Activity, Shield, Trophy, Users } from "lucide-react";
 import useSWR from "swr";
 
-import { LocalTime } from "@/app/components/LocalTime";
 import { API_BASE } from "@/app/constants/api";
-import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { SourceBadge } from "@/app/ui/SourceBadge";
 import { fetcher } from "@/app/utils/fetcher";
 
 import {
@@ -54,7 +53,6 @@ export function TeamsView({ year, initialTeams }: TeamsViewProps) {
   const driverLeader = drivers[0];
   const pageLoading = awaitingFirstData(isLoading, teams.length > 0);
   const generatedAt = data?.generated_at ?? null;
-  const freshness = standingsLabel(data);
 
   if (pageLoading) {
     return (
@@ -100,14 +98,9 @@ export function TeamsView({ year, initialTeams }: TeamsViewProps) {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-neutral-400" style={rcFont}>
               Data Source
             </p>
-            <p className="mt-1 text-sm text-neutral-400">
-              Championship standings{freshness && ` ${freshness}`}
-              {generatedAt && (
-                <>
-                  {" · refreshed "}
-                  <LocalTime value={generatedAt} style="stampZone" />
-                </>
-              )}
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
+              Championship standings
+              <SourceBadge freshness={data} asOf={generatedAt} />
             </p>
           </div>
           <RefreshButton onRefresh={reloadTeams} />

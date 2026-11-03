@@ -26,6 +26,8 @@
   /* Redesign palette (docs/design/redesign/system.css). Mirrored for SVG and
      Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal. */
   --rc-hero: #0b0f18; /* hero band, and the tile of the B1 logo mark */
+  --rc-raised: #121826; /* raised surfaces: chart tooltips, popovers */
+  --rc-line: #1e2633; /* hairlines and borders on panels and tooltips */
   /* Text tones, each at least 4.5:1 on --surface. */
   --rc-ink: #f0f2f6;
   --rc-ink-2: #aeb6c6;
@@ -54,6 +56,8 @@
 
   /* Redesign palette exposed to Tailwind: bg-rc-hero, text-rc-ink-2, text-rc-gold, bg-rc-gain … */
   --color-rc-hero: var(--rc-hero);
+  --color-rc-raised: var(--rc-raised);
+  --color-rc-line: var(--rc-line);
   --color-rc-ink: var(--rc-ink);
   --color-rc-ink-2: var(--rc-ink-2);
   --color-rc-ink-3: var(--rc-ink-3);

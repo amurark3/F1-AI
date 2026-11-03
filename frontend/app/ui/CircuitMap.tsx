@@ -5,9 +5,8 @@ import { useId } from "react";
 
 import { useIsHydrated } from "@/app/components/LocalTime";
 
-import { outlinePath } from "./weekendModel";
-
-import type { CircuitMapData } from "./weekendTypes";
+import { outlinePath, type CircuitMapData } from "./outlinePath";
+import { f1, rc } from "./tokens";
 
 /** Seconds the marker takes to lap the outline. */
 const LAP_SECONDS = 9;
@@ -48,7 +47,7 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
       <path
         d={path}
         fill="none"
-        stroke="#E10600"
+        stroke={f1.red}
         strokeOpacity={0.4}
         strokeWidth={28}
         strokeLinejoin="round"
@@ -72,7 +71,7 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
           <path
             d={path}
             fill="none"
-            stroke="#FF4655"
+            stroke={rc.redText}
             strokeWidth={8}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -87,12 +86,12 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
               repeatCount="indefinite"
             />
           </path>
-          <circle r={16} fill="#FF4655" opacity={0.5} filter={`url(#${glowId})`}>
+          <circle r={16} fill={rc.redText} opacity={0.5} filter={`url(#${glowId})`}>
             <animateMotion dur={`${LAP_SECONDS}s`} repeatCount="indefinite">
               <mpath href={`#${trackId}`} />
             </animateMotion>
           </circle>
-          <circle r={8} fill="#FFFFFF" stroke="#FF4655" strokeWidth={4}>
+          <circle r={8} fill="#FFFFFF" stroke={rc.redText} strokeWidth={4}>
             <animateMotion dur={`${LAP_SECONDS}s`} repeatCount="indefinite">
               <mpath href={`#${trackId}`} />
             </animateMotion>
@@ -107,7 +106,7 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
             x={corner.label_x}
             y={corner.label_y}
             dominantBaseline="central"
-            fill="#7F8797"
+            fill={rc.ink3}
             className="motion-safe:animate-fade-up"
             style={{ animationDelay: `${LABELS_AFTER_SECONDS + index * 0.05}s` }}
           >

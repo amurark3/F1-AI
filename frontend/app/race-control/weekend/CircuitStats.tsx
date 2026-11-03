@@ -2,7 +2,7 @@
 
 import { Flag, Gauge, Milestone, RotateCcw, RotateCw, Route, Timer, Trophy, Waypoints } from "lucide-react";
 
-import { AnimatedNumber } from "./AnimatedNumber";
+import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
 
 import type { CircuitRecord, LapRecord } from "./weekendTypes";
 import type { LucideIcon } from "lucide-react";

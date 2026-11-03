@@ -7,6 +7,7 @@
  */
 
 import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+import type { CircuitMapData } from "@/app/ui/outlinePath";
 
 export type WeatherCondition =
   "clear" | "partly_cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "storm" | "snow" | "unknown";
@@ -45,24 +46,6 @@ export interface SessionWeather {
   source: string;
   attribution: string;
   sessions: SessionWeatherRow[];
-}
-
-export interface CircuitCorner {
-  label: string;
-  x: number;
-  y: number;
-  label_x: number;
-  label_y: number;
-}
-
-/** The outline in SVG coordinates, already turned and scaled by the backend. */
-export interface CircuitMapData {
-  source: string;
-  season: number;
-  width: number;
-  height: number;
-  points: Array<[number, number]>;
-  corners: CircuitCorner[];
 }
 
 export interface Headliner {

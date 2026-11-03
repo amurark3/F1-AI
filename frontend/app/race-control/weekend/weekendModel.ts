@@ -3,7 +3,7 @@
  * bits of arithmetic the panels share. No React, so they read the same on the
  * server and in the browser.
  */
-import type { CircuitMapData, SessionPhase, SessionWeatherRow, TableStakes, WeatherCondition } from "./weekendTypes";
+import type { SessionPhase, SessionWeatherRow, TableStakes, WeatherCondition } from "./weekendTypes";
 
 /** Rain probability bands: dry, mixed, and likely wet. */
 const RAIN_MIXED_PCT = 20;
@@ -88,50 +88,6 @@ export function summariseWeekend(rows: SessionWeatherRow[]): WeekendSummary {
   };
 }
 
-/** How long each session runs, in minutes — the backend's windows, for the live check. */
-const SESSION_MINUTES: Record<string, number> = { Race: 120, "Sprint Qualifying": 45, "Sprint Shootout": 45 };
-const DEFAULT_SESSION_MINUTES = 60;
-const MINUTE_MS = 60_000;
-
-export interface NextUp {
-  name: string;
-  startsAt: string;
-  live: boolean;
-}
-
-/** The session on track now, else the next to start; null once the weekend is over. */
-export function nextUp(sessions: Record<string, string>, nowMs: number): NextUp | null {
-  const timed = Object.entries(sessions)
-    .map(([name, startsAt]) => ({ name, startsAt, start: new Date(startsAt).getTime() }))
-    .filter((session) => !Number.isNaN(session.start))
-    .sort((a, b) => a.start - b.start);
-  for (const session of timed) {
-    const end = session.start + (SESSION_MINUTES[session.name] ?? DEFAULT_SESSION_MINUTES) * MINUTE_MS;
-    if (nowMs < session.start) return { name: session.name, startsAt: session.startsAt, live: false };
-    if (nowMs < end) return { name: session.name, startsAt: session.startsAt, live: true };
-  }
-  return null;
-}
-
-export interface CountdownParts {
-  days: string;
-  hours: string;
-  minutes: string;
-  seconds: string;
-}
-
-const pad = (value: number) => String(value).padStart(2, "0");
-
-export function countdownParts(targetMs: number, nowMs: number): CountdownParts {
-  const remaining = Math.max(0, Math.floor((targetMs - nowMs) / 1000));
-  return {
-    days: pad(Math.floor(remaining / 86_400)),
-    hours: pad(Math.floor((remaining % 86_400) / 3600)),
-    minutes: pad(Math.floor((remaining % 3600) / 60)),
-    seconds: pad(remaining % 60),
-  };
-}
-
 export type ClinchTone = "decided" | "possible" | "open";
 
 /** Championship points, which are whole except in the odd half-points race. */
@@ -174,11 +130,4 @@ export function reachLine(stakes: TableStakes): number | null {
   if (leaderPoints <= 0) return null;
   const threshold = leaderPoints - stakes.max_available;
   return threshold > 0 ? (threshold / leaderPoints) * 100 : null;
-}
-
-/** An SVG path through the outline's points, closed back to the start. */
-export function outlinePath(map: CircuitMapData): string {
-  const [first, ...rest] = map.points;
-  if (!first) return "";
-  return `M${first[0]} ${first[1]}${rest.map(([x, y]) => `L${x} ${y}`).join("")}Z`;
 }

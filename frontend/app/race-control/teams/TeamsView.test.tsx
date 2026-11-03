@@ -26,7 +26,8 @@ describe("TeamsView", () => {
     expect(screen.getByText("Preparing championship hub")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Championship Standings" })).toBeInTheDocument();
     expect(screen.getByText("Mercedes · 380 pts")).toBeInTheDocument();
-    expect(screen.getByText(/after round 19 · confirmed/)).toBeInTheDocument();
+    const badge = screen.getByRole("button", { name: /^after round 19 · confirmed · as of / });
+    expect(badge).toHaveAccessibleDescription("Sources Base: f1db v2026.19.0, through round 19");
     const [mercedes] = await screen.findAllByRole("link", { name: "Mercedes" });
     expect(mercedes).toHaveAttribute("href", "/race-control/constructors/mercedes");
   });

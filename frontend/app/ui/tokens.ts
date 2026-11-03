@@ -17,6 +17,10 @@
 export const rc = {
   /** Hero band, and the tile of the B1 logo mark (`app/icon.svg`). */
   hero: "#0b0f18",
+  /** Raised surfaces: chart tooltips, popovers. */
+  raised: "#121826",
+  /** Hairlines and borders on panels and tooltips. */
+  line: "#1e2633",
   /** Primary text. */
   ink: "#f0f2f6",
   /** Secondary text. */

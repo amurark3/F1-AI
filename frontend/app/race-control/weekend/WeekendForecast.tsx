@@ -4,10 +4,10 @@ import { ArrowUp, Check, CloudSun } from "lucide-react";
 
 import { LocalTime } from "@/app/components/LocalTime";
 import { formatUtc } from "@/app/lib/formatTime";
+import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
 
 import { Panel, StatusPill, rcFont } from "../components/RaceControlPrimitives";
 
-import { AnimatedNumber } from "./AnimatedNumber";
 import { WeatherGlyph } from "./WeatherGlyph";
 import { ambienceFor, compassPoint, railFill, rainColor, summariseWeekend, type Ambience } from "./weekendModel";
 

@@ -127,7 +127,6 @@ export function clinchLine(stakes: TableStakes, venue: string): { tone: ClinchTo
  */
 export function reachLine(stakes: TableStakes): number | null {
   const leaderPoints = stakes.leader.points;
-  if (leaderPoints <= 0) return null;
   const threshold = leaderPoints - stakes.max_available;
   return threshold > 0 ? (threshold / leaderPoints) * 100 : null;
 }

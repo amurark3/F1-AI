@@ -1,0 +1,342 @@
+{
+  "mexico_city_race_live": {
+    "status": "ready",
+    "note": null,
+    "source": "Open-Meteo hourly forecast",
+    "attribution": "Weather data by Open-Meteo.com",
+    "sessions": [
+      {
+        "name": "Practice 1",
+        "starts_at": "2026-10-30T18:30:00Z",
+        "ends_at": "2026-10-30T19:30:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "partly_cloudy",
+          "label": "Partly cloudy",
+          "is_day": true,
+          "air_temp_c": 23.3,
+          "track_temp_c": 37.1,
+          "rain_probability_pct": 0,
+          "precipitation_mm": 0.0,
+          "wind_kph": 7.2,
+          "wind_direction_deg": 316,
+          "humidity_pct": 42,
+          "cloud_cover_pct": 42
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Practice 2",
+        "starts_at": "2026-10-30T22:00:00Z",
+        "ends_at": "2026-10-30T23:00:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "clear",
+          "label": "Mainly clear",
+          "is_day": true,
+          "air_temp_c": 25.2,
+          "track_temp_c": 41.8,
+          "rain_probability_pct": 1,
+          "precipitation_mm": 0.0,
+          "wind_kph": 8.1,
+          "wind_direction_deg": 313,
+          "humidity_pct": 31,
+          "cloud_cover_pct": 23
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Practice 3",
+        "starts_at": "2026-10-31T17:30:00Z",
+        "ends_at": "2026-10-31T18:30:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "cloudy",
+          "label": "Overcast",
+          "is_day": true,
+          "air_temp_c": 22.9,
+          "track_temp_c": 31.7,
+          "rain_probability_pct": 0,
+          "precipitation_mm": 0.0,
+          "wind_kph": 5.2,
+          "wind_direction_deg": 6,
+          "humidity_pct": 38,
+          "cloud_cover_pct": 74
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Qualifying",
+        "starts_at": "2026-10-31T21:00:00Z",
+        "ends_at": "2026-10-31T22:00:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "cloudy",
+          "label": "Overcast",
+          "is_day": true,
+          "air_temp_c": 26.8,
+          "track_temp_c": 32.9,
+          "rain_probability_pct": 0,
+          "precipitation_mm": 0.0,
+          "wind_kph": 8.8,
+          "wind_direction_deg": 329,
+          "humidity_pct": 27,
+          "cloud_cover_pct": 93
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Race",
+        "starts_at": "2026-11-01T20:00:00Z",
+        "ends_at": "2026-11-01T22:00:00Z",
+        "phase": "live",
+        "forecast": {
+          "condition": "drizzle",
+          "label": "Light drizzle",
+          "is_day": true,
+          "air_temp_c": 24.4,
+          "track_temp_c": 35.9,
+          "rain_probability_pct": 8,
+          "precipitation_mm": 0.1,
+          "wind_kph": 10.2,
+          "wind_direction_deg": 345,
+          "humidity_pct": 34,
+          "cloud_cover_pct": 56
+        },
+        "forecast_opens": null
+      }
+    ]
+  },
+  "singapore_done": {
+    "status": "ready",
+    "note": null,
+    "source": "Open-Meteo hourly forecast",
+    "attribution": "Weather data by Open-Meteo.com",
+    "sessions": [
+      {
+        "name": "Practice 1",
+        "starts_at": "2026-10-09T08:30:00Z",
+        "ends_at": "2026-10-09T09:30:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "cloudy",
+          "label": "Overcast",
+          "is_day": true,
+          "air_temp_c": 32.4,
+          "track_temp_c": 41.1,
+          "rain_probability_pct": 22,
+          "precipitation_mm": 0.0,
+          "wind_kph": 6.1,
+          "wind_direction_deg": 168,
+          "humidity_pct": 52,
+          "cloud_cover_pct": 76
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Sprint Qualifying",
+        "starts_at": "2026-10-09T12:30:00Z",
+        "ends_at": "2026-10-09T13:15:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "clear",
+          "label": "Clear sky",
+          "is_day": false,
+          "air_temp_c": 30.5,
+          "track_temp_c": 35.5,
+          "rain_probability_pct": 2,
+          "precipitation_mm": 0.0,
+          "wind_kph": 10.8,
+          "wind_direction_deg": 131,
+          "humidity_pct": 66,
+          "cloud_cover_pct": 6
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Sprint",
+        "starts_at": "2026-10-10T09:00:00Z",
+        "ends_at": "2026-10-10T10:00:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "drizzle",
+          "label": "Light drizzle",
+          "is_day": true,
+          "air_temp_c": 29.4,
+          "track_temp_c": 34.7,
+          "rain_probability_pct": 100,
+          "precipitation_mm": 0.3,
+          "wind_kph": 5.9,
+          "wind_direction_deg": 227,
+          "humidity_pct": 70,
+          "cloud_cover_pct": 98
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Qualifying",
+        "starts_at": "2026-10-10T13:00:00Z",
+        "ends_at": "2026-10-10T14:00:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "cloudy",
+          "label": "Overcast",
+          "is_day": false,
+          "air_temp_c": 27.4,
+          "track_temp_c": 32.4,
+          "rain_probability_pct": 63,
+          "precipitation_mm": 0.0,
+          "wind_kph": 2.2,
+          "wind_direction_deg": 222,
+          "humidity_pct": 85,
+          "cloud_cover_pct": 99
+        },
+        "forecast_opens": null
+      },
+      {
+        "name": "Race",
+        "starts_at": "2026-10-11T12:00:00Z",
+        "ends_at": "2026-10-11T14:00:00Z",
+        "phase": "done",
+        "forecast": {
+          "condition": "cloudy",
+          "label": "Overcast",
+          "is_day": false,
+          "air_temp_c": 28.9,
+          "track_temp_c": 34.0,
+          "rain_probability_pct": 39,
+          "precipitation_mm": 0.0,
+          "wind_kph": 5.5,
+          "wind_direction_deg": 99,
+          "humidity_pct": 78,
+          "cloud_cover_pct": 96
+        },
+        "forecast_opens": null
+      }
+    ]
+  },
+  "las_vegas_pending": {
+    "weather": {
+      "rain_risk": null,
+      "track_temp_c": null,
+      "wind_kph": null,
+      "confidence": "External forecast feed not connected"
+    },
+    "session_weather": {
+      "status": "pending",
+      "note": "Forecasts open 15 days before each session.",
+      "source": "Open-Meteo hourly forecast",
+      "attribution": "Weather data by Open-Meteo.com",
+      "sessions": [
+        {
+          "name": "Practice 1",
+          "starts_at": "2026-11-20T00:30:00Z",
+          "ends_at": "2026-11-20T01:30:00Z",
+          "phase": "upcoming",
+          "forecast": null,
+          "forecast_opens": "2026-11-05"
+        },
+        {
+          "name": "Practice 2",
+          "starts_at": "2026-11-20T04:00:00Z",
+          "ends_at": "2026-11-20T05:00:00Z",
+          "phase": "upcoming",
+          "forecast": null,
+          "forecast_opens": "2026-11-05"
+        },
+        {
+          "name": "Practice 3",
+          "starts_at": "2026-11-21T00:30:00Z",
+          "ends_at": "2026-11-21T01:30:00Z",
+          "phase": "upcoming",
+          "forecast": null,
+          "forecast_opens": "2026-11-06"
+        },
+        {
+          "name": "Qualifying",
+          "starts_at": "2026-11-21T04:00:00Z",
+          "ends_at": "2026-11-21T05:00:00Z",
+          "phase": "upcoming",
+          "forecast": null,
+          "forecast_opens": "2026-11-06"
+        },
+        {
+          "name": "Race",
+          "starts_at": "2026-11-22T04:00:00Z",
+          "ends_at": "2026-11-22T06:00:00Z",
+          "phase": "upcoming",
+          "forecast": null,
+          "forecast_opens": "2026-11-07"
+        }
+      ]
+    }
+  },
+  "melbourne_archived": {
+    "status": "unavailable",
+    "note": "This weekend is older than the forecast archive.",
+    "source": "Open-Meteo hourly forecast",
+    "attribution": "Weather data by Open-Meteo.com",
+    "sessions": [
+      {
+        "name": "Practice 1",
+        "starts_at": "2026-03-06T01:30:00Z",
+        "ends_at": "2026-03-06T02:30:00Z",
+        "phase": "done",
+        "forecast": null,
+        "forecast_opens": null
+      },
+      {
+        "name": "Practice 2",
+        "starts_at": "2026-03-06T05:00:00Z",
+        "ends_at": "2026-03-06T06:00:00Z",
+        "phase": "done",
+        "forecast": null,
+        "forecast_opens": null
+      },
+      {
+        "name": "Practice 3",
+        "starts_at": "2026-03-07T01:30:00Z",
+        "ends_at": "2026-03-07T02:30:00Z",
+        "phase": "done",
+        "forecast": null,
+        "forecast_opens": null
+      },
+      {
+        "name": "Qualifying",
+        "starts_at": "2026-03-07T05:00:00Z",
+        "ends_at": "2026-03-07T06:00:00Z",
+        "phase": "done",
+        "forecast": null,
+        "forecast_opens": null
+      },
+      {
+        "name": "Race",
+        "starts_at": "2026-03-08T04:00:00Z",
+        "ends_at": "2026-03-08T06:00:00Z",
+        "phase": "done",
+        "forecast": null,
+        "forecast_opens": null
+      }
+    ]
+  },
+  "no_schedule": {
+    "status": "unavailable",
+    "note": "Session times are not published yet.",
+    "source": "Open-Meteo hourly forecast",
+    "attribution": "Weather data by Open-Meteo.com",
+    "sessions": []
+  },
+  "blank_hour": {
+    "condition": "unknown",
+    "label": "Unclassified",
+    "is_day": null,
+    "air_temp_c": null,
+    "track_temp_c": null,
+    "rain_probability_pct": null,
+    "precipitation_mm": null,
+    "wind_kph": null,
+    "wind_direction_deg": null,
+    "humidity_pct": null,
+    "cloud_cover_pct": null
+  }
+}

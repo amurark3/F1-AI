@@ -66,8 +66,9 @@ interface ContenderBarProps {
 }
 
 function ContenderBar({ contender, leaderPoints, table, index }: ContenderBarProps) {
-  const color = getTeamColor(contender.team ?? contender.name);
-  const width = leaderPoints > 0 ? Math.max(2, (contender.points / leaderPoints) * 100) : 0;
+  const color = getTeamColor(contender.team);
+  // The backend sends a table only once a round has scored, so the leader always has points.
+  const width = Math.max(2, (contender.points / leaderPoints) * 100);
   return (
     <li className={contender.alive ? "" : "opacity-40"}>
       <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">

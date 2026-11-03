@@ -71,7 +71,7 @@ function lapRecordStat(lapRecord: LapRecord | null | undefined): Stat | null {
     label: "Lap record",
     icon: Timer,
     value: lapRecord.time,
-    detail: `${lapRecord.driver.split(" ").at(-1) ?? lapRecord.driver} · ${lapRecord.year}`,
+    detail: `${lapRecord.driver.slice(lapRecord.driver.lastIndexOf(" ") + 1)} · ${lapRecord.year}`,
   };
 }
 

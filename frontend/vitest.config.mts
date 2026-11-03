@@ -17,6 +17,7 @@ const COVERAGE_INCLUDE = [
   "app/race-control/components/RaceControlPrimitives.tsx",
   "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
+  "app/race-control/weekend/**",
 ];
 
 /** Every metric must reach this in every included file. */
@@ -36,8 +37,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: COVERAGE_INCLUDE,
-      // Lists every gated file, including the ones at 100%, as evidence.
-      reporter: [["text", { skipFull: false }], "html"],
+      // Lists every gated file, including the ones at 100%, as evidence. A
+      // type-only module (`weekendTypes.ts`) compiles to nothing, so v8 counts
+      // 0 of 0 everywhere: no threshold can fail on it, but the table would print
+      // it as 0%. `skipEmpty` drops such files from the table; any file with
+      // code still lists.
+      reporter: [["text", { skipFull: false, skipEmpty: true }], "html"],
       thresholds: {
         perFile: true,
         statements: FULL_COVERAGE,

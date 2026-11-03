@@ -1,0 +1,622 @@
+{
+  "madring_2026": {
+    "race": {
+      "round": 14,
+      "name": "Spanish Grand Prix",
+      "location": "Madrid, Spain",
+      "country": "Spain",
+      "status": "completed",
+      "sessions": {
+        "Practice 1": "2026-09-11T11:30:00Z",
+        "Practice 2": "2026-09-11T15:00:00Z",
+        "Practice 3": "2026-09-12T10:30:00Z",
+        "Qualifying": "2026-09-12T14:00:00Z",
+        "Race": "2026-09-13T13:00:00Z"
+      },
+      "circuit": {
+        "circuit_name": "Circuito de Madrid IFEMA",
+        "track_length_km": 5.473,
+        "laps": 66,
+        "first_gp": 2026,
+        "lap_record": {
+          "time": "-",
+          "driver": "-",
+          "year": 0
+        }
+      }
+    },
+    "record": {
+      "circuit_id": "madring",
+      "name": "Circuito de Madring",
+      "place": "Madrid",
+      "length_km": 5.416,
+      "turns": 22,
+      "direction": "clockwise",
+      "laps": 57,
+      "distance_km": 308.524,
+      "first_year": null,
+      "races_held": 0,
+      "pole_conversion": {
+        "wins_from_pole": 0,
+        "editions": 0
+      },
+      "editions": [],
+      "active_winners": []
+    }
+  },
+  "mexico_city_2026": {
+    "circuit_id": "mexico-city",
+    "name": "Autódromo Hermanos Rodríguez",
+    "place": "Mexico City",
+    "length_km": 4.304,
+    "turns": 17,
+    "direction": "clockwise",
+    "laps": 71,
+    "distance_km": 305.354,
+    "first_year": 1963,
+    "races_held": 25,
+    "pole_conversion": {
+      "wins_from_pole": 5,
+      "editions": 10
+    },
+    "editions": [
+      {
+        "year": 2025,
+        "winner": {
+          "driver_id": "lando-norris",
+          "driver_name": "Lando Norris",
+          "team_id": "mclaren",
+          "team_name": "McLaren",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "lando-norris",
+          "driver_name": "Lando Norris",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2024,
+        "winner": {
+          "driver_id": "carlos-sainz-jr",
+          "driver_name": "Carlos Sainz Jr.",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "carlos-sainz-jr",
+          "driver_name": "Carlos Sainz Jr.",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2023,
+        "winner": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull",
+          "grid": 3
+        },
+        "pole": {
+          "driver_id": "charles-leclerc",
+          "driver_name": "Charles Leclerc",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2022,
+        "winner": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2021,
+        "winner": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull",
+          "grid": 3
+        },
+        "pole": {
+          "driver_id": "valtteri-bottas",
+          "driver_name": "Valtteri Bottas",
+          "team_id": "mercedes",
+          "team_name": "Mercedes"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2019,
+        "winner": {
+          "driver_id": "lewis-hamilton",
+          "driver_name": "Lewis Hamilton",
+          "team_id": "mercedes",
+          "team_name": "Mercedes",
+          "grid": 3
+        },
+        "pole": {
+          "driver_id": "charles-leclerc",
+          "driver_name": "Charles Leclerc",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2018,
+        "winner": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "daniel-ricciardo",
+          "driver_name": "Daniel Ricciardo",
+          "team_id": "red-bull",
+          "team_name": "Red Bull"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2017,
+        "winner": {
+          "driver_id": "max-verstappen",
+          "driver_name": "Max Verstappen",
+          "team_id": "red-bull",
+          "team_name": "Red Bull",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "sebastian-vettel",
+          "driver_name": "Sebastian Vettel",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2016,
+        "winner": {
+          "driver_id": "lewis-hamilton",
+          "driver_name": "Lewis Hamilton",
+          "team_id": "mercedes",
+          "team_name": "Mercedes",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "lewis-hamilton",
+          "driver_name": "Lewis Hamilton",
+          "team_id": "mercedes",
+          "team_name": "Mercedes"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2015,
+        "winner": {
+          "driver_id": "nico-rosberg",
+          "driver_name": "Nico Rosberg",
+          "team_id": "mercedes",
+          "team_name": "Mercedes",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "nico-rosberg",
+          "driver_name": "Nico Rosberg",
+          "team_id": "mercedes",
+          "team_name": "Mercedes"
+        },
+        "won_from_pole": true
+      }
+    ],
+    "active_winners": [
+      {
+        "driver_id": "max-verstappen",
+        "driver_name": "Max Verstappen",
+        "wins": 5,
+        "last_win": 2023
+      },
+      {
+        "driver_id": "lewis-hamilton",
+        "driver_name": "Lewis Hamilton",
+        "wins": 2,
+        "last_win": 2019
+      },
+      {
+        "driver_id": "lando-norris",
+        "driver_name": "Lando Norris",
+        "wins": 1,
+        "last_win": 2025
+      }
+    ]
+  },
+  "imola_2020": {
+    "circuit_id": "imola",
+    "name": "Autodromo Internazionale Enzo e Dino Ferrari",
+    "place": "Imola",
+    "length_km": 4.909,
+    "turns": 19,
+    "direction": "anti-clockwise",
+    "laps": 63,
+    "distance_km": 309.05,
+    "first_year": 1980,
+    "races_held": 27,
+    "pole_conversion": {
+      "wins_from_pole": 4,
+      "editions": 10
+    },
+    "editions": [
+      {
+        "year": 2006,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2005,
+        "winner": {
+          "driver_id": "fernando-alonso",
+          "driver_name": "Fernando Alonso",
+          "team_id": "renault",
+          "team_name": "Renault",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "kimi-raikkonen",
+          "driver_name": "Kimi Räikkönen",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2004,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "jenson-button",
+          "driver_name": "Jenson Button",
+          "team_id": "bar",
+          "team_name": "BAR"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2003,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2002,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 2001,
+        "winner": {
+          "driver_id": "ralf-schumacher",
+          "driver_name": "Ralf Schumacher",
+          "team_id": "williams",
+          "team_name": "Williams",
+          "grid": 3
+        },
+        "pole": {
+          "driver_id": "david-coulthard",
+          "driver_name": "David Coulthard",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 2000,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "mika-hakkinen",
+          "driver_name": "Mika Häkkinen",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 1999,
+        "winner": {
+          "driver_id": "michael-schumacher",
+          "driver_name": "Michael Schumacher",
+          "team_id": "ferrari",
+          "team_name": "Ferrari",
+          "grid": 3
+        },
+        "pole": {
+          "driver_id": "mika-hakkinen",
+          "driver_name": "Mika Häkkinen",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": false
+      },
+      {
+        "year": 1998,
+        "winner": {
+          "driver_id": "david-coulthard",
+          "driver_name": "David Coulthard",
+          "team_id": "mclaren",
+          "team_name": "McLaren",
+          "grid": 1
+        },
+        "pole": {
+          "driver_id": "david-coulthard",
+          "driver_name": "David Coulthard",
+          "team_id": "mclaren",
+          "team_name": "McLaren"
+        },
+        "won_from_pole": true
+      },
+      {
+        "year": 1997,
+        "winner": {
+          "driver_id": "heinz-harald-frentzen",
+          "driver_name": "Heinz-Harald Frentzen",
+          "team_id": "williams",
+          "team_name": "Williams",
+          "grid": 2
+        },
+        "pole": {
+          "driver_id": "jacques-villeneuve",
+          "driver_name": "Jacques Villeneuve",
+          "team_id": "williams",
+          "team_name": "Williams"
+        },
+        "won_from_pole": false
+      }
+    ],
+    "active_winners": []
+  },
+  "long_beach_1983": {
+    "race": {
+      "round": 2,
+      "name": "United States Grand Prix West",
+      "location": "California, USA",
+      "country": "USA",
+      "status": "completed",
+      "sessions": {
+        "Practice 1": "1983-03-25T00:00:00Z",
+        "Practice 2": "1983-03-25T00:00:00Z",
+        "Practice 3": "1983-03-26T00:00:00Z",
+        "Qualifying": "1983-03-26T00:00:00Z",
+        "Race": "1983-03-27T00:00:00Z"
+      },
+      "circuit": null
+    },
+    "circuit": {
+      "record": {
+        "circuit_id": "long-beach",
+        "name": "Long Beach",
+        "place": "Long Beach",
+        "length_km": 3.275,
+        "turns": 18,
+        "direction": "clockwise",
+        "laps": 75,
+        "distance_km": 245.625,
+        "first_year": 1976,
+        "races_held": 7,
+        "pole_conversion": {
+          "wins_from_pole": 4,
+          "editions": 7
+        },
+        "editions": [
+          {
+            "year": 1982,
+            "winner": {
+              "driver_id": "niki-lauda",
+              "driver_name": "Niki Lauda",
+              "team_id": "mclaren",
+              "team_name": "McLaren",
+              "grid": 2
+            },
+            "pole": {
+              "driver_id": "andrea-de-cesaris",
+              "driver_name": "Andrea de Cesaris",
+              "team_id": "alfa-romeo",
+              "team_name": "Alfa Romeo"
+            },
+            "won_from_pole": false
+          },
+          {
+            "year": 1981,
+            "winner": {
+              "driver_id": "alan-jones",
+              "driver_name": "Alan Jones",
+              "team_id": "williams",
+              "team_name": "Williams",
+              "grid": 2
+            },
+            "pole": {
+              "driver_id": "riccardo-patrese",
+              "driver_name": "Riccardo Patrese",
+              "team_id": "arrows",
+              "team_name": "Arrows"
+            },
+            "won_from_pole": false
+          },
+          {
+            "year": 1980,
+            "winner": {
+              "driver_id": "nelson-piquet",
+              "driver_name": "Nelson Piquet",
+              "team_id": "brabham",
+              "team_name": "Brabham",
+              "grid": 1
+            },
+            "pole": {
+              "driver_id": "nelson-piquet",
+              "driver_name": "Nelson Piquet",
+              "team_id": "brabham",
+              "team_name": "Brabham"
+            },
+            "won_from_pole": true
+          },
+          {
+            "year": 1979,
+            "winner": {
+              "driver_id": "gilles-villeneuve",
+              "driver_name": "Gilles Villeneuve",
+              "team_id": "ferrari",
+              "team_name": "Ferrari",
+              "grid": 1
+            },
+            "pole": {
+              "driver_id": "gilles-villeneuve",
+              "driver_name": "Gilles Villeneuve",
+              "team_id": "ferrari",
+              "team_name": "Ferrari"
+            },
+            "won_from_pole": true
+          },
+          {
+            "year": 1978,
+            "winner": {
+              "driver_id": "carlos-reutemann",
+              "driver_name": "Carlos Reutemann",
+              "team_id": "ferrari",
+              "team_name": "Ferrari",
+              "grid": 1
+            },
+            "pole": {
+              "driver_id": "carlos-reutemann",
+              "driver_name": "Carlos Reutemann",
+              "team_id": "ferrari",
+              "team_name": "Ferrari"
+            },
+            "won_from_pole": true
+          },
+          {
+            "year": 1977,
+            "winner": {
+              "driver_id": "mario-andretti",
+              "driver_name": "Mario Andretti",
+              "team_id": "lotus",
+              "team_name": "Lotus",
+              "grid": 2
+            },
+            "pole": {
+              "driver_id": "niki-lauda",
+              "driver_name": "Niki Lauda",
+              "team_id": "ferrari",
+              "team_name": "Ferrari"
+            },
+            "won_from_pole": false
+          },
+          {
+            "year": 1976,
+            "winner": {
+              "driver_id": "clay-regazzoni",
+              "driver_name": "Clay Regazzoni",
+              "team_id": "ferrari",
+              "team_name": "Ferrari",
+              "grid": 1
+            },
+            "pole": {
+              "driver_id": "clay-regazzoni",
+              "driver_name": "Clay Regazzoni",
+              "team_id": "ferrari",
+              "team_name": "Ferrari"
+            },
+            "won_from_pole": true
+          }
+        ],
+        "active_winners": [
+          {
+            "driver_id": "niki-lauda",
+            "driver_name": "Niki Lauda",
+            "wins": 1,
+            "last_win": 1982
+          },
+          {
+            "driver_id": "alan-jones",
+            "driver_name": "Alan Jones",
+            "wins": 1,
+            "last_win": 1981
+          },
+          {
+            "driver_id": "nelson-piquet",
+            "driver_name": "Nelson Piquet",
+            "wins": 1,
+            "last_win": 1980
+          }
+        ]
+      },
+      "lap_record": null,
+      "map": null
+    }
+  }
+}

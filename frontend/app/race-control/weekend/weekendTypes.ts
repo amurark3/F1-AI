@@ -97,7 +97,8 @@ export interface Contender {
   position: number;
   name: string;
   code: string | null;
-  team: string | null;
+  /** A driver's team in their latest round; a team row's own name. Never null (`Standing.team`). */
+  team: string;
   points: number;
   gap: number;
   alive: boolean;

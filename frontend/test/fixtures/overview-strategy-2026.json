@@ -1,0 +1,13 @@
+{
+  "strategy_context": {
+    "pit_model": {
+      "pit_loss_seconds": 21.9,
+      "undercut_delta": 1.4,
+      "overcut_delta": 0.9,
+      "undercut_modeled": true,
+      "overcut_modeled": true,
+      "traffic_threshold": "medium",
+      "traffic_modeled": false
+    }
+  }
+}

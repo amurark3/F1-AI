@@ -79,10 +79,10 @@ export function PodiumPanel({ podium }: { podium: PodiumPick[] }) {
 
       {ready ? (
         <div className="flex flex-1 items-end gap-2 border-b border-white/10">
-          {STEPS.map(({ place, height, rise }) => {
-            const pick = podium[place - 1];
-            return pick ? <Step key={place} pick={pick} place={place} height={height} rise={rise} /> : null;
-          })}
+          {/* `ready` means three picks, so every step has one. */}
+          {STEPS.map(({ place, height, rise }) => (
+            <Step key={place} pick={podium[place - 1]} place={place} height={height} rise={rise} />
+          ))}
         </div>
       ) : (
         <p className="flex-1 text-sm text-[#7F8797]">

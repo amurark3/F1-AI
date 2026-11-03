@@ -98,7 +98,7 @@ function MapSlot({ circuit, loading, name }: { circuit: OverviewCircuit | undefi
 /** The circuit's name and town, preferring f1db's record to the schedule's location. */
 function circuitLabel(race: HeroRace, circuit: OverviewCircuit | undefined): { name: string; place: string } {
   const name = circuit?.record?.name ?? race.circuit?.circuit_name ?? race.location;
-  const place = circuit?.record?.place ?? race.location.split(",")[0] ?? "";
+  const place = circuit?.record?.place ?? race.location.split(",")[0];
   return { name, place: place === name ? "" : place };
 }
 

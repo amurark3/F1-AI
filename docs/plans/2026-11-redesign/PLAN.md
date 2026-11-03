@@ -208,6 +208,12 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 - **P1.7** Commit `docs/design/redesign/`, `docs/DATA_SOURCES.md`, `docs/plans/` and `frontend/public/hero-car.jpg`, if they aren't already in git.
 - **P1.8 Coverage include list** = `app/ui/**`, `app/race-control/weekend/**`, `app/race-control/components/**`, at 100%.
 - **P1.9** Update the `CLAUDE.md` design section to the new tokens and rules: Barlow display font, text tones, red usage, the gain token, and legends allowed.
+- **P1.10 Node 22** (added at the user's request, 2026-11-02; Node 20 is end of life).
+  - Move every CI job from Node 20 to 22: the four `setup-node` steps in `.github/workflows/pr-auto-review.yml` and the one in `dependency-audit.yml`.
+  - Pin it for local runs: `"engines": { "node": ">=22" }` in `frontend/package.json` and a `.nvmrc` containing `22`.
+  - The frontend host sets its Node version in its dashboard, not in the repo. Tell the user to change it there; don't guess at a config file.
+  - Revisit the test tools P1.1 held to their Node 20 lines (Vitest, `@vitest/coverage-v8`, jsdom and the rest). Move each to its current major where that needs Node 22, keeping `audit-ci` clean.
+  - **Accept:** every CI job runs Node 22, and lint, typecheck, build, `test:coverage` and `e2e` pass on Node 22.
 - **Accept (phase):** all gates green. **PR:** `feat: design foundation, test infrastructure and logo`.
 
 ## Phase P2 — Canonical driver and team names

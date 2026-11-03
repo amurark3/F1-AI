@@ -400,6 +400,14 @@ def canonical_driver(year: int, **keys: Unpack[DriverKeys]) -> CanonicalDriver:
     entry = resolve_driver(year, **keys)
     if entry is not None:
         return CanonicalDriver(name=entry.name, last_name=entry.last_name, code=entry.code, id=entry.id)
+    return feed_driver(**keys)
+
+
+def feed_driver(**keys: Unpack[DriverKeys]) -> CanonicalDriver:
+    """The feed's own words in display case, with no id: what a row prints when nobody is resolved.
+
+    Reads nothing, so an emit point can fall back to it when f1db cannot be read.
+    """
     text = keys.get("name") or ""
     return CanonicalDriver(
         name=normalize_feed_name(text),

@@ -2,6 +2,10 @@
 
 Split out of ``routes`` because it is the one endpoint that does heavy
 synchronous FastF1 work, with its own in-memory cache and timeout.
+
+Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
+Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
+FastF1's. See :mod:`app.data.canonical_names`.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ import structlog
 from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
+from app.data.canonical_names import driver_identity, team_display_name
 from app.utils.f1_values import utc_isoformat
 from app.utils.fastf1_lock import FASTF1_LOCK
 
@@ -73,8 +78,16 @@ _QUALIFYING_PHASES = ("Q1", "Q2", "Q3")
 
 
 def _full_name(entry: pd.Series) -> str:
-    """Driver's display name, tolerating either half being absent."""
+    """FastF1's name for the driver, tolerating either half being absent."""
     return f"{entry.get('FirstName', '')} {entry.get('LastName', '')}".strip()
+
+
+def _driver_names(entry: pd.Series, year: int) -> tuple[str, str]:
+    """The row's driver and team as printed: f1db's names, else FastF1's own words."""
+    driver = driver_identity(
+        year, code=entry.get("Abbreviation"), number=entry.get("DriverNumber"), name=_full_name(entry)
+    )
+    return driver.name, team_display_name(year, entry.get("TeamName")) or "Unknown"
 
 
 def _event_date(row: pd.Series) -> str:
@@ -136,7 +149,7 @@ def _classification_time(status: str, time_val: object, format_time: Callable[[o
     return format_time(time_val) if pd.notna(time_val) else ""
 
 
-def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], str]) -> list[dict]:
+def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], str], year: int) -> list[dict]:
     """Per-driver classification rows, shared by the race and the sprint.
 
     The two differ only in how a finishing time is rendered, so the formatter is
@@ -146,12 +159,13 @@ def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], 
     for _, entry in results.iterrows():
         status = entry["Status"]
         grid = entry["GridPosition"]
+        full_name, team = _driver_names(entry, year)
         rows.append(
             {
                 "position": int(entry["Position"]) if pd.notna(entry["Position"]) else None,
                 "driver": entry.get("Abbreviation", ""),
-                "full_name": _full_name(entry),
-                "team": entry.get("TeamName", "Unknown"),
+                "full_name": full_name,
+                "team": team,
                 "grid": int(grid) if pd.notna(grid) and grid > 0 else None,
                 "time": _classification_time(status, entry["Time"], format_time),
                 "points": float(entry["Points"]) if pd.notna(entry["Points"]) else 0,
@@ -161,7 +175,19 @@ def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], 
     return rows
 
 
-def _qualifying_phases(results: pd.DataFrame) -> dict | None:
+def _qualifying_row(position: int, entry: pd.Series, phase: str, year: int) -> dict:
+    """One driver's place and lap in a qualifying phase."""
+    full_name, team = _driver_names(entry, year)
+    return {
+        "position": position,
+        "driver": entry["Abbreviation"],
+        "full_name": full_name,
+        "team": team,
+        "time": _fmt_td(entry[phase]),
+    }
+
+
+def _qualifying_phases(results: pd.DataFrame, year: int) -> dict | None:
     """Q1/Q2/Q3 order, omitting any phase that produced no times."""
     qualifying = {}
     for phase in _QUALIFYING_PHASES:
@@ -169,14 +195,7 @@ def _qualifying_phases(results: pd.DataFrame) -> dict | None:
             continue
         ordered = results[results[phase].notna()].sort_values(by=phase)
         rows = [
-            {
-                "position": position,
-                "driver": entry["Abbreviation"],
-                "full_name": _full_name(entry),
-                "team": entry["TeamName"],
-                "time": _fmt_td(entry[phase]),
-            }
-            for position, (_, entry) in enumerate(ordered.iterrows(), 1)
+            _qualifying_row(position, entry, phase, year) for position, (_, entry) in enumerate(ordered.iterrows(), 1)
         ]
         if rows:
             qualifying[phase] = rows
@@ -191,7 +210,7 @@ def _load_race_classification(year: int, round_num: int) -> tuple[list[dict] | N
         logger.exception("api.race_results.load_error", year=year, round=round_num, error=str(e))
         return None, None
 
-    rows = _classification_rows(results, _race_gap)
+    rows = _classification_rows(results, _race_gap, year)
     podium = sorted(
         (row for row in rows if row["position"] and row["position"] <= 3),
         key=lambda row: row["position"],
@@ -202,7 +221,7 @@ def _load_race_classification(year: int, round_num: int) -> tuple[list[dict] | N
 def _load_qualifying(year: int, round_num: int) -> dict | None:
     """Qualifying order, or None when it could not be loaded."""
     try:
-        return _qualifying_phases(_load_session_results(year, round_num, "Q"))
+        return _qualifying_phases(_load_session_results(year, round_num, "Q"), year)
     except Exception as e:
         logger.exception("api.qualifying.load_error", year=year, round=round_num, error=str(e))
         return None
@@ -215,13 +234,13 @@ def _load_sprint(year: int, round_num: int) -> list[dict] | None:
     except Exception as e:
         logger.exception("api.sprint_results.load_error", year=year, round=round_num, error=str(e))
         return None
-    return _classification_rows(results, _fmt_td) or None
+    return _classification_rows(results, _fmt_td, year) or None
 
 
 def _load_sprint_qualifying(year: int, round_num: int) -> dict | None:
     """Sprint qualifying order, or None when it could not be loaded."""
     try:
-        return _qualifying_phases(_load_session_results(year, round_num, "SQ"))
+        return _qualifying_phases(_load_session_results(year, round_num, "SQ"), year)
     except Exception as e:
         logger.exception("api.sprint_qualifying.load_error", year=year, round=round_num, error=str(e))
         return None

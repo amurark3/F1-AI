@@ -55,6 +55,8 @@ CREATE TABLE circuit (
 CREATE TABLE driver (
     id TEXT PRIMARY KEY,
     name TEXT,
+    first_name TEXT,
+    last_name TEXT,
     full_name TEXT,
     abbreviation TEXT,
     nationality_country_id TEXT,

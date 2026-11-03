@@ -20,23 +20,31 @@ What the assertions guard:
 * **A non-sprint weekend is not an error.** The absent sprint session must cache
   an empty result, not retry per driver — but a sprint that has not been
   classified yet, or failed to load, must be retried rather than cached.
+* **Names are f1db's.** FastF1 writes "Andrea Kimi Antonelli" and "RB F1 Team";
+  every loader prints "Kimi Antonelli" and "Racing Bulls" under the same keys,
+  and FastF1's own words when f1db cannot be read.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import sqlite3
 
 import pandas as pd
 import pytest
+import structlog
 
+from app.data import f1db_source
 from app.data.predictions import sessions as sessions_module
 from app.data.predictions.sessions import (
+    _classified_order,
     _load_practice,
     _load_qualifying,
     _load_sprint_result,
     _qualifying_has_occurred,
     _weekend_has_started,
 )
+from tests.identity_support import mexico_fastf1_results
 
 YEAR = 2026
 ROUND = 4
@@ -502,3 +510,78 @@ def test_without_session_times_the_race_date_minus_two_days_is_used(days_to_race
 def test_an_undated_weekend_is_assumed_to_have_started():
     """Attempting a load costs one failure; skipping it costs the whole session."""
     assert _weekend_has_started(_event(EventName="Unknown Grand Prix", EventDate=pd.NaT)) is True
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names under FastF1's keys
+# ---------------------------------------------------------------------------
+
+
+def _mexico_results() -> pd.DataFrame:
+    """FastF1's Mexico City rows, real spellings in race order (Hirakawa's abbreviation is NaN)."""
+    return pd.DataFrame(mexico_fastf1_results())
+
+
+@pytest.mark.integration
+def test_a_classification_prints_f1dbs_driver_and_team_names(identity_f1db):
+    order = _classified_order(_mexico_results(), 2026)
+
+    assert [(row["driver_name"], row["team"]) for row in order] == [
+        ("Max Verstappen", "Red Bull"),
+        ("Kimi Antonelli", "Mercedes"),
+        ("Liam Lawson", "Racing Bulls"),
+        ("Ryō Hirakawa", "Haas"),
+        ("Carlos Sainz Jr.", "Williams"),
+        ("Nico Hülkenberg", "Audi"),
+        ("Sergio Pérez", "Cadillac"),
+    ]
+    assert all(set(row) == {"driver_code", "driver_name", "team", "position"} for row in order)
+    assert [row["driver_code"] for row in order if row["driver_code"].isupper()] == [
+        "VER",
+        "ANT",
+        "LAW",
+        "SAI",
+        "HUL",
+        "PER",
+    ]
+
+
+@pytest.mark.integration
+def test_practice_prints_f1db_names_even_for_a_driver_missing_from_the_results(identity_f1db, fastf1_sessions):
+    """Tsolov ran Lawson's car in Mexico City FP1 (real); the lap times here only set an order."""
+    fastf1_sessions["FP1"] = _FakeSession(
+        results=_mexico_results(),
+        laps=_laps(SAI="0 days 00:01:18.200", TSO="0 days 00:01:18.900", ANT="0 days 00:01:17.800"),
+    )
+
+    result = _load_practice(2026, 19)
+
+    assert [(row["driver_code"], row["driver_name"], row["team"]) for row in result] == [
+        ("ANT", "Kimi Antonelli", "Mercedes"),
+        ("SAI", "Carlos Sainz Jr.", "Williams"),
+        ("TSO", "Nikola Tsolov", ""),
+    ]
+
+
+@pytest.mark.integration
+def test_an_unreadable_f1db_leaves_fastf1s_own_names_and_logs_why(monkeypatch):
+    def connect() -> None:
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(f1db_source, "connect", connect)
+
+    with structlog.testing.capture_logs() as logs:
+        order = _classified_order(_mexico_results(), 2026)
+
+    assert (order[1]["driver_name"], order[2]["team"]) == ("Andrea Kimi Antonelli", "RB F1 Team")
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}
+
+
+@pytest.mark.unit
+def test_a_missing_cell_is_left_out_not_printed_as_nan():
+    """No f1db here (the suite's empty one), so FastF1's words are printed, minus the NaN halves."""
+    row = {"Position": 1.0, "Abbreviation": "HIR", "FirstName": float("nan"), "LastName": "Hirakawa", "TeamName": None}
+
+    assert _classified_order(pd.DataFrame([row]), 2026) == [
+        {"driver_code": "HIR", "driver_name": "Hirakawa", "team": "", "position": 1}
+    ]

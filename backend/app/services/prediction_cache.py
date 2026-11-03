@@ -1,4 +1,8 @@
-"""Persistent cache for race prediction snapshots."""
+"""Persistent cache for race prediction snapshots.
+
+A snapshot is stored exactly as computed and served with canonical driver and
+team names overlaid on the copy (:mod:`app.services.prediction_names`).
+"""
 
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ from app.data.predictions import (
     trim_snapshots,
 )
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
+from app.services.prediction_names import with_canonical_names
 
 if TYPE_CHECKING:
     from app.data.store_types import WriteResult
@@ -236,7 +241,8 @@ class PredictionSnapshotCache:
     ) -> dict:
         normalised = self._normalise_entry(entry)
         snapshot = snapshot or self._active_snapshot(normalised)
-        result = copy.deepcopy((snapshot or {}).get("result") or {})
+        # The served copy prints f1db's names; the stored snapshot keeps the ones it was computed with.
+        result = with_canonical_names(copy.deepcopy((snapshot or {}).get("result") or {}))
         result["cache"] = {
             "status": status,
             "stored_at": (snapshot or {}).get("stored_at") or normalised.get("stored_at"),

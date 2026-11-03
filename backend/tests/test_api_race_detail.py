@@ -12,6 +12,9 @@ assumed:
   so the buffer is what stops a red-flagged race being frozen mid-race.
 * **Only successful-enough responses are cached.** The cache is never evicted,
   so caching an error would pin it for the life of the process.
+* **Names are f1db's.** FastF1 writes "Andrea Kimi Antonelli" and "RB F1 Team";
+  a row prints "Kimi Antonelli" and "Racing Bulls" under the same keys, and
+  FastF1's own words when f1db cannot be read.
 
 FastF1 is mocked at the boundary throughout; the network is blocked.
 """
@@ -19,12 +22,14 @@ FastF1 is mocked at the boundary throughout; the network is blocked.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import sqlite3
 import threading
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pandas as pd
 import pytest
+import structlog
 
 from app.api import race_detail as rd
 from app.api.race_detail import (
@@ -34,12 +39,15 @@ from app.api.race_detail import (
     _fmt_td,
     _full_name,
     _qualifying_phases,
+    _qualifying_row,
     _race_gap,
     _race_start,
     _session_names,
     _session_schedule,
     build_race_detail,
 )
+from app.data import f1db_source
+from tests.identity_support import mexico_fastf1_results
 
 RACE_START = datetime(2026, 3, 8, 12, 0)
 
@@ -274,7 +282,7 @@ def test_race_start_is_none_when_there_is_no_race_session():
 
 @pytest.mark.unit
 def test_classification_reports_position_grid_and_points():
-    rows = _classification_rows(_results_frame(), _race_gap)
+    rows = _classification_rows(_results_frame(), _race_gap, 2026)
 
     assert rows[0]["position"] == 1
     assert rows[0]["driver"] == "VER"
@@ -284,7 +292,7 @@ def test_classification_reports_position_grid_and_points():
 
 @pytest.mark.unit
 def test_an_unclassified_car_has_a_null_position_and_zero_points():
-    rows = _classification_rows(_results_frame(), _race_gap)
+    rows = _classification_rows(_results_frame(), _race_gap, 2026)
 
     assert rows[2]["position"] is None
     assert rows[2]["points"] == 0
@@ -293,7 +301,7 @@ def test_an_unclassified_car_has_a_null_position_and_zero_points():
 @pytest.mark.unit
 def test_a_pit_lane_start_is_reported_as_no_grid_slot():
     """FastF1 encodes a pit-lane start as grid 0, which is not position zero."""
-    rows = _classification_rows(_results_frame(), _race_gap)
+    rows = _classification_rows(_results_frame(), _race_gap, 2026)
 
     assert rows[2]["grid"] is None
 
@@ -322,7 +330,7 @@ def test_a_finisher_without_a_time_renders_empty():
 
 @pytest.mark.unit
 def test_qualifying_orders_each_phase_by_lap_time():
-    phases = _qualifying_phases(_results_frame())
+    phases = _qualifying_phases(_results_frame(), 2026)
 
     assert [row["driver"] for row in phases["Q1"]] == ["VER", "LEC", "NOR"]
     assert phases["Q1"][0]["position"] == 1
@@ -333,14 +341,14 @@ def test_a_phase_nobody_set_a_time_in_is_omitted():
     frame = _results_frame()
     frame["Q3"] = pd.NaT
 
-    assert "Q3" not in _qualifying_phases(frame)
+    assert "Q3" not in _qualifying_phases(frame, 2026)
 
 
 @pytest.mark.unit
 def test_a_phase_column_that_is_absent_entirely_is_skipped():
     frame = _results_frame().drop(columns=["Q2", "Q3"])
 
-    assert set(_qualifying_phases(frame)) == {"Q1"}
+    assert set(_qualifying_phases(frame, 2026)) == {"Q1"}
 
 
 @pytest.mark.unit
@@ -349,7 +357,7 @@ def test_qualifying_is_none_when_no_phase_produced_times():
     for phase in ("Q1", "Q2", "Q3"):
         frame[phase] = pd.NaT
 
-    assert _qualifying_phases(frame) is None
+    assert _qualifying_phases(frame, 2026) is None
 
 
 # ---------------------------------------------------------------------------
@@ -626,3 +634,88 @@ def test_a_load_failure_returns_a_client_safe_error(client, monkeypatch):
 @pytest.mark.unit
 def test_race_detail_shares_the_fastf1_timeout_budget():
     assert rd.FASTF1_TIMEOUT == rd.FASTF1_TIMEOUT_SECONDS
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names under FastF1's keys
+# ---------------------------------------------------------------------------
+
+RACE_ROW_KEYS = {"position", "driver", "full_name", "team", "grid", "time", "points", "status"}
+QUALIFYING_ROW_KEYS = {"position", "driver", "full_name", "team", "time"}
+
+
+def _mexico_frame() -> pd.DataFrame:
+    """FastF1's Mexico City rows (real spellings), with no finishing times: FastF1 had none to give."""
+    frame = pd.DataFrame(mexico_fastf1_results())
+    frame["Time"] = pd.NaT
+    return frame
+
+
+@pytest.mark.integration
+def test_race_rows_print_f1dbs_driver_and_team_names(identity_f1db):
+    rows = _classification_rows(_mexico_frame(), _race_gap, 2026)
+
+    assert [(row["full_name"], row["team"]) for row in rows] == [
+        ("Max Verstappen", "Red Bull"),
+        ("Kimi Antonelli", "Mercedes"),
+        ("Liam Lawson", "Racing Bulls"),
+        ("Ryō Hirakawa", "Haas"),
+        ("Carlos Sainz Jr.", "Williams"),
+        ("Nico Hülkenberg", "Audi"),
+        ("Sergio Pérez", "Cadillac"),
+    ]
+
+
+@pytest.mark.integration
+def test_race_rows_keep_fastf1s_codes_and_every_key(identity_f1db):
+    """Hirakawa's car resolves by its number; his missing abbreviation is not filled in."""
+    rows = _classification_rows(_mexico_frame(), _race_gap, 2026)
+
+    assert all(set(row) == RACE_ROW_KEYS for row in rows)
+    assert [row["driver"] for row in rows if isinstance(row["driver"], str)] == [
+        "VER",
+        "ANT",
+        "LAW",
+        "SAI",
+        "HUL",
+        "PER",
+    ]
+    assert pd.isna(rows[3]["driver"])
+
+
+@pytest.mark.integration
+def test_a_qualifying_row_prints_f1dbs_names_under_the_same_keys(identity_f1db):
+    entry = _mexico_frame().assign(Q1=pd.NaT).iloc[1]
+
+    assert _qualifying_row(1, entry, "Q1", 2026) == {
+        "position": 1,
+        "driver": "ANT",
+        "full_name": "Kimi Antonelli",
+        "team": "Mercedes",
+        "time": "-",
+    }
+
+
+@pytest.mark.integration
+def test_a_completed_race_serves_f1db_names_in_every_session(identity_f1db, monkeypatch):
+    _install_fastf1(monkeypatch, sessions={"R": _mexico_frame(), "Q": _results_frame()}, now=AFTER_RACE)
+
+    detail = build_race_detail(2026, 1)
+
+    assert {row["full_name"] for row in detail["race_results"]} >= {"Kimi Antonelli", "Carlos Sainz Jr."}
+    assert detail["podium"][1]["full_name"] == "Kimi Antonelli"
+    assert all(set(row) == QUALIFYING_ROW_KEYS for row in detail["qualifying"]["Q1"])
+
+
+@pytest.mark.integration
+def test_an_unreadable_f1db_prints_fastf1s_own_names_and_logs_why(monkeypatch):
+    def connect() -> None:
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(f1db_source, "connect", connect)
+
+    with structlog.testing.capture_logs() as logs:
+        rows = _classification_rows(_mexico_frame(), _race_gap, 2026)
+
+    assert (rows[1]["full_name"], rows[2]["team"]) == ("Andrea Kimi Antonelli", "RB F1 Team")
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}

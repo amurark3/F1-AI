@@ -21,8 +21,14 @@ from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
+from typing import TYPE_CHECKING
+
+import pytest
 
 from tests.profiles_support import SCHEMA
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 SEASONS = Path(__file__).parent / "fixtures" / "f1db_identity" / "seasons.json"
 
@@ -58,3 +64,60 @@ def build_identity_db(path: Path) -> Path:
         )
         conn.commit()
     return path
+
+
+@pytest.fixture
+def identity_f1db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Point f1db at the captured seasons, with no directory or index cached from elsewhere.
+
+    ``app`` is imported inside: the conftest re-exports this fixture, and importing
+    ``app`` there would run before the environment is scrubbed.
+    """
+    from app.data import f1db_source, identity
+
+    db_path = build_identity_db(tmp_path / "f1db.db")
+    monkeypatch.setattr(f1db_source, "DB_PATH", db_path)
+    identity.clear_cache()
+    yield db_path
+    identity.clear_cache()
+
+
+# FastF1's spellings for the Mexico City weekend (2026 R19), as its results carried
+# them into the R19 post-qualifying prediction snapshot (stored 2026-11-01 01:38 UTC):
+# FirstName + LastName, TeamName and Abbreviation, which FastF1 left blank for
+# Hirakawa (the snapshot stored "NAN"). Keyed by car number, OpenF1's for each car.
+MEXICO_FASTF1_NAMES: dict[int, tuple[str | None, str, str, str]] = {
+    3: ("VER", "Max", "Verstappen", "Red Bull"),
+    11: ("PER", "Sergio", "Pérez", "Cadillac F1 Team"),
+    12: ("ANT", "Andrea Kimi", "Antonelli", "Mercedes"),
+    27: ("HUL", "Nico", "Hülkenberg", "Audi"),
+    30: ("LAW", "Liam", "Lawson", "RB F1 Team"),
+    50: (None, "Ryo", "Hirakawa", "Haas F1 Team"),
+    55: ("SAI", "Carlos", "Sainz", "Williams"),
+}
+
+JOLPICA_MEXICO_RESULTS = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "jolpica_results.json"
+
+
+def mexico_fastf1_results() -> list[dict]:
+    """FastF1 result rows for those cars, in Jolpica's Mexico City race order (the source FastF1 reads).
+
+    A missing abbreviation is NaN, the way pandas hands it over.
+    """
+    results = json.loads(JOLPICA_MEXICO_RESULTS.read_text())["Results"]
+    return [
+        {
+            "Position": float(row["position"]),
+            "DriverNumber": row["number"],
+            "Abbreviation": code if code is not None else float("nan"),
+            "FirstName": first,
+            "LastName": last,
+            "TeamName": team,
+            "GridPosition": float(row["grid"]),
+            "Points": float(row["points"]),
+            "Status": row["status"],
+        }
+        for row in results
+        if int(row["number"]) in MEXICO_FASTF1_NAMES
+        for code, first, last, team in [MEXICO_FASTF1_NAMES[int(row["number"])]]
+    ]

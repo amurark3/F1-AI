@@ -10,7 +10,7 @@ import { defineConfig } from "vitest/config";
  * escape hatch: ESLint rejects coverage-ignore hint comments, so uncovered
  * code is either tested or deleted.
  */
-const COVERAGE_INCLUDE = ["app/lib/standingsFreshness.ts"];
+const COVERAGE_INCLUDE = ["app/lib/standingsFreshness.ts", "app/ui/tokens.ts"];
 
 /** Every metric must reach this in every included file. */
 const FULL_COVERAGE = 100;

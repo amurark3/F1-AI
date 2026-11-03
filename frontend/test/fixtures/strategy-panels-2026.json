@@ -1,0 +1,92 @@
+{
+  "sao_paulo_risk_register": [
+    {
+      "level": "Medium",
+      "title": "Mixed conditions possible",
+      "detail": "Live forecast shows 21% rain probability — keep the dry/wet crossover branch ready."
+    },
+    {
+      "level": "Low",
+      "title": "Rival offset plans",
+      "detail": "Nearest rival (Ferrari) trails by 126 pts — lower direct championship pressure this round."
+    }
+  ],
+  "sao_paulo_without_reference": {
+    "primary_call": {
+      "title": "Base race plan",
+      "summary": "Model a medium-to-hard one-stop around L30; keep a two-stop branch open if tyre age exceeds the working life before the stop.",
+      "confidence": "medium"
+    },
+    "data_source": {
+      "mode": "heuristic",
+      "edition_year": null,
+      "sample_size": null
+    },
+    "pit_model": {
+      "pit_loss_seconds": 21,
+      "undercut_delta": 1.4,
+      "overcut_delta": 0.9,
+      "undercut_modeled": true,
+      "overcut_modeled": true,
+      "traffic_threshold": "medium",
+      "traffic_modeled": true
+    },
+    "stint_windows": {
+      "total_laps": 71,
+      "opening_compound": "Medium",
+      "finishing_compound": "Hard",
+      "offset_lap": 26,
+      "primary_lap": 30,
+      "late_lap": 40,
+      "modeled": true
+    }
+  },
+  "spa_without_compounds": {
+    "primary_call": {
+      "title": "Base race plan",
+      "summary": "Field ran a Unknown-to-Unknown one-stop here in 2026 (median first stop L18, 22-car sample); keep a two-stop branch open if degradation shifts the crossover.",
+      "confidence": "medium"
+    },
+    "data_source": {
+      "mode": "telemetry",
+      "edition_year": 2026,
+      "sample_size": 22
+    },
+    "pit_model": {
+      "pit_loss_seconds": 31.7,
+      "undercut_delta": 1.4,
+      "overcut_delta": 0.9,
+      "undercut_modeled": true,
+      "overcut_modeled": true,
+      "traffic_threshold": "medium",
+      "traffic_modeled": false
+    },
+    "stint_windows": {
+      "total_laps": 44,
+      "opening_compound": "Unknown",
+      "finishing_compound": "Unknown",
+      "offset_lap": 15,
+      "primary_lap": 18,
+      "late_lap": 31,
+      "modeled": false
+    }
+  },
+  "las_vegas_risk_register": [
+    {
+      "level": "High",
+      "title": "Safety car exposure",
+      "detail": "Street circuit profile raises track-position and pit-window volatility."
+    },
+    {
+      "level": "Medium",
+      "title": "Weather feed offline",
+      "detail": "Live forecast unavailable — confirm dry/wet branches manually before lock."
+    },
+    {
+      "level": "Low",
+      "title": "Rival offset plans",
+      "detail": "Nearest rival (Ferrari) trails by 126 pts — lower direct championship pressure this round."
+    }
+  ],
+  "no_race_risk_register": []
+}

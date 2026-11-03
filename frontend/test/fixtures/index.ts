@@ -22,7 +22,10 @@
  * - `overview-circuit-2026.json`: `…/circuit` (Interlagos), as served.
  * - `overview-predictions-2026.json`: `…/predictions`, each pick kept to the
  *   fields `PodiumPanel` reads.
- * - `overview-strategy-2026.json`: `…/strategy`, kept to `pit_model`.
+ * - `overview-strategy-2026.json`: `…/strategy`, re-captured at 08:20 UTC (the
+ *   same `pit_model` as at 07:50), kept to the `strategy_context` fields the
+ *   baseline strategy panel reads: `primary_call`, `data_source`, `pit_model`
+ *   and `stint_windows` (Interlagos 2022 telemetry, high confidence).
  *
  * Other weekends and moments cannot be asked of the endpoints (they serve the
  * selected weekend at the current time), so these were computed by the
@@ -48,10 +51,30 @@
  *   whole `circuit.build_circuit_segment` for Long Beach 1983 (round 2, with
  *   its `season_events(1983)` race: no circuit facts, no lap record, no map).
  *
+ * `strategy-panels-2026.json` holds the strategy panels' other states, at
+ * 08:20 UTC on 3 Nov, each kept to the fields the panels read:
+ *
+ * - `sao_paulo_risk_register`: the `risk_register` of `…/weather`, as served
+ *   in the same capture (its weather card matches `overview-weather-2026.json`).
+ * - `sao_paulo_without_reference`: `strategy_context.build_strategy_context`
+ *   for São Paulo with its stored prediction and no telemetry reference, which
+ *   is what `strategy_reference_for` returns when the edition cannot be loaded
+ *   (a cold FastF1 cache): the heuristic plan, medium confidence.
+ * - `spa_without_compounds`: the same function for the Belgian Grand Prix
+ *   (round 10, no stored prediction), with the reference
+ *   `reference._summarize_circuit_edition` makes from its own 2026 race laps
+ *   (the cached FastF1 session) once the `Compound` column is removed: the
+ *   backend's `UNKNOWN` compound, which `.title()` sends as "Unknown".
+ * - `las_vegas_risk_register`: `risk.build_risk_register` for Las Vegas
+ *   (round 21, a street circuit) with the weather card in
+ *   `session-weather-2026.json` (`las_vegas_pending.weather`, feed offline) and
+ *   the competitor rows from the current constructors' table.
+ * - `no_race_risk_register`: the same function with no race: an empty register.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
-import type { WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
+import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { SeasonDirectory } from "@/app/race-control/profiles/profilesModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
@@ -60,6 +83,7 @@ import type {
   ChampionshipStakes,
   CircuitRecord,
   OverviewCircuit,
+  RiskCard,
   SessionForecast,
   SessionWeather,
 } from "@/app/race-control/weekend/weekendTypes";
@@ -74,6 +98,7 @@ import directory2026 from "./profiles-directory-2026.json";
 import ready from "./ready.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
+import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
@@ -123,4 +148,18 @@ export const CIRCUIT_RECORDS = {
     race: circuitRecords.long_beach_1983.race as HeroRace,
     circuit: circuitRecords.long_beach_1983.circuit as OverviewCircuit,
   },
+};
+
+/** The baseline strategy plan for 2026 weekends: as served, and derived by removal. */
+export const STRATEGY_2026 = {
+  saoPaulo: overviewStrategy2026.strategy_context as StrategyContext,
+  saoPauloWithoutReference: strategyPanels2026.sao_paulo_without_reference as StrategyContext,
+  spaWithoutCompounds: strategyPanels2026.spa_without_compounds as StrategyContext,
+};
+
+/** Risk registers for 2026 weekends. */
+export const RISK_REGISTERS_2026 = {
+  saoPaulo: strategyPanels2026.sao_paulo_risk_register as RiskCard[],
+  lasVegas: strategyPanels2026.las_vegas_risk_register as RiskCard[],
+  noRace: strategyPanels2026.no_race_risk_register as RiskCard[],
 };

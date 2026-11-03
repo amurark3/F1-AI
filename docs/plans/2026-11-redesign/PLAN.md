@@ -206,7 +206,8 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - Remove `constants/timeZone.ts` and the unused charts.
   - `grep` for imports first.
 - **P1.7** Commit `docs/design/redesign/`, `docs/DATA_SOURCES.md`, `docs/plans/` and `frontend/public/hero-car.jpg`, if they aren't already in git.
-- **P1.8 Coverage include list** = `app/ui/**`, `app/race-control/weekend/**`, `app/race-control/components/**`, at 100%.
+- **P1.8 Coverage include list** = `app/ui/**`, `app/race-control/weekend/**` and the `app/race-control/components/` files the redesign keeps (`CommandCenterPanels`, `Disclosure`, `RaceControlPrimitives`, `RefreshButton`, `Tabs`), listed one by one, at 100%.
+  - No coverage for code a later phase rewrites or removes; the task that builds the replacement covers it: `RaceControlShell` (removed in P3.1), `LiveTimingPanel` (replaced by `LiveTimingTower` in P7.3), `Charts` (`ModelAttributionBars` rebuilt on the UI kit in P4.3, the championship charts in P5).
 - **P1.9** Update the `CLAUDE.md` design section to the new tokens and rules: Barlow display font, text tones, red usage, the gain token, and legends allowed.
 - **P1.10 Node 22** (added at the user's request, 2026-11-02; Node 20 is end of life).
   - Move every CI job from Node 20 to 22: the four `setup-node` steps in `.github/workflows/pr-auto-review.yml` and the one in `dependency-audit.yml`.

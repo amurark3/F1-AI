@@ -130,8 +130,11 @@ export interface ChampionshipStakes extends StandingsFreshness {
   constructors: TableStakes | null;
 }
 
+/** The only grades `risk.build_risk_register` gives a card. */
+export type RiskLevel = "High" | "Medium" | "Low";
+
 export interface RiskCard {
-  level: string;
+  level: RiskLevel;
   title: string;
   detail: string;
 }

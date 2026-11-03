@@ -13,6 +13,7 @@ import { defineConfig } from "vitest/config";
 const COVERAGE_INCLUDE = [
   "app/lib/standingsFreshness.ts",
   "app/ui/**",
+  "app/race-control/components/CommandCenterPanels.tsx",
   "app/race-control/components/Disclosure.tsx",
   "app/race-control/components/RaceControlPrimitives.tsx",
   "app/race-control/components/RefreshButton.tsx",

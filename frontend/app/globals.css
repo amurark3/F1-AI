@@ -28,6 +28,8 @@
   --rc-hero: #0b0f18; /* hero band, and the tile of the B1 logo mark */
   --rc-raised: #121826; /* raised surfaces: chart tooltips, popovers */
   --rc-line: #1e2633; /* hairlines and borders on panels and tooltips */
+  --rc-line-soft: #161d28; /* row dividers in ranked lists and tables */
+  --rc-dim: #3a4254; /* marks with no colour of their own: context series, not the story */
   /* Text tones, each at least 4.5:1 on --surface. */
   --rc-ink: #f0f2f6;
   --rc-ink-2: #aeb6c6;
@@ -58,6 +60,8 @@
   --color-rc-hero: var(--rc-hero);
   --color-rc-raised: var(--rc-raised);
   --color-rc-line: var(--rc-line);
+  --color-rc-line-soft: var(--rc-line-soft);
+  --color-rc-dim: var(--rc-dim);
   --color-rc-ink: var(--rc-ink);
   --color-rc-ink-2: var(--rc-ink-2);
   --color-rc-ink-3: var(--rc-ink-3);

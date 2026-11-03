@@ -21,6 +21,14 @@ export const rc = {
   raised: "#121826",
   /** Hairlines and borders on panels and tooltips. */
   line: "#1e2633",
+  /** Row dividers in ranked lists and tables: softer than `line`. */
+  lineSoft: "#161d28",
+  /**
+   * Marks with no colour of their own: the context series in a chart that are
+   * not the story (the quiet lines of a slope chart, the field around one
+   * highlighted bar).
+   */
+  dim: "#3a4254",
   /** Primary text. */
   ink: "#f0f2f6",
   /** Secondary text. */

@@ -4,8 +4,10 @@ import { Timer, X } from "lucide-react";
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
+import { Panel } from "../components/RaceControlPrimitives";
+
 import { finalStintLabel, resultCode, stintEndingLabel, stopTimeLabel } from "./strategyModel";
 import {
   UNKNOWN_COMPOUND_COLOR,
@@ -285,10 +287,10 @@ export function StintChart({ data }: { data?: RaceStrategyResponse }) {
   const raceLaps = useMemo(() => Math.max(1, ...drivers.map((driver) => driver.total_laps)), [drivers]);
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Tyre stints"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Tyre stints"
+        aside={
           <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             <Timer className="h-3.5 w-3.5 text-[#F5C542]" />
             {drivers.length
@@ -296,6 +298,7 @@ export function StintChart({ data }: { data?: RaceStrategyResponse }) {
               : "no data"}
           </span>
         }
+        inset
       />
 
       {drivers.length === 0 ? (
@@ -314,6 +317,6 @@ export function StintChart({ data }: { data?: RaceStrategyResponse }) {
           <ChartNotes warnings={data?.warnings} fastest={data?.fastest_stop} />
         </>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

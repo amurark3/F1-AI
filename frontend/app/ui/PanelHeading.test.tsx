@@ -39,5 +39,22 @@ describe("PanelHeading", () => {
 
     expect(container.firstElementChild?.children).toHaveLength(1);
     expect(container.querySelectorAll("p")).toHaveLength(0);
+    expect(container.firstElementChild).toHaveClass("mb-5");
+  });
+
+  it("names the panel by its eyebrow alone until a finding is computed", () => {
+    render(<PanelHeading eyebrow="Grid penalties" aside={<span>3 applied</span>} />);
+
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.getByText("Grid penalties")).toHaveClass("font-mono", "uppercase", "text-rc-ink-3");
+    expect(screen.getByText("3 applied").parentElement).toHaveClass("shrink-0");
+  });
+
+  it("pads itself inside a panel whose body runs to the edges", () => {
+    const { container } = render(<PanelHeading eyebrow="Element ledger" inset className="extra" />);
+
+    const head = container.firstElementChild;
+    expect(head).toHaveClass("px-4", "pt-4", "pb-3", "extra");
+    expect(head).not.toHaveClass("mb-5");
   });
 });

@@ -1,6 +1,5 @@
 "use client";
 
-import { Activity, Shield, Trophy, Users } from "lucide-react";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
@@ -131,30 +130,14 @@ function TeamsMetrics({
         sub={
           driverLeader ? `${driverLeader.team} · ${formatPoints(driverLeader.points)} pts` : "Driver table unavailable"
         }
-        icon={Trophy}
-        color="#00FF78"
       />
       <MetricCard
         label="Constructor Leader"
         value={constructorLeader?.name ?? "No standings"}
         sub={constructorLeader ? `${formatPoints(constructorLeader.points)} pts` : "Constructor table unavailable"}
-        icon={Shield}
-        color="#E10600"
       />
-      <MetricCard
-        label="Drivers"
-        value={String(driverCount || "No data")}
-        sub="Current WDC entries"
-        icon={Users}
-        color="#3671C6"
-      />
-      <MetricCard
-        label="Teams"
-        value={String(teamCount || "No data")}
-        sub="Current constructor entries"
-        icon={Activity}
-        color="#FF8000"
-      />
+      <MetricCard label="Drivers" value={String(driverCount || "No data")} sub="Current WDC entries" />
+      <MetricCard label="Teams" value={String(teamCount || "No data")} sub="Current constructor entries" />
     </MetricRow>
   );
 }

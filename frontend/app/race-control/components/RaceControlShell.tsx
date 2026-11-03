@@ -206,7 +206,7 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate?: (
                     active
                       ? "border-[#E10600]/35 bg-[#E10600]/12 text-white"
                       : "border-transparent text-neutral-400 hover:bg-white/[0.03] hover:text-neutral-200"
-                  } focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40`}
+                  }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" style={{ color: active ? "#FF4655" : undefined }} />
                   <span className="font-semibold">{label}</span>
@@ -228,7 +228,7 @@ function DesktopSidebar({ pathname, race }: { pathname: string; race: RaceInfo |
       <Link
         href="/"
         aria-label="F1 AI home"
-        className="h-[60px] shrink-0 px-4 flex items-center gap-3 border-b border-[#1E2633] transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+        className="h-[60px] shrink-0 px-4 flex items-center gap-3 border-b border-[#1E2633] transition-colors hover:bg-white/[0.03] focus-visible:-outline-offset-2"
       >
         <div className="h-8 w-8 rounded-md border border-[#E10600]/35 bg-[#E10600]/15 flex items-center justify-center">
           <Gauge className="h-4 w-4 text-[#FF4655]" />
@@ -280,12 +280,7 @@ function MobileSidebar({
       aria-label="Race Control navigation"
     >
       <div className="h-[60px] shrink-0 border-b border-[#1E2633] px-4 flex items-center justify-between gap-3">
-        <Link
-          href="/"
-          onClick={onClose}
-          aria-label="F1 AI home"
-          className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
-        >
+        <Link href="/" onClick={onClose} aria-label="F1 AI home" className="flex min-w-0 items-center gap-3 rounded-md">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#E10600]/35 bg-[#E10600]/15">
             <Gauge className="h-4 w-4 text-[#FF4655]" />
           </div>
@@ -371,7 +366,7 @@ function ShellHeader({ currentSection, nextSession, isLive, onOpenNav }: ShellHe
             <Link
               href="/race-control"
               aria-label="Live session — open the timing tower on the Command Center"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded border border-[#E10600]/30 bg-[#E10600]/8 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#E10600] hover:bg-[#E10600]/15 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded border border-[#E10600]/30 bg-[#E10600]/8 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#E10600] hover:bg-[#E10600]/15 transition-colors"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#E10600] animate-pulse" />
               Live
@@ -388,7 +383,7 @@ function ShellHeader({ currentSection, nextSession, isLive, onOpenNav }: ShellHe
           {currentSection?.href !== ENGINEER_HREF && (
             <Link
               href={ENGINEER_HREF}
-              className="rounded-md border border-[#1E2633] px-3 py-1.5 text-[13px] font-bold text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+              className="rounded-md border border-[#1E2633] px-3 py-1.5 text-[13px] font-bold text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-colors"
             >
               <Radio className="inline h-3.5 w-3.5 mr-1.5" />
               Engineer

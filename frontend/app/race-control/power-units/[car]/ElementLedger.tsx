@@ -3,7 +3,9 @@
 import { ArrowDown } from "lucide-react";
 import { useState } from "react";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+
+import { Panel } from "../../components/RaceControlPrimitives";
 import {
   OVER_COLOR,
   PENDING_COLOR,
@@ -59,7 +61,7 @@ function UnitTile({
       onClick={activate}
       aria-pressed={active}
       aria-label={`${part.code} unit ${part.number}: ${partWhere(part, rounds)}`}
-      className={`relative flex h-12 w-14 flex-col items-center justify-center rounded border font-mono transition-transform hover:-translate-y-0.5 focus-visible:outline-none ${
+      className={`relative flex h-12 w-14 flex-col items-center justify-center rounded border font-mono transition-transform hover:-translate-y-0.5 ${
         part.round === null ? "border-dashed" : ""
       } ${active ? "ring-2 ring-white/70" : ""}`}
       style={tileStyle(part, teamColor)}
@@ -244,10 +246,10 @@ export function ElementLedger({
   const activePart = activeUsage?.parts.find((part) => part.number === active?.number);
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Element ledger"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Element ledger"
+        aside={
           <span className="hidden items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[#7F8797] sm:inline-flex">
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: teamColor }} /> within
@@ -261,6 +263,7 @@ export function ElementLedger({
             </span>
           </span>
         }
+        inset
       />
       <div className="divide-y divide-[#1E2633]">
         {car.elements.map((usage) => (
@@ -278,6 +281,6 @@ export function ElementLedger({
       {activePart && activeUsage && (
         <Inspector part={activePart} usage={activeUsage} events={car.events} rounds={rounds} />
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

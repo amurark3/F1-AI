@@ -10,8 +10,9 @@
 import Link from "next/link";
 
 import { driverHref, grandPrixHref } from "@/app/lib/entityLinks";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { Panel } from "../../components/RaceControlPrimitives";
 import { formatPoints, ordinalPosition, type TeamDriver, type TeamProfile } from "../../profiles/profilesModel";
 
 function DriverCard({ driver, color }: { driver: TeamDriver; color: string }) {
@@ -56,8 +57,12 @@ export function TeamLineUp({ profile }: { profile: TeamProfile }) {
   const current = profile.drivers.filter((driver) => driver.current);
   const others = profile.drivers.filter((driver) => !driver.current);
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader label="Drivers" right={<span className="text-xs text-[#6F7789]">Started the latest race</span>} />
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow="Drivers"
+        aside={<span className="text-xs text-[#6F7789]">Started the latest race</span>}
+        inset
+      />
       <div className="p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           {current.map((driver) => (
@@ -66,17 +71,18 @@ export function TeamLineUp({ profile }: { profile: TeamProfile }) {
         </div>
         <AlsoRaced drivers={others} />
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
 export function TeamWins({ profile }: { profile: TeamProfile }) {
   const names = new Map(profile.drivers.map((driver) => [driver.id, driver.name]));
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader
-        label={`Race wins · ${profile.year}`}
-        right={<span className="text-xs text-[#6F7789]">{profile.wins.length}</span>}
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow={`Race wins · ${profile.year}`}
+        aside={<span className="text-xs text-[#6F7789]">{profile.wins.length}</span>}
+        inset
       />
       {profile.wins.length === 0 ? (
         <p className="p-4 text-sm text-[#8E96A8]">No grand prix wins in {profile.year} yet.</p>
@@ -101,6 +107,6 @@ export function TeamWins({ profile }: { profile: TeamProfile }) {
           ))}
         </ul>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

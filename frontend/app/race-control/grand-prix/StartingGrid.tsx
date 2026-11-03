@@ -4,11 +4,12 @@ import { AlertTriangle, Flag } from "lucide-react";
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
+import { Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
 import { buildGridLayout, gridSourceLabel, penaltyChipLabel, type GridRow } from "./gridHelpers";
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { shortName } from "./predictionHelpers";
 
 import type { GridSlot, StartingGridResponse } from "./gridModel";
@@ -151,14 +152,15 @@ export function StartingGrid({ data, raceName }: StartingGridProps) {
   const provisionalWarning = data?.provisional ? data.warnings?.[0] : undefined;
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={`Starting grid - ${raceName}`}
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow={`Starting grid - ${raceName}`}
+        aside={
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             {gridSourceLabel(data?.source ?? "unavailable")}
           </span>
         }
+        inset
       />
 
       {provisionalWarning && <ProvisionalNotice message={provisionalWarning} />}
@@ -180,6 +182,6 @@ export function StartingGrid({ data, raceName }: StartingGridProps) {
           </div>
         </div>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

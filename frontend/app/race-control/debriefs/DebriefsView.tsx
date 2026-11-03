@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ClipboardList, Flag, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ClipboardList } from "lucide-react";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -159,7 +159,7 @@ function DebriefSelector({
             value={effectiveRound ?? ""}
             onChange={(event) => onSelectRound(Number(event.target.value))}
             disabled={scheduleLoading || races.length === 0}
-            className="h-12 w-full rounded-lg border border-white/12 bg-[#151817] px-3 text-base font-semibold text-white outline-none focus:border-[#00FF78]/70 disabled:text-neutral-500"
+            className="h-12 w-full rounded-lg border border-white/12 bg-[#151817] px-3 text-base font-semibold text-white disabled:text-neutral-500"
           >
             <option value="">{scheduleLoading ? "Loading race calendar..." : "Select a completed race"}</option>
             {races.map((race) => (
@@ -447,20 +447,9 @@ function DebriefMetrics({ data, selectedRace }: { data?: Debrief; selectedRace: 
 
   return (
     <MetricRow>
-      <MetricCard label="Race" value={raceName} sub={raceLocation} icon={Flag} color="#E10600" />
-      <MetricCard
-        label="Top constructor"
-        value={constructorLeader?.team ?? "No points"}
-        sub={leaderSub}
-        icon={Trophy}
-      />
-      <MetricCard
-        label="Review flags"
-        value={String(countReviewFlags(data))}
-        sub="Movers plus non-standard statuses"
-        icon={Users}
-        color="#FF8000"
-      />
+      <MetricCard label="Race" value={raceName} sub={raceLocation} />
+      <MetricCard label="Top constructor" value={constructorLeader?.team ?? "No points"} sub={leaderSub} />
+      <MetricCard label="Review flags" value={String(countReviewFlags(data))} sub="Movers plus non-standard statuses" />
     </MetricRow>
   );
 }
@@ -493,11 +482,11 @@ function DebriefSkeleton() {
         title="Building race debrief"
         detail="Refreshing the selected Grand Prix classification, podium, movers, and takeaways."
       />
-      <MetricRow>
+      <div className="grid gap-3 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <SkeletonPanel key={index} className="h-32" />
         ))}
-      </MetricRow>
+      </div>
       <WorkspaceSplit className="xl:[&>*:first-child]:basis-[52%] xl:[&>*:last-child]:flex-1">
         <SkeletonPanel className="h-80" />
         <div className="space-y-5">

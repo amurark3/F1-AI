@@ -92,7 +92,7 @@ export function PodiumPanel({ podium }: { podium: PodiumPick[] }) {
 
       <Link
         href="/race-control/grand-prix"
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black"
       >
         Full predicted order
         <ArrowRight className="h-4 w-4" aria-hidden="true" />

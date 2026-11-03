@@ -20,7 +20,8 @@ type RefreshPhase = "idle" | "refreshing" | "done" | "failed";
 const PHASE_STYLES: Record<RefreshPhase, string> = {
   idle: "border-white/10 bg-white/[0.04] text-neutral-200 hover:bg-white/[0.08] hover:text-white",
   refreshing: "border-white/10 bg-white/[0.04] text-neutral-400",
-  done: "border-[#00FF78]/35 bg-[#00FF78]/10 text-[#00FF78]",
+  // Success is said by the tick and "Updated", in neutral ink: green would read as DRS.
+  done: "border-rc-ink/35 bg-rc-ink/10 text-rc-ink",
   failed: "border-[#E10600]/35 bg-[#E10600]/10 text-[#FF6B67]",
 };
 
@@ -40,7 +41,8 @@ function PhaseIcon({ phase }: { phase: RefreshPhase }) {
   if (phase === "failed") {
     return <AlertTriangle className="h-4 w-4" />;
   }
-  const spin = phase === "refreshing" ? " animate-spin motion-reduce:animate-none" : "";
+  // The spinning icon is the loader, so it takes the fill red.
+  const spin = phase === "refreshing" ? " text-f1-red animate-spin motion-reduce:animate-none" : "";
   return <RefreshCw className={`h-4 w-4${spin}`} />;
 }
 
@@ -77,11 +79,8 @@ export function RefreshButton({
       return;
     }
     setPhase(outcome);
-    resetTimer.current = setTimeout(() => {
-      if (isMounted.current) {
-        setPhase("idle");
-      }
-    }, RESULT_HOLD_MS);
+    // Unmounting clears this timer, so it never fires on an unmounted button.
+    resetTimer.current = setTimeout(() => setPhase("idle"), RESULT_HOLD_MS);
   }, []);
 
   const handleRefresh = useCallback(async () => {

@@ -83,3 +83,15 @@ describe("the globals.css parser", () => {
     expect(() => declarations("@theme static")).toThrow('globals.css has no "@theme static" block');
   });
 });
+
+describe("focus ring", () => {
+  it("is one red-text outline in the base layer, for every keyboard-reachable control", () => {
+    const css = GLOBALS_CSS.replaceAll(/\/\*[\s\S]*?\*\//g, "");
+    const base = css.slice(css.indexOf("@layer base {"));
+    const rule = /:where\(([^)]*)\):focus-visible\s*\{([^}]*)\}/.exec(base);
+
+    expect(rule?.[1].split(",").map((part) => part.trim())).toEqual(["a", "button", "summary", "select", "[tabindex]"]);
+    expect(rule?.[2]).toMatch(/outline:\s*2px solid var\(--rc-red-text\);/);
+    expect(rule?.[2]).toMatch(/outline-offset:\s*2px;/);
+  });
+});

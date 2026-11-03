@@ -46,7 +46,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
           <Link
             href="/race-control"
-            className="inline-flex items-center gap-2 rounded-md border border-[#1E2633] px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            className="inline-flex items-center gap-2 rounded-md border border-[#1E2633] px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
             style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
           >
             Race Control

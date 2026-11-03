@@ -1,6 +1,5 @@
 "use client";
 
-import { Flag, Medal, Timer, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { teamHref } from "@/app/lib/entityLinks";
@@ -24,7 +23,7 @@ function TeamSwitcher({ teams, current }: { teams: DirectoryTeam[]; current: str
       <select
         value={current}
         onChange={(event) => router.push(teamHref(event.target.value))}
-        className="w-full rounded-lg border border-white/10 bg-[#101520] px-3 py-2 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/50"
+        className="w-full rounded-lg border border-white/10 bg-[#101520] px-3 py-2 text-sm text-white"
       >
         {teams.map((team) => (
           <option key={team.id} value={team.id}>
@@ -57,18 +56,10 @@ export function TeamHeader({ profile, teams }: { profile: TeamProfile; teams: Di
           label="Championship"
           value={ordinalPosition(team.position)}
           sub={championshipPoints(team.points, profile)}
-          icon={Trophy}
-          color={team.color}
         />
-        <MetricCard label="Wins" value={String(team.wins)} sub="Grand prix wins" icon={Flag} color="#FFD15C" />
-        <MetricCard
-          label="Podiums"
-          value={String(team.podiums)}
-          sub="Top-three finishes"
-          icon={Medal}
-          color="#E8E8E8"
-        />
-        <MetricCard label="Poles" value={String(team.poles)} sub="Grand prix poles" icon={Timer} color="#3671C6" />
+        <MetricCard label="Wins" value={String(team.wins)} sub="Grand prix wins" />
+        <MetricCard label="Podiums" value={String(team.podiums)} sub="Top-three finishes" />
+        <MetricCard label="Poles" value={String(team.poles)} sub="Grand prix poles" />
       </MetricRow>
     </>
   );

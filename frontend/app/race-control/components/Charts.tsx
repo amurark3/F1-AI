@@ -13,6 +13,8 @@ import {
   Legend,
 } from "recharts";
 
+import { rc } from "@/app/ui/tokens";
+
 import { rcFont } from "./RaceControlPrimitives";
 
 const CHART_COLORS = {
@@ -267,7 +269,7 @@ export function SeasonProjectionChart({ data, height = 300 }: { data: Projection
 // ---------------------------------------------------------------------------
 // Model attribution — exact per-feature contributions to one driver's
 // predicted finish (from the linear model). Negative = improves the projection
-// (green); positive = worsens it (red). This is generative UI over the
+// (gain green: places gained); positive = worsens it (red). This is generative UI over the
 // structured `model_attribution` the prediction API returns.
 // ---------------------------------------------------------------------------
 export interface AttributionEntry {
@@ -275,8 +277,9 @@ export interface AttributionEntry {
   contribution: number;
 }
 
-const ATTRIBUTION_HELP = "#00FF78";
-const ATTRIBUTION_HURT = "#FF4655";
+/** Places gained in the projection: the gain token, never DRS green. */
+const ATTRIBUTION_HELP = rc.gain;
+const ATTRIBUTION_HURT = rc.redText;
 
 function AttributionTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: AttributionEntry }> }) {
   if (!active || !payload?.length) return null;

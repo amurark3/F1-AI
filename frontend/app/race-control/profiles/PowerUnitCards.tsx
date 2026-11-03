@@ -11,7 +11,9 @@
 import { Cpu, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
-import { ConsoleHeader, ConsolePanel } from "../grand-prix/predictionConsole";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+
+import { Panel } from "../components/RaceControlPrimitives";
 import { ElementPips, UsageCount } from "../power-units/ElementPips";
 import {
   carHref,
@@ -127,14 +129,15 @@ function FocusDetail({ car, focus }: { car: PowerUnitCar; focus: DriverFocus }) 
 
 export function PowerUnitCarCard({ car, color, elements, focus }: CarCardProps) {
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={`Car #${car.car_number}`}
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow={`Car #${car.car_number}`}
+        aside={
           <Link href={carHref(car)} className="text-xs font-bold text-[#9EC5FF] hover:text-white">
             Full ledger →
           </Link>
         }
+        inset
       />
       <div className="p-4">
         <p className="text-sm text-[#B7BDCA]">{driversLine(car, focus)}</p>
@@ -142,7 +145,7 @@ export function PowerUnitCarCard({ car, color, elements, focus }: CarCardProps) 
         <ElementRows car={car} color={color} elements={elements} />
         {focus && <FocusDetail car={car} focus={focus} />}
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 

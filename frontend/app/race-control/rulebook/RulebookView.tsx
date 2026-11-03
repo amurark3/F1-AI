@@ -140,7 +140,7 @@ function RulebookSearchForm({
         <select
           value={category}
           onChange={(e) => onCategoryChange(e.target.value)}
-          className="h-12 w-full rounded-lg bg-[#151817] border border-white/12 px-3 text-base text-white outline-none focus:border-[#00FF78]/70"
+          className="h-12 w-full rounded-lg bg-[#151817] border border-white/12 px-3 text-base text-white outline-none focus:border-rc-red-text/70"
         >
           {["Sporting", "Technical", "Financial", "All"].map((item) => (
             <option key={item}>{item}</option>
@@ -153,7 +153,7 @@ function RulebookSearchForm({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           rows={5}
-          className="w-full rounded-lg bg-[#151817] border border-white/12 px-3 py-3 text-base text-white outline-none resize-none focus:border-[#00FF78]/70"
+          className="w-full rounded-lg bg-[#151817] border border-white/12 px-3 py-3 text-base text-white outline-none resize-none focus:border-rc-red-text/70"
         />
       </label>
       <button

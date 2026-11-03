@@ -106,6 +106,17 @@ body {
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
 
+/* The one keyboard focus ring (system.css `button:focus-visible`): red text,
+   2 px clear of the element. In the base layer, so a utility still wins; a
+   control flush against a clipping edge draws it inside with
+   `focus-visible:-outline-offset-2`. Text fields keep their border cue. */
+@layer base {
+  :where(a, button, summary, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--rc-red-text);
+    outline-offset: 2px;
+  }
+}
+
 /* ================================================
    Keyframes
    ================================================ */

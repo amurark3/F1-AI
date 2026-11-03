@@ -20,7 +20,7 @@ export function ProfileNotFound({ what, backHref, backLabel }: { what: string; b
       <p className="text-neutral-300">No {what} by that name raced this season.</p>
       <Link
         href={backHref}
-        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/60"
+        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-[#00FF78]/35 bg-[#00FF78]/10 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {backLabel}

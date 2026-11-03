@@ -132,7 +132,7 @@ function WorkspaceCard({ href, label, description, icon: Icon, accent }: Workspa
   return (
     <Link
       href={href}
-      className="group flex min-w-0 flex-col rounded-md border border-[#1E2633] bg-[#0D111B] p-5 transition-colors hover:border-white/20 hover:bg-[#101520] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+      className="group flex min-w-0 flex-col rounded-md border border-[#1E2633] bg-[#0D111B] p-5 transition-colors hover:border-white/20 hover:bg-[#101520]"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <div
@@ -176,14 +176,14 @@ export default function HomePage() {
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <Link
             href="/race-control"
-            className="inline-flex items-center gap-2 rounded-md border border-[#E10600]/40 bg-[#E10600]/12 px-4 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#E10600]/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            className="inline-flex items-center gap-2 rounded-md border border-[#E10600]/40 bg-[#E10600]/12 px-4 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#E10600]/20"
           >
             Enter Race Control
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             href="/race-control/engineer"
-            className="inline-flex items-center gap-2 rounded-md border border-[#1E2633] px-4 py-2.5 text-[13px] font-bold text-neutral-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40"
+            className="inline-flex items-center gap-2 rounded-md border border-[#1E2633] px-4 py-2.5 text-[13px] font-bold text-neutral-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
           >
             <Bot className="h-4 w-4" />
             Ask the AI Engineer

@@ -7,7 +7,10 @@
  * HTML — these are imported by almost every page, so a stray `"use client"`
  * here would pull all of them into the browser bundle for no benefit.
  */
-import type { LucideIcon } from "lucide-react";
+import { StatTile, StatTiles } from "@/app/ui/StatTile";
+import { rc } from "@/app/ui/tokens";
+
+import type { ReactNode } from "react";
 
 export const rcFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };
 const rcMono = { fontFamily: "var(--font-geist-mono, var(--font-geist-sans, monospace))" };
@@ -38,67 +41,65 @@ export function Panel({
   children,
   className = "",
   accent,
+  as: Tag = "div",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   accent?: string;
+  /** `section` when the panel is a region of the page with its own heading. */
+  as?: "div" | "section";
 }) {
   return (
-    <div className={`w-full min-w-0 overflow-hidden rounded-md border border-[#1E2633] bg-[#0D111B] ${className}`}>
+    <Tag className={`w-full min-w-0 overflow-hidden rounded-md border border-rc-line bg-(--surface) ${className}`}>
       {accent && <div data-panel-accent className="h-[2px]" style={{ background: accent }} />}
       {children}
-    </div>
+    </Tag>
   );
 }
 
-export function PageStack({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function PageStack({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`flex w-full min-w-0 flex-col gap-5 ${className}`}>{children}</div>;
 }
 
-export function MetricRow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`mb-5 grid w-full min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4 ${className}`}>{children}</div>;
+/** A row of {@link MetricCard}s: the kit's `StatTiles`, between two hairlines. */
+export function MetricRow({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <StatTiles className={`mb-5 ${className}`}>{children}</StatTiles>;
 }
 
-export function WorkspaceSplit({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function WorkspaceSplit({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`${className} flex w-full min-w-0 flex-col gap-5 [&>*]:min-w-0 [&>*]:basis-auto`}>{children}</div>
   );
 }
 
-export function WrapRow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function WrapRow({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`flex w-full min-w-0 flex-wrap gap-3 ${className}`}>{children}</div>;
 }
 
+/**
+ * One headline figure, drawn by the kit's `StatTile`: an eyebrow label, the
+ * figure in display type and a caption. Neutral ink only; a figure's colour
+ * would have to carry a meaning, and an icon adds none.
+ */
 export function MetricCard({
   label,
   value,
   sub,
-  icon: Icon,
-  color = "#00FF78",
   className = "",
 }: {
   label: string;
   value: string;
   sub?: string;
-  icon: LucideIcon;
-  color?: string;
   className?: string;
 }) {
-  return (
-    <Panel className={`flex min-h-[96px] min-w-0 flex-col justify-between p-4 ${className}`}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#7F8797]" style={rcMono}>
-          {label}
-        </p>
-        <Icon className="h-4 w-4 shrink-0" style={{ color }} />
-      </div>
-      <p className="break-words font-mono text-2xl font-black leading-tight text-white">{value}</p>
-      {sub && <p className="mt-1 line-clamp-2 text-xs leading-snug text-[#6F7789]">{sub}</p>}
-    </Panel>
-  );
+  return <StatTile label={label} value={value} sub={sub} className={className} />;
 }
 
-export function StatusPill({ children, color = "#00FF78" }: { children: React.ReactNode; color?: string }) {
+/**
+ * A small status label. `color` must be a six-digit hex that carries the
+ * status's meaning; without one the pill is neutral, never DRS green.
+ */
+export function StatusPill({ children, color = rc.ink2 }: { children: ReactNode; color?: string }) {
   return (
     <span
       className="inline-flex items-center rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em]"
@@ -111,7 +112,19 @@ export function StatusPill({ children, color = "#00FF78" }: { children: React.Re
 
 export function SkeletonPanel({ className = "h-32" }: { className?: string }) {
   return (
-    <div className={`w-full min-w-0 animate-pulse rounded-md border border-[#1E2633] bg-[#101520] ${className}`} />
+    <div
+      className={`w-full min-w-0 rounded-md border border-rc-line bg-(--surface-raised) motion-safe:animate-pulse ${className}`}
+    />
+  );
+}
+
+/** The loading ring: a fill-red arc on a faint red track. Still under reduced motion. */
+function Spinner({ className }: { className: string }) {
+  return (
+    <div
+      data-spinner
+      className={`rounded-full border-2 border-f1-red/30 border-t-f1-red motion-safe:animate-spin ${className}`}
+    />
   );
 }
 
@@ -127,14 +140,14 @@ export function PageLoader({
       <Panel className="p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="mb-3 h-3 w-44 rounded-full bg-[#00FF78]/30 animate-pulse" />
+            <div className="mb-3 h-3 w-44 rounded-full bg-f1-red/30 motion-safe:animate-pulse" />
             <p className="text-2xl font-semibold text-white" style={rcFont}>
               {title}
             </p>
             <p className="mt-2 max-w-2xl text-base leading-relaxed text-neutral-400">{detail}</p>
           </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#00FF78]/25 bg-[#00FF78]/10">
-            <div className="h-5 w-5 rounded-full border-2 border-[#00FF78]/30 border-t-[#00FF78] animate-spin" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-f1-red/25 bg-f1-red/10">
+            <Spinner className="h-5 w-5" />
           </div>
         </div>
       </Panel>
@@ -166,8 +179,8 @@ export function SectionLoader({
     <div className={`w-full min-w-0 space-y-5 ${className}`} role="status" aria-live="polite">
       <Panel className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00FF78]/25 bg-[#00FF78]/10">
-            <div className="h-4 w-4 rounded-full border-2 border-[#00FF78]/30 border-t-[#00FF78] animate-spin" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-f1-red/25 bg-f1-red/10">
+            <Spinner className="h-4 w-4" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white" style={rcFont}>
@@ -191,7 +204,7 @@ export function InlineNotice({
   tone = "info",
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   tone?: "info" | "warning" | "error";
 }) {
   const styles = {
@@ -204,6 +217,16 @@ export function InlineNotice({
     <div className={`rounded-md border px-4 py-3 ${styles}`}>
       <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{title}</p>
       <div className="mt-1 text-sm leading-relaxed text-neutral-200">{children}</div>
+    </div>
+  );
+}
+
+/** One label and value in a `<dl>`, label left and value right. */
+export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <dt className="text-[#6F7789]">{label}</dt>
+      <dd className="truncate text-right font-bold text-white">{value}</dd>
     </div>
   );
 }

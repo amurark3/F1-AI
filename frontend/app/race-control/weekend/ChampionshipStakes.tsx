@@ -38,7 +38,7 @@ function TableToggle({ table, onChange }: { table: Table; onChange: (table: Tabl
           type="button"
           aria-pressed={table === option.value}
           onClick={() => onChange(option.value)}
-          className={`rounded px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/50 ${
+          className={`rounded px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
             table === option.value ? "bg-white/10 text-white" : "text-[#7F8797] hover:text-white"
           }`}
         >

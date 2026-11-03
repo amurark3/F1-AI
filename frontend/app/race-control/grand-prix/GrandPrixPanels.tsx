@@ -5,11 +5,12 @@ import { useMemo } from "react";
 
 import { LocalTime } from "@/app/components/LocalTime";
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
+import { InfoRow, Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
-import { ConsoleHeader, ConsolePanel, InfoRow } from "./predictionConsole";
 import {
   buildRiskLookup,
   circuitLengthLabel,
@@ -40,14 +41,15 @@ export function FullGridTable({
   const riskLookup = useMemo(() => buildRiskLookup(riskPredictions), [riskPredictions]);
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Race finish - full grid"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Race finish - full grid"
+        aside={
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             P1-P22 / pts / win / podium / vs grid
           </span>
         }
+        inset
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] border-collapse text-left">
@@ -114,7 +116,7 @@ export function FullGridTable({
           </tbody>
         </table>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -129,14 +131,15 @@ export function PodiumPanel({
 }) {
   return (
     <div className="space-y-4">
-      <ConsolePanel>
-        <ConsoleHeader
-          label="Predicted podium"
-          right={
+      <Panel as="section">
+        <PanelHeading
+          eyebrow="Predicted podium"
+          aside={
             <span className="font-mono text-[10px] text-[#7F8797]">
               {data?.model_summary?.average_top3_confidence ?? "-"}% confidence
             </span>
           }
+          inset
         />
         <div className="space-y-3 p-4">
           {podium.length ? (
@@ -164,7 +167,7 @@ export function PodiumPanel({
             <p className="p-4 text-sm text-[#7F8797]">Run the model to create a podium snapshot.</p>
           )}
         </div>
-      </ConsolePanel>
+      </Panel>
 
       <ModelWhyPanel prediction={podium[0]} driverLookup={driverLookup} />
     </div>
@@ -182,19 +185,20 @@ function ModelWhyPanel({ prediction, driverLookup }: { prediction?: DriverPredic
     .map((a) => ({ label: a.label, contribution: a.contribution }));
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={`Why the model picks ${driverDisplayName(prediction, driverLookup)}`}
-        right={<span className="font-mono text-[10px] text-[#7F8797]">exact linear attribution</span>}
+    <Panel as="section">
+      <PanelHeading
+        eyebrow={`Why the model picks ${driverDisplayName(prediction, driverLookup)}`}
+        aside={<span className="font-mono text-[10px] text-[#7F8797]">exact linear attribution</span>}
+        inset
       />
       <div className="p-4">
         <p className="mb-2 font-mono text-[11px] text-[#6F7789]">
-          Per-signal effect on the projected finish — <span className="text-[#00FF78]">green improves</span>,{" "}
-          <span className="text-[#FF4655]">red worsens</span>.
+          Per-signal effect on the projected finish — <span className="text-rc-gain">green improves</span>,{" "}
+          <span className="text-rc-red-text">red worsens</span>.
         </p>
         <ModelAttributionBars data={data} />
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -202,14 +206,15 @@ function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) 
   const circuit = selectedRace?.circuit;
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="This weekend"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="This weekend"
+        aside={
           <span className="font-mono text-[10px] text-[#7F8797]">
             {circuit?.circuit_name ?? selectedRace?.location ?? "circuit TBC"}
           </span>
         }
+        inset
       />
       {/* Name, race time and status are in the page header; this card adds the rest. */}
       <dl className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
@@ -218,20 +223,21 @@ function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) 
         <InfoRow label="Laps" value={circuit?.laps ? String(circuit.laps) : "-"} />
         <InfoRow label="Type" value={circuit?.circuit_type ?? "-"} />
       </dl>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
 function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> }) {
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Session schedule"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Session schedule"
+        aside={
           <span className="font-mono text-[10px] text-[#7F8797]">
             {sessions.length ? `${sessions.length} sessions` : "times TBC"}
           </span>
         }
+        inset
       />
       <div className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
         {sessions.length === 0 && (
@@ -250,7 +256,7 @@ function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> 
           />
         ))}
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -275,8 +281,8 @@ export function WeekendPanel({ year, selectedRace }: { year: number; selectedRac
 
 export function RiskTable({ rows }: { rows: RiskPrediction[] }) {
   return (
-    <ConsolePanel>
-      <ConsoleHeader label="DNF and crash model" right={<ShieldAlert className="h-4 w-4 text-[#E10600]" />} />
+    <Panel as="section">
+      <PanelHeading eyebrow="DNF and crash model" aside={<ShieldAlert className="h-4 w-4 text-[#E10600]" />} inset />
       {rows.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse">
@@ -320,7 +326,7 @@ export function RiskTable({ rows }: { rows: RiskPrediction[] }) {
           Run or recompute the model to generate DNF, crash, and mechanical risk rows.
         </p>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -328,8 +334,8 @@ export function ModelIO({ data }: { data?: PredictionsResponse }) {
   const inputs = data?.model_inputs ?? [];
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <ConsolePanel>
-        <ConsoleHeader label="Inputs used" right={<BrainCircuit className="h-4 w-4 text-[#3671C6]" />} />
+      <Panel as="section">
+        <PanelHeading eyebrow="Inputs used" aside={<BrainCircuit className="h-4 w-4 text-[#3671C6]" />} inset />
         <div className="divide-y divide-[#1E2633]">
           {inputs.length ? (
             inputs.map((input) => (
@@ -358,17 +364,17 @@ export function ModelIO({ data }: { data?: PredictionsResponse }) {
             <p className="p-4 text-sm text-[#7F8797]">No model input coverage returned for this snapshot.</p>
           )}
         </div>
-      </ConsolePanel>
+      </Panel>
 
-      <ConsolePanel>
-        <ConsoleHeader label="Outputs generated" />
+      <Panel as="section">
+        <PanelHeading eyebrow="Outputs generated" inset />
         <dl className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
           <InfoRow label="Race order" value={`${data?.predictions?.length ?? 0} drivers`} />
           <InfoRow label="Risk rows" value={`${data?.risk_predictions?.length ?? 0} drivers`} />
           <InfoRow label="Snapshot versions" value={String(data?.cache?.snapshot_count ?? 0)} />
           <InfoRow label="Policy" value={data?.cache?.policy ?? "manual compute"} />
         </dl>
-      </ConsolePanel>
+      </Panel>
     </div>
   );
 }
@@ -389,7 +395,7 @@ export function StandbyPanel({
   phaseDetail: string;
 }) {
   return (
-    <ConsolePanel>
+    <Panel as="section">
       <div className="p-5">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[#E10600]">
           No stored {phaseName.toLowerCase()} prediction for {raceName}
@@ -399,6 +405,6 @@ export function StandbyPanel({
           one phase leaves the other alone.
         </p>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

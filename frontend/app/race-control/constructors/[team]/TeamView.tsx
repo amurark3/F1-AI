@@ -4,9 +4,10 @@ import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 import { fetcher } from "@/app/utils/fetcher";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { Panel } from "../../components/RaceControlPrimitives";
 import { PowerUnitsSection } from "../../profiles/PowerUnitCards";
 import { CumulativePointsChart } from "../../profiles/ProfileCharts";
 import {
@@ -37,12 +38,12 @@ function PointsPanel({ profile }: { profile: TeamProfile }) {
     .map((round) => ({ label: `R${round.round}`, name: round.short_name, points: round.cumulative_points ?? 0 }));
   if (data.length < 2) return null;
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader label="Points through the season" />
+    <Panel as="section" className="mb-5">
+      <PanelHeading eyebrow="Points through the season" inset />
       <div className="p-3">
         <CumulativePointsChart data={data} color={profile.team.color} />
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 

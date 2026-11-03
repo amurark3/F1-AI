@@ -3,9 +3,11 @@
 import { Gavel } from "lucide-react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+
+import { Panel } from "../components/RaceControlPrimitives";
 
 import { netMoveColor, netMoveLabel, penaltyLabel, qualifiedLabel, startLabel } from "./gridHelpers";
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { shortName } from "./predictionHelpers";
 
 import type { StartingGridResponse } from "./gridModel";
@@ -44,15 +46,16 @@ export function GridPenalties({ data }: { data?: StartingGridResponse }) {
   const penalties = data?.penalties ?? [];
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Grid penalties"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Grid penalties"
+        aside={
           <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             <Gavel className="h-3.5 w-3.5 text-[#F5C542]" />
             {data?.available ? `${penalties.length} applied` : "not known yet"}
           </span>
         }
+        inset
       />
 
       {penalties.length === 0 ? (
@@ -103,6 +106,6 @@ export function GridPenalties({ data }: { data?: StartingGridResponse }) {
           data source and is not shown.
         </p>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

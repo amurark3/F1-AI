@@ -10,9 +10,9 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Next task:** P2.2. The P1 PR waits for the user's go-ahead; every P1 row (P1.1 to P1.10) is `done`.
-- **Branch:** `dev`
-- **Open PR:** #96 (P0, dev → main)
+- **Next task:** P2.2.
+- **Branch:** `dev`. Commit each task locally; **never push** (user, 2026-11-03).
+- **PRs (user-owned):** each phase's commits go together as one new PR, which the user opens, reviews and merges. P1 is PR #97 (user reviewing). At the end of a phase, note here that it is ready for its PR (title from PLAN.md) and stop; don't push, open or manage PRs.
 
 ## Tasks
 
@@ -306,3 +306,4 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
     - Jolpica's `driverId` ("max_verstappen", "sainz") is not an f1db id. Pass Jolpica's code, number and name, not its id.
     - Resolution reads f1db (cached per release). An f1db failure now raises where an emit point used to print the feed's name; decide per emit point whether to catch it and fall back.
   - **Verify:** backend 4207 passed, coverage 100.00% (line coverage: `.coveragerc` has `branch = False`); `ruff check`, `ruff format --check` and module size clean.
+- **2026-11-03 · process change (user):** every phase ships as its own new PR, which the user reviews and merges. Tasks are committed locally on `dev` and never pushed; the coordinator doesn't open or check PRs. P2's tasks (P2.1–P2.3) go out together as `feat: one canonical name for every driver and team`.

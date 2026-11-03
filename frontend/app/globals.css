@@ -24,8 +24,9 @@
   --border-dim: rgba(126, 140, 170, 0.24);
 
   /* Redesign palette (docs/design/redesign/system.css). Mirrored for SVG and
-     Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal.
-     Text tones, each at least 4.5:1 on --surface. */
+     Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal. */
+  --rc-hero: #0b0f18; /* hero band, and the tile of the B1 logo mark */
+  /* Text tones, each at least 4.5:1 on --surface. */
   --rc-ink: #f0f2f6;
   --rc-ink-2: #aeb6c6;
   --rc-ink-3: #7f8797;
@@ -51,7 +52,8 @@
   --color-f1-green: #00cc00;
   --color-f1-yellow: #fff200;
 
-  /* Redesign palette exposed to Tailwind: text-rc-ink-2, text-rc-gold, bg-rc-gain … */
+  /* Redesign palette exposed to Tailwind: bg-rc-hero, text-rc-ink-2, text-rc-gold, bg-rc-gain … */
+  --color-rc-hero: var(--rc-hero);
   --color-rc-ink: var(--rc-ink);
   --color-rc-ink-2: var(--rc-ink-2);
   --color-rc-ink-3: var(--rc-ink-3);

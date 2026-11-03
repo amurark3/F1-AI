@@ -4,6 +4,8 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import BrandLockup from "../ui/BrandLockup";
+
 import SiteFooter from "./SiteFooter";
 
 /**
@@ -39,15 +41,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
       <header className="glass-strong sticky top-0 z-50 border-b border-white/5">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/" className="flex shrink-0 items-center" aria-label="F1 AI home">
-            <span
-              className="select-none text-[22px] font-black italic uppercase leading-none tracking-tighter"
-              style={{ fontFamily: "var(--font-barlow, var(--font-geist-sans))" }}
-            >
-              <span className="text-white">F1</span>
-              <span className="ml-1" style={{ color: "#E10600" }}>
-                AI
-              </span>
-            </span>
+            <BrandLockup />
           </Link>
 
           <Link

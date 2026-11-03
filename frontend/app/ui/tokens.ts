@@ -15,6 +15,8 @@
  * Every colour carries a meaning; none is decoration.
  */
 export const rc = {
+  /** Hero band, and the tile of the B1 logo mark (`app/icon.svg`). */
+  hero: "#0b0f18",
   /** Primary text. */
   ink: "#f0f2f6",
   /** Secondary text. */

@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
-from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_timedelta
+from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_team, _fmt_timedelta
 
 logger = structlog.get_logger()
 
@@ -21,13 +21,13 @@ def _header(*value_labels: str) -> list[str]:
     ]
 
 
-def _row(position: object, row: pd.Series, *values: str) -> str:
-    """One classification line: who the driver is and the team they ran for here.
+def _row(year: int, position: object, row: pd.Series, *values: str) -> str:
+    """One classification line: who the driver is and the team they ran for here, under f1db's names.
 
     The model's memory of the grid predates the current season; given only a
     driver code it filled in the rest itself — "Kimi Antonelli (Alfa Romeo)".
     """
-    return f"| {position} | {_fmt_driver(row)} | {row['TeamName']} | {' | '.join(values)} |"
+    return f"| {position} | {_fmt_driver(row, year)} | {_fmt_team(row, year)} | {' | '.join(values)} |"
 
 
 @tool
@@ -62,7 +62,7 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
             else:
                 time_str = status  # DNF / +1 Lap / etc.
 
-            summary.append(_row(pos, row, time_str, _fmt_points(row["Points"])))
+            summary.append(_row(year, pos, row, time_str, _fmt_points(row["Points"])))
 
         return "\n".join(summary)
 
@@ -97,7 +97,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
             output.extend(_header("SQ1 Time"))
             for i, (_, row) in enumerate(sq1_df.iterrows(), 1):
                 if pd.notna(row["Q1"]):
-                    output.append(_row(i, row, _fmt_timedelta(row["Q1"])))
+                    output.append(_row(year, i, row, _fmt_timedelta(row["Q1"])))
             output.append("\n---\n")
 
         # --- SQ2 ---
@@ -107,7 +107,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
                 output.append("### SQ2 Results")
                 output.extend(_header("SQ2 Time"))
                 for i, (_, row) in enumerate(sq2_df.iterrows(), 1):
-                    output.append(_row(i, row, _fmt_timedelta(row["Q2"])))
+                    output.append(_row(year, i, row, _fmt_timedelta(row["Q2"])))
                 output.append("\n---\n")
 
         # --- SQ3 ---
@@ -117,7 +117,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
                 output.append("### SQ3 Results (Sprint Pole Position)")
                 output.extend(_header("SQ3 Time"))
                 for i, (_, row) in enumerate(sq3_df.iterrows(), 1):
-                    output.append(_row(i, row, _fmt_timedelta(row["Q3"])))
+                    output.append(_row(year, i, row, _fmt_timedelta(row["Q3"])))
 
         # Fallback: if the split-column data is absent, show a simple ordered list.
         if not output:
@@ -126,7 +126,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
             output.extend(_header("Time"))
             for _, row in results.sort_values(by="Position").iterrows():
                 t = _fmt_timedelta(row["Time"]) if pd.notna(row["Time"]) else "-"
-                output.append(_row(row["Position"], row, t))
+                output.append(_row(year, row["Position"], row, t))
 
         return "\n".join(output)
 
@@ -158,7 +158,7 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
         output.append(f"### Q1 Results ({grand_prix} {year})")
         output.extend(_header("Q1 Time"))
         for i, (_, row) in enumerate(q1_df.iterrows(), 1):
-            output.append(_row(i, row, _fmt_timedelta(row["Q1"])))
+            output.append(_row(year, i, row, _fmt_timedelta(row["Q1"])))
         output.append("\n---\n")
 
         # --- Q2 --- (drivers who advanced beyond Q1)
@@ -167,7 +167,7 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
             output.append("### Q2 Results")
             output.extend(_header("Q2 Time"))
             for i, (_, row) in enumerate(q2_df.iterrows(), 1):
-                output.append(_row(i, row, _fmt_timedelta(row["Q2"])))
+                output.append(_row(year, i, row, _fmt_timedelta(row["Q2"])))
             output.append("\n---\n")
 
         # --- Q3 --- (top 10 pole-position shootout)
@@ -176,7 +176,7 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
             output.append("### Q3 Results (Pole Position)")
             output.extend(_header("Q3 Time"))
             for i, (_, row) in enumerate(q3_df.iterrows(), 1):
-                output.append(_row(i, row, _fmt_timedelta(row["Q3"])))
+                output.append(_row(year, i, row, _fmt_timedelta(row["Q3"])))
 
         return "\n".join(output)
 

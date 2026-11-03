@@ -9,11 +9,16 @@ for sprint qualifying, so it cannot tell them apart.
 The names are OpenF1's own, which are not FastF1's: OpenF1 calls 2023's sprint
 shootout "Sprint Qualifying" too, so each app code maps to a set of names and
 FastF1 names are never passed through.
+
+``entry_list`` keeps OpenF1's own words for each car ("Ryo HIRAKAWA", "Haas F1
+Team"), which is what the session caches store. ``canonical_entry`` is what a
+payload prints: f1db's driver and team names ("Ryō Hirakawa", "Haas"), from the
+car's code, number and name (:mod:`app.data.canonical_names`).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -21,6 +26,7 @@ import fastf1
 import pandas as pd
 
 from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
+from app.data.canonical_names import driver_identity, team_display_name
 from app.data.openf1.client import get_json
 from app.services.live_timing import match_meeting, parse_iso
 
@@ -187,3 +193,13 @@ def entry_list(client: httpx.Client, session_key: int) -> dict[int, EntryDriver]
             colour=_colour(row.get("team_colour")),
         )
     return drivers
+
+
+def canonical_entry(driver: EntryDriver, year: int) -> EntryDriver:
+    """The car under f1db's driver and team names; OpenF1's number, code and colour are kept.
+
+    An unresolved driver keeps OpenF1's name in display case ("Ryo HIRAKAWA" ->
+    "Ryo Hirakawa"), and a team f1db does not know keeps OpenF1's spelling.
+    """
+    identity = driver_identity(year, code=driver.code, number=driver.number, name=driver.name)
+    return replace(driver, name=identity.name, team=team_display_name(year, driver.team))

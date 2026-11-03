@@ -130,8 +130,8 @@ def sector_gains(a: LoadedLap, b: LoadedLap) -> list[dict]:
     return rows
 
 
-def _side(loaded: LoadedLap) -> dict:
-    return {"driver": driver_json(loaded.driver), "lap": lap_json(loaded.choice.lap, loaded.choice.fastest)}
+def _side(loaded: LoadedLap, year: int) -> dict:
+    return {"driver": driver_json(loaded.driver, year), "lap": lap_json(loaded.choice.lap, loaded.choice.fastest)}
 
 
 def _trace(grid: np.ndarray, a: dict[str, np.ndarray], b: dict[str, np.ndarray]) -> dict:
@@ -165,8 +165,8 @@ def build_comparison(ref: SessionRef, pick_a: DriverLap, pick_b: DriverLap) -> d
         "pending": False,
         "source": SOURCE,
         "session": session_json(session),
-        "a": _side(a),
-        "b": _side(b),
+        "a": _side(a, ref.year),
+        "b": _side(b, ref.year),
         "gap": round(float(delta[-1]), 3),
         "trace": _trace(grid, on_grid_a, on_grid_b),
         "mini_sectors": sectors,

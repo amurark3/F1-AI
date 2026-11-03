@@ -12,18 +12,29 @@ Three things make this module worth close testing:
 * **A season with no points yet is not an empty season.** Before round one
   every driver has zero points, and Ergast returns no standings rows at all —
   the zero-point builders exist so the page lists the grid instead of nothing.
+* **Names are f1db's on the Ergast path too.** Jolpica writes "Carlos Sainz",
+  "Ryo Hirakawa" and "RB F1 Team"; a row prints "Carlos Sainz Jr.", "Ryō
+  Hirakawa" and "Racing Bulls" under the same keys. A driver is resolved from
+  Jolpica's code, number and name, never its ``driverId`` ("max_verstappen" is
+  not an f1db id), and keeps Jolpica's words when f1db cannot be read.
 
 FastF1 and Ergast are mocked at the boundary; the network is blocked.
 """
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timedelta
+import json
+from pathlib import Path
+import sqlite3
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from fastf1.ergast import interface as ergast_interface
 import pandas as pd
 import pytest
+import structlog
 
 from app.api.routers import season as season_router
 from app.api.routers.season import (
@@ -33,6 +44,9 @@ from app.api.routers.season import (
     build_zero_point_constructor_standings,
     build_zero_point_driver_standings,
 )
+from app.data import f1db_source
+
+JOLPICA = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "jolpica_ergast_responses.json"
 
 
 @pytest.fixture
@@ -353,7 +367,7 @@ def test_driver_standing_uses_the_row_position_when_present():
         }
     )
 
-    assert build_driver_standing(row, fallback_position=99)["position"] == 3
+    assert build_driver_standing(row, fallback_position=99, year=2024)["position"] == 3
 
 
 @pytest.mark.unit
@@ -361,7 +375,7 @@ def test_driver_standing_falls_back_to_the_enumeration_index():
     """Ergast omits `position` for some historical seasons."""
     row = pd.Series({"position": float("nan"), "givenName": "Jim", "familyName": "Clark"})
 
-    assert build_driver_standing(row, fallback_position=4)["position"] == 4
+    assert build_driver_standing(row, fallback_position=4, year=1965)["position"] == 4
 
 
 @pytest.mark.unit
@@ -372,21 +386,21 @@ def test_driver_standing_uses_the_last_constructor_of_a_split_season():
         {"position": 5, "givenName": "Carlos", "familyName": "Sainz", "constructorNames": ["Ferrari", "Williams"]}
     )
 
-    assert build_driver_standing(row, 5)["team"] == "Williams"
+    assert build_driver_standing(row, 5, 2024)["team"] == "Williams"
 
 
 @pytest.mark.unit
 def test_driver_standing_stringifies_a_non_list_constructor_field():
     row = pd.Series({"position": 5, "givenName": "A", "familyName": "B", "constructorNames": "Sauber"})
 
-    assert build_driver_standing(row, 5)["team"] == "Sauber"
+    assert build_driver_standing(row, 5, 2024)["team"] == "Sauber"
 
 
 @pytest.mark.unit
 def test_driver_standing_reports_unknown_when_no_constructor_is_given():
     row = pd.Series({"position": 5, "givenName": "A", "familyName": "B"})
 
-    assert build_driver_standing(row, 5)["team"] == "Unknown"
+    assert build_driver_standing(row, 5, 2024)["team"] == "Unknown"
 
 
 @pytest.mark.unit
@@ -486,21 +500,21 @@ async def test_constructor_standings_return_empty_on_failure(monkeypatch):
 def test_constructor_standing_uses_the_row_position_when_present():
     row = pd.Series({"position": 2, "constructorName": "Ferrari", "points": 40, "wins": 1})
 
-    assert build_constructor_standing(row, 9)["position"] == 2
+    assert build_constructor_standing(row, 9, 2024)["position"] == 2
 
 
 @pytest.mark.unit
 def test_constructor_standing_falls_back_to_the_enumeration_index():
     row = pd.Series({"position": float("nan"), "constructorName": "Ferrari"})
 
-    assert build_constructor_standing(row, 3)["position"] == 3
+    assert build_constructor_standing(row, 3, 2024)["position"] == 3
 
 
 @pytest.mark.unit
 def test_constructor_standing_reports_unknown_for_a_missing_name():
     row = pd.Series({"position": 1})
 
-    assert build_constructor_standing(row, 1)["team"] == "Unknown"
+    assert build_constructor_standing(row, 1, 2024)["team"] == "Unknown"
 
 
 @pytest.mark.unit
@@ -578,3 +592,123 @@ def test_the_schedule_error_payload_survives_its_response_model(client, monkeypa
 
     assert response.status_code == 200
     assert "error_id" in response.json()
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names on the Ergast (Jolpica) path
+# ---------------------------------------------------------------------------
+
+
+def _serve_jolpica(monkeypatch) -> None:
+    """Answer FastF1's Ergast client from Jolpica's real responses, so FastF1 parses them itself."""
+    responses = json.loads(JOLPICA.read_text())["responses"]
+
+    def _get(cls, url: str, params: dict) -> dict:
+        # FastF1 pops keys off the body it is handed, so each request gets its own copy.
+        return copy.deepcopy(responses[url.removeprefix(f"{ergast_interface.BASE_URL}/").removesuffix(".json")])
+
+    monkeypatch.setattr(ergast_interface.Ergast, "_get", classmethod(_get))
+    monkeypatch.setattr(season_router, "driver_standings_detailed", lambda year: [])
+    monkeypatch.setattr(season_router, "constructor_standings_detailed", lambda year: [])
+
+
+def _rows_by_driver(rows: list[dict]) -> dict[str, dict]:
+    return {row["driver"]: row for row in rows}
+
+
+@pytest.mark.integration
+async def test_ergast_driver_standings_print_f1dbs_names(identity_f1db, monkeypatch):
+    _serve_jolpica(monkeypatch)
+
+    rows = await season_router.get_driver_standings(2026)
+
+    assert len(rows) == 24
+    assert rows[0] == {"position": 1, "driver": "Kimi Antonelli", "team": "Mercedes", "points": 380.0, "wins": 9}
+    by_driver = _rows_by_driver(rows)
+    assert (by_driver["Carlos Sainz Jr."]["position"], by_driver["Carlos Sainz Jr."]["team"]) == (18, "Williams")
+    assert by_driver["Nico Hülkenberg"]["team"] == "Audi"
+    assert (by_driver["Ryō Hirakawa"]["position"], by_driver["Ryō Hirakawa"]["team"]) == (21, "Haas")
+    assert by_driver["Arvid Lindblad"]["team"] == "Racing Bulls"
+    assert by_driver["Pierre Gasly"]["team"] == "Alpine"
+    assert by_driver["Sergio Pérez"]["team"] == "Cadillac"
+
+
+@pytest.mark.integration
+async def test_ergast_drivers_resolve_from_code_number_and_name_never_the_driver_id(identity_f1db, monkeypatch):
+    """Jolpica's driverId ("max_verstappen", "sainz") is not an f1db id and is never passed on."""
+    _serve_jolpica(monkeypatch)
+    asked: list[dict] = []
+    resolve = season_router.driver_identity
+
+    def recording(year: int, **keys: object):
+        asked.append(keys)
+        return resolve(year, **keys)
+
+    monkeypatch.setattr(season_router, "driver_identity", recording)
+
+    await season_router.get_driver_standings(2026)
+
+    assert {frozenset(keys) for keys in asked} == {frozenset({"code", "number", "name"})}
+    assert {"code": "SAI", "number": 55, "name": "Carlos Sainz"} in asked
+    assert not any(value in {"sainz", "max_verstappen"} for keys in asked for value in keys.values())
+
+
+@pytest.mark.integration
+async def test_ergast_constructor_standings_print_f1dbs_team_names(identity_f1db, monkeypatch):
+    _serve_jolpica(monkeypatch)
+
+    rows = await season_router.get_constructor_standings(2026)
+
+    assert [row["team"] for row in rows] == [
+        "Mercedes",
+        "Ferrari",
+        "Red Bull",
+        "McLaren",
+        "Racing Bulls",
+        "Alpine",
+        "Haas",
+        "Audi",
+        "Williams",
+        "Aston Martin",
+        "Cadillac",
+    ]
+    assert rows[2] == {"position": 3, "team": "Red Bull", "points": 382.0, "wins": 3}
+
+
+@pytest.mark.integration
+def test_the_pre_season_grid_prints_f1dbs_names(identity_f1db, monkeypatch):
+    """Before any points: Jolpica's teams, and its Haas drivers ("Ryo Hirakawa"), under f1db's names."""
+    _serve_jolpica(monkeypatch)
+    ergast = season_router.Ergast()
+    monkeypatch.setattr(
+        ergast,
+        "get_constructor_info",
+        lambda season: season_router.Ergast().get_constructor_info(season=season).query("constructorId == 'haas'"),
+    )
+
+    drivers = build_zero_point_driver_standings(ergast, 2026)
+    teams = build_zero_point_constructor_standings(season_router.Ergast(), 2026)
+
+    assert [(row["driver"], row["team"]) for row in drivers] == [
+        ("Oliver Bearman", "Haas"),
+        ("Ryō Hirakawa", "Haas"),
+        ("Esteban Ocon", "Haas"),
+    ]
+    assert {"Racing Bulls", "Alpine", "Haas", "Cadillac", "Red Bull"} <= {row["team"] for row in teams}
+
+
+@pytest.mark.integration
+async def test_an_unreadable_f1db_prints_jolpicas_own_names_and_logs_why(monkeypatch):
+    def connect() -> None:
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(f1db_source, "connect", connect)
+    _serve_jolpica(monkeypatch)
+
+    with structlog.testing.capture_logs() as logs:
+        rows = _rows_by_driver(await season_router.get_driver_standings(2026))
+
+    assert rows["Carlos Sainz"]["team"] == "Williams"
+    assert rows["Ryo Hirakawa"]["team"] == "Haas F1 Team"
+    assert rows["Arvid Lindblad"]["team"] == "RB F1 Team"
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}

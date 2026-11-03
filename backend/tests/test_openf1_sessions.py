@@ -5,20 +5,30 @@
 * A cancelled session is not offered.
 * The weekend list comes from FastF1's calendar, which loads while OpenF1 is
   closed for a live session.
+* A car prints under f1db's names: OpenF1 writes "Ryo HIRAKAWA" and "Haas F1
+  Team" for car 50, the payload says "Ryō Hirakawa" and "Haas". OpenF1's number,
+  code and colour are kept, and its own words when f1db cannot be read.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+import json
+from pathlib import Path
+import sqlite3
 
 import httpx
 import pandas as pd
 import pytest
+import structlog
 
+from app.data import f1db_source
 from app.data.openf1 import sessions as module
 from app.data.openf1.sessions import (
     DEFAULT_TEAM_COLOUR,
     OpenF1Session,
+    canonical_entry,
     entry_list,
     event_identity,
     find_session,
@@ -30,6 +40,9 @@ from app.data.openf1.sessions import (
 from tests.openf1_support import FakeOpenF1
 
 pytestmark = pytest.mark.unit
+
+# OpenF1's Mexico City qualifying list (2026 R19): Hirakawa in car 50 for Haas.
+MEXICO_QUALIFYING = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "openf1_drivers_qualifying.json"
 
 SCHEDULE = pd.DataFrame(
     [
@@ -165,3 +178,41 @@ def test_the_entry_list_reads_codes_teams_and_colours():
     assert drivers[3].name == "M VERSTAPPEN"
     assert drivers[3].colour == DEFAULT_TEAM_COLOUR
     assert set(drivers) == {1, 3}
+
+
+def _mexico_qualifying_cars() -> dict:
+    with _client({"drivers": json.loads(MEXICO_QUALIFYING.read_text())}) as client:
+        return entry_list(client, 11400)
+
+
+def test_a_car_prints_under_f1dbs_names_and_keeps_openf1s_number_code_and_colour(identity_f1db):
+    cars = _mexico_qualifying_cars()
+
+    named = {number: canonical_entry(car, 2026) for number, car in cars.items()}
+
+    assert (cars[50].name, cars[50].team) == ("Ryo HIRAKAWA", "Haas F1 Team")
+    assert named[50] == replace(cars[50], name="Ryō Hirakawa", team="Haas")
+    assert [named[number].name for number in (12, 27, 55, 11)] == [
+        "Kimi Antonelli",
+        "Nico Hülkenberg",
+        "Carlos Sainz Jr.",
+        "Sergio Pérez",
+    ]
+    assert (named[3].team, named[30].team) == ("Red Bull", "Racing Bulls")
+    assert all(
+        (named[n].number, named[n].code, named[n].colour) == (n, car.code, car.colour) for n, car in cars.items()
+    )
+
+
+def test_an_unreadable_f1db_leaves_openf1s_words_display_cased_and_logs_why(monkeypatch):
+    def connect() -> None:
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(f1db_source, "connect", connect)
+    car = _mexico_qualifying_cars()[50]
+
+    with structlog.testing.capture_logs() as logs:
+        named = canonical_entry(car, 2026)
+
+    assert (named.name, named.team) == ("Ryo Hirakawa", "Haas F1 Team")
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}

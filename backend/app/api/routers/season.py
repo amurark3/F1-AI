@@ -1,4 +1,11 @@
-"""Season schedule and championship standings routes."""
+"""Season schedule and championship standings routes.
+
+Both standings read f1db, whose names are canonical. The Ergast (Jolpica)
+fallback prints f1db's names too: a driver resolves from Jolpica's code, car
+number and name, never its ``driverId`` ("max_verstappen" is not an f1db id),
+and a team from its spelling ("RB F1 Team" -> "Racing Bulls"). Jolpica's own
+words stay when f1db cannot say. See :mod:`app.data.canonical_names`.
+"""
 
 from datetime import UTC, datetime
 
@@ -10,6 +17,7 @@ import structlog
 
 from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
+from app.data.canonical_names import driver_identity, team_display_name
 from app.data.f1db_standings import (
     constructor_standings_detailed,
     driver_standings_detailed,
@@ -95,14 +103,23 @@ async def get_driver_standings(year: int) -> list[dict]:
         ergast = Ergast()
         data = ergast.get_driver_standings(season=year)
         if data.content:
-            return [build_driver_standing(row, idx) for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)]
+            return [
+                build_driver_standing(row, idx, year)
+                for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)
+            ]
         return build_zero_point_driver_standings(ergast, year)
     except Exception as exc:
         logger.exception("api.driver_standings.error", error=str(exc))
         return []
 
 
-def build_driver_standing(row: pd.Series, fallback_position: int) -> dict:
+def jolpica_driver_name(row: pd.Series, year: int) -> str:
+    """f1db's name for a Jolpica driver row, from its code, number and name; Jolpica's driverId is never used."""
+    feed_name = f"{safe_str(row, 'givenName')} {safe_str(row, 'familyName')}".strip()
+    return driver_identity(year, code=row.get("driverCode"), number=row.get("driverNumber"), name=feed_name).name
+
+
+def build_driver_standing(row: pd.Series, fallback_position: int, year: int) -> dict:
     has_position = "position" in row and not (isinstance(row["position"], float) and pd.isna(row["position"]))
     team_name = "Unknown"
     if "constructorName" in row:
@@ -113,8 +130,8 @@ def build_driver_standing(row: pd.Series, fallback_position: int) -> dict:
 
     return {
         "position": safe_int(row["position"]) if has_position else fallback_position,
-        "driver": f"{safe_str(row, 'givenName')} {safe_str(row, 'familyName')}".strip(),
-        "team": team_name,
+        "driver": jolpica_driver_name(row, year),
+        "team": team_display_name(year, team_name) or "Unknown",
         "points": safe_float(row.get("points", 0)),
         "wins": safe_int(row.get("wins", 0)),
     }
@@ -133,8 +150,8 @@ def build_zero_point_driver_standings(ergast: Ergast, year: int) -> list[dict]:
             results.append(
                 {
                     "position": position,
-                    "driver": f"{safe_str(driver, 'givenName')} {safe_str(driver, 'familyName')}".strip(),
-                    "team": constructor["constructorName"],
+                    "driver": jolpica_driver_name(driver, year),
+                    "team": team_display_name(year, constructor["constructorName"]),
                     "points": 0.0,
                     "wins": 0,
                 }
@@ -165,7 +182,8 @@ async def get_constructor_standings(year: int) -> list[dict]:
         data = ergast.get_constructor_standings(season=year)
         if data.content:
             return [
-                build_constructor_standing(row, idx) for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)
+                build_constructor_standing(row, idx, year)
+                for idx, (_, row) in enumerate(data.content[0].iterrows(), start=1)
             ]
         return build_zero_point_constructor_standings(ergast, year)
     except Exception as exc:
@@ -173,11 +191,11 @@ async def get_constructor_standings(year: int) -> list[dict]:
         return []
 
 
-def build_constructor_standing(row: pd.Series, fallback_position: int) -> dict:
+def build_constructor_standing(row: pd.Series, fallback_position: int, year: int) -> dict:
     has_position = "position" in row and not (isinstance(row["position"], float) and pd.isna(row["position"]))
     return {
         "position": safe_int(row["position"]) if has_position else fallback_position,
-        "team": safe_str(row, "constructorName", "Unknown"),
+        "team": team_display_name(year, row.get("constructorName")) or "Unknown",
         "points": safe_float(row.get("points", 0)),
         "wins": safe_int(row.get("wins", 0)),
     }
@@ -190,7 +208,7 @@ def build_zero_point_constructor_standings(ergast: Ergast, year: int) -> list[di
     return [
         {
             "position": idx,
-            "team": row["constructorName"],
+            "team": team_display_name(year, row["constructorName"]),
             "points": 0.0,
             "wins": 0,
         }

@@ -128,7 +128,9 @@ def build_degradation(ref: SessionRef) -> dict:
         rows = _lap_rows(session, context, number, fuel)
         laps.extend(rows)
         stints.extend(_stint_rows(driver.code, spans.get(number, []), rows))
-        drivers.append({**driver_json(driver), "position": position if number in context.classification else None})
+        drivers.append(
+            {**driver_json(driver, session.year), "position": position if number in context.classification else None}
+        )
     unchecked = sum(1 for stint in stints if not stint["boundary_checked"])
     warnings = [] if fuel is not None else [NO_FUEL_MODEL_WARNING]
     if unchecked:

@@ -39,9 +39,8 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from app.data.canonical_names import driver_identity, team_display_name
 from app.data.openf1.client import OpenF1UnavailableError, new_client
-from app.data.openf1.sessions import entry_list, weekend_sessions
+from app.data.openf1.sessions import canonical_entry, entry_list, weekend_sessions
 from app.utils.ttl_cache import TtlCache
 
 if TYPE_CHECKING:
@@ -137,10 +136,8 @@ def _fill_teams(
 
 def _entry(car: EntryDriver, year: int) -> EntryListDriver:
     """One car under f1db's driver and team names, keeping OpenF1's code and number."""
-    driver = driver_identity(year, code=car.code, number=car.number, name=car.name)
-    return EntryListDriver(
-        code=car.code, name=driver.name or car.code, team=team_display_name(year, car.team), number=car.number
-    )
+    named = canonical_entry(car, year)
+    return EntryListDriver(code=car.code, name=named.name or car.code, team=named.team, number=car.number)
 
 
 def _read_weekend(client: httpx.Client, year: int, round_num: int) -> WeekendEntryList:

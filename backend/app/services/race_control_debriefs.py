@@ -1,4 +1,10 @@
-"""Race classification loading and post-race debrief generation."""
+"""Race classification loading and post-race debrief generation.
+
+Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
+Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
+FastF1's. Every sentence here is built from those rows, so it names drivers
+and teams the same way. See :mod:`app.data.canonical_names`.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ from datetime import UTC, datetime
 import fastf1
 import pandas as pd
 
+from app.data.canonical_names import driver_identity, feed_text, team_display_name
 from app.services.race_control_common import safe_float, safe_int
 
 
@@ -258,23 +265,25 @@ def load_race_classification(year: int, round_num: int) -> dict:
     session = fastf1.get_session(year, round_num, "R")
     session.load(telemetry=False, laps=False, weather=False)
     race_results = session.results.sort_values(by="Position")
-    rows = []
-    for _, row in race_results.iterrows():
-        rows.append(
-            {
-                "position": safe_int(row.get("Position"), None),
-                "driver": row.get("Abbreviation", ""),
-                "full_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
-                "team": row.get("TeamName", "Unknown"),
-                "grid": safe_int(row.get("GridPosition"), None)
-                if pd.notna(row.get("GridPosition")) and row.get("GridPosition") > 0
-                else None,
-                "points": safe_float(row.get("Points", 0)),
-                "status": row.get("Status", ""),
-            }
-        )
+    rows = [_classification_row(row, year) for _, row in race_results.iterrows()]
     result["race_results"] = rows
     result["podium"] = sorted(
         [row for row in rows if row["position"] and row["position"] <= 3], key=lambda row: row["position"]
     )
     return result
+
+
+def _classification_row(row: pd.Series, year: int) -> dict:
+    """One FastF1 result row, its driver and team under f1db's names (FastF1's own words if f1db can't say)."""
+    feed_name = " ".join(part for part in (feed_text(row.get("FirstName")), feed_text(row.get("LastName"))) if part)
+    driver = driver_identity(year, code=row.get("Abbreviation"), number=row.get("DriverNumber"), name=feed_name)
+    grid = row.get("GridPosition")
+    return {
+        "position": safe_int(row.get("Position"), None),
+        "driver": row.get("Abbreviation", ""),
+        "full_name": driver.name,
+        "team": team_display_name(year, row.get("TeamName")) or "Unknown",
+        "grid": safe_int(grid, None) if pd.notna(grid) and grid > 0 else None,
+        "points": safe_float(row.get("Points", 0)),
+        "status": row.get("Status", ""),
+    }

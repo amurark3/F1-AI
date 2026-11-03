@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   Cell,
   ReferenceLine,
-  Legend,
 } from "recharts";
 
 import { rc } from "@/app/ui/tokens";
@@ -138,127 +137,6 @@ export function DriverChampionshipChart({ data, height = 280 }: { data: DriverCh
         <Bar dataKey="points" radius={[3, 3, 0, 0]} maxBarSize={28}>
           {sorted.map((entry) => (
             <Cell key={entry.code} fill={entry.color} fillOpacity={0.9} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Confidence interval range chart for predictions
-// ---------------------------------------------------------------------------
-interface ConfidenceEntry {
-  code: string;
-  low: number;
-  mid: number;
-  high: number;
-  color: string;
-}
-
-function ConfidenceTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ConfidenceEntry }> }) {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <ChartTooltipContainer>
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
-        {entry.code}
-      </p>
-      <p className="mt-0.5 font-mono text-neutral-300">
-        {entry.mid}% · range {entry.low}–{entry.high}%
-      </p>
-    </ChartTooltipContainer>
-  );
-}
-
-export function ConfidenceBarChart({ data, height = 220 }: { data: ConfidenceEntry[]; height?: number }) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-        <XAxis
-          dataKey="code"
-          tick={{ fill: "#d4d4d4", fontSize: 10, fontWeight: 700 }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          domain={[0, 100]}
-          tick={{ fill: CHART_COLORS.axis, fontSize: 10 }}
-          axisLine={false}
-          tickLine={false}
-          width={32}
-          tickFormatter={(v: number) => `${v}%`}
-        />
-        <Tooltip content={<ConfidenceTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar dataKey="mid" radius={[3, 3, 0, 0]} maxBarSize={24}>
-          {data.map((entry) => (
-            <Cell key={entry.code} fill={entry.color} fillOpacity={0.85} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Season projection area chart — current vs projected points
-// ---------------------------------------------------------------------------
-interface ProjectionEntry {
-  name: string;
-  current: number;
-  projected: number;
-  color: string;
-  code?: string;
-}
-
-function ProjectionTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <ChartTooltipContainer>
-      <p className="mb-1 font-black uppercase tracking-wider text-white" style={rcFont}>
-        {label}
-      </p>
-      {payload.map((p) => (
-        <p key={p.name} className="font-mono text-sm" style={{ color: p.color }}>
-          {p.name}: {p.value} pts
-        </p>
-      ))}
-    </ChartTooltipContainer>
-  );
-}
-
-export function SeasonProjectionChart({ data, height = 300 }: { data: ProjectionEntry[]; height?: number }) {
-  const top8 = data.slice(0, 8);
-
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={top8} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-        <XAxis
-          dataKey="code"
-          tick={{ fill: "#d4d4d4", fontSize: 10, fontWeight: 700 }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
-        <Tooltip content={<ProjectionTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Legend
-          wrapperStyle={{ fontSize: 11, color: "#737373", paddingTop: 8 }}
-          formatter={(value) => (value === "current" ? "Current pts" : "Projected pts")}
-        />
-        <Bar dataKey="current" fill="rgba(255,255,255,0.15)" radius={[2, 2, 0, 0]} maxBarSize={16} name="current" />
-        <Bar dataKey="projected" radius={[2, 2, 0, 0]} maxBarSize={16} name="projected">
-          {top8.map((entry) => (
-            <Cell key={entry.name} fill={entry.color} fillOpacity={0.85} />
           ))}
         </Bar>
       </BarChart>

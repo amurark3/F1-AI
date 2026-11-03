@@ -2,7 +2,7 @@
 
 import { Flag, Gauge, Milestone, RotateCcw, RotateCw, Route, Timer, Trophy, Waypoints } from "lucide-react";
 
-import { AnimatedNumber } from "./AnimatedNumber";
+import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
 
 import type { CircuitRecord, LapRecord } from "./weekendTypes";
 import type { LucideIcon } from "lucide-react";
@@ -71,7 +71,7 @@ function lapRecordStat(lapRecord: LapRecord | null | undefined): Stat | null {
     label: "Lap record",
     icon: Timer,
     value: lapRecord.time,
-    detail: `${lapRecord.driver.split(" ").at(-1) ?? lapRecord.driver} · ${lapRecord.year}`,
+    detail: `${lapRecord.driver.slice(lapRecord.driver.lastIndexOf(" ") + 1)} · ${lapRecord.year}`,
   };
 }
 

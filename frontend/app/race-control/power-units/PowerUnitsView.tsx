@@ -1,6 +1,5 @@
 "use client";
 
-import { Cpu, FileX2, Gavel, TriangleAlert } from "lucide-react";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
@@ -64,29 +63,21 @@ function SeasonMetrics({ data }: { data: PowerUnitsResponse }) {
         label="Cars beyond allowance"
         value={`${totals.carsOver} / ${data.cars.length}`}
         sub="At least one element past the season's allowance"
-        icon={Cpu}
-        color="#E10600"
       />
       <MetricCard
         label="PU grid places"
         value={totals.gridPlaces ? `−${totals.gridPlaces}` : "0"}
         sub={`Dropped through stewards' decisions${totals.pitLaneStarts ? `, plus ${totals.pitLaneStarts} pit-lane start(s)` : ""}`}
-        icon={Gavel}
-        color="#F5C542"
       />
       <MetricCard
         label="Decisions pending"
         value={String(totals.pending)}
         sub="Units beyond the allowance the stewards have not ruled on yet"
-        icon={TriangleAlert}
-        color={totals.pending ? "#F5C542" : "#00FF78"}
       />
       <MetricCard
         label="Documents not counted"
         value={String(setAside)}
         sub={`${withdrawn} withdrawn or replaced by the FIA, ${data.unread.length} unreadable — each listed below`}
-        icon={FileX2}
-        color="#3671C6"
       />
     </MetricRow>
   );

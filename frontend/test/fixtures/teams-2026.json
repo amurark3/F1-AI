@@ -1,0 +1,552 @@
+{
+  "year": 2026,
+  "generated_at": "2026-11-03T01:46:28.965828+00:00",
+  "source": "computed-standings",
+  "as_of_round": 19,
+  "provisional": false,
+  "sources": [
+    {
+      "source": "f1db",
+      "role": "base",
+      "through_round": 19,
+      "version": "v2026.19.0"
+    }
+  ],
+  "drivers": [
+    {
+      "position": 1,
+      "code": "ANT",
+      "driver": "Kimi Antonelli",
+      "team": "Mercedes",
+      "points": 380.0,
+      "wins": 9
+    },
+    {
+      "position": 2,
+      "code": "VER",
+      "driver": "Max Verstappen",
+      "team": "Red Bull",
+      "points": 261.0,
+      "wins": 3
+    },
+    {
+      "position": 3,
+      "code": "HAM",
+      "driver": "Lewis Hamilton",
+      "team": "Ferrari",
+      "points": 259.0,
+      "wins": 1
+    },
+    {
+      "position": 4,
+      "code": "RUS",
+      "driver": "George Russell",
+      "team": "Mercedes",
+      "points": 250.0,
+      "wins": 3
+    },
+    {
+      "position": 5,
+      "code": "LEC",
+      "driver": "Charles Leclerc",
+      "team": "Ferrari",
+      "points": 245.0,
+      "wins": 1
+    },
+    {
+      "position": 6,
+      "code": "NOR",
+      "driver": "Lando Norris",
+      "team": "McLaren",
+      "points": 221.0,
+      "wins": 2
+    },
+    {
+      "position": 7,
+      "code": "PIA",
+      "driver": "Oscar Piastri",
+      "team": "McLaren",
+      "points": 144.0,
+      "wins": 0
+    },
+    {
+      "position": 8,
+      "code": "HAD",
+      "driver": "Isack Hadjar",
+      "team": "Red Bull",
+      "points": 107.0,
+      "wins": 0
+    },
+    {
+      "position": 9,
+      "code": "LAW",
+      "driver": "Liam Lawson",
+      "team": "Racing Bulls",
+      "points": 83.0,
+      "wins": 0
+    },
+    {
+      "position": 10,
+      "code": "GAS",
+      "driver": "Pierre Gasly",
+      "team": "Alpine",
+      "points": 42.0,
+      "wins": 0
+    },
+    {
+      "position": 11,
+      "code": "LIN",
+      "driver": "Arvid Lindblad",
+      "team": "Racing Bulls",
+      "points": 38.0,
+      "wins": 0
+    },
+    {
+      "position": 12,
+      "code": "COL",
+      "driver": "Franco Colapinto",
+      "team": "Alpine",
+      "points": 27.0,
+      "wins": 0
+    },
+    {
+      "position": 13,
+      "code": "BEA",
+      "driver": "Oliver Bearman",
+      "team": "Haas",
+      "points": 23.0,
+      "wins": 0
+    },
+    {
+      "position": 14,
+      "code": "BOR",
+      "driver": "Gabriel Bortoleto",
+      "team": "Audi",
+      "points": 14.0,
+      "wins": 0
+    },
+    {
+      "position": 15,
+      "code": "HUL",
+      "driver": "Nico Hülkenberg",
+      "team": "Audi",
+      "points": 13.0,
+      "wins": 0
+    },
+    {
+      "position": 16,
+      "code": "OCO",
+      "driver": "Esteban Ocon",
+      "team": "Haas",
+      "points": 7.0,
+      "wins": 0
+    },
+    {
+      "position": 17,
+      "code": "ALO",
+      "driver": "Fernando Alonso",
+      "team": "Aston Martin",
+      "points": 7.0,
+      "wins": 0
+    },
+    {
+      "position": 18,
+      "code": "SAI",
+      "driver": "Carlos Sainz Jr.",
+      "team": "Williams",
+      "points": 7.0,
+      "wins": 0
+    },
+    {
+      "position": 19,
+      "code": "ALB",
+      "driver": "Alexander Albon",
+      "team": "Williams",
+      "points": 5.0,
+      "wins": 0
+    },
+    {
+      "position": 20,
+      "code": "TSU",
+      "driver": "Yuki Tsunoda",
+      "team": "Racing Bulls",
+      "points": 1.0,
+      "wins": 0
+    },
+    {
+      "position": 21,
+      "code": "HIR",
+      "driver": "Ryō Hirakawa",
+      "team": "Haas",
+      "points": 1.0,
+      "wins": 0
+    },
+    {
+      "position": 22,
+      "code": "STR",
+      "driver": "Lance Stroll",
+      "team": "Aston Martin",
+      "points": 0.0,
+      "wins": 0
+    },
+    {
+      "position": 23,
+      "code": "BOT",
+      "driver": "Valtteri Bottas",
+      "team": "Cadillac",
+      "points": 0.0,
+      "wins": 0
+    },
+    {
+      "position": 24,
+      "code": "PER",
+      "driver": "Sergio Pérez",
+      "team": "Cadillac",
+      "points": 0.0,
+      "wins": 0
+    }
+  ],
+  "teams": [
+    {
+      "slug": "mercedes",
+      "name": "Mercedes",
+      "color": "#27F4D2",
+      "strengths": ["WCC P1", "630 championship pts", "12 race wins", "33.2 pts/GP"],
+      "weaknesses": [
+        "Current constructor benchmark",
+        "Kimi Antonelli has 60% of team points",
+        "2 classified drivers in standings"
+      ],
+      "position": 1,
+      "points": 630.0,
+      "wins": 12,
+      "drivers": [
+        {
+          "position": 1,
+          "code": "ANT",
+          "driver": "Kimi Antonelli",
+          "team": "Mercedes",
+          "points": 380.0,
+          "wins": 9
+        },
+        {
+          "position": 4,
+          "code": "RUS",
+          "driver": "George Russell",
+          "team": "Mercedes",
+          "points": 250.0,
+          "wins": 3
+        }
+      ]
+    },
+    {
+      "slug": "ferrari",
+      "name": "Ferrari",
+      "color": "#E8002D",
+      "strengths": ["WCC P2", "504 championship pts", "2 race wins", "26.5 pts/GP"],
+      "weaknesses": ["126 pts behind P1", "Lewis Hamilton has 51% of team points", "2 classified drivers in standings"],
+      "position": 2,
+      "points": 504.0,
+      "wins": 2,
+      "drivers": [
+        {
+          "position": 3,
+          "code": "HAM",
+          "driver": "Lewis Hamilton",
+          "team": "Ferrari",
+          "points": 259.0,
+          "wins": 1
+        },
+        {
+          "position": 5,
+          "code": "LEC",
+          "driver": "Charles Leclerc",
+          "team": "Ferrari",
+          "points": 245.0,
+          "wins": 1
+        }
+      ]
+    },
+    {
+      "slug": "red-bull",
+      "name": "Red Bull",
+      "color": "#3671C6",
+      "strengths": ["WCC P3", "382 championship pts", "3 race wins", "20.1 pts/GP"],
+      "weaknesses": ["248 pts behind P1", "Max Verstappen has 68% of team points", "2 classified drivers in standings"],
+      "position": 3,
+      "points": 382.0,
+      "wins": 3,
+      "drivers": [
+        {
+          "position": 2,
+          "code": "VER",
+          "driver": "Max Verstappen",
+          "team": "Red Bull",
+          "points": 261.0,
+          "wins": 3
+        },
+        {
+          "position": 8,
+          "code": "HAD",
+          "driver": "Isack Hadjar",
+          "team": "Red Bull",
+          "points": 107.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "mclaren",
+      "name": "McLaren",
+      "color": "#FF8000",
+      "strengths": ["WCC P4", "365 championship pts", "2 race wins", "19.2 pts/GP"],
+      "weaknesses": ["265 pts behind P1", "Lando Norris has 61% of team points", "2 classified drivers in standings"],
+      "position": 4,
+      "points": 365.0,
+      "wins": 2,
+      "drivers": [
+        {
+          "position": 6,
+          "code": "NOR",
+          "driver": "Lando Norris",
+          "team": "McLaren",
+          "points": 221.0,
+          "wins": 2
+        },
+        {
+          "position": 7,
+          "code": "PIA",
+          "driver": "Oscar Piastri",
+          "team": "McLaren",
+          "points": 144.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "racing-bulls",
+      "name": "Racing Bulls",
+      "color": "#6692FF",
+      "strengths": ["WCC P5", "108 championship pts", "0 race wins", "5.7 pts/GP"],
+      "weaknesses": ["522 pts behind P1", "Liam Lawson has 77% of team points", "3 classified drivers in standings"],
+      "position": 5,
+      "points": 108.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 9,
+          "code": "LAW",
+          "driver": "Liam Lawson",
+          "team": "Racing Bulls",
+          "points": 83.0,
+          "wins": 0
+        },
+        {
+          "position": 11,
+          "code": "LIN",
+          "driver": "Arvid Lindblad",
+          "team": "Racing Bulls",
+          "points": 38.0,
+          "wins": 0
+        },
+        {
+          "position": 20,
+          "code": "TSU",
+          "driver": "Yuki Tsunoda",
+          "team": "Racing Bulls",
+          "points": 1.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "alpine",
+      "name": "Alpine",
+      "color": "#FF87BC",
+      "strengths": ["WCC P6", "69 championship pts", "0 race wins", "3.6 pts/GP"],
+      "weaknesses": ["561 pts behind P1", "Pierre Gasly has 61% of team points", "2 classified drivers in standings"],
+      "position": 6,
+      "points": 69.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 10,
+          "code": "GAS",
+          "driver": "Pierre Gasly",
+          "team": "Alpine",
+          "points": 42.0,
+          "wins": 0
+        },
+        {
+          "position": 12,
+          "code": "COL",
+          "driver": "Franco Colapinto",
+          "team": "Alpine",
+          "points": 27.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "haas",
+      "name": "Haas",
+      "color": "#B6BABD",
+      "strengths": ["WCC P7", "31 championship pts", "0 race wins", "1.6 pts/GP"],
+      "weaknesses": ["599 pts behind P1", "Oliver Bearman has 74% of team points", "3 classified drivers in standings"],
+      "position": 7,
+      "points": 31.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 13,
+          "code": "BEA",
+          "driver": "Oliver Bearman",
+          "team": "Haas",
+          "points": 23.0,
+          "wins": 0
+        },
+        {
+          "position": 16,
+          "code": "OCO",
+          "driver": "Esteban Ocon",
+          "team": "Haas",
+          "points": 7.0,
+          "wins": 0
+        },
+        {
+          "position": 21,
+          "code": "HIR",
+          "driver": "Ryō Hirakawa",
+          "team": "Haas",
+          "points": 1.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "audi",
+      "name": "Audi",
+      "color": "#FF0000",
+      "strengths": ["WCC P8", "27 championship pts", "0 race wins", "1.4 pts/GP"],
+      "weaknesses": [
+        "603 pts behind P1",
+        "Gabriel Bortoleto has 52% of team points",
+        "2 classified drivers in standings"
+      ],
+      "position": 8,
+      "points": 27.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 14,
+          "code": "BOR",
+          "driver": "Gabriel Bortoleto",
+          "team": "Audi",
+          "points": 14.0,
+          "wins": 0
+        },
+        {
+          "position": 15,
+          "code": "HUL",
+          "driver": "Nico Hülkenberg",
+          "team": "Audi",
+          "points": 13.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "williams",
+      "name": "Williams",
+      "color": "#64C4FF",
+      "strengths": ["WCC P9", "12 championship pts", "0 race wins", "0.6 pts/GP"],
+      "weaknesses": [
+        "618 pts behind P1",
+        "Carlos Sainz Jr. has 58% of team points",
+        "2 classified drivers in standings"
+      ],
+      "position": 9,
+      "points": 12.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 18,
+          "code": "SAI",
+          "driver": "Carlos Sainz Jr.",
+          "team": "Williams",
+          "points": 7.0,
+          "wins": 0
+        },
+        {
+          "position": 19,
+          "code": "ALB",
+          "driver": "Alexander Albon",
+          "team": "Williams",
+          "points": 5.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "aston-martin",
+      "name": "Aston Martin",
+      "color": "#229971",
+      "strengths": ["WCC P10", "7 championship pts", "0 race wins", "0.4 pts/GP"],
+      "weaknesses": [
+        "623 pts behind P1",
+        "Fernando Alonso has 100% of team points",
+        "2 classified drivers in standings"
+      ],
+      "position": 10,
+      "points": 7.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 17,
+          "code": "ALO",
+          "driver": "Fernando Alonso",
+          "team": "Aston Martin",
+          "points": 7.0,
+          "wins": 0
+        },
+        {
+          "position": 22,
+          "code": "STR",
+          "driver": "Lance Stroll",
+          "team": "Aston Martin",
+          "points": 0.0,
+          "wins": 0
+        }
+      ]
+    },
+    {
+      "slug": "cadillac",
+      "name": "Cadillac",
+      "color": "#E0D4B8",
+      "strengths": ["WCC P11", "0 championship pts", "0 race wins", "0.0 pts/GP"],
+      "weaknesses": ["630 pts behind P1", "2 classified drivers in standings"],
+      "position": 11,
+      "points": 0.0,
+      "wins": 0,
+      "drivers": [
+        {
+          "position": 23,
+          "code": "BOT",
+          "driver": "Valtteri Bottas",
+          "team": "Cadillac",
+          "points": 0.0,
+          "wins": 0
+        },
+        {
+          "position": 24,
+          "code": "PER",
+          "driver": "Sergio Pérez",
+          "team": "Cadillac",
+          "points": 0.0,
+          "wins": 0
+        }
+      ]
+    }
+  ],
+  "error": null
+}

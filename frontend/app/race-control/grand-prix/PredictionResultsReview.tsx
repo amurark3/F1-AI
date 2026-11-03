@@ -3,11 +3,12 @@
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+import { StatTile } from "@/app/ui/StatTile";
 
-import { StatusPill } from "../components/RaceControlPrimitives";
+import { Panel, StatusPill } from "../components/RaceControlPrimitives";
 import { DriverLink } from "../profiles/EntityLinks";
 
-import { ConsoleHeader, ConsolePanel, StatBlock } from "./predictionConsole";
 import {
   deltaColor,
   deltaLabel,
@@ -115,14 +116,15 @@ function DriverComparisonTable({ rows, identities }: { rows: PredictionDriverRes
   const compared = rows.filter((row) => row.position_delta != null).length;
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Predicted vs actual - every driver"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Predicted vs actual - every driver"
+        aside={
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             {exact} exact / {within3} within 3 / {compared} compared
           </span>
         }
+        inset
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left">
@@ -146,7 +148,7 @@ function DriverComparisonTable({ rows, identities }: { rows: PredictionDriverRes
         Vs call is places against the prediction — <span className="text-[#00FF78]">green beat it</span>,{" "}
         <span className="text-[#FF4655]">red fell short</span>.
       </p>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -177,31 +179,31 @@ function WinnerCallPanel({ review, identities }: { review: PredictionReview; ide
 function PostRaceReviewGrid({ review }: { review: PredictionReview }) {
   return (
     <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-      <StatBlock
+      <StatTile
         label="Top 3"
         value={`${review.top3_correct ?? 0}/${review.top3_possible ?? 3}`}
-        detail="predicted podium overlap"
+        sub="predicted podium overlap"
       />
-      <StatBlock
+      <StatTile
         label="Top 10"
         value={`${review.top10_correct ?? 0}/${review.top10_possible ?? 10}`}
-        detail="points finish overlap"
+        sub="points finish overlap"
       />
-      <StatBlock
+      <StatTile
         label="Exact"
         value={`${review.exact_position_hits ?? 0}/${review.drivers_compared ?? 0}`}
-        detail="exact finishing positions"
+        sub="exact finishing positions"
       />
-      <StatBlock label="Avg error" value={`${review.avg_position_error ?? 0}`} detail="positions per compared driver" />
-      <StatBlock
+      <StatTile label="Avg error" value={`${review.avg_position_error ?? 0}`} sub="positions per compared driver" />
+      <StatTile
         label="DNF calls"
         value={`${review.dnf_correct ?? 0}/${review.dnf_actual ?? 0}`}
-        detail="captured actual retirements"
+        sub="captured actual retirements"
       />
-      <StatBlock
+      <StatTile
         label="Crash calls"
         value={`${review.crash_correct ?? 0}/${review.crash_actual ?? 0}`}
-        detail="captured accident outcomes"
+        sub="captured accident outcomes"
       />
     </div>
   );
@@ -214,12 +216,12 @@ function RollingAccuracyGrid({ accuracy }: { accuracy?: PredictionsResponse["acc
 
   return (
     <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-      <StatBlock label="Winner" value={`${accuracy?.recent_winner_pct ?? 0}%`} detail={`latest ${window} scored max`} />
-      <StatBlock label="Top 3" value={`${accuracy?.recent_top3_pct ?? 0}%`} detail={`latest ${window} scored max`} />
-      <StatBlock label="Top 10" value={`${accuracy?.recent_top10_pct ?? 0}%`} detail={`latest ${window} scored max`} />
-      <StatBlock label="Avg error" value={`${accuracy?.avg_position_error ?? 0}`} detail="positions per driver" />
-      <StatBlock label="DNF capture" value={dnfCapture} detail="actual DNF capture" />
-      <StatBlock label="Crash capture" value={crashCapture} detail="actual crash capture" />
+      <StatTile label="Winner" value={`${accuracy?.recent_winner_pct ?? 0}%`} sub={`latest ${window} scored max`} />
+      <StatTile label="Top 3" value={`${accuracy?.recent_top3_pct ?? 0}%`} sub={`latest ${window} scored max`} />
+      <StatTile label="Top 10" value={`${accuracy?.recent_top10_pct ?? 0}%`} sub={`latest ${window} scored max`} />
+      <StatTile label="Avg error" value={`${accuracy?.avg_position_error ?? 0}`} sub="positions per driver" />
+      <StatTile label="DNF capture" value={dnfCapture} sub="actual DNF capture" />
+      <StatTile label="Crash capture" value={crashCapture} sub="actual crash capture" />
     </div>
   );
 }
@@ -241,14 +243,15 @@ export function ResultsReview({
 
   return (
     <div className="space-y-4">
-      <ConsolePanel>
-        <ConsoleHeader
-          label={evaluated ? "Post-race review" : "Rolling accuracy"}
-          right={
+      <Panel as="section">
+        <PanelHeading
+          eyebrow={evaluated ? "Post-race review" : "Rolling accuracy"}
+          aside={
             <StatusPill color={reviewColor(Boolean(review?.winner_correct), evaluated)}>
               {reviewBadgeLabel(review, accuracy?.races_evaluated ?? 0)}
             </StatusPill>
           }
+          inset
         />
         {evaluated && review ? (
           <>
@@ -263,7 +266,7 @@ export function ResultsReview({
             <RollingAccuracyGrid accuracy={accuracy} />
           </>
         )}
-      </ConsolePanel>
+      </Panel>
 
       {evaluated && rows.length > 0 && <DriverComparisonTable rows={rows} identities={identities} />}
     </div>

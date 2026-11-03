@@ -4,9 +4,10 @@ import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 import { fetcher } from "@/app/utils/fetcher";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { Panel } from "../../components/RaceControlPrimitives";
 import { PowerUnitsSection, type DriverFocus } from "../../profiles/PowerUnitCards";
 import { FinishPositionChart } from "../../profiles/ProfileCharts";
 import {
@@ -32,15 +33,16 @@ function PositionPanel({ profile }: { profile: DriverProfile }) {
   if (raced.length < 2) return null;
   const lowest = Math.max(...raced.map((entry) => entry.position ?? 0));
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader
-        label="Finishing position by round"
-        right={<span className="text-xs text-[#6F7789]">Gaps are retirements or rounds not raced</span>}
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow="Finishing position by round"
+        aside={<span className="text-xs text-[#6F7789]">Gaps are retirements or rounds not raced</span>}
+        inset
       />
       <div className="p-3">
         <FinishPositionChart data={data} color={profile.driver.color} fieldSize={Math.max(FIELD_SIZE, lowest)} />
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 

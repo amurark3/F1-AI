@@ -1,6 +1,6 @@
 "use client";
 
-import { Trophy, Users, Flag, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -100,28 +100,14 @@ function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats
 
   return (
     <MetricRow>
-      <MetricCard label="Seasons" value={String(seasons.length)} icon={Flag} color="#E10600" sub="1950 to present" />
-      <MetricCard
-        label="Most Driver Titles"
-        value={topDriver ? String(topDriver.titles) : "—"}
-        sub={topDriver?.name}
-        icon={Trophy}
-        color="#FFD700"
-      />
+      <MetricCard label="Seasons" value={String(seasons.length)} sub="1950 to present" />
+      <MetricCard label="Most Driver Titles" value={topDriver ? String(topDriver.titles) : "—"} sub={topDriver?.name} />
       <MetricCard
         label="Most Constructor Titles"
         value={topConstructor ? String(topConstructor.titles) : "—"}
         sub={topConstructor?.name}
-        icon={Users}
-        color="#00D2FF"
       />
-      <MetricCard
-        label="Current Leader"
-        value={current?.driver_champion?.code ?? "—"}
-        sub={currentSub}
-        icon={Trophy}
-        color="#00FF78"
-      />
+      <MetricCard label="Current Leader" value={current?.driver_champion?.code ?? "—"} sub={currentSub} />
     </MetricRow>
   );
 }

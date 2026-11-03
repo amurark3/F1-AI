@@ -2,12 +2,11 @@
 
 import { AlertTriangle, LockKeyhole } from "lucide-react";
 
-import { InlineNotice, SectionLoader, rcFont } from "../components/RaceControlPrimitives";
+import { InlineNotice, Panel, rcFont, SectionLoader } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
 import { ModelIO, PodiumPanel, RiskTable, StandbyPanel, FullGridTable } from "./GrandPrixPanels";
 import { PREDICTION_VIEWS, type PredictionView } from "./hubNavigation";
-import { ConsolePanel } from "./predictionConsole";
 import { phaseDescription, phaseTabLabel } from "./predictionHelpers";
 import { PredictionBar } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
@@ -24,7 +23,7 @@ import type {
 /** Shown on the after-qualifying tab before the session that feeds it has run. */
 function AwaitingQualifyingPanel({ raceName }: { raceName: string }) {
   return (
-    <ConsolePanel>
+    <Panel as="section">
       <div className="flex items-start gap-4 p-6">
         <LockKeyhole className="mt-1 h-5 w-5 text-[#C6A24B]" />
         <div>
@@ -37,7 +36,7 @@ function AwaitingQualifyingPanel({ raceName }: { raceName: string }) {
           </p>
         </div>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -85,7 +84,7 @@ function PredictionLoadState({
       )}
 
       {!predictionLoading && predictionError && !hasPredictions && (
-        <ConsolePanel>
+        <Panel as="section">
           <div className="flex items-start gap-4 p-6">
             <AlertTriangle className="mt-1 h-5 w-5 text-[#E10600]" />
             <div>
@@ -104,7 +103,7 @@ function PredictionLoadState({
               </button>
             </div>
           </div>
-        </ConsolePanel>
+        </Panel>
       )}
 
       {isComputing && (

@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
@@ -41,13 +41,56 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Build app
         run: npm run build
+
+  frontend_unit_tests:
+    name: Frontend unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      # Vitest's per-file thresholds (vitest.config.mts) fail the run when any
+      # file on the coverage include list drops below 100% on any metric.
+      - name: Run Vitest with the coverage gate
+        run: npm run test:coverage
+
+  frontend_e2e:
+    name: Frontend e2e
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      # playwright.config.ts builds and starts the app itself, pointed at a
+      # backend origin nothing listens on; the specs answer every API call from
+      # the captured fixtures in test/fixtures, so no Python backend is needed.
+      - name: Run Playwright
+        run: npm run e2e
 
   backend_syntax:
     name: Backend syntax check
@@ -128,7 +171,7 @@ jobs:
     name: Review summary comment
     runs-on: ubuntu-latest
     if: always()
-    needs: [frontend_lint, frontend_build, backend_syntax, backend_lint, backend_tests]
+    needs: [frontend_lint, frontend_build, frontend_unit_tests, frontend_e2e, backend_syntax, backend_lint, backend_tests]
     steps:
       - name: Publish PR review summary
         uses: actions/github-script@v9
@@ -138,6 +181,8 @@ jobs:
             const statuses = {
               frontendLint: "${{ needs.frontend_lint.result }}",
               frontendBuild: "${{ needs.frontend_build.result }}",
+              frontendUnitTests: "${{ needs.frontend_unit_tests.result }}",
+              frontendE2e: "${{ needs.frontend_e2e.result }}",
               backendSyntax: "${{ needs.backend_syntax.result }}",
               backendLint: "${{ needs.backend_lint.result }}",
               backendTests: "${{ needs.backend_tests.result }}",
@@ -156,6 +201,12 @@ jobs:
             }
             if (statuses.frontendBuild !== "success") {
               failures.push("- **Frontend build** failed. Suggestion: run `npm run build` in `/frontend` and resolve build/type errors before pushing.");
+            }
+            if (statuses.frontendUnitTests !== "success") {
+              failures.push("- **Frontend unit tests** failed. Suggestion: run `npm run test:coverage` in `/frontend` and fix the failing tests — or the coverage shortfall — before merging.");
+            }
+            if (statuses.frontendE2e !== "success") {
+              failures.push("- **Frontend e2e** failed. Suggestion: run `npm run e2e` in `/frontend` (after `npx playwright install chromium`) and fix the failing specs.");
             }
             if (statuses.backendSyntax !== "success") {
               failures.push("- **Backend syntax check** failed. Suggestion: run `python -m compileall app main.py mcp_server.py` in `/backend` and fix invalid Python files.");
@@ -185,6 +236,8 @@ jobs:
               "### Check results",
               `- Frontend lint: ${toBadge(statuses.frontendLint)}`,
               `- Frontend build: ${toBadge(statuses.frontendBuild)}`,
+              `- Frontend unit tests: ${toBadge(statuses.frontendUnitTests)}`,
+              `- Frontend e2e: ${toBadge(statuses.frontendE2e)}`,
               `- Backend syntax check: ${toBadge(statuses.backendSyntax)}`,
               `- Backend lint: ${toBadge(statuses.backendLint)}`,
               `- Backend tests: ${toBadge(statuses.backendTests)}`,

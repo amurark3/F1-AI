@@ -54,7 +54,7 @@ function UnreachableActions({ onRetry, onContinue }: { onRetry: () => void; onCo
         type="button"
         autoFocus
         onClick={onRetry}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#E10600] px-5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-[#FF1E10] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#E10600] px-5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-[#FF1E10] focus-visible:outline-rc-ink"
         style={barlow}
       >
         <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -63,7 +63,7 @@ function UnreachableActions({ onRetry, onContinue }: { onRetry: () => void; onCo
       <button
         type="button"
         onClick={onContinue}
-        className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#1E2633] px-5 text-xs font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E10600]/50"
+        className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#1E2633] px-5 text-xs font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
         style={barlow}
       >
         Continue anyway

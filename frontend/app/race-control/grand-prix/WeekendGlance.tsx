@@ -5,12 +5,12 @@ import Link from "next/link";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 import { fetcher } from "@/app/utils/fetcher";
 
+import { InfoRow, Panel } from "../components/RaceControlPrimitives";
 import { outcomeLabel, type Decision, type DriverRef } from "../power-units/powerUnitsModel";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
-
-import { ConsoleHeader, ConsolePanel, InfoRow } from "./predictionConsole";
 
 interface Headliner {
   driver_id: string;
@@ -83,8 +83,8 @@ export function WeekendGlance({ year, round }: { year: number; round: number }) 
   });
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader label="At a glance" />
+    <Panel as="section">
+      <PanelHeading eyebrow="At a glance" inset />
       <div className="p-4 font-mono text-sm">
         {error && <p className="text-xs text-[#FFB4B1]">This round&apos;s history could not be loaded.</p>}
         {!data && !error && <p className="text-xs text-[#6F7789]">Reading this circuit&apos;s history…</p>}
@@ -105,6 +105,6 @@ export function WeekendGlance({ year, round }: { year: number; round: number }) 
           </>
         )}
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

@@ -11,8 +11,9 @@
 import Link from "next/link";
 
 import { driverHref, grandPrixHref } from "@/app/lib/entityLinks";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { Panel } from "../../components/RaceControlPrimitives";
 import { FinishChip } from "../../profiles/FinishChip";
 import { formatPoints, type TeamDriver, type TeamProfile, type TeamRound } from "../../profiles/profilesModel";
 
@@ -62,10 +63,11 @@ function RoundRow({ round, drivers }: { round: TeamRound; drivers: TeamDriver[] 
 export function TeamResultsGrid({ profile }: { profile: TeamProfile }) {
   const { drivers, rounds } = profile;
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader
-        label="Every round"
-        right={<span className="text-xs text-[#6F7789]">Hover a result for grid, places gained and reason</span>}
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow="Every round"
+        aside={<span className="text-xs text-[#6F7789]">Hover a result for grid, places gained and reason</span>}
+        inset
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
@@ -99,6 +101,6 @@ export function TeamResultsGrid({ profile }: { profile: TeamProfile }) {
           </tbody>
         </table>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

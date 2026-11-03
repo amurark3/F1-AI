@@ -3,14 +3,15 @@
 import { MapPin } from "lucide-react";
 
 import { LocalTime } from "@/app/components/LocalTime";
+import { CircuitMap } from "@/app/ui/CircuitMap";
+import { countdownParts } from "@/app/ui/countdownParts";
+import { nextUp } from "@/app/ui/nextUp";
+import { useClock } from "@/app/ui/useClock";
 
 import { SkeletonPanel, StatusPill, rcFont } from "../components/RaceControlPrimitives";
 
-import { CircuitMap } from "./CircuitMap";
 import { CircuitStats, type CircuitBasics } from "./CircuitStats";
 import { SessionWeatherStrip } from "./SessionWeatherStrip";
-import { useClock } from "./useClock";
-import { countdownParts, nextUp } from "./weekendModel";
 
 import type { OverviewCircuit, SessionWeatherRow } from "./weekendTypes";
 
@@ -97,7 +98,7 @@ function MapSlot({ circuit, loading, name }: { circuit: OverviewCircuit | undefi
 /** The circuit's name and town, preferring f1db's record to the schedule's location. */
 function circuitLabel(race: HeroRace, circuit: OverviewCircuit | undefined): { name: string; place: string } {
   const name = circuit?.record?.name ?? race.circuit?.circuit_name ?? race.location;
-  const place = circuit?.record?.place ?? race.location.split(",")[0] ?? "";
+  const place = circuit?.record?.place ?? race.location.split(",")[0];
   return { name, place: place === name ? "" : place };
 }
 

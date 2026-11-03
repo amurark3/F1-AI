@@ -2,7 +2,8 @@
 
 import { CloudRain, Crown, Target, Timer } from "lucide-react";
 
-import { AnimatedNumber } from "./AnimatedNumber";
+import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
+
 import { WeatherGlyph } from "./WeatherGlyph";
 import { formatPoints, rainColor } from "./weekendModel";
 

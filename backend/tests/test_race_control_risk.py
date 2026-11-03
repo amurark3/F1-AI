@@ -191,3 +191,24 @@ def test_register_stacks_every_earned_card_in_reading_order():
         "Rival offset plans",
     ]
     assert [card["level"] for card in register] == ["High", "High", "High", "High"]
+
+
+@pytest.mark.unit
+def test_every_card_is_graded_high_medium_or_low():
+    """The web colours a card by its level and has no colour for a fourth one
+    (`RiskLevel` in the frontend's `weekendTypes.ts`), so the register may only
+    grade with these three words."""
+    event = _event(is_sprint=True, circuit_type="Street circuit")
+    leader = {"rank": 1, "team": "McLaren", "gap_to_leader": 0}
+    # Together these reach every card the module writes: both event cards, the
+    # offline and the three graded weather cards, and the three rival grades.
+    inputs = [
+        (None, []),
+        ({"rain_risk": 10}, [leader, {"rank": 2, "team": "Ferrari", "gap_to_leader": 10}]),
+        ({"rain_risk": 30}, [leader, {"rank": 2, "team": "Ferrari", "gap_to_leader": 40}]),
+        ({"rain_risk": 70}, [leader, {"rank": 2, "team": "Ferrari", "gap_to_leader": 90}]),
+    ]
+
+    levels = {card["level"] for weather, rivals in inputs for card in risk.build_risk_register(event, weather, rivals)}
+
+    assert levels == {"High", "Medium", "Low"}

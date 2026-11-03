@@ -20,8 +20,24 @@
   --foreground: #f0f0f0;
   --surface: #0d111b;
   --surface-raised: #101520;
-  --border-subtle: rgba(126, 140, 170, 0.18);
   --border-dim: rgba(126, 140, 170, 0.24);
+
+  /* Redesign palette (docs/design/redesign/system.css). Mirrored for SVG and
+     Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal. */
+  --rc-hero: #0b0f18; /* hero band, and the tile of the B1 logo mark */
+  --rc-raised: #121826; /* raised surfaces: chart tooltips, popovers */
+  --rc-line: #1e2633; /* hairlines and borders on panels and tooltips */
+  --rc-line-soft: #161d28; /* row dividers in ranked lists and tables */
+  --rc-dim: #3a4254; /* marks with no colour of their own: context series, not the story */
+  /* Text tones, each at least 4.5:1 on --surface. */
+  --rc-ink: #f0f2f6;
+  --rc-ink-2: #aeb6c6;
+  --rc-ink-3: #7f8797;
+  /* Semantics, never decoration. --f1-red stays the fill and rule red. */
+  --rc-red-text: #ff4655; /* red read as text, and live */
+  --rc-gold: #ffc93c; /* wins, titles, the leader */
+  --rc-blue: #4c8dff; /* upcoming, info */
+  --rc-gain: #00d66b; /* positions gained only; not the DRS green */
 }
 
 @theme inline {
@@ -29,7 +45,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-f1: var(--font-geist-sans);
+  /* Barlow Condensed, loaded by next/font in app/layout.tsx: titles and section heads */
+  --font-display: var(--font-barlow), "Arial Narrow", sans-serif;
 
   /* F1 palette exposed to Tailwind */
   --color-f1-red: #e10600;
@@ -38,16 +55,23 @@
   --color-f1-green: #00cc00;
   --color-f1-yellow: #fff200;
 
+  /* Redesign palette exposed to Tailwind: bg-rc-hero, text-rc-ink-2, text-rc-gold, bg-rc-gain … */
+  --color-rc-hero: var(--rc-hero);
+  --color-rc-raised: var(--rc-raised);
+  --color-rc-line: var(--rc-line);
+  --color-rc-line-soft: var(--rc-line-soft);
+  --color-rc-dim: var(--rc-dim);
+  --color-rc-ink: var(--rc-ink);
+  --color-rc-ink-2: var(--rc-ink-2);
+  --color-rc-ink-3: var(--rc-ink-3);
+  --color-rc-red-text: var(--rc-red-text);
+  --color-rc-gold: var(--rc-gold);
+  --color-rc-blue: var(--rc-blue);
+  --color-rc-gain: var(--rc-gain);
+
   /* Animation shorthands */
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
-  --animate-speed-in: speed-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-rev-up: rev-up 0.25s ease-in-out infinite;
   --animate-streak: speed-streak 1.8s linear infinite;
-  --animate-sector-flash: sector-flash 0.7s ease-out both;
-  --animate-drs: drs-activate 0.5s ease-out both;
-  --animate-pit-blink: pit-blink 1.2s steps(1) infinite;
-  --animate-count-in: count-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-flag: flag-wave 3s ease-in-out infinite;
   --animate-light-on: light-on 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-lights-out: lights-out 0.35s ease-out both;
   --animate-overlay-in: overlay-in 0.25s ease-out both;
@@ -79,6 +103,17 @@ body {
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
 
+/* The one keyboard focus ring (system.css `button:focus-visible`): red text,
+   2 px clear of the element. In the base layer, so a utility still wins; a
+   control flush against a clipping edge draws it inside with
+   `focus-visible:-outline-offset-2`. Text fields keep their border cue. */
+@layer base {
+  :where(a, button, summary, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--rc-red-text);
+    outline-offset: 2px;
+  }
+}
+
 /* ================================================
    Keyframes
    ================================================ */
@@ -95,30 +130,6 @@ body {
   }
 }
 
-@keyframes speed-in {
-  from {
-    opacity: 0;
-    transform: translateX(40px) skewX(-4deg);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) skewX(0);
-  }
-}
-
-@keyframes rev-up {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(-0.5px, -0.5px);
-  }
-  75% {
-    transform: translate(0.5px, 0.5px);
-  }
-}
-
 /* Animated streak shimmer (used on speed stripe) */
 @keyframes speed-streak {
   from {
@@ -126,71 +137,6 @@ body {
   }
   to {
     transform: translateX(350%);
-  }
-}
-
-/* Sector time flash — purple (best lap) */
-@keyframes sector-flash {
-  0% {
-    background: rgba(190, 58, 255, 0.35);
-  }
-  100% {
-    background: transparent;
-  }
-}
-
-/* DRS activation glow */
-@keyframes drs-activate {
-  0% {
-    box-shadow: 0 0 0 rgba(0, 255, 120, 0);
-  }
-  40% {
-    box-shadow: 0 0 24px rgba(0, 255, 120, 0.45);
-  }
-  100% {
-    box-shadow: 0 0 0 rgba(0, 255, 120, 0);
-  }
-}
-
-/* Race start lights blink */
-@keyframes pit-blink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0.15;
-  }
-}
-
-/* Number count-up entrance */
-@keyframes count-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Flag wave */
-@keyframes flag-wave {
-  0%,
-  100% {
-    transform: rotate(-1.5deg) skewX(-0.5deg);
-  }
-  50% {
-    transform: rotate(1.5deg) skewX(0.5deg);
-  }
-}
-
-/* Points bar grow in */
-@keyframes bar-grow {
-  from {
-    width: 0;
   }
 }
 
@@ -387,14 +333,7 @@ body {
    Utility classes
    ================================================ */
 
-/* Glass surfaces */
-@utility glass {
-  background: rgba(13, 17, 27, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-}
-
+/* Glass surface (the site header) */
 @utility glass-strong {
   background: rgba(8, 11, 17, 0.96);
   backdrop-filter: blur(16px);
@@ -402,75 +341,8 @@ body {
   border: 1px solid var(--border-dim);
 }
 
-/* Carbon-fibre weave texture */
-@utility carbon-fiber {
-  background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.018) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.018) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.018) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.018) 75%);
-  background-size: 4px 4px;
-  background-position:
-    0 0,
-    0 2px,
-    2px -2px,
-    -2px 0px;
-}
-
-/* Sector time badges */
-@utility sector-best {
-  background: rgba(190, 58, 255, 0.13);
-  border-color: rgba(190, 58, 255, 0.35);
-  color: #d060ff;
-}
-
-@utility sector-pb {
-  background: rgba(0, 200, 0, 0.11);
-  border-color: rgba(0, 200, 0, 0.35);
-  color: #00e000;
-}
-
-@utility sector-slow {
-  background: rgba(255, 242, 0, 0.08);
-  border-color: rgba(255, 242, 0, 0.3);
-  color: #fff200;
-}
-
-/* DRS active glow badge */
-@utility drs-badge {
-  background: rgba(0, 255, 120, 0.12);
-  border-color: rgba(0, 255, 120, 0.38);
-  color: #00ff78;
-  box-shadow: 0 0 10px rgba(0, 255, 120, 0.18);
-}
-
-/* Timing tower row */
-@utility timing-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  transition: background 0.15s ease;
-}
-
-/* Points/championship progress bar */
-@utility champ-bar {
-  animation: bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 /* Diagonal rain streaks behind a wet session card */
 @utility wx-rain-streaks {
   background-image: repeating-linear-gradient(110deg, transparent 0 14px, rgba(76, 141, 255, 0.16) 14px 15px);
   background-size: 40px 120px;
-}
-
-/* Scroll-snap utilities (race calendar) */
-@utility snap-container {
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-@utility snap-page {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
 }

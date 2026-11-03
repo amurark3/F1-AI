@@ -1,0 +1,347 @@
+{
+  "preseason": {
+    "as_of_round": null,
+    "provisional": false,
+    "sources": [],
+    "races_left": 23,
+    "sprints_left": 6,
+    "drivers": null,
+    "constructors": null
+  },
+  "after_round_1": {
+    "as_of_round": 1,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 1,
+        "version": "v2026.19.0"
+      }
+    ],
+    "races_left": 22,
+    "sprints_left": 6,
+    "drivers": {
+      "max_available": 598,
+      "max_this_weekend": 33,
+      "leader": {
+        "position": 1,
+        "name": "George Russell",
+        "code": "RUS",
+        "team": "Mercedes",
+        "points": 25.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "George Russell",
+          "code": "RUS",
+          "team": "Mercedes",
+          "points": 25.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "Kimi Antonelli",
+          "code": "ANT",
+          "team": "Mercedes",
+          "points": 18.0,
+          "gap": 7.0,
+          "alive": true
+        },
+        {
+          "position": 3,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "team": "Ferrari",
+          "points": 15.0,
+          "gap": 10.0,
+          "alive": true
+        },
+        {
+          "position": 4,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "team": "Ferrari",
+          "points": 12.0,
+          "gap": 13.0,
+          "alive": true
+        },
+        {
+          "position": 5,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "team": "McLaren",
+          "points": 10.0,
+          "gap": 15.0,
+          "alive": true
+        },
+        {
+          "position": 6,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "team": "Red Bull",
+          "points": 8.0,
+          "gap": 17.0,
+          "alive": true
+        }
+      ],
+      "rivals_alive": 20,
+      "decided": false,
+      "clinch": {
+        "rival": "Kimi Antonelli",
+        "margin_needed": 559.0,
+        "possible": false,
+        "rivals_in_play": 20
+      }
+    },
+    "constructors": {
+      "max_available": 1036,
+      "max_this_weekend": 58,
+      "leader": {
+        "position": 1,
+        "name": "Mercedes",
+        "code": null,
+        "team": "Mercedes",
+        "points": 43.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "Mercedes",
+          "code": null,
+          "team": "Mercedes",
+          "points": 43.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "Ferrari",
+          "code": null,
+          "team": "Ferrari",
+          "points": 27.0,
+          "gap": 16.0,
+          "alive": true
+        },
+        {
+          "position": 3,
+          "name": "McLaren",
+          "code": null,
+          "team": "McLaren",
+          "points": 10.0,
+          "gap": 33.0,
+          "alive": true
+        },
+        {
+          "position": 4,
+          "name": "Red Bull",
+          "code": null,
+          "team": "Red Bull",
+          "points": 8.0,
+          "gap": 35.0,
+          "alive": true
+        },
+        {
+          "position": 5,
+          "name": "Haas",
+          "code": null,
+          "team": "Haas",
+          "points": 6.0,
+          "gap": 37.0,
+          "alive": true
+        },
+        {
+          "position": 6,
+          "name": "Racing Bulls",
+          "code": null,
+          "team": "Racing Bulls",
+          "points": 4.0,
+          "gap": 39.0,
+          "alive": true
+        }
+      ],
+      "rivals_alive": 10,
+      "decided": false,
+      "clinch": {
+        "rival": "Ferrari",
+        "margin_needed": 963.0,
+        "possible": false,
+        "rivals_in_play": 10
+      }
+    }
+  },
+  "after_round_18": {
+    "as_of_round": 18,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 18,
+        "version": "v2026.19.0"
+      }
+    ],
+    "races_left": 5,
+    "sprints_left": 0,
+    "drivers": {
+      "max_available": 125,
+      "max_this_weekend": 25,
+      "leader": {
+        "position": 1,
+        "name": "Kimi Antonelli",
+        "code": "ANT",
+        "team": "Mercedes",
+        "points": 365.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "Kimi Antonelli",
+          "code": "ANT",
+          "team": "Mercedes",
+          "points": 365.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "George Russell",
+          "code": "RUS",
+          "team": "Mercedes",
+          "points": 242.0,
+          "gap": 123.0,
+          "alive": true
+        },
+        {
+          "position": 3,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "team": "Ferrari",
+          "points": 241.0,
+          "gap": 124.0,
+          "alive": true
+        },
+        {
+          "position": 4,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "team": "Red Bull",
+          "points": 236.0,
+          "gap": 129.0,
+          "alive": false
+        },
+        {
+          "position": 5,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "team": "Ferrari",
+          "points": 233.0,
+          "gap": 132.0,
+          "alive": false
+        },
+        {
+          "position": 6,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "team": "McLaren",
+          "points": 211.0,
+          "gap": 154.0,
+          "alive": false
+        }
+      ],
+      "rivals_alive": 2,
+      "decided": false,
+      "clinch": {
+        "rival": "George Russell",
+        "margin_needed": -22.0,
+        "possible": true,
+        "rivals_in_play": 0
+      }
+    },
+    "constructors": {
+      "max_available": 215,
+      "max_this_weekend": 43,
+      "leader": {
+        "position": 1,
+        "name": "Mercedes",
+        "code": null,
+        "team": "Mercedes",
+        "points": 607.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "Mercedes",
+          "code": null,
+          "team": "Mercedes",
+          "points": 607.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "Ferrari",
+          "code": null,
+          "team": "Ferrari",
+          "points": 474.0,
+          "gap": 133.0,
+          "alive": true
+        },
+        {
+          "position": 3,
+          "name": "Red Bull",
+          "code": null,
+          "team": "Red Bull",
+          "points": 355.0,
+          "gap": 252.0,
+          "alive": false
+        },
+        {
+          "position": 4,
+          "name": "McLaren",
+          "code": null,
+          "team": "McLaren",
+          "points": 355.0,
+          "gap": 252.0,
+          "alive": false
+        },
+        {
+          "position": 5,
+          "name": "Racing Bulls",
+          "code": null,
+          "team": "Racing Bulls",
+          "points": 102.0,
+          "gap": 505.0,
+          "alive": false
+        },
+        {
+          "position": 6,
+          "name": "Alpine",
+          "code": null,
+          "team": "Alpine",
+          "points": 69.0,
+          "gap": 538.0,
+          "alive": false
+        }
+      ],
+      "rivals_alive": 1,
+      "decided": false,
+      "clinch": {
+        "rival": "Ferrari",
+        "margin_needed": 40.0,
+        "possible": true,
+        "rivals_in_play": 1
+      }
+    }
+  }
+}

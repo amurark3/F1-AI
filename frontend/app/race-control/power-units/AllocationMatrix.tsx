@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "../grand-prix/predictionConsole";
+import { Panel } from "../components/RaceControlPrimitives";
 
 import { ElementPips, UsageCount } from "./ElementPips";
 import {
@@ -90,7 +91,7 @@ function CarRow({ car, codes }: { car: PowerUnitCar; codes: string[] }) {
   return (
     <Link
       href={carHref(car)}
-      className={`group grid ${GRID_COLUMNS} items-center gap-3 border-l-[3px] bg-[#0D111B] px-3 py-2.5 transition-colors hover:bg-[#121825] focus-visible:bg-[#121825] focus-visible:outline-none`}
+      className={`group grid ${GRID_COLUMNS} items-center gap-3 border-l-[3px] bg-[#0D111B] px-3 py-2.5 transition-colors hover:bg-[#121825] focus-visible:bg-[#121825] focus-visible:-outline-offset-2`}
       style={{ borderLeftColor: color }}
     >
       <span
@@ -131,12 +132,13 @@ export function AllocationMatrix({ cars, elements }: { cars: PowerUnitCar[]; ele
   );
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Allocation matrix"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Allocation matrix"
+        aside={
           <SortControls sort={sort} onSort={setSort} onlyOver={onlyOver} onToggleOver={() => setOnlyOver((v) => !v)} />
         }
+        inset
       />
       <div className="overflow-x-auto">
         <div className="min-w-[1080px]">
@@ -163,6 +165,6 @@ export function AllocationMatrix({ cars, elements }: { cars: PowerUnitCar[]; ele
           )}
         </div>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

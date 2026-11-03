@@ -38,7 +38,7 @@ function TableToggle({ table, onChange }: { table: Table; onChange: (table: Tabl
           type="button"
           aria-pressed={table === option.value}
           onClick={() => onChange(option.value)}
-          className={`rounded px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF78]/50 ${
+          className={`rounded px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
             table === option.value ? "bg-white/10 text-white" : "text-[#7F8797] hover:text-white"
           }`}
         >
@@ -66,8 +66,9 @@ interface ContenderBarProps {
 }
 
 function ContenderBar({ contender, leaderPoints, table, index }: ContenderBarProps) {
-  const color = getTeamColor(contender.team ?? contender.name);
-  const width = leaderPoints > 0 ? Math.max(2, (contender.points / leaderPoints) * 100) : 0;
+  const color = getTeamColor(contender.team);
+  // The backend sends a table only once a round has scored, so the leader always has points.
+  const width = Math.max(2, (contender.points / leaderPoints) * 100);
   return (
     <li className={contender.alive ? "" : "opacity-40"}>
       <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">

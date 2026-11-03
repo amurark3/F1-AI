@@ -125,8 +125,12 @@ def _clinch(rows: tuple[Standing, ...], available: int, here: int) -> dict | Non
 
 
 def table_stakes(rows: tuple[Standing, ...], left: PointsLeft, championship: Championship) -> dict | None:
-    """One championship's stakes; None when there are no standings to read."""
-    if not rows:
+    """One championship's stakes; None until a round has paid points.
+
+    The panel draws every bar as a share of the leader's points, so a table where
+    nobody has scored yet (no rows, or a first round that paid none) has no stakes.
+    """
+    if not rows or rows[0].points <= 0:
         return None
     scoring = championship.scoring
     remaining = Remaining(races=left.races, sprints=left.sprints)

@@ -8,9 +8,9 @@ import { ExternalLink, FileWarning, FileX2, Gavel } from "lucide-react";
 import Link from "next/link";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { InlineNotice } from "../components/RaceControlPrimitives";
-import { ConsoleHeader, ConsolePanel } from "../grand-prix/predictionConsole";
+import { InlineNotice, Panel } from "../components/RaceControlPrimitives";
 
 import {
   OVER_COLOR,
@@ -43,15 +43,16 @@ export function FiaLink({ href, label }: { href: string; label: string }) {
 export function PenaltyLog({ cars, rounds }: { cars: PowerUnitCar[]; rounds: Map<number, RoundInfo> }) {
   const entries = penaltyLog(cars);
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Stewards' decisions"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Stewards' decisions"
+        aside={
           <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             <Gavel className="h-3.5 w-3.5 text-[#F5C542]" />
             {entries.length} this season
           </span>
         }
+        inset
       />
       {entries.length === 0 ? (
         <p className="p-4 text-sm text-[#8E96A8]">No power-unit decision has been published this season.</p>
@@ -85,14 +86,14 @@ export function PenaltyLog({ cars, rounds }: { cars: PowerUnitCar[]; rounds: Map
           })}
         </ol>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }
 
 export function AllowanceLegend({ elements }: { elements: ElementInfo[] }) {
   return (
-    <ConsolePanel>
-      <ConsoleHeader label="2026 allowance per car" />
+    <Panel as="section">
+      <PanelHeading eyebrow="2026 allowance per car" inset />
       <dl className="grid grid-cols-2 gap-px bg-[#1E2633] sm:grid-cols-4">
         {elements.map((item) => (
           <div key={item.code} className="bg-[#0D111B] px-3 py-3">
@@ -116,7 +117,7 @@ export function AllowanceLegend({ elements }: { elements: ElementInfo[] }) {
         change to the regulations shows up here without a release. The first unit beyond an allowance costs ten grid
         places, every later one of the same element five, and a weekend&apos;s penalties add up (Article B8.2.8).
       </p>
-    </ConsolePanel>
+    </Panel>
   );
 }
 

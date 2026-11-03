@@ -11,7 +11,7 @@ import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
 
 import { Panel, StatusPill, rcFont } from "./RaceControlPrimitives";
 
-import type { ChampionshipStakes, LapRecord, RiskCard, SessionWeather } from "../weekend/weekendTypes";
+import type { ChampionshipStakes, LapRecord, RiskCard, RiskLevel, SessionWeather } from "../weekend/weekendTypes";
 
 export interface RaceEvent {
   round: number;
@@ -298,7 +298,7 @@ export function BaselineStrategyPanel({ context }: { context: StrategyContext | 
   );
 }
 
-const RISK_COLORS: Record<string, string> = { High: "#FF4655", Medium: "#FFF200", Low: "#00FF78" };
+const RISK_COLORS: Record<RiskLevel, string> = { High: "#FF4655", Medium: "#FFF200", Low: "#00FF78" };
 
 /** The risk register as short cards, graded from the race-day forecast and the standings. */
 export function RiskRegisterPanel({ risks }: { risks: RiskCard[] }) {
@@ -318,7 +318,7 @@ export function RiskRegisterPanel({ risks }: { risks: RiskCard[] }) {
       {risks.length === 0 && <p className="text-sm text-neutral-500">No risks graded for this weekend.</p>}
       <ul className="space-y-2.5">
         {risks.map((risk, index) => {
-          const color = RISK_COLORS[risk.level] ?? "#7F8797";
+          const color = RISK_COLORS[risk.level];
           return (
             <li
               key={risk.title}

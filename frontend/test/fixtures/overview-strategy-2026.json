@@ -1,0 +1,32 @@
+{
+  "strategy_context": {
+    "primary_call": {
+      "title": "Base race plan",
+      "summary": "Field ran a Soft-to-Soft two-stop here in 2022 (median first stop L22, 20-car sample); keep a one-stop branch open if degradation shifts the crossover.",
+      "confidence": "high"
+    },
+    "data_source": {
+      "mode": "telemetry",
+      "edition_year": 2022,
+      "sample_size": 20
+    },
+    "pit_model": {
+      "pit_loss_seconds": 21.9,
+      "undercut_delta": 1.4,
+      "overcut_delta": 0.9,
+      "undercut_modeled": true,
+      "overcut_modeled": true,
+      "traffic_threshold": "medium",
+      "traffic_modeled": false
+    },
+    "stint_windows": {
+      "total_laps": 71,
+      "opening_compound": "Soft",
+      "finishing_compound": "Soft",
+      "offset_lap": 17,
+      "primary_lap": 22,
+      "late_lap": 35,
+      "modeled": false
+    }
+  }
+}

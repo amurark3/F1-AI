@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 
 import NavShell from "./components/NavShell";
 import ServerWarmingGate from "./components/ServerWarmingGate";
@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** Display face for page titles and section heads (`--font-display` in globals.css). */
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow",
+  weight: ["600", "700", "800"],
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "F1 AI",
   description: "F1 AI — Your AI Race Engineer",
@@ -29,8 +36,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    // The font variables sit on <html> so :root-level tokens that read them resolve.
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${barlowCondensed.variable}`}>
+      <body className="antialiased">
         <ServerWarmingGate>
           <NavShell>{children}</NavShell>
         </ServerWarmingGate>

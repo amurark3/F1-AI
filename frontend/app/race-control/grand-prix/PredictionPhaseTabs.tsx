@@ -50,7 +50,7 @@ function PhaseButton({
       onClick={() => onSelect(state.phase)}
       aria-pressed={active}
       title={phaseDescription(state.phase)}
-      className={`flex min-w-0 items-center gap-2 rounded px-3 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E10600]/50 ${
+      className={`flex min-w-0 items-center gap-2 rounded px-3 py-1.5 text-left transition-colors ${
         active ? "bg-[#E10600]/15 text-white" : "text-[#8E96A8] hover:text-white"
       }`}
     >

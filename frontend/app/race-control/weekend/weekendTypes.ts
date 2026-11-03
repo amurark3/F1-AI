@@ -7,6 +7,7 @@
  */
 
 import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+import type { CircuitMapData } from "@/app/ui/outlinePath";
 
 export type WeatherCondition =
   "clear" | "partly_cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "storm" | "snow" | "unknown";
@@ -45,24 +46,6 @@ export interface SessionWeather {
   source: string;
   attribution: string;
   sessions: SessionWeatherRow[];
-}
-
-export interface CircuitCorner {
-  label: string;
-  x: number;
-  y: number;
-  label_x: number;
-  label_y: number;
-}
-
-/** The outline in SVG coordinates, already turned and scaled by the backend. */
-export interface CircuitMapData {
-  source: string;
-  season: number;
-  width: number;
-  height: number;
-  points: Array<[number, number]>;
-  corners: CircuitCorner[];
 }
 
 export interface Headliner {
@@ -114,7 +97,8 @@ export interface Contender {
   position: number;
   name: string;
   code: string | null;
-  team: string | null;
+  /** A driver's team in their latest round; a team row's own name. Never null (`Standing.team`). */
+  team: string;
   points: number;
   gap: number;
   alive: boolean;
@@ -146,8 +130,11 @@ export interface ChampionshipStakes extends StandingsFreshness {
   constructors: TableStakes | null;
 }
 
+/** The only grades `risk.build_risk_register` gives a card. */
+export type RiskLevel = "High" | "Medium" | "Low";
+
 export interface RiskCard {
-  level: string;
+  level: RiskLevel;
   title: string;
   detail: string;
 }

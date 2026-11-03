@@ -101,7 +101,7 @@ export function Tabs<K extends string>({
             title={item.title}
             onClick={() => onChange(item.key)}
             onKeyDown={(event) => onKeyDown(event, item.key)}
-            className={`${styles.tab} transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E10600]/50 ${
+            className={`${styles.tab} transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:-outline-offset-2 ${
               selected ? styles.on : styles.off
             }`}
           >

@@ -13,8 +13,7 @@ const EDITIONS_SHOWN = 6;
 /** Winning from this far back reads as a comeback and is called out in orange. */
 const COMEBACK_GRID = 6;
 
-function gridColor(grid: number | null): string {
-  if (grid === null) return "#7F8797";
+function gridColor(grid: number): string {
   if (grid === 1) return "#00FF78";
   return grid >= COMEBACK_GRID ? "#FF8000" : "#F4F6FA";
 }

@@ -86,7 +86,7 @@ function StarterCard({ starter, disabled, onSelect }: StarterCardProps) {
     <button
       onClick={() => void onSelect(prompt)}
       disabled={disabled}
-      className="group flex min-h-24 flex-col gap-2.5 rounded-md border border-[#1E2633] bg-[#0D111B] p-4 text-left transition-colors hover:border-[#2C3646] hover:bg-[#121825] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40 disabled:cursor-not-allowed disabled:opacity-50"
+      className="group flex min-h-24 flex-col gap-2.5 rounded-md border border-[#1E2633] bg-[#0D111B] p-4 text-left transition-colors hover:border-[#2C3646] hover:bg-[#121825] disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span className="flex w-full items-center gap-2">
         <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />

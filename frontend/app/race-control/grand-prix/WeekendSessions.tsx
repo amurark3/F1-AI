@@ -3,11 +3,12 @@
 import { CalendarClock } from "lucide-react";
 import { useState } from "react";
 
-import { SectionLoader } from "../components/RaceControlPrimitives";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+
+import { Panel, SectionLoader } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
 import { GridPenalties } from "./GridPenalties";
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
 import { PracticeTable, QualifyingTable, RaceTable } from "./SessionTables";
 import { StartingGrid } from "./StartingGrid";
 
@@ -46,21 +47,22 @@ function SessionBody({ session, raceName }: { session: WeekendSession; raceName:
   }
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={session.name}
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow={session.name}
+        aside={
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
             {session.entries.length} classified
           </span>
         }
+        inset
       />
       <div className="overflow-x-auto">
         {session.kind === "practice" && <PracticeTable entries={session.entries} />}
         {session.kind === "qualifying" && <QualifyingTable entries={session.entries} />}
         {session.kind === "race" && <RaceTable entries={session.entries} />}
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }
 
@@ -97,13 +99,13 @@ export function WeekendSessions({
 
   if (sessions.length === 0) {
     return (
-      <ConsolePanel>
-        <ConsoleHeader label="Weekend sessions" right={<CalendarClock className="h-4 w-4 text-[#596173]" />} />
+      <Panel as="section">
+        <PanelHeading eyebrow="Weekend sessions" aside={<CalendarClock className="h-4 w-4 text-[#596173]" />} inset />
         <p className="p-4 text-sm leading-relaxed text-[#8E96A8]">
           {data?.warnings?.[0] ??
             "Session results appear here once the weekend has been run and its classifications are published."}
         </p>
-      </ConsolePanel>
+      </Panel>
     );
   }
 

@@ -4,7 +4,9 @@
  *
  * Server-safe: no state, no effects.
  */
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+
+import { Panel } from "../../components/RaceControlPrimitives";
 import { OVER_COLOR, PENDING_COLOR, type CarEvent, type RoundInfo } from "../powerUnitsModel";
 
 interface Mark {
@@ -106,14 +108,15 @@ export function SeasonTimeline({
 }) {
   const byRound = new Map(events.map((item) => [item.round, item]));
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label="Season timeline"
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Season timeline"
+        aside={
           <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-[#7F8797] sm:inline">
             number = new units · −n = grid drop · PL = pit lane · ? = pending
           </span>
         }
+        inset
       />
       <div className="overflow-x-auto">
         <ol className="flex min-w-max gap-1 p-3">
@@ -129,6 +132,6 @@ export function SeasonTimeline({
           ))}
         </ol>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

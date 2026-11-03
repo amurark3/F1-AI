@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Trophy, Users, Flag } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -50,7 +50,6 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
   }
 
   const driver = data.driver_champion;
-  const teamColor = getTeamColor(driver?.team ?? "");
   const winners = data.race_winners ?? [];
 
   return (
@@ -64,7 +63,7 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
         }
       />
 
-      <SeasonChampionMetrics data={data} driver={driver} teamColor={teamColor} raceCount={winners.length} />
+      <SeasonChampionMetrics data={data} driver={driver} raceCount={winners.length} />
 
       {data.runner_up && (
         <p className="mb-6 text-sm text-[#8E96A8]">
@@ -89,12 +88,10 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
 function SeasonChampionMetrics({
   data,
   driver,
-  teamColor,
   raceCount,
 }: {
   data: SeasonDetail;
   driver: DriverChampion | null;
-  teamColor: string;
   raceCount: number;
 }) {
   return (
@@ -103,29 +100,13 @@ function SeasonChampionMetrics({
         label={data.is_in_progress ? "Championship Leader" : "World Champion"}
         value={driver?.code ?? "—"}
         sub={driver?.name}
-        icon={Trophy}
-        color={teamColor}
       />
-      <MetricCard
-        label="Points"
-        value={driver ? String(driver.points) : "—"}
-        sub={driver?.team ?? undefined}
-        icon={Flag}
-        color="#00FF78"
-      />
-      <MetricCard
-        label="Wins"
-        value={driver ? String(driver.wins) : "—"}
-        sub={`of ${raceCount} races`}
-        icon={Trophy}
-        color="#FFD700"
-      />
+      <MetricCard label="Points" value={driver ? String(driver.points) : "—"} sub={driver?.team ?? undefined} />
+      <MetricCard label="Wins" value={driver ? String(driver.wins) : "—"} sub={`of ${raceCount} races`} />
       <MetricCard
         label="Constructors' Champion"
-        value={data.constructor_champion ? "" : "—"}
-        sub={data.constructor_champion?.name ?? "Title introduced in 1958"}
-        icon={Users}
-        color="#00D2FF"
+        value={data.constructor_champion?.name ?? "—"}
+        sub={data.constructor_champion ? undefined : "Title introduced in 1958"}
       />
     </MetricRow>
   );

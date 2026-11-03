@@ -3,13 +3,12 @@
  *
  * Server-safe: no state, no effects.
  */
-import { Flag, Medal, Timer, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { grandPrixHref, teamHref } from "@/app/lib/entityLinks";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { MetricCard, MetricRow, SectionHeader } from "../../components/RaceControlPrimitives";
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { MetricCard, MetricRow, Panel, SectionHeader } from "../../components/RaceControlPrimitives";
 import { championshipPoints, freshnessLine, ordinalPosition, type DriverProfile } from "../../profiles/profilesModel";
 
 function plural(count: number, word: string): string {
@@ -49,30 +48,18 @@ export function DriverHeader({ profile }: { profile: DriverProfile }) {
           label="Championship"
           value={ordinalPosition(standing.position)}
           sub={championshipPoints(standing.points, profile)}
-          icon={Trophy}
-          color={driver.color}
         />
         <MetricCard
           label="Wins"
           value={String(stats.wins)}
           sub={stats.best_finish ? `Best finish P${stats.best_finish}` : "No classified finish yet"}
-          icon={Flag}
-          color="#FFD15C"
         />
         <MetricCard
           label="Podiums"
           value={String(stats.podiums)}
           sub={`${plural(stats.poles, "pole")} · ${plural(stats.fastest_laps, "fastest lap")}`}
-          icon={Medal}
-          color="#E8E8E8"
         />
-        <MetricCard
-          label="Starts"
-          value={String(stats.starts)}
-          sub={plural(stats.retirements, "retirement")}
-          icon={Timer}
-          color="#3671C6"
-        />
+        <MetricCard label="Starts" value={String(stats.starts)} sub={plural(stats.retirements, "retirement")} />
       </MetricRow>
     </>
   );
@@ -80,10 +67,11 @@ export function DriverHeader({ profile }: { profile: DriverProfile }) {
 
 export function DriverWins({ profile }: { profile: DriverProfile }) {
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader
-        label={`Races won · ${profile.year}`}
-        right={<span className="text-xs text-[#6F7789]">{profile.wins.length}</span>}
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow={`Races won · ${profile.year}`}
+        aside={<span className="text-xs text-[#6F7789]">{profile.wins.length}</span>}
+        inset
       />
       {profile.wins.length === 0 ? (
         <p className="p-4 text-sm text-[#8E96A8]">No grand prix wins in {profile.year} yet.</p>
@@ -99,6 +87,6 @@ export function DriverWins({ profile }: { profile: DriverProfile }) {
           ))}
         </ul>
       )}
-    </ConsolePanel>
+    </Panel>
   );
 }

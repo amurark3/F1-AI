@@ -7,8 +7,9 @@
 import Link from "next/link";
 
 import { grandPrixHref, teamHref } from "@/app/lib/entityLinks";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "../../grand-prix/predictionConsole";
+import { Panel } from "../../components/RaceControlPrimitives";
 import { FinishChip } from "../../profiles/FinishChip";
 import { formatPoints, type DriverProfile, type DriverRound } from "../../profiles/profilesModel";
 
@@ -50,10 +51,11 @@ function RoundCells({ round, teamNames }: { round: DriverRound; teamNames: Map<s
 export function DriverResultsTable({ profile }: { profile: DriverProfile }) {
   const teamNames = new Map(profile.teams.map((spell) => [spell.id, spell.name]));
   return (
-    <ConsolePanel className="mb-5">
-      <ConsoleHeader
-        label="Every round"
-        right={<span className="text-xs text-[#6F7789]">Hover a result for its grid slot and reason</span>}
+    <Panel as="section" className="mb-5">
+      <PanelHeading
+        eyebrow="Every round"
+        aside={<span className="text-xs text-[#6F7789]">Hover a result for its grid slot and reason</span>}
+        inset
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
@@ -110,6 +112,6 @@ export function DriverResultsTable({ profile }: { profile: DriverProfile }) {
           </tbody>
         </table>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

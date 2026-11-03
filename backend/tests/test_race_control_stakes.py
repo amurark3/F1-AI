@@ -213,6 +213,13 @@ def test_no_standings_has_no_stakes():
     assert table_stakes((), LEFT, DRIVERS) is None
 
 
+def test_a_table_where_nobody_has_scored_has_no_stakes():
+    # A season whose only round so far paid no points (abandoned early): the
+    # bars are drawn as shares of the leader's points, so there is nothing to show.
+    rows = (driver(1, "Norris", 0), driver(2, "Piastri", 0))
+    assert table_stakes(rows, LEFT, DRIVERS) is None
+
+
 # -- both tables -----------------------------------------------------------------
 
 

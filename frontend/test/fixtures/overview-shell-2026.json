@@ -1,0 +1,193 @@
+{
+  "race": {
+    "round": 20,
+    "name": "São Paulo Grand Prix",
+    "location": "São Paulo, Brazil",
+    "country": "Brazil",
+    "status": "upcoming",
+    "sessions": {
+      "Practice 1": "2026-11-06T15:30:00Z",
+      "Practice 2": "2026-11-06T19:00:00Z",
+      "Practice 3": "2026-11-07T14:30:00Z",
+      "Qualifying": "2026-11-07T18:00:00Z",
+      "Race": "2026-11-08T17:00:00Z"
+    },
+    "circuit": {
+      "circuit_name": "Autódromo José Carlos Pace (Interlagos)",
+      "track_length_km": 4.309,
+      "laps": 71,
+      "first_gp": 1973,
+      "lap_record": {
+        "time": "1:10.540",
+        "driver": "Valtteri Bottas",
+        "year": 2018
+      }
+    }
+  },
+  "season": {
+    "total_events": 23
+  },
+  "stakes": {
+    "as_of_round": 19,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 19,
+        "version": "v2026.19.0"
+      }
+    ],
+    "races_left": 4,
+    "sprints_left": 0,
+    "drivers": {
+      "max_available": 100,
+      "max_this_weekend": 25,
+      "leader": {
+        "position": 1,
+        "name": "Kimi Antonelli",
+        "code": "ANT",
+        "team": "Mercedes",
+        "points": 380.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "Kimi Antonelli",
+          "code": "ANT",
+          "team": "Mercedes",
+          "points": 380.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "team": "Red Bull",
+          "points": 261.0,
+          "gap": 119.0,
+          "alive": false
+        },
+        {
+          "position": 3,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "team": "Ferrari",
+          "points": 259.0,
+          "gap": 121.0,
+          "alive": false
+        },
+        {
+          "position": 4,
+          "name": "George Russell",
+          "code": "RUS",
+          "team": "Mercedes",
+          "points": 250.0,
+          "gap": 130.0,
+          "alive": false
+        },
+        {
+          "position": 5,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "team": "Ferrari",
+          "points": 245.0,
+          "gap": 135.0,
+          "alive": false
+        },
+        {
+          "position": 6,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "team": "McLaren",
+          "points": 221.0,
+          "gap": 159.0,
+          "alive": false
+        }
+      ],
+      "rivals_alive": 0,
+      "decided": true,
+      "clinch": null
+    },
+    "constructors": {
+      "max_available": 172,
+      "max_this_weekend": 43,
+      "leader": {
+        "position": 1,
+        "name": "Mercedes",
+        "code": null,
+        "team": "Mercedes",
+        "points": 630.0,
+        "gap": 0.0,
+        "alive": true
+      },
+      "contenders": [
+        {
+          "position": 1,
+          "name": "Mercedes",
+          "code": null,
+          "team": "Mercedes",
+          "points": 630.0,
+          "gap": 0.0,
+          "alive": true
+        },
+        {
+          "position": 2,
+          "name": "Ferrari",
+          "code": null,
+          "team": "Ferrari",
+          "points": 504.0,
+          "gap": 126.0,
+          "alive": true
+        },
+        {
+          "position": 3,
+          "name": "Red Bull",
+          "code": null,
+          "team": "Red Bull",
+          "points": 382.0,
+          "gap": 248.0,
+          "alive": false
+        },
+        {
+          "position": 4,
+          "name": "McLaren",
+          "code": null,
+          "team": "McLaren",
+          "points": 365.0,
+          "gap": 265.0,
+          "alive": false
+        },
+        {
+          "position": 5,
+          "name": "Racing Bulls",
+          "code": null,
+          "team": "Racing Bulls",
+          "points": 108.0,
+          "gap": 522.0,
+          "alive": false
+        },
+        {
+          "position": 6,
+          "name": "Alpine",
+          "code": null,
+          "team": "Alpine",
+          "points": 69.0,
+          "gap": 561.0,
+          "alive": false
+        }
+      ],
+      "rivals_alive": 1,
+      "decided": false,
+      "clinch": {
+        "rival": "Ferrari",
+        "margin_needed": 4.0,
+        "possible": true,
+        "rivals_in_play": 1
+      }
+    }
+  }
+}

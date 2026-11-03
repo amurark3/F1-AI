@@ -4,8 +4,10 @@ import { Check, CircleDot, Play } from "lucide-react";
 import { useMemo } from "react";
 
 import { formatUtc } from "@/app/lib/formatTime";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { ConsoleHeader, ConsolePanel } from "./predictionConsole";
+import { Panel } from "../components/RaceControlPrimitives";
+
 import { raceSessionTime } from "./predictionHelpers";
 import { raceCode } from "./raceCode";
 import { nextRoundNumber, roundState, roundStateColor, roundStateLabel } from "./roundState";
@@ -177,14 +179,15 @@ export function SeasonRoundStrip({
   const columns = segments.reduce((widest, segment) => Math.max(widest, segment.races.length), 0);
 
   return (
-    <ConsolePanel>
-      <ConsoleHeader
-        label={`${year} season - select a round`}
-        right={
+    <Panel as="section">
+      <PanelHeading
+        eyebrow={`${year} season - select a round`}
+        aside={
           <span className="font-mono text-[11px] text-[#7F8797]">
             {total} races / {completed} complete
           </span>
         }
+        inset
       />
       <div className="px-4 py-3">
         {total === 0 ? (
@@ -214,6 +217,6 @@ export function SeasonRoundStrip({
           </span>
         </div>
       </div>
-    </ConsolePanel>
+    </Panel>
   );
 }

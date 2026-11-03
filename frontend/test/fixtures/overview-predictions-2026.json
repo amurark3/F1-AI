@@ -1,0 +1,25 @@
+{
+  "predicted_podium": [
+    {
+      "driver_code": "ANT",
+      "driver_name": "Andrea Kimi Antonelli",
+      "team": "Mercedes",
+      "confidence_low": 60,
+      "confidence_high": 75
+    },
+    {
+      "driver_code": "VER",
+      "driver_name": "Max Verstappen",
+      "team": "Red Bull",
+      "confidence_low": 56,
+      "confidence_high": 71
+    },
+    {
+      "driver_code": "RUS",
+      "driver_name": "George Russell",
+      "team": "Mercedes",
+      "confidence_low": 48,
+      "confidence_high": 63
+    }
+  ]
+}

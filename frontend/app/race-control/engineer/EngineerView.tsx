@@ -22,7 +22,7 @@ const SOURCES = [
 ] as const;
 
 const ICON_BUTTON =
-  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#1E2633] bg-[#0D111B] text-[#8E96A8] transition-colors hover:border-[#2C3646] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E10600]/40";
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#1E2633] bg-[#0D111B] text-[#8E96A8] transition-colors hover:border-[#2C3646] hover:text-white";
 
 export function EngineerView() {
   const {

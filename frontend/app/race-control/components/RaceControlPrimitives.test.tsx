@@ -55,7 +55,7 @@ describe("Panel", () => {
     );
 
     expect(container.firstElementChild?.tagName).toBe("SECTION");
-    expect(container.querySelector("[data-panel-accent]")).toHaveStyle({ background: f1.red });
+    expect(container.querySelector("[data-panel-accent]")).toHaveStyle({ backgroundColor: f1.red });
   });
 });
 
@@ -133,7 +133,7 @@ describe("StatusPill", () => {
     render(<StatusPill>Classification</StatusPill>);
 
     const pill = screen.getByText("Classification");
-    expect(pill).toHaveStyle({ color: rc.ink2, borderColor: `${rc.ink2}55`, background: `${rc.ink2}14` });
+    expect(pill).toHaveStyle({ color: rc.ink2, borderColor: `${rc.ink2}55`, backgroundColor: `${rc.ink2}14` });
     expect(pill.getAttribute("style")).not.toMatch(DRS_GREEN);
   });
 

@@ -123,7 +123,7 @@ describe("CircuitHistoryPanel", () => {
 
     const [unclassified, comeback] = editions();
     expect(unclassified).toHaveTextContent(/^2025No classified winner$/);
-    expect(unclassified.querySelector(".rounded-full")).toHaveStyle({ background: "#3A4254" });
+    expect(unclassified.querySelector(".rounded-full")).toHaveStyle({ backgroundColor: "#3A4254" });
     expect(gridChip(unclassified)).not.toBeInTheDocument();
     expect(comeback).toHaveTextContent(/^2024Max Verstappenfrom P17$/);
     expect(container.querySelectorAll("circle")[1]).toHaveAttribute("stroke-dashoffset", "100");

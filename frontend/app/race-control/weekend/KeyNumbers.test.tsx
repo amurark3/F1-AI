@@ -53,7 +53,7 @@ describe("KeyNumbers", () => {
     expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
     expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
     // The rain tile takes its accent from the rain band, and draws the race's sky.
-    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ background: "#FFF200" });
+    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ backgroundColor: "#FFF200" });
     expect(container.querySelectorAll("svg[viewBox='0 0 64 64']")).toHaveLength(1);
   });
 
@@ -89,7 +89,7 @@ describe("KeyNumbers", () => {
     expect(tile("Title gap")).toEqual(["—", "Standings unavailable"]);
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);
     expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
-    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ background: "#3A4254" });
+    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ backgroundColor: "#3A4254" });
   });
 
   it("reads a missing circuit record as no earlier race", () => {

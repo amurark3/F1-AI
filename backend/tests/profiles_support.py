@@ -30,7 +30,7 @@ SCHEMA = """
 CREATE TABLE country (id TEXT PRIMARY KEY, name TEXT);
 CREATE TABLE grand_prix (id TEXT PRIMARY KEY, name TEXT, full_name TEXT, short_name TEXT);
 CREATE TABLE driver (
-    id TEXT PRIMARY KEY, name TEXT, full_name TEXT, abbreviation TEXT,
+    id TEXT PRIMARY KEY, name TEXT, first_name TEXT, last_name TEXT, full_name TEXT, abbreviation TEXT,
     permanent_number TEXT, nationality_country_id TEXT
 );
 CREATE TABLE constructor (id TEXT PRIMARY KEY, name TEXT, full_name TEXT);
@@ -62,13 +62,13 @@ GRANDS_PRIX = [
 ]
 
 DRIVERS = [
-    ("max-verstappen", "Max Verstappen", "VER", "1", "netherlands"),
-    ("isack-hadjar", "Isack Hadjar", "HAD", "6", "france"),
-    ("liam-lawson", "Liam Lawson", "LAW", "30", "new-zealand"),
-    ("ayumu-iwasa", "Ayumu Iwasa", "IWA", None, None),
-    ("charles-leclerc", "Charles Leclerc", "LEC", "16", "monaco"),
-    ("lewis-hamilton", "Lewis Hamilton", "HAM", "44", None),
-    ("sergio-perez", "Sergio Pérez", "PER", "11", None),
+    ("max-verstappen", "Max Verstappen", "Max", "Verstappen", "VER", "1", "netherlands"),
+    ("isack-hadjar", "Isack Hadjar", "Isack", "Hadjar", "HAD", "6", "france"),
+    ("liam-lawson", "Liam Lawson", "Liam", "Lawson", "LAW", "30", "new-zealand"),
+    ("ayumu-iwasa", "Ayumu Iwasa", "Ayumu", "Iwasa", "IWA", None, None),
+    ("charles-leclerc", "Charles Leclerc", "Charles", "Leclerc", "LEC", "16", "monaco"),
+    ("lewis-hamilton", "Lewis Hamilton", "Lewis", "Hamilton", "HAM", "44", None),
+    ("sergio-perez", "Sergio Pérez", "Sergio", "Pérez", "PER", "11", None),
 ]
 
 CONSTRUCTORS = [
@@ -158,7 +158,8 @@ def build_profiles_db(path: Path) -> Path:
         )
         conn.executemany("INSERT INTO grand_prix (id, name, full_name, short_name) VALUES (?, ?, ?, ?)", GRANDS_PRIX)
         conn.executemany(
-            "INSERT INTO driver (id, name, abbreviation, permanent_number, nationality_country_id) VALUES (?, ?, ?, ?, ?)",
+            """INSERT INTO driver (id, name, first_name, last_name, abbreviation, permanent_number, nationality_country_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             DRIVERS,
         )
         conn.executemany("INSERT INTO constructor (id, name, full_name) VALUES (?, ?, ?)", CONSTRUCTORS)

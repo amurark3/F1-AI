@@ -3,12 +3,12 @@
 import { Gavel } from "lucide-react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
 
 import { netMoveColor, netMoveLabel, penaltyLabel, qualifiedLabel, startLabel } from "./gridHelpers";
-import { shortName } from "./predictionHelpers";
 
 import type { StartingGridResponse } from "./gridModel";
 
@@ -82,7 +82,12 @@ export function GridPenalties({ data }: { data?: StartingGridResponse }) {
                       <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">
                         {slot.driver_code}
                       </span>
-                      <span className="truncate text-[#AEB5C5]">{shortName(slot.driver_name)}</span>
+                      <DriverName
+                        variant="last"
+                        code={slot.driver_code}
+                        name={slot.driver_name}
+                        className="truncate text-[#AEB5C5]"
+                      />
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[#AEB5C5]">{slot.team || "-"}</td>

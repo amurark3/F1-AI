@@ -3,12 +3,13 @@
 import { useState, type ReactNode } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { driverLabel } from "@/app/ui/names/names";
 
 import { ChampionshipBarChart, DriverChampionshipChart } from "../components/Charts";
 import { Panel, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
-import { driverCode, formatPoints, type DriverStanding, type Team } from "./teamsModel";
+import { formatPoints, type DriverStanding, type Team } from "./teamsModel";
 
 /** How many drivers the WDC chart plots before the user picks their own set. */
 const DEFAULT_CHART_DRIVERS = 10;
@@ -31,6 +32,11 @@ function topDriverNames(drivers: DriverStanding[], count: number): ReadonlySet<s
       .slice(0, count)
       .map((driver) => driver.driver),
   );
+}
+
+/** The driver's code from the table; the full name when the row has none, never initials. */
+function driverCode(driver: DriverStanding): string {
+  return driverLabel({ name: driver.driver, code: driver.code }, "code");
 }
 
 function toChartEntry(driver: DriverStanding) {

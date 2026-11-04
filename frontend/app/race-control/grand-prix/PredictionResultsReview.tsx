@@ -3,20 +3,14 @@
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 import { StatTile } from "@/app/ui/StatTile";
 
 import { Panel, StatusPill } from "../components/RaceControlPrimitives";
 import { DriverLink } from "../profiles/EntityLinks";
 
-import {
-  deltaColor,
-  deltaLabel,
-  driverDisplayName,
-  reviewBadgeLabel,
-  reviewColor,
-  shortName,
-} from "./predictionHelpers";
+import { deltaColor, deltaLabel, driverDisplayName, reviewBadgeLabel, reviewColor } from "./predictionHelpers";
 
 import type {
   DriverLookup,
@@ -93,7 +87,7 @@ function DriverComparisonRow({ row, identities }: { row: PredictionDriverResult;
           <span className="h-5 w-[3px] rounded-full" style={{ background: teamColor(identity.team) }} />
           <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">{row.driver_code}</span>
           <DriverLink code={row.driver_code} name={identity.name} className="truncate text-[#AEB5C5]">
-            {shortName(identity.name)}
+            <DriverName variant="last" code={row.driver_code} name={identity.name} />
           </DriverLink>
         </div>
       </td>

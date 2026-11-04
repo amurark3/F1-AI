@@ -242,7 +242,8 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 - **Accept:**
   - Tests cover "Sainz Jr.", "De Vries", "Hülkenberg", "Ryō Hirakawa", and the legal-name regression.
   - `grep -rn "split(\" \").at(-1)\|shortName" frontend/app` finds nothing.
-  - `race-control/profiles/**` joins the coverage include list.
+  - The `race-control/profiles/` files the redesign keeps join the coverage include list, listed one by one at 100%: `EntityLinks.tsx` and `profilesModel.ts` (P2.3a).
+    - No coverage for the ones a later phase rewrites or removes (the 2026-11-03 rule): `FinishChip.tsx`, `ProfileCharts.tsx` and `ProfileStates.tsx` (the Team and Driver pages are rebuilt per `team.html` / `driver.html` in P5.4) and `PowerUnitCards.tsx` (neither mockup has a power-unit section; P6.3 builds the car page per `power-units.html`).
 - **PR:** `feat: one canonical name for every driver and team`.
 
 ## Phase P3 — Global chrome and homepage

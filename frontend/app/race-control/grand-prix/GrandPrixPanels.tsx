@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { LocalTime } from "@/app/components/LocalTime";
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
@@ -23,7 +24,6 @@ import {
   formatPct,
   modelStatusColor,
   pointsForPosition,
-  shortName,
 } from "./predictionHelpers";
 import { WeekendGlance } from "./WeekendGlance";
 
@@ -85,7 +85,7 @@ export function FullGridTable({
                         {prediction.driver_code}
                       </span>
                       <DriverLink code={prediction.driver_code} name={name} className="truncate text-[#AEB5C5]">
-                        {shortName(name)}
+                        <DriverName variant="last" code={prediction.driver_code} name={name} />
                       </DriverLink>
                     </div>
                   </td>
@@ -306,7 +306,7 @@ export function RiskTable({ rows }: { rows: RiskPrediction[] }) {
                       name={risk.driver_name}
                       className="font-sans font-normal text-[#8E96A8]"
                     >
-                      {shortName(risk.driver_name)}
+                      <DriverName variant="last" code={risk.driver_code} name={risk.driver_name} />
                     </DriverLink>
                   </td>
                   <td className="px-4 py-3">

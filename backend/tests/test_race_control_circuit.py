@@ -156,9 +156,31 @@ def test_the_segment_carries_the_record_the_lap_record_and_the_map(sources):
     segment = build_circuit_segment(2026, RACE)
 
     assert segment["record"] == {"circuit_id": "interlagos"}
-    assert segment["lap_record"] == RACE["circuit"]["lap_record"]
+    # No f1db here (the conftest's empty file), so the holder keeps the table's
+    # spelling and has no surname: the page prints the full name, never a guess.
+    assert segment["lap_record"] == {**RACE["circuit"]["lap_record"], "last_name": None}
     assert segment["map"] == drawable_map(SQUARE)
     assert seen == {"record": (2026, 20), "layout": (14, 2026)}
+
+
+def test_the_lap_record_holder_carries_f1dbs_name_and_surname(identity_f1db, sources):
+    """Resolved in the record's own season, as P2.2's emit points are."""
+    sources(record=None)
+    holder = {"time": "1:35.867", "driver": "Lewis Hamilton", "year": 2023}
+
+    segment = build_circuit_segment(2026, {"round": 20, "circuit": {"lap_record": holder}})
+
+    assert segment["lap_record"] == {**holder, "last_name": "Hamilton"}
+
+
+def test_a_placeholder_lap_record_stays_as_the_table_has_it(identity_f1db, sources):
+    """Madring's entry before its first race: no holder to resolve, no surname."""
+    sources(record=None)
+    placeholder = {"time": "-", "driver": "-", "year": 0}
+
+    segment = build_circuit_segment(2026, {"round": 14, "circuit": {"lap_record": placeholder}})
+
+    assert segment["lap_record"] == {**placeholder, "last_name": None}
 
 
 def test_a_missing_outline_leaves_the_facts_standing(sources):

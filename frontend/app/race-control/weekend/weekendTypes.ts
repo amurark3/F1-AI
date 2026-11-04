@@ -51,6 +51,8 @@ export interface SessionWeather {
 export interface Headliner {
   driver_id: string;
   driver_name: string;
+  /** f1db's `last_name`, as it stores it ("Sainz Jr.", "De Vries"). */
+  last_name: string;
   team_id: string;
   team_name: string;
 }
@@ -75,13 +77,19 @@ export interface CircuitRecord {
   races_held: number;
   pole_conversion: { wins_from_pole: number; editions: number };
   editions: CircuitEdition[];
-  active_winners: Array<{ driver_id: string; driver_name: string; wins: number; last_win: number }>;
+  active_winners: Array<{ driver_id: string; driver_name: string; last_name: string; wins: number; last_win: number }>;
 }
 
 export interface LapRecord {
   time: string;
   driver: string;
   year: number;
+  /**
+   * f1db's surname for the holder, resolved in the record's season by the
+   * circuit segment; null when the holder does not resolve. The schedule's own
+   * copy (the hero's fallback) has none.
+   */
+  last_name?: string | null;
 }
 
 /** `GET /api/race-control/overview/{year}/circuit` */

@@ -4,13 +4,13 @@ import { AlertTriangle, Flag } from "lucide-react";
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
 import { buildGridLayout, gridSourceLabel, penaltyChipLabel, type GridRow } from "./gridHelpers";
-import { shortName } from "./predictionHelpers";
 
 import type { GridSlot, StartingGridResponse } from "./gridModel";
 
@@ -39,7 +39,7 @@ function GridBox({ slot }: { slot: GridSlot }) {
         </p>
         <p className="truncate text-[11px] leading-tight text-[#8E96A8]">
           <DriverLink code={slot.driver_code} name={slot.driver_name}>
-            {shortName(slot.driver_name)}
+            <DriverName variant="last" code={slot.driver_code} name={slot.driver_name} />
           </DriverLink>
         </p>
         <p className="truncate text-[10px] leading-tight text-[#596173]">

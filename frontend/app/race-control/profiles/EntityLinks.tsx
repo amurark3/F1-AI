@@ -18,13 +18,20 @@ const DIRECTORY_SWR = {
   dedupingInterval: 3_600_000,
 } as const;
 
+/** The season the directory describes: the calendar year. */
+export function directorySeason(): number {
+  return new Date().getFullYear();
+}
+
 /**
- * This season's drivers and teams by f1db id, shared by every link on a page.
- * SWR dedupes the key, so a table of fifty links makes one request.
+ * This season's drivers and teams by f1db id, shared by every link and name on
+ * a page. SWR dedupes the key, so a table of fifty links makes one request.
+ * `enabled: false` reads nothing, for a caller whose payload already has what
+ * it needs.
  */
-export function useSeasonDirectory(): SeasonDirectory | undefined {
-  const year = new Date().getFullYear();
-  const { data } = useSWR<SeasonDirectory, Error>(profilesUrl(API_BASE, year, "directory"), fetcher, DIRECTORY_SWR);
+export function useSeasonDirectory(enabled = true): SeasonDirectory | undefined {
+  const url = enabled ? profilesUrl(API_BASE, directorySeason(), "directory") : null;
+  const { data } = useSWR<SeasonDirectory, Error>(url, fetcher, DIRECTORY_SWR);
   return data;
 }
 

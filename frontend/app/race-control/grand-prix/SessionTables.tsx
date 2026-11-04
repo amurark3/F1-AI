@@ -1,10 +1,9 @@
 "use client";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 
 import { DriverLink } from "../profiles/EntityLinks";
-
-import { shortName } from "./predictionHelpers";
 
 import type { SessionEntry } from "./sessionsModel";
 
@@ -24,7 +23,7 @@ function DriverCell({ entry }: { entry: SessionEntry }) {
         <span className="h-4 w-[3px] rounded-full" style={{ background: getTeamColor(entry.team) }} />
         <span className="font-mono text-sm font-black uppercase tracking-[0.06em] text-white">{entry.driver_code}</span>
         <DriverLink code={entry.driver_code} name={entry.driver_name} className="truncate text-[#AEB5C5]">
-          {shortName(entry.driver_name)}
+          <DriverName variant="last" code={entry.driver_code} name={entry.driver_name} />
         </DriverLink>
       </span>
     </td>

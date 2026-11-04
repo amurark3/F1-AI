@@ -1,0 +1,141 @@
+{
+  "most_driver_titles": [
+    {
+      "name": "Lewis Hamilton",
+      "last_name": "Hamilton",
+      "titles": 7
+    },
+    {
+      "name": "Michael Schumacher",
+      "last_name": "Schumacher",
+      "titles": 7
+    },
+    {
+      "name": "Juan Manuel Fangio",
+      "last_name": "Fangio",
+      "titles": 5
+    },
+    {
+      "name": "Alain Prost",
+      "last_name": "Prost",
+      "titles": 4
+    },
+    {
+      "name": "Max Verstappen",
+      "last_name": "Verstappen",
+      "titles": 4
+    },
+    {
+      "name": "Sebastian Vettel",
+      "last_name": "Vettel",
+      "titles": 4
+    },
+    {
+      "name": "Ayrton Senna",
+      "last_name": "Senna",
+      "titles": 3
+    },
+    {
+      "name": "Jack Brabham",
+      "last_name": "Brabham",
+      "titles": 3
+    },
+    {
+      "name": "Jackie Stewart",
+      "last_name": "Stewart",
+      "titles": 3
+    },
+    {
+      "name": "Nelson Piquet",
+      "last_name": "Piquet",
+      "titles": 3
+    },
+    {
+      "name": "Niki Lauda",
+      "last_name": "Lauda",
+      "titles": 3
+    },
+    {
+      "name": "Alberto Ascari",
+      "last_name": "Ascari",
+      "titles": 2
+    },
+    {
+      "name": "Emerson Fittipaldi",
+      "last_name": "Fittipaldi",
+      "titles": 2
+    },
+    {
+      "name": "Fernando Alonso",
+      "last_name": "Alonso",
+      "titles": 2
+    },
+    {
+      "name": "Graham Hill",
+      "last_name": "Hill",
+      "titles": 2
+    }
+  ],
+  "most_constructor_titles": [
+    {
+      "name": "Ferrari",
+      "titles": 16
+    },
+    {
+      "name": "McLaren",
+      "titles": 10
+    },
+    {
+      "name": "Williams",
+      "titles": 9
+    },
+    {
+      "name": "Mercedes",
+      "titles": 8
+    },
+    {
+      "name": "Lotus",
+      "titles": 7
+    },
+    {
+      "name": "Red Bull",
+      "titles": 6
+    },
+    {
+      "name": "Brabham",
+      "titles": 2
+    },
+    {
+      "name": "Cooper",
+      "titles": 2
+    },
+    {
+      "name": "Renault",
+      "titles": 2
+    },
+    {
+      "name": "BRM",
+      "titles": 1
+    },
+    {
+      "name": "Benetton",
+      "titles": 1
+    },
+    {
+      "name": "Brawn",
+      "titles": 1
+    },
+    {
+      "name": "Matra",
+      "titles": 1
+    },
+    {
+      "name": "Tyrrell",
+      "titles": 1
+    },
+    {
+      "name": "Vanwall",
+      "titles": 1
+    }
+  ]
+}

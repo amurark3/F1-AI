@@ -5,7 +5,9 @@ Three sources, each optional and each failing on its own:
 * the outline and corner numbers, from MultiViewer — unofficial, and labelled
   as such on the page;
 * the layout's facts and the circuit's history, from f1db;
-* the lap record, from the app's own circuit table.
+* the lap record, from the app's own circuit table, its holder printed as f1db
+  names them in the record's season, with f1db's ``last_name`` (None when the
+  holder does not resolve, so the page prints the full name).
 
 The outline is turned to MultiViewer's map orientation and scaled into a square
 SVG viewbox here, so the page draws it without any geometry of its own.
@@ -19,6 +21,7 @@ import numpy as np
 import structlog
 
 from app.data.analysis_cache import analysis_cache
+from app.data.canonical_names import driver_identity
 from app.data.multiviewer import CircuitInfo, CircuitLayout, load_circuit_layout
 from app.data.openf1.client import OpenF1UnavailableError, new_client as openf1_client
 from app.data.openf1.sessions import find_meeting
@@ -106,6 +109,14 @@ def _record(year: int, round_num: int) -> dict | None:
         return None
 
 
+def _lap_record(race: dict) -> dict | None:
+    record = (race.get("circuit") or {}).get("lap_record")
+    if not record:
+        return None
+    holder = driver_identity(record["year"], name=record["driver"])
+    return {**record, "driver": holder.name, "last_name": holder.last_name}
+
+
 def build_circuit_segment(year: int, race: dict | None) -> dict:
     """The selected round's circuit: f1db record, lap record and drawable map, each or None."""
     round_num = (race or {}).get("round")
@@ -114,6 +125,6 @@ def build_circuit_segment(year: int, race: dict | None) -> dict:
     layout = load_circuit_layout(resolve_circuit_key(year, round_num), year)
     return {
         "record": _record(year, round_num),
-        "lap_record": (race.get("circuit") or {}).get("lap_record"),
+        "lap_record": _lap_record(race),
         "map": drawable_map(layout) if layout else None,
     }

@@ -26,24 +26,6 @@ export function driverDisplayName(prediction: DriverPrediction, lookup: DriverLo
     : prediction.driver_code;
 }
 
-/**
- * Generational suffixes, which are part of the surname rather than the surname
- * itself. Without this, "Carlos Sainz Jr." reduces to "Jr." — which is what the
- * starting grid rendered before the list existed.
- */
-const NAME_SUFFIXES = new Set(["jr", "jr.", "sr", "sr.", "i", "ii", "iii", "iv"]);
-
-/** The surname a timing screen would show, suffix kept attached to it. */
-export function shortName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length < 2) return name;
-
-  const last = parts[parts.length - 1];
-  if (!NAME_SUFFIXES.has(last.toLowerCase())) return last;
-  // Keep the suffix with the name it belongs to, e.g. "Sainz Jr.".
-  return parts.length > 2 ? `${parts[parts.length - 2]} ${last}` : name;
-}
-
 export function countdownTo(value?: string): string | null {
   if (!value) return null;
   const target = new Date(value).getTime();

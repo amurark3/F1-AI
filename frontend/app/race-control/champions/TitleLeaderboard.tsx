@@ -2,12 +2,9 @@
 
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import type { TitleEntry } from "@/app/lib/server/champions";
 import { Panel, rcFont } from "@/app/race-control/components/RaceControlPrimitives";
-
-interface TitleEntry {
-  name: string;
-  titles: number;
-}
+import { driverLabel } from "@/app/ui/names/names";
 
 interface TitleLeaderboardProps {
   title: string;
@@ -15,10 +12,9 @@ interface TitleLeaderboardProps {
   color: string;
 }
 
-function shortName(name: string): string {
-  // f1db stores full legal names ("Lewis Carl Davidson Hamilton"); show first + last.
-  const parts = name.trim().split(/\s+/);
-  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : name;
+/** f1db's surname on a driver row ("Fangio"); a constructor row has none and keeps its name. */
+function axisLabel(entry: TitleEntry): string {
+  return driverLabel({ name: entry.name, lastName: entry.last_name }, "last");
 }
 
 function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TitleEntry }> }) {
@@ -30,7 +26,7 @@ function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: A
       style={{ background: "#0F1210", borderColor: "rgba(255,255,255,0.12)" }}
     >
       <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
-        {shortName(entry.name)}
+        {entry.name}
       </p>
       <p className="mt-0.5 font-mono text-neutral-300">
         {entry.titles} {entry.titles === 1 ? "title" : "titles"}
@@ -40,7 +36,7 @@ function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: A
 }
 
 export function TitleLeaderboard({ title, entries, color }: TitleLeaderboardProps) {
-  const data = entries.slice(0, 10).map((e) => ({ ...e, label: shortName(e.name) }));
+  const data = entries.slice(0, 10).map((e) => ({ ...e, label: axisLabel(e) }));
   const max = data.length ? Math.max(...data.map((d) => d.titles)) : 1;
 
   return (

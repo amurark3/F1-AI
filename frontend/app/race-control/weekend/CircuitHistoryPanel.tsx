@@ -3,6 +3,7 @@
 import { History } from "lucide-react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink } from "../profiles/EntityLinks";
@@ -67,7 +68,9 @@ function EditionRow({ edition, index }: { edition: CircuitEdition; index: number
       <span className="min-w-0 flex-1 truncate font-bold text-white">
         {winner ? <DriverLink id={winner.driver_id}>{winner.driver_name}</DriverLink> : "No classified winner"}
         {pole && !edition.won_from_pole && (
-          <span className="ml-1.5 font-normal text-[#6F7789]">pole {pole.driver_name.split(" ").at(-1)}</span>
+          <span className="ml-1.5 font-normal text-[#6F7789]">
+            pole <DriverName variant="last" name={pole.driver_name} lastName={pole.last_name} />
+          </span>
         )}
       </span>
       {grid !== null && (
@@ -119,7 +122,9 @@ export function CircuitHistoryPanel({ record }: { record: CircuitRecord | null |
                   key={driver.driver_id}
                   className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-white"
                 >
-                  <DriverLink id={driver.driver_id}>{driver.driver_name.split(" ").at(-1)}</DriverLink>
+                  <DriverLink id={driver.driver_id}>
+                    <DriverName variant="last" name={driver.driver_name} lastName={driver.last_name} />
+                  </DriverLink>
                   <span className="ml-1 font-mono text-[#FFC93C]">×{driver.wins}</span>
                 </span>
               ))}

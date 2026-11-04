@@ -2,6 +2,7 @@
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { DriverLink } from "../profiles/EntityLinks";
 
@@ -69,7 +70,7 @@ export function PracticeTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono font-bold text-white">{entry.time ?? "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#8E96A8]">{entry.gap ?? "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#7F8797]">{entry.laps ?? "-"}</td>
@@ -100,7 +101,7 @@ export function QualifyingTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             {[entry.q1, entry.q2, entry.q3].map((segment, index) => (
               <td
                 key={index}
@@ -137,7 +138,7 @@ export function RaceTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#8E96A8]">
               {entry.grid === null ? "-" : `P${entry.grid}`}
             </td>

@@ -1,5 +1,7 @@
 "use client";
 
+import { teamLabel } from "@/app/ui/names/names";
+
 import { rcFont } from "../components/RaceControlPrimitives";
 
 import { formatLapTime } from "./telemetryModel";
@@ -108,7 +110,8 @@ export function DriverPicker({
         {value === null && <option value="">Choose a driver</option>}
         {drivers.map((driver) => (
           <option key={driver.code} value={driver.code}>
-            {driver.code} · {driver.team} · {driver.best === null ? "no valid lap" : formatLapTime(driver.best)}
+            {driver.code} · {teamLabel({ name: driver.team }, "name")} ·{" "}
+            {driver.best === null ? "no valid lap" : formatLapTime(driver.best)}
           </option>
         ))}
       </select>

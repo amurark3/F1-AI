@@ -151,14 +151,14 @@ describe("formatPoints", () => {
 
 describe("clinchLine", () => {
   it("reads the backend's decided flag: Antonelli's title after round 19", () => {
-    expect(clinchLine(tableOf(SAO_PAULO_2026.stakes.drivers), "São Paulo")).toEqual({
+    expect(clinchLine(tableOf(SAO_PAULO_2026.stakes.drivers), "São Paulo", "drivers")).toEqual({
       tone: "decided",
       text: "Kimi Antonelli has already clinched the title.",
     });
   });
 
   it("quotes the margin the leader must outscore the rival by", () => {
-    expect(clinchLine(tableOf(SAO_PAULO_2026.stakes.constructors), "São Paulo")).toEqual({
+    expect(clinchLine(tableOf(SAO_PAULO_2026.stakes.constructors), "São Paulo", "constructors")).toEqual({
       tone: "possible",
       text: "Mercedes clinches in São Paulo by outscoring Ferrari by 4+ pts.",
     });
@@ -166,14 +166,14 @@ describe("clinchLine", () => {
 
   it("turns a lead already past the points left after the round into the rival's target", () => {
     // After round 18: 365 to Russell's 242 with 100 left after Mexico City.
-    expect(clinchLine(tableOf(STAKES_2026.afterRound18.drivers), "Mexico City")).toEqual({
+    expect(clinchLine(tableOf(STAKES_2026.afterRound18.drivers), "Mexico City", "drivers")).toEqual({
       tone: "possible",
       text: "Kimi Antonelli clinches in Mexico City unless George Russell outscores them by 23+ pts.",
     });
   });
 
   it("says the title cannot be settled when one weekend is not enough", () => {
-    expect(clinchLine(tableOf(STAKES_2026.afterRound1.drivers), "Shanghai")).toEqual({
+    expect(clinchLine(tableOf(STAKES_2026.afterRound1.drivers), "Shanghai", "drivers")).toEqual({
       tone: "open",
       text: "The title can't be settled in Shanghai — 598 pts still on offer.",
     });
@@ -181,7 +181,7 @@ describe("clinchLine", () => {
 
   it("is open when there is no clinch to chase this weekend", () => {
     const drivers = tableOf(STAKES_2026.afterRound1.drivers);
-    expect(clinchLine({ ...drivers, clinch: null }, "Shanghai").tone).toBe("open");
+    expect(clinchLine({ ...drivers, clinch: null }, "Shanghai", "drivers").tone).toBe("open");
   });
 });
 

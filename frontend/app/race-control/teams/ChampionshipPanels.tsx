@@ -3,7 +3,9 @@
 import { useState, type ReactNode } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
-import { driverLabel } from "@/app/ui/names/names";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { ChampionshipBarChart, DriverChampionshipChart } from "../components/Charts";
 import { Panel, StatusPill, WorkspaceSplit, rcFont } from "../components/RaceControlPrimitives";
@@ -41,7 +43,7 @@ function driverCode(driver: DriverStanding): string {
 
 function toChartEntry(driver: DriverStanding) {
   return {
-    name: driver.driver,
+    name: driverLabel({ name: driver.driver, code: driver.code }, "full"),
     code: driverCode(driver),
     points: driver.points,
     color: getTeamColor(driver.team),
@@ -108,7 +110,7 @@ function ConstructorChampionshipPanel({ year, teams }: { year: number; teams: Te
       />
       <ChampionshipBarChart
         data={teams.map((team) => ({
-          name: team.name,
+          name: teamLabel({ id: team.slug, name: team.name }, "name"),
           points: team.points,
           color: team.color,
           position: team.position,
@@ -187,7 +189,7 @@ function DriverChip({
     <button
       type="button"
       aria-pressed={active}
-      title={`P${driver.position} ${driver.driver} · ${driver.team}`}
+      title={`P${driver.position} ${driverLabel({ name: driver.driver, code: driver.code }, "full")} · ${teamLabel({ name: driver.team }, "name")}`}
       onClick={() => onToggle(driver.driver)}
       className="rounded px-2 py-1 text-[11px] font-black uppercase tracking-wide transition-colors"
       style={
@@ -255,11 +257,13 @@ function DriverStandingRow({ driver }: { driver: DriverStanding }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-white">
           <DriverLink code={driver.code} name={driver.driver}>
-            {driver.driver}
+            <DriverName name={driver.driver} code={driver.code} />
           </DriverLink>
         </p>
         <p className="truncate text-xs font-semibold" style={{ color }}>
-          <TeamLink name={driver.team}>{driver.team}</TeamLink>
+          <TeamLink name={driver.team}>
+            <TeamName name={driver.team} />
+          </TeamLink>
         </p>
       </div>
       <div className="shrink-0 text-right">
@@ -284,7 +288,7 @@ function ConstructorStandingRow({ team }: { team: Team }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-white">
           <TeamLink id={team.slug} name={team.name}>
-            {team.name}
+            <TeamName id={team.slug} name={team.name} />
           </TeamLink>
         </p>
         <p className="truncate text-xs text-neutral-500">
@@ -294,7 +298,7 @@ function ConstructorStandingRow({ team }: { team: Team }) {
                 <span key={driver.driver}>
                   {index > 0 && " / "}
                   <DriverLink code={driver.code} name={driver.driver}>
-                    {driver.driver}
+                    <DriverName name={driver.driver} code={driver.code} />
                   </DriverLink>
                 </span>
               ))}

@@ -6,6 +6,8 @@
  */
 import { UserRoundCog } from "lucide-react";
 
+import { DriverName } from "@/app/ui/names/DriverName";
+
 import { StatusPill } from "../../components/RaceControlPrimitives";
 import {
   OVER_COLOR,
@@ -91,9 +93,10 @@ export function WeekendCard({
           <p className="flex items-start gap-2 rounded border border-[#3671C6]/40 bg-[#3671C6]/10 px-3 py-2 text-xs text-[#9EC5FF]">
             <UserRoundCog className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>
-              Driven by {event.driver.name} (#{event.driver.car_number}) this weekend. Under Article B8.2.7, units
-              fitted to this car count against its allocation — the one {car.driver.name} races with — whoever drives
-              it.
+              Driven by <DriverName name={event.driver.name} code={event.driver.code} id={event.driver.id} /> (#
+              {event.driver.car_number}) this weekend. Under Article B8.2.7, units fitted to this car count against its
+              allocation — the one <DriverName name={car.driver.name} code={car.driver.code} id={car.driver.id} /> races
+              with — whoever drives it.
             </span>
           </p>
         )}

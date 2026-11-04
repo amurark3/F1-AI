@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { teamHref } from "@/app/lib/entityLinks";
+import { teamLabel } from "@/app/ui/names/names";
 
 import { MetricCard, MetricRow, SectionHeader } from "../../components/RaceControlPrimitives";
 import {
@@ -28,7 +29,7 @@ function TeamSwitcher({ teams, current }: { teams: DirectoryTeam[]; current: str
         {teams.map((team) => (
           <option key={team.id} value={team.id}>
             {team.position ? `P${team.position} · ` : ""}
-            {team.name}
+            {teamLabel({ id: team.id, name: team.name }, "name")}
           </option>
         ))}
       </select>
@@ -44,7 +45,7 @@ export function TeamHeader({ profile, teams }: { profile: TeamProfile; teams: Di
         <div className="min-w-0 [&>div]:mb-0 [&>div]:border-0 [&>div]:pb-0">
           <SectionHeader
             eyebrow={`Teams & Drivers · ${year}`}
-            title={team.full_name}
+            title={teamLabel({ id: team.id, name: team.name, fullName: team.full_name, year }, "full")}
             description={freshnessLine(profile.results_through, year)}
           />
         </div>

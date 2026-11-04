@@ -7,6 +7,8 @@
 import Link from "next/link";
 
 import { grandPrixHref, teamHref } from "@/app/lib/entityLinks";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../../components/RaceControlPrimitives";
@@ -27,7 +29,7 @@ function RoundCells({ round, teamNames }: { round: DriverRound; teamNames: Map<s
       <td className="px-3 py-2 text-xs">
         {round.team_id ? (
           <Link href={teamHref(round.team_id)} className="text-[#B7BDCA] hover:text-white hover:underline">
-            {teamNames.get(round.team_id) ?? round.team_id}
+            <TeamName name={teamNames.get(round.team_id) ?? round.team_id} id={round.team_id} />
           </Link>
         ) : (
           <span className="text-[#5A6273]">{round.status === "complete" ? "Did not race" : ""}</span>
@@ -60,7 +62,13 @@ export function DriverResultsTable({ profile }: { profile: DriverProfile }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
           <caption className="sr-only">
-            {profile.driver.name}&apos;s result in every round of {profile.year}
+            <DriverName
+              name={profile.driver.name}
+              code={profile.driver.code}
+              id={profile.driver.id}
+              year={profile.year}
+            />
+            &apos;s result in every round of {profile.year}
           </caption>
           <thead>
             <tr className="border-b border-[#1E2633] text-left font-mono text-[10px] uppercase tracking-[0.18em] text-[#6F7789]">

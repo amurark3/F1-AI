@@ -6,6 +6,9 @@ import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { teamLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { fetcher } from "@/app/utils/fetcher";
 
 import {
@@ -119,6 +122,7 @@ export function DebriefsView({ seed }: { seed: DebriefSeed }) {
         errorMessage={data?.error}
         data={data}
         selectedRace={selectedRace}
+        year={year}
         onRetry={() => void mutate()}
       />
     </div>
@@ -204,17 +208,18 @@ interface DebriefBodyProps {
   errorMessage?: string;
   data?: Debrief;
   selectedRace: RaceEvent | null;
+  year: number;
   onRetry: () => void;
 }
 
-function DebriefBody({ debriefLoading, hasError, errorMessage, data, selectedRace, onRetry }: DebriefBodyProps) {
+function DebriefBody({ debriefLoading, hasError, errorMessage, data, selectedRace, year, onRetry }: DebriefBodyProps) {
   if (debriefLoading) {
     return <DebriefSkeleton />;
   }
   if (hasError) {
     return <DebriefErrorPanel message={errorMessage} onRetry={onRetry} />;
   }
-  return <DebriefReport data={data} selectedRace={selectedRace} />;
+  return <DebriefReport data={data} selectedRace={selectedRace} year={year} />;
 }
 
 /** Empty-state fallback used by every list section in the report. */
@@ -323,9 +328,11 @@ function PodiumCausePanel({ rows }: { rows: NonNullable<Debrief["podium_cause"]>
               P{row.position}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white truncate">{row.full_name || row.driver}</p>
+              <p className="text-sm font-bold text-white truncate">
+                <DriverName name={row.full_name || row.driver} code={row.driver} />
+              </p>
               <p className="text-xs text-neutral-500 truncate">
-                {row.team} · {row.call}
+                <TeamName name={row.team} /> · {row.call}
               </p>
             </div>
             <span className="font-mono text-xs text-neutral-400">
@@ -352,7 +359,9 @@ function StrategyWinnersPanel({ rows }: { rows: NonNullable<Debrief["strategy_wi
             className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2"
           >
             <ClipboardList className="h-4 w-4 text-neutral-500" />
-            <span className="flex-1 text-sm font-bold text-neutral-300 truncate">{row.full_name || row.driver}</span>
+            <span className="flex-1 text-sm font-bold text-neutral-300 truncate">
+              <DriverName name={row.full_name || row.driver} code={row.driver} />
+            </span>
             <span className="text-xs font-mono text-[#00FF78]">
               G{row.grid} to P{row.position}
             </span>
@@ -363,7 +372,7 @@ function StrategyWinnersPanel({ rows }: { rows: NonNullable<Debrief["strategy_wi
   );
 }
 
-function ClassificationTable({ rows }: { rows: NonNullable<Debrief["classification"]> }) {
+function ClassificationTable({ rows, year }: { rows: NonNullable<Debrief["classification"]>; year: number }) {
   return (
     <Panel className="p-5">
       <h2 className="mb-4 text-xl font-black italic uppercase text-white" style={rcFont}>
@@ -387,11 +396,13 @@ function ClassificationTable({ rows }: { rows: NonNullable<Debrief["classificati
                 <td className="px-3 py-3 font-mono text-neutral-300">P{row.position}</td>
                 <td className="px-3 py-3 font-bold text-white">
                   <DriverLink code={row.driver} name={row.full_name}>
-                    {row.full_name || row.driver}
+                    <DriverName variant="codeLast" name={row.full_name || row.driver} code={row.driver} year={year} />
                   </DriverLink>
                 </td>
                 <td className="px-3 py-3 text-neutral-400">
-                  <TeamLink name={row.team}>{row.team}</TeamLink>
+                  <TeamLink name={row.team}>
+                    <TeamName name={row.team} year={year} />
+                  </TeamLink>
                 </td>
                 <td className="px-3 py-3 font-mono text-neutral-400">{row.grid ? `G${row.grid}` : "-"}</td>
                 <td className="px-3 py-3 font-mono text-[#00FF78]">{row.points}</td>
@@ -419,7 +430,9 @@ function ConstructorImpactPanel({ rows }: { rows: NonNullable<Debrief["construct
             className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-white">{team.team}</p>
+              <p className="truncate text-sm font-bold text-white">
+                <TeamName name={team.team} />
+              </p>
               <p className="text-xs text-neutral-500">
                 {team.classified_cars} classified car{team.classified_cars === 1 ? "" : "s"}
               </p>
@@ -448,13 +461,17 @@ function DebriefMetrics({ data, selectedRace }: { data?: Debrief; selectedRace: 
   return (
     <MetricRow>
       <MetricCard label="Race" value={raceName} sub={raceLocation} />
-      <MetricCard label="Top constructor" value={constructorLeader?.team ?? "No points"} sub={leaderSub} />
+      <MetricCard
+        label="Top constructor"
+        value={constructorLeader ? teamLabel({ name: constructorLeader.team }, "name") : "No points"}
+        sub={leaderSub}
+      />
       <MetricCard label="Review flags" value={String(countReviewFlags(data))} sub="Movers plus non-standard statuses" />
     </MetricRow>
   );
 }
 
-function DebriefReport({ data, selectedRace }: { data?: Debrief; selectedRace: RaceEvent | null }) {
+function DebriefReport({ data, selectedRace, year }: { data?: Debrief; selectedRace: RaceEvent | null; year: number }) {
   return (
     <>
       <DebriefMetrics data={data} selectedRace={selectedRace} />
@@ -468,7 +485,7 @@ function DebriefReport({ data, selectedRace }: { data?: Debrief; selectedRace: R
       </WorkspaceSplit>
 
       <WorkspaceSplit className="mt-6 xl:[&>*]:flex-1">
-        <ClassificationTable rows={data?.classification ?? []} />
+        <ClassificationTable rows={data?.classification ?? []} year={year} />
         <ConstructorImpactPanel rows={data?.constructor_impact ?? []} />
       </WorkspaceSplit>
     </>

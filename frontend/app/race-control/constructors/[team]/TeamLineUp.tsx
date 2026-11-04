@@ -10,12 +10,13 @@
 import Link from "next/link";
 
 import { driverHref, grandPrixHref } from "@/app/lib/entityLinks";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../../components/RaceControlPrimitives";
 import { formatPoints, ordinalPosition, type TeamDriver, type TeamProfile } from "../../profiles/profilesModel";
 
-function DriverCard({ driver, color }: { driver: TeamDriver; color: string }) {
+function DriverCard({ driver, color, year }: { driver: TeamDriver; color: string; year: number }) {
   return (
     <Link
       href={driverHref(driver.id)}
@@ -25,7 +26,13 @@ function DriverCard({ driver, color }: { driver: TeamDriver; color: string }) {
         {driver.number ?? "—"}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-base font-bold text-white group-hover:underline">{driver.name}</span>
+        <DriverName
+          className="block truncate text-base font-bold text-white group-hover:underline"
+          name={driver.name}
+          code={driver.code}
+          id={driver.id}
+          year={year}
+        />
         <span className="block text-xs text-[#8E96A8]">
           Championship {ordinalPosition(driver.position)} · {formatPoints(driver.points)} pts · {driver.wins} win
           {driver.wins === 1 ? "" : "s"}
@@ -35,7 +42,7 @@ function DriverCard({ driver, color }: { driver: TeamDriver; color: string }) {
   );
 }
 
-function AlsoRaced({ drivers }: { drivers: TeamDriver[] }) {
+function AlsoRaced({ drivers, year }: { drivers: TeamDriver[]; year: number }) {
   if (drivers.length === 0) return null;
   return (
     <p className="mt-3 text-sm text-[#8E96A8]">
@@ -44,7 +51,7 @@ function AlsoRaced({ drivers }: { drivers: TeamDriver[] }) {
         <span key={driver.id}>
           {index > 0 && ", "}
           <Link href={driverHref(driver.id)} className="font-bold text-white hover:underline">
-            {driver.name}
+            <DriverName name={driver.name} code={driver.code} id={driver.id} year={year} />
           </Link>{" "}
           <span className="font-mono text-xs">{driver.rounds_label}</span>
         </span>
@@ -66,10 +73,10 @@ export function TeamLineUp({ profile }: { profile: TeamProfile }) {
       <div className="p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           {current.map((driver) => (
-            <DriverCard key={driver.id} driver={driver} color={profile.team.color} />
+            <DriverCard key={driver.id} driver={driver} color={profile.team.color} year={profile.year} />
           ))}
         </div>
-        <AlsoRaced drivers={others} />
+        <AlsoRaced drivers={others} year={profile.year} />
       </div>
     </Panel>
   );
@@ -98,7 +105,7 @@ export function TeamWins({ profile }: { profile: TeamProfile }) {
                 {win.name}
               </Link>
               <Link href={driverHref(win.driver_id)} className="text-[#B7BDCA] hover:text-white hover:underline">
-                {names.get(win.driver_id) ?? win.driver_id}
+                <DriverName name={names.get(win.driver_id) ?? win.driver_id} id={win.driver_id} year={profile.year} />
               </Link>
               <span className="font-mono text-xs text-[#6F7789]">
                 {win.grid ? `from P${win.grid}` : "grid not recorded"}

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
@@ -43,7 +44,13 @@ function GridBox({ slot }: { slot: GridSlot }) {
           </DriverLink>
         </p>
         <p className="truncate text-[10px] leading-tight text-[#596173]">
-          {slot.team ? <TeamLink name={slot.team}>{slot.team}</TeamLink> : "-"}
+          {slot.team ? (
+            <TeamLink name={slot.team}>
+              <TeamName name={slot.team} />
+            </TeamLink>
+          ) : (
+            "-"
+          )}
         </p>
       </div>
       {penalty && (

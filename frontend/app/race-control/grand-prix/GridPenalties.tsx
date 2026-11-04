@@ -4,6 +4,7 @@ import { Gavel } from "lucide-react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
@@ -90,7 +91,7 @@ export function GridPenalties({ data }: { data?: StartingGridResponse }) {
                       />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[#AEB5C5]">{slot.team || "-"}</td>
+                  <td className="px-4 py-3 text-[#AEB5C5]">{slot.team ? <TeamName name={slot.team} /> : "-"}</td>
                   <td className="px-4 py-3 text-right font-mono text-[#8E96A8]">{qualifiedLabel(slot)}</td>
                   <td className="px-4 py-3 text-right font-mono text-[#F5C542]">{penaltyLabel(slot)}</td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-white">{startLabel(slot)}</td>

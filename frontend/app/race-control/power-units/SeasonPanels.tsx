@@ -8,6 +8,7 @@ import { ExternalLink, FileWarning, FileX2, Gavel } from "lucide-react";
 import Link from "next/link";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { InlineNotice, Panel } from "../components/RaceControlPrimitives";
@@ -69,7 +70,7 @@ export function PenaltyLog({ cars, rounds }: { cars: PowerUnitCar[]; rounds: Map
                 <span className="mt-1 h-4 w-[3px] shrink-0 rounded-full" style={{ background: color }} />
                 <div className="min-w-0 flex-1">
                   <Link href={carHref(car)} className="text-sm font-bold text-white hover:underline">
-                    #{driver.car_number} {driver.name}
+                    #{driver.car_number} <DriverName name={driver.name} code={driver.code} id={driver.id} />
                   </Link>
                   <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-[#6F7789]">
                     {decision.elements.map((item) => `${item.code} #${item.number}`).join(" · ")}

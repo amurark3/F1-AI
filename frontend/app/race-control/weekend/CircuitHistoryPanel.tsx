@@ -66,10 +66,28 @@ function EditionRow({ edition, index }: { edition: CircuitEdition; index: number
         style={{ background: winner ? getTeamColor(winner.team_name) : "#3A4254" }}
       />
       <span className="min-w-0 flex-1 truncate font-bold text-white">
-        {winner ? <DriverLink id={winner.driver_id}>{winner.driver_name}</DriverLink> : "No classified winner"}
+        {winner ? (
+          <DriverLink id={winner.driver_id}>
+            <DriverName
+              name={winner.driver_name}
+              lastName={winner.last_name}
+              id={winner.driver_id}
+              year={edition.year}
+            />
+          </DriverLink>
+        ) : (
+          "No classified winner"
+        )}
         {pole && !edition.won_from_pole && (
           <span className="ml-1.5 font-normal text-[#6F7789]">
-            pole <DriverName variant="last" name={pole.driver_name} lastName={pole.last_name} />
+            pole{" "}
+            <DriverName
+              variant="last"
+              name={pole.driver_name}
+              lastName={pole.last_name}
+              id={pole.driver_id}
+              year={edition.year}
+            />
           </span>
         )}
       </span>

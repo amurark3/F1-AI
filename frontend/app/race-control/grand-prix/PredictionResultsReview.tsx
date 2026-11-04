@@ -155,14 +155,26 @@ function WinnerCallPanel({ review, identities }: { review: PredictionReview; ide
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Predicted winner</p>
         <p className="mt-1 text-xl font-black text-white">
-          {predicted ? <DriverLink code={predicted}>{identityFor(predicted, identities).name}</DriverLink> : "-"}
+          {predicted ? (
+            <DriverLink code={predicted}>
+              <DriverName name={identityFor(predicted, identities).name} code={predicted} />
+            </DriverLink>
+          ) : (
+            "-"
+          )}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{predicted ?? "no stored call"}</p>
       </div>
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Actual winner</p>
         <p className={`mt-1 text-xl font-black ${review.winner_correct ? "text-[#00FF78]" : "text-[#FF4655]"}`}>
-          {actual ? <DriverLink code={actual}>{identityFor(actual, identities).name}</DriverLink> : "-"}
+          {actual ? (
+            <DriverLink code={actual}>
+              <DriverName name={identityFor(actual, identities).name} code={actual} />
+            </DriverLink>
+          ) : (
+            "-"
+          )}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{actual ?? "not recorded"}</p>
       </div>

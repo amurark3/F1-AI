@@ -26,7 +26,7 @@ function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: A
       style={{ background: "#0F1210", borderColor: "rgba(255,255,255,0.12)" }}
     >
       <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
-        {entry.name}
+        {driverLabel({ name: entry.name, lastName: entry.last_name }, "full")}
       </p>
       <p className="mt-0.5 font-mono text-neutral-300">
         {entry.titles} {entry.titles === 1 ? "title" : "titles"}

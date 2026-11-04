@@ -5,6 +5,8 @@ import Link from "next/link";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 import { fetcher } from "@/app/utils/fetcher";
 
@@ -32,13 +34,19 @@ interface RaceGlance {
   power_units: { available: boolean; reason: string | null; decisions: GlanceDecision[] };
 }
 
-function HeadlinerValue({ person }: { person: Headliner | null }) {
+function HeadlinerValue({ person, year }: { person: Headliner | null; year?: number }) {
   if (!person) return <>-</>;
   return (
     <>
-      <DriverLink id={person.driver_id}>{person.driver_name}</DriverLink>{" "}
+      <DriverLink id={person.driver_id}>
+        <DriverName name={person.driver_name} id={person.driver_id} year={year} />
+      </DriverLink>{" "}
       <span className="font-normal text-[#6F7789]">
-        (<TeamLink id={person.team_id}>{person.team_name}</TeamLink>)
+        (
+        <TeamLink id={person.team_id}>
+          <TeamName name={person.team_name} id={person.team_id} year={year} />
+        </TeamLink>
+        )
       </span>
     </>
   );
@@ -59,7 +67,8 @@ function PenaltyList({ section }: { section: RaceGlance["power_units"] }) {
             href={`/race-control/power-units/${decision.car_number}`}
             className="font-bold text-white hover:underline"
           >
-            #{decision.car_number} {decision.driver.name}
+            #{decision.car_number}{" "}
+            <DriverName name={decision.driver.name} code={decision.driver.code} id={decision.driver.id} />
           </Link>
           <span className="text-[#FF8A85]">{outcomeLabel(decision)}</span>
           <a href={decision.url} target="_blank" rel="noreferrer" className="ml-auto text-[#6F7789] hover:text-white">
@@ -93,11 +102,11 @@ export function WeekendGlance({ year, round }: { year: number; round: number }) 
             <dl className="divide-y divide-[#1E2633]">
               <InfoRow
                 label={data.previous ? `${data.previous.year} winner` : "Last winner"}
-                value={<HeadlinerValue person={data.previous?.winner ?? null} />}
+                value={<HeadlinerValue person={data.previous?.winner ?? null} year={data.previous?.year} />}
               />
               <InfoRow
                 label={data.previous ? `${data.previous.year} pole` : "Last pole"}
-                value={<HeadlinerValue person={data.previous?.pole ?? null} />}
+                value={<HeadlinerValue person={data.previous?.pole ?? null} year={data.previous?.year} />}
               />
             </dl>
             {!data.previous && <p className="pt-2 text-xs text-[#6F7789]">No earlier race at this circuit.</p>}

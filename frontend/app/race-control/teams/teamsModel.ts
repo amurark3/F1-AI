@@ -33,11 +33,6 @@ export interface TeamsResponse extends StandingsFreshness {
   generated_at?: string;
 }
 
-/** Three-letter tag for a driver, falling back to initials when the feed omits one. */
-export function driverCode(driver: DriverStanding): string {
-  return driver.code ?? driver.driver.slice(0, 3).toUpperCase();
-}
-
 export function formatPoints(points: number): string {
   return Number.isInteger(points) ? String(points) : points.toFixed(1);
 }

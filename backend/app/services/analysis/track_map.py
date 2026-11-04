@@ -63,7 +63,7 @@ def build_track_map(ref: SessionRef, pick: DriverLap) -> dict:
         "pending": False,
         "source": SOURCE,
         "session": session_json(session),
-        "driver": driver_json(loaded.driver),
+        "driver": driver_json(loaded.driver, ref.year),
         "lap": lap_json(loaded.choice.lap, loaded.choice.fastest),
         "points": {
             "distance": rounded(points.distance),

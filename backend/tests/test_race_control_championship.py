@@ -11,15 +11,19 @@ races. Three things must hold or the projection lies confidently.
   season still has to render.
 * **Keys must match how each feed spells them.** Driver rows are matched on an
   upper-cased code against FastF1 abbreviations; constructor rows are matched
-  on the team name verbatim. A mismatch silently scores a rate of zero.
+  on the team name verbatim. A mismatch silently scores a rate of zero. The
+  classification prints f1db's team names, the table's spelling, so FastF1's
+  "RB F1 Team" counts towards "Racing Bulls".
 """
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
-from app.services import race_control_championship as module
+from app.services import race_control_championship as module, race_control_debriefs
 from app.services.race_control_championship import EntrantAccessors, SeasonProgress
+from tests.identity_support import mexico_fastf1_results
 from tests.standings_support import standings_from_rows
 
 # ---------------------------------------------------------------------------
@@ -468,3 +472,43 @@ def test_forecast_envelope_names_its_sources_and_states_its_limits(
     assert result["source"] == "computed-standings + FastF1 recent race classifications"
     assert len(result["notes"]) == 3
     assert any("sprint" in note for note in result["notes"])
+
+
+class _MexicoRace:
+    """FastF1's Mexico City race session (2026 R19, real spellings), as ``fastf1.get_session`` returns it."""
+
+    results = pd.DataFrame(mexico_fastf1_results())
+
+    def load(self, **_kwargs: object) -> None:
+        return None
+
+
+@pytest.mark.integration
+def test_recent_constructor_form_counts_a_team_fastf1_spells_its_own_way(
+    identity_f1db, monkeypatch: pytest.MonkeyPatch
+):
+    """FastF1 says "RB F1 Team", the table "Racing Bulls": Lawson's two Mexico points must still count."""
+    _stub_season(
+        monkeypatch,
+        constructors=[_constructor_row("Racing Bulls", position=5, points=108.0)],
+        completed_rounds=[19],
+    )
+    schedule = pd.DataFrame(
+        [
+            {
+                "RoundNumber": 19,
+                "EventName": "Mexico City Grand Prix",
+                "Location": "Mexico City",
+                "Country": "Mexico",
+                "Session5": "Race",
+                "Session5DateUtc": pd.Timestamp("2026-11-01 20:00"),
+            }
+        ]
+    )
+    monkeypatch.setattr(module, "load_race_classification", race_control_debriefs.load_race_classification)
+    monkeypatch.setattr(race_control_debriefs.fastf1, "get_event_schedule", lambda year, include_testing: schedule)
+    monkeypatch.setattr(race_control_debriefs.fastf1, "get_session", lambda *_args: _MexicoRace())
+
+    constructors = _by_key(module.build_championship_forecast(2026)["constructors"])
+
+    assert constructors["Racing Bulls"]["recent_points_per_event"] == 2.0

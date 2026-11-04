@@ -93,7 +93,7 @@ class TestCarriedOverFromMexicoCity:
         grid = r20_roster(mexico_city_lineup())
 
         hirakawa = driver(grid, "HIR")
-        assert hirakawa["team"] == "Haas F1 Team"
+        assert team_key(hirakawa["team"]) == team_key("Haas")
         assert hirakawa["seat_tbc"] is True
         assert "in place of Esteban Ocon" in hirakawa["seat_tbc_reason"]
         assert "at the Mexico City Grand Prix" in hirakawa["seat_tbc_reason"]

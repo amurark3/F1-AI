@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
@@ -101,9 +103,14 @@ function CarRow({ car, codes }: { car: PowerUnitCar; codes: string[] }) {
         {car.car_number}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-bold text-white">{car.driver.name}</span>
+        <DriverName
+          className="block truncate text-sm font-bold text-white"
+          name={car.driver.name}
+          code={car.driver.code}
+          id={car.driver.id}
+        />
         <span className="block truncate font-mono text-[10px] uppercase tracking-[0.16em] text-[#7F8797]">
-          {car.team}
+          <TeamName name={car.team} id={car.team_id} />
           {car.drivers.length > 1 && <span className="ml-1.5 text-[#9EC5FF]">+{car.drivers.length - 1} stand-in</span>}
         </span>
       </span>

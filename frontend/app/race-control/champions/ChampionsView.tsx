@@ -18,6 +18,9 @@ import {
   StatusPill,
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { fetcher } from "@/app/utils/fetcher";
 
 import { TitleLeaderboard } from "./TitleLeaderboard";
@@ -97,17 +100,26 @@ function ChampionsMetrics({ seasons, stats }: { seasons: SeasonChampion[]; stats
   const topConstructor = stats?.most_constructor_titles?.[0];
   const current = seasons[0];
   const currentSub = current?.is_in_progress ? `${current.season} — in progress` : `${current?.season} champion`;
+  const leader = current?.driver_champion;
 
   return (
     <MetricRow>
       <MetricCard label="Seasons" value={String(seasons.length)} sub="1950 to present" />
-      <MetricCard label="Most Driver Titles" value={topDriver ? String(topDriver.titles) : "—"} sub={topDriver?.name} />
+      <MetricCard
+        label="Most Driver Titles"
+        value={topDriver ? String(topDriver.titles) : "—"}
+        sub={topDriver ? driverLabel({ name: topDriver.name, lastName: topDriver.last_name }, "full") : undefined}
+      />
       <MetricCard
         label="Most Constructor Titles"
         value={topConstructor ? String(topConstructor.titles) : "—"}
-        sub={topConstructor?.name}
+        sub={topConstructor ? teamLabel({ name: topConstructor.name }, "name") : undefined}
       />
-      <MetricCard label="Current Leader" value={current?.driver_champion?.code ?? "—"} sub={currentSub} />
+      <MetricCard
+        label="Current Leader"
+        value={leader ? driverLabel({ name: leader.name, code: leader.code, year: current.season }, "code") : "—"}
+        sub={currentSub}
+      />
     </MetricRow>
   );
 }
@@ -133,11 +145,12 @@ function SeasonCard({ season }: { season: SeasonChampion }) {
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: teamColor }} />
               <span className="truncate text-base font-bold text-white" style={rcFont}>
-                {driver.name}
+                <DriverName name={driver.name} lastName={driver.last_name} code={driver.code} year={season.season} />
               </span>
             </div>
             <p className="mt-0.5 truncate text-xs text-[#8E96A8]">
-              {driver.team ?? "—"} · {driver.points} pts · {driver.wins} {driver.wins === 1 ? "win" : "wins"}
+              {driver.team ? <TeamName name={driver.team} year={season.season} /> : "—"} · {driver.points} pts ·{" "}
+              {driver.wins} {driver.wins === 1 ? "win" : "wins"}
             </p>
           </div>
         ) : (

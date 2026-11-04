@@ -10,12 +10,20 @@
  */
 
 import { standingsLabel, type StandingsFreshness } from "@/app/lib/standingsFreshness";
+import { findDirectoryDriver, findDirectoryTeam } from "@/app/ui/names/names";
 
 import type { DocumentRef, ElementInfo, PowerUnitCar } from "../power-units/powerUnitsModel";
 
 export interface DirectoryDriver {
   id: string;
+  /** f1db's display name ("Carlos Sainz Jr."). */
   name: string;
+  /**
+   * f1db's surname as it stores it ("Sainz Jr.", "Hülkenberg"). The payload's
+   * `first_name` is left untyped on purpose: f1db's can be a legal name
+   * ("Carlton" for Jak Crawford), so no display name is ever built from parts.
+   */
+  last_name: string;
   code: string | null;
   number: number | null;
   team_id: string;
@@ -28,7 +36,7 @@ export interface DirectoryTeam {
   color: string;
   position: number | null;
   points: number;
-  /** Other feeds' spellings of the team, already folded with {@link foldName}. */
+  /** Other feeds' spellings of the team, already folded with `foldName` (`app/ui/names`). */
   aliases: string[];
 }
 
@@ -214,13 +222,6 @@ export type DriverProfileResponse = DriverProfile | MissingProfile;
 
 // --- Helpers ---------------------------------------------------------------
 
-export const PODIUM_POSITIONS = 3;
-export const WIN_COLOR = "#FFD15C";
-export const PODIUM_COLOR = "#E8E8E8";
-export const POINTS_COLOR = "#00FF78";
-export const RETIRED_COLOR = "#FF6B6B";
-export const MUTED_COLOR = "#5A6273";
-
 export function profilesUrl(apiBase: string, year: number, path: string): string {
   return `${apiBase}/api/profiles/${year}/${path}`;
 }
@@ -231,35 +232,6 @@ export function isTeamProfile(response: TeamProfileResponse | null | undefined):
 
 export function isDriverProfile(response: DriverProfileResponse | null | undefined): response is DriverProfile {
   return response?.status === "ok";
-}
-
-/** "P3", "DNF", "DNS" — or an em dash for a round the car did not take part in. */
-export function finishLabel(finish: Finish | null): string {
-  if (!finish) return "—";
-  return finish.position === null ? finish.position_text || "NC" : `P${finish.position}`;
-}
-
-/** The colour a finish reads in: gold for a win, through to muted for no points. */
-export function finishColor(finish: Finish | null): string {
-  if (!finish) return MUTED_COLOR;
-  if (finish.position === null) return RETIRED_COLOR;
-  if (finish.position === 1) return WIN_COLOR;
-  if (finish.position <= PODIUM_POSITIONS) return PODIUM_COLOR;
-  return finish.points > 0 ? POINTS_COLOR : "#B7BDCA";
-}
-
-/** Tooltip text for a finish: the grid slot, places gained, and why it ended. */
-export function finishDetail(finish: Finish | null): string {
-  if (!finish) return "Did not take part";
-  const parts = [finish.grid ? `Started P${finish.grid}` : "No grid slot"];
-  if (finish.positions_gained) {
-    parts.push(`${finish.positions_gained > 0 ? "+" : ""}${finish.positions_gained} places`);
-  }
-  parts.push(`${formatPoints(finish.points)} pts`);
-  if (finish.reason_retired) parts.push(finish.reason_retired);
-  if (finish.pole) parts.push("Pole");
-  if (finish.fastest_lap) parts.push("Fastest lap");
-  return parts.join(" · ");
 }
 
 export function formatPoints(points: number): string {
@@ -283,16 +255,6 @@ export function freshnessLine(through: ResultsThrough | null, year: number): str
 
 // --- Resolving names from other feeds --------------------------------------
 
-/** Case-, accent- and punctuation-insensitive form of a name; mirrors the backend's `fold`. */
-export function foldName(text: string): string {
-  return text
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
-
 export interface DriverQuery {
   id?: string | null;
   code?: string | null;
@@ -306,14 +268,7 @@ export interface DriverQuery {
  * folded, so "Sergio Perez" finds "Sergio Pérez". Nothing is guessed.
  */
 export function resolveDriverId(directory: SeasonDirectory | undefined, query: DriverQuery): string | null {
-  if (!directory) return null;
-  const { drivers } = directory;
-  if (query.id && drivers.some((driver) => driver.id === query.id)) return query.id;
-  const code = query.code?.toUpperCase();
-  const byCode = code ? drivers.find((driver) => driver.code === code) : undefined;
-  if (byCode) return byCode.id;
-  const name = query.name ? foldName(query.name) : "";
-  return (name && drivers.find((driver) => foldName(driver.name) === name)?.id) || null;
+  return findDirectoryDriver(directory, query)?.id ?? null;
 }
 
 /** The f1db id a feed's team name refers to this season — exact or alias, never a substring. */
@@ -321,17 +276,5 @@ export function resolveTeamId(
   directory: SeasonDirectory | undefined,
   query: { id?: string | null; name?: string | null },
 ): string | null {
-  if (!directory) return null;
-  const { teams } = directory;
-  if (query.id && teams.some((team) => team.id === query.id)) return query.id;
-  const name = query.name ? foldName(query.name) : "";
-  if (!name) return null;
-  const match = teams.find(
-    (team) =>
-      foldName(team.id) === name ||
-      foldName(team.name) === name ||
-      foldName(team.full_name) === name ||
-      team.aliases.includes(name),
-  );
-  return match?.id ?? null;
+  return findDirectoryTeam(directory, query)?.id ?? null;
 }

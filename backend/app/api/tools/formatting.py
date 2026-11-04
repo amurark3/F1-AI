@@ -1,8 +1,18 @@
-"""Shared helpers for the LLM-callable tools."""
+"""Shared helpers for the LLM-callable tools.
+
+Drivers and teams are labelled under f1db's names ("Kimi Antonelli (ANT)",
+"Racing Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); FastF1's
+own words stay when f1db cannot say. See :mod:`app.data.canonical_names`.
+"""
 
 from __future__ import annotations
 
 import pandas as pd
+
+from app.data.canonical_names import driver_identity, feed_text, team_display_name
+
+#: What a cell prints when there is nothing honest to put in it.
+MISSING = "-"
 
 
 def _fmt_timedelta(time_val: pd.Timedelta | None) -> str:
@@ -23,17 +33,26 @@ def _fmt_timedelta(time_val: pd.Timedelta | None) -> str:
     return s
 
 
-def _fmt_driver(row: pd.Series) -> str:
-    """'Andrea Kimi Antonelli (ANT)' — the full name, with the code as a handle.
+def _fmt_driver(row: pd.Series, year: int) -> str:
+    """'Kimi Antonelli (ANT)' — f1db's name for the driver, with FastF1's code as a handle.
 
     A bare code invites the model to guess who it is, and its memory of the
     grid predates the current season: given only "ANT" it wrote "Fernando
-    Alonso". FastF1 leaves FullName blank when its driver-info fetch fails, and
-    then the code alone is all that can honestly be shown.
+    Alonso". The name is resolved from the row's code, car number and
+    FullName; when none of them names anyone (FastF1 leaves FullName blank
+    when its driver-info fetch fails), the code alone is all that can honestly
+    be shown. A missing code is left out rather than printed as "nan".
     """
-    name = row.get("FullName")
-    code = row["Abbreviation"]
-    return f"{name.strip()} ({code})" if isinstance(name, str) and name.strip() else code
+    code = feed_text(row.get("Abbreviation"))
+    name = driver_identity(year, code=code, number=row.get("DriverNumber"), name=row.get("FullName")).name
+    if name and code:
+        return f"{name} ({code})"
+    return name or code or MISSING
+
+
+def _fmt_team(row: pd.Series, year: int) -> str:
+    """f1db's name for the row's team ("RB F1 Team" -> "Racing Bulls"), else FastF1's spelling."""
+    return team_display_name(year, row.get("TeamName")) or MISSING
 
 
 def _fmt_points(value: float) -> str:

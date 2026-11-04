@@ -9,6 +9,9 @@ import Link from "next/link";
 
 import { driverHref, teamHref } from "@/app/lib/entityLinks";
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { Panel, rcFont } from "../../components/RaceControlPrimitives";
 import {
@@ -44,7 +47,7 @@ function CarSwitcher({ cars, current }: { cars: PowerUnitCar[]; current: PowerUn
             key={car.seat_id}
             href={carHref(car)}
             aria-current={active ? "page" : undefined}
-            title={`${car.driver.name} · ${car.team}`}
+            title={`${driverLabel(car.driver, "full")} · ${teamLabel({ id: car.team_id, name: car.team }, "name")}`}
             className={`rounded px-2 py-1 font-mono text-[11px] font-black tabular-nums transition-colors ${
               active ? "text-white" : "text-[#9AA1B0] hover:text-white"
             }`}
@@ -88,12 +91,12 @@ export function CarHeader({ car, cars }: { car: PowerUnitCar; cars: PowerUnitCar
             </Link>
             <h1 className="truncate text-3xl font-black text-white" style={rcFont}>
               <Link href={driverHref(car.driver.id)} className="hover:underline">
-                {car.driver.name}
+                <DriverName name={car.driver.name} code={car.driver.code} id={car.driver.id} />
               </Link>
             </h1>
             <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#8E96A8]">
               <Link href={teamHref(car.team_id)} className="hover:text-white">
-                {car.team}
+                <TeamName name={car.team} id={car.team_id} />
               </Link>{" "}
               · {car.driver.code}
             </p>
@@ -101,7 +104,7 @@ export function CarHeader({ car, cars }: { car: PowerUnitCar; cars: PowerUnitCar
               <p key={item.id} className="mt-1 text-xs text-[#9EC5FF]">
                 Also raced by{" "}
                 <Link href={driverHref(item.id)} className="hover:underline">
-                  {item.name}
+                  <DriverName name={item.name} code={item.code} id={item.id} />
                 </Link>{" "}
                 (#{item.car_number}) at {roundRuns(item.rounds)}
               </p>

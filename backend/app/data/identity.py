@@ -11,6 +11,10 @@ Jean-Éric Vergne).
 * Team names resolve by **exact** match after folding case and accents, then
   through an alias table. Never by substring: ``"" in "mclaren"`` is true, which
   once scored an empty team string as the championship leader.
+* Drivers resolve through ``resolve_driver`` / ``canonical_driver``: by f1db
+  id, then code, then car number, then folded name, the code and number only
+  within the season. A key that fits several drivers settles nothing, and none
+  of them is picked.
 * Nothing is copied into Postgres. The directory is read from the local f1db
   file and cached per (year, f1db release), so it refreshes with the data.
 """
@@ -18,13 +22,17 @@ Jean-Éric Vergne).
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from itertools import groupby, takewhile
+from operator import itemgetter
 import threading
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, TypedDict, Unpack
 import unicodedata
 
 from app.data import f1db_source
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
     import sqlite3
 
 # Livery colour per f1db constructor id.
@@ -72,8 +80,8 @@ TEAM_ALIASES: dict[str, str] = {
 # The sessions that prove a driver raced for a team. Practice is left out so a
 # Friday rookie is not listed as part of the line-up.
 _ENTRY_QUERY = """
-    SELECT rd.driver_id AS id, d.name AS name, d.abbreviation AS code,
-           rd.driver_number AS number, rd.constructor_id AS team_id
+    SELECT rd.driver_id AS id, d.name AS name, d.first_name AS first_name, d.last_name AS last_name,
+           d.abbreviation AS code, rd.driver_number AS number, rd.constructor_id AS team_id
     FROM race_data rd
     JOIN race r ON r.id = rd.race_id
     JOIN driver d ON d.id = rd.driver_id
@@ -83,12 +91,25 @@ _ENTRY_QUERY = """
 
 # Everyone entered to race, including drivers with no session yet.
 _ENTRANT_QUERY = """
-    SELECT sed.driver_id AS id, d.name AS name, d.abbreviation AS code,
-           d.permanent_number AS number, sed.constructor_id AS team_id
+    SELECT sed.driver_id AS id, d.name AS name, d.first_name AS first_name, d.last_name AS last_name,
+           d.abbreviation AS code, d.permanent_number AS number, sed.constructor_id AS team_id
     FROM season_entrant_driver sed
     JOIN driver d ON d.id = sed.driver_id
     WHERE sed.year = ? AND sed.test_driver = 0
     ORDER BY d.name
+"""
+
+# Everyone who drove in any session of the season, practice included: a Friday
+# rookie's feed row has to resolve to them, or make its code ambiguous (VER is
+# Vergne in the 2014 races and Max Verstappen in FP1), never to someone else.
+_PARTICIPANT_QUERY = """
+    SELECT rd.driver_id AS id, d.name AS name, d.first_name AS first_name, d.last_name AS last_name,
+           d.abbreviation AS code, rd.driver_number AS number, rd.constructor_id AS team_id
+    FROM race_data rd
+    JOIN race r ON r.id = rd.race_id
+    JOIN driver d ON d.id = rd.driver_id
+    WHERE r.year = ?
+    ORDER BY r.round
 """
 
 _TEAM_QUERY = """
@@ -113,10 +134,14 @@ _TEAM_STANDING_QUERY = """
 @dataclass(frozen=True)
 class DriverEntry:
     id: str
+    #: The display name ("Carlos Sainz Jr."). Never build one from the parts below.
     name: str
     code: str | None
     number: int | None
     team_id: str
+    #: f1db's name parts. ``first_name`` can be a legal name: Jak Crawford's is "Carlton".
+    first_name: str
+    last_name: str
 
 
 @dataclass(frozen=True)
@@ -145,7 +170,53 @@ class SeasonDirectory:
         }
 
 
+@dataclass(frozen=True)
+class CanonicalDriver:
+    """How to print a driver: f1db's identity when the inputs resolve, else the feed's own words.
+
+    Resolved, every field is f1db's (``name`` is ``driver.name``, never the legal
+    ``full_name``). Unresolved, ``id`` is ``None``, ``name`` is the feed's name in
+    display case, ``last_name`` is the surname the feed shouted (or ``None``) and
+    ``code`` is the feed's code.
+    """
+
+    name: str
+    last_name: str | None
+    code: str | None
+    id: str | None
+
+    @property
+    def resolved(self) -> bool:
+        return self.id is not None
+
+
+class DriverKeys(TypedDict, total=False):
+    """What a feed row may name a driver by; ``resolve_driver`` tries them in this order."""
+
+    driver_id: str | None
+    code: str | None
+    #: The number the car raced with that season, as an int or digits.
+    number: int | str | None
+    name: str | None
+
+
+@dataclass(frozen=True)
+class _DriverIndex:
+    """One season's drivers by each key a feed names them with; a key lists every driver it fits."""
+
+    entries: Mapping[str, DriverEntry]
+    codes: Mapping[str, tuple[str, ...]]
+    numbers: Mapping[int, tuple[str, ...]]
+    names: Mapping[str, tuple[str, ...]]
+
+
+# Surname particles f1db writes in lower case after a given name ("Nyck de Vries",
+# "Pedro de la Rosa", "Giedo van der Garde") and capitalises when the surname
+# stands alone ("De Vries").
+_PARTICLES = frozenset({"da", "de", "der", "di", "la", "van", "von"})
+
 _cache: dict[tuple[int, str | None], SeasonDirectory] = {}
+_index_cache: dict[tuple[int, str | None], _DriverIndex] = {}
 _cache_lock = threading.Lock()
 
 
@@ -170,21 +241,30 @@ def team_color(constructor_id: str) -> str:
     return TEAM_COLORS.get(constructor_id, NEUTRAL_TEAM_COLOR)
 
 
-def _drivers(conn: sqlite3.Connection, year: int) -> tuple[DriverEntry, ...]:
-    # The entry list first, then session rows in round order on top of it, so
-    # each driver keeps their latest team and number and an entrant who has
-    # not driven yet is still listed.
-    rows = [*conn.execute(_ENTRANT_QUERY, (year,)).fetchall(), *conn.execute(_ENTRY_QUERY, (year,)).fetchall()]
-    latest: dict[str, DriverEntry] = {}
-    for row in rows:
-        latest[row["id"]] = DriverEntry(
+def _latest_entries(rows: Iterable[sqlite3.Row]) -> tuple[DriverEntry, ...]:
+    """One entry per driver, from their last row: rows come in round order."""
+    latest = {
+        row["id"]: DriverEntry(
             id=row["id"],
             name=row["name"],
             code=row["code"],
             number=as_int(row["number"]),
             team_id=row["team_id"],
+            first_name=row["first_name"],
+            last_name=row["last_name"],
         )
+        for row in rows
+    }
     return tuple(latest.values())
+
+
+def _drivers(conn: sqlite3.Connection, year: int) -> tuple[DriverEntry, ...]:
+    # The entry list first, then session rows in round order on top of it, so
+    # each driver keeps their latest team and number and an entrant who has
+    # not driven yet is still listed.
+    return _latest_entries(
+        [*conn.execute(_ENTRANT_QUERY, (year,)).fetchall(), *conn.execute(_ENTRY_QUERY, (year,)).fetchall()]
+    )
 
 
 def _teams(conn: sqlite3.Connection, year: int) -> tuple[TeamEntry, ...]:
@@ -207,18 +287,27 @@ def _teams(conn: sqlite3.Connection, year: int) -> tuple[TeamEntry, ...]:
     return tuple(sorted(teams, key=lambda team: (team.position is None, team.position or 0, team.name)))
 
 
-def season_directory(year: int) -> SeasonDirectory:
-    """Every driver and team of ``year``, cached until f1db's next release."""
+def _cached[T](store: dict[tuple[int, str | None], T], year: int, read: Callable[[int], T]) -> T:
+    """``read(year)``, kept in ``store`` until f1db's next release."""
     key = (year, f1db_source.installed_version())
     with _cache_lock:
-        cached = _cache.get(key)
+        cached = store.get(key)
     if cached is not None:
         return cached
-    with f1db_source.connect() as conn:
-        directory = SeasonDirectory(year=year, drivers=_drivers(conn, year), teams=_teams(conn, year))
+    value = read(year)
     with _cache_lock:
-        _cache[key] = directory
-    return directory
+        store[key] = value
+    return value
+
+
+def _read_directory(year: int) -> SeasonDirectory:
+    with f1db_source.connect() as conn:
+        return SeasonDirectory(year=year, drivers=_drivers(conn, year), teams=_teams(conn, year))
+
+
+def season_directory(year: int) -> SeasonDirectory:
+    """Every driver and team of ``year``, cached until f1db's next release."""
+    return _cached(_cache, year, _read_directory)
 
 
 def resolve_team(year: int, name: str) -> str | None:
@@ -240,7 +329,123 @@ def resolve_team_name(year: int, name: str) -> str | None:
     return next((team.name for team in season_directory(year).teams if team.id == team_id), None)
 
 
+def _group[K](pairs: Iterable[tuple[K | None, str]]) -> Mapping[K, tuple[str, ...]]:
+    """Each key with every driver id it fits; blank keys are dropped."""
+    ordered = sorted({(key, driver_id) for key, driver_id in pairs if key is not None and key != ""})
+    return MappingProxyType(
+        {key: tuple(driver_id for _key, driver_id in group) for key, group in groupby(ordered, key=itemgetter(0))}
+    )
+
+
+def _read_index(year: int) -> _DriverIndex:
+    directory = season_directory(year).drivers
+    with f1db_source.connect() as conn:
+        rows = conn.execute(_PARTICIPANT_QUERY, (year,)).fetchall()
+    # The directory's entry wins for a driver in both: it is the record the season's pages show.
+    entries = {entry.id: entry for entry in (*_latest_entries(rows), *directory)}
+    return _DriverIndex(
+        entries=MappingProxyType(entries),
+        codes=_group((fold(entry.code or ""), entry.id) for entry in entries.values()),
+        # Every number raced that season, plus an entrant's permanent number before their first session.
+        numbers=_group([*((as_int(row["number"]), row["id"]) for row in rows), *((e.number, e.id) for e in directory)]),
+        names=_group(
+            (key, entry.id) for entry in entries.values() for key in (fold(entry.name), fold(entry.last_name or ""))
+        ),
+    )
+
+
+def _driver_index(year: int) -> _DriverIndex:
+    return _cached(_index_cache, year, _read_index)
+
+
+def _wanted(keys: DriverKeys) -> tuple[str, str, int | None, str]:
+    """The keys in lookup form; an unknown keyword is a caller's typo and fails loudly."""
+    unknown = sorted(set(keys) - set(DriverKeys.__annotations__))
+    if unknown:
+        msg = f"unknown driver keys: {', '.join(unknown)}"
+        raise TypeError(msg)
+    return (
+        (keys.get("driver_id") or "").strip(),
+        fold(keys.get("code") or ""),
+        as_int(keys.get("number")),
+        fold(keys.get("name") or ""),
+    )
+
+
+def resolve_driver(year: int, **keys: Unpack[DriverKeys]) -> DriverEntry | None:
+    """The f1db driver a feed row names in ``year``, or ``None``.
+
+    Keys are tried in order: f1db id, three-letter code, car number (the one
+    raced that season, not the permanent one), then the name or surname after
+    folding case and accents. Each counts only among the drivers of ``year``.
+    The first key that fits exactly one driver decides; a key that fits none
+    or several is passed over, and no driver is ever picked among several.
+    """
+    wanted = _wanted(keys)
+    if all(key is None or key == "" for key in wanted):
+        return None
+    index = _driver_index(year)
+    wanted_id, wanted_code, wanted_number, wanted_name = wanted
+    candidates = (
+        (wanted_id,) if wanted_id in index.entries else (),
+        index.codes.get(wanted_code, ()),
+        index.numbers.get(wanted_number, ()),
+        index.names.get(wanted_name, ()),
+    )
+    return next((index.entries[ids[0]] for ids in candidates if len(ids) == 1), None)
+
+
+def canonical_driver(year: int, **keys: Unpack[DriverKeys]) -> CanonicalDriver:
+    """The identity to print for a feed row: f1db's when it resolves, the feed's own words recased otherwise."""
+    entry = resolve_driver(year, **keys)
+    if entry is not None:
+        return CanonicalDriver(name=entry.name, last_name=entry.last_name, code=entry.code, id=entry.id)
+    return feed_driver(**keys)
+
+
+def feed_driver(**keys: Unpack[DriverKeys]) -> CanonicalDriver:
+    """The feed's own words in display case, with no id: what a row prints when nobody is resolved.
+
+    Reads nothing, so an emit point can fall back to it when f1db cannot be read.
+    """
+    text = keys.get("name") or ""
+    return CanonicalDriver(
+        name=normalize_feed_name(text),
+        last_name=_feed_surname(text),
+        code=(keys.get("code") or "").strip().upper() or None,
+        id=None,
+    )
+
+
+def normalize_feed_name(text: str) -> str:
+    """A feed's shouted name in display case, inventing nothing ("Lando NORRIS" -> "Lando Norris").
+
+    Only words written in capitals change. Particles after a given name go
+    lower case the way f1db writes them ("Nyck DE VRIES" -> "Nyck de Vries").
+    """
+    return " ".join(_display_word(word, follows=position > 0) for position, word in enumerate(text.split()))
+
+
+def _display_word(word: str, *, follows: bool) -> str:
+    if not word.isupper():
+        return word
+    if follows and word.lower() in _PARTICLES:
+        return word.lower()
+    return word.title()
+
+
+def _feed_surname(text: str) -> str | None:
+    """The surname a feed marks by shouting it after the given name ("Nyck DE VRIES" -> "De Vries")."""
+    words = text.split()
+    given = tuple(takewhile(lambda word: not word.isupper(), words))
+    surname = words[len(given) :]
+    if not given or not surname or not all(word.isupper() for word in surname):
+        return None
+    return normalize_feed_name(" ".join(surname))
+
+
 def clear_cache() -> None:
-    """Drop every cached directory — for tests."""
+    """Drop every cached directory and driver index — for tests."""
     with _cache_lock:
         _cache.clear()
+        _index_cache.clear()

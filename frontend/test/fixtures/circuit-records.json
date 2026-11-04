@@ -65,6 +65,7 @@
         "winner": {
           "driver_id": "lando-norris",
           "driver_name": "Lando Norris",
+          "last_name": "Norris",
           "team_id": "mclaren",
           "team_name": "McLaren",
           "grid": 1
@@ -72,6 +73,7 @@
         "pole": {
           "driver_id": "lando-norris",
           "driver_name": "Lando Norris",
+          "last_name": "Norris",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -82,6 +84,7 @@
         "winner": {
           "driver_id": "carlos-sainz-jr",
           "driver_name": "Carlos Sainz Jr.",
+          "last_name": "Sainz Jr.",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 1
@@ -89,6 +92,7 @@
         "pole": {
           "driver_id": "carlos-sainz-jr",
           "driver_name": "Carlos Sainz Jr.",
+          "last_name": "Sainz Jr.",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -99,6 +103,7 @@
         "winner": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull",
           "grid": 3
@@ -106,6 +111,7 @@
         "pole": {
           "driver_id": "charles-leclerc",
           "driver_name": "Charles Leclerc",
+          "last_name": "Leclerc",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -116,6 +122,7 @@
         "winner": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull",
           "grid": 1
@@ -123,6 +130,7 @@
         "pole": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull"
         },
@@ -133,6 +141,7 @@
         "winner": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull",
           "grid": 3
@@ -140,6 +149,7 @@
         "pole": {
           "driver_id": "valtteri-bottas",
           "driver_name": "Valtteri Bottas",
+          "last_name": "Bottas",
           "team_id": "mercedes",
           "team_name": "Mercedes"
         },
@@ -150,6 +160,7 @@
         "winner": {
           "driver_id": "lewis-hamilton",
           "driver_name": "Lewis Hamilton",
+          "last_name": "Hamilton",
           "team_id": "mercedes",
           "team_name": "Mercedes",
           "grid": 3
@@ -157,6 +168,7 @@
         "pole": {
           "driver_id": "charles-leclerc",
           "driver_name": "Charles Leclerc",
+          "last_name": "Leclerc",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -167,6 +179,7 @@
         "winner": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull",
           "grid": 2
@@ -174,6 +187,7 @@
         "pole": {
           "driver_id": "daniel-ricciardo",
           "driver_name": "Daniel Ricciardo",
+          "last_name": "Ricciardo",
           "team_id": "red-bull",
           "team_name": "Red Bull"
         },
@@ -184,6 +198,7 @@
         "winner": {
           "driver_id": "max-verstappen",
           "driver_name": "Max Verstappen",
+          "last_name": "Verstappen",
           "team_id": "red-bull",
           "team_name": "Red Bull",
           "grid": 2
@@ -191,6 +206,7 @@
         "pole": {
           "driver_id": "sebastian-vettel",
           "driver_name": "Sebastian Vettel",
+          "last_name": "Vettel",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -201,6 +217,7 @@
         "winner": {
           "driver_id": "lewis-hamilton",
           "driver_name": "Lewis Hamilton",
+          "last_name": "Hamilton",
           "team_id": "mercedes",
           "team_name": "Mercedes",
           "grid": 1
@@ -208,6 +225,7 @@
         "pole": {
           "driver_id": "lewis-hamilton",
           "driver_name": "Lewis Hamilton",
+          "last_name": "Hamilton",
           "team_id": "mercedes",
           "team_name": "Mercedes"
         },
@@ -218,6 +236,7 @@
         "winner": {
           "driver_id": "nico-rosberg",
           "driver_name": "Nico Rosberg",
+          "last_name": "Rosberg",
           "team_id": "mercedes",
           "team_name": "Mercedes",
           "grid": 1
@@ -225,6 +244,7 @@
         "pole": {
           "driver_id": "nico-rosberg",
           "driver_name": "Nico Rosberg",
+          "last_name": "Rosberg",
           "team_id": "mercedes",
           "team_name": "Mercedes"
         },
@@ -235,18 +255,21 @@
       {
         "driver_id": "max-verstappen",
         "driver_name": "Max Verstappen",
+        "last_name": "Verstappen",
         "wins": 5,
         "last_win": 2023
       },
       {
         "driver_id": "lewis-hamilton",
         "driver_name": "Lewis Hamilton",
+        "last_name": "Hamilton",
         "wins": 2,
         "last_win": 2019
       },
       {
         "driver_id": "lando-norris",
         "driver_name": "Lando Norris",
+        "last_name": "Norris",
         "wins": 1,
         "last_win": 2025
       }
@@ -273,6 +296,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 1
@@ -280,6 +304,7 @@
         "pole": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -290,6 +315,7 @@
         "winner": {
           "driver_id": "fernando-alonso",
           "driver_name": "Fernando Alonso",
+          "last_name": "Alonso",
           "team_id": "renault",
           "team_name": "Renault",
           "grid": 2
@@ -297,6 +323,7 @@
         "pole": {
           "driver_id": "kimi-raikkonen",
           "driver_name": "Kimi Räikkönen",
+          "last_name": "Räikkönen",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -307,6 +334,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 2
@@ -314,6 +342,7 @@
         "pole": {
           "driver_id": "jenson-button",
           "driver_name": "Jenson Button",
+          "last_name": "Button",
           "team_id": "bar",
           "team_name": "BAR"
         },
@@ -324,6 +353,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 1
@@ -331,6 +361,7 @@
         "pole": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -341,6 +372,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 1
@@ -348,6 +380,7 @@
         "pole": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari"
         },
@@ -358,6 +391,7 @@
         "winner": {
           "driver_id": "ralf-schumacher",
           "driver_name": "Ralf Schumacher",
+          "last_name": "Schumacher",
           "team_id": "williams",
           "team_name": "Williams",
           "grid": 3
@@ -365,6 +399,7 @@
         "pole": {
           "driver_id": "david-coulthard",
           "driver_name": "David Coulthard",
+          "last_name": "Coulthard",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -375,6 +410,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 2
@@ -382,6 +418,7 @@
         "pole": {
           "driver_id": "mika-hakkinen",
           "driver_name": "Mika Häkkinen",
+          "last_name": "Häkkinen",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -392,6 +429,7 @@
         "winner": {
           "driver_id": "michael-schumacher",
           "driver_name": "Michael Schumacher",
+          "last_name": "Schumacher",
           "team_id": "ferrari",
           "team_name": "Ferrari",
           "grid": 3
@@ -399,6 +437,7 @@
         "pole": {
           "driver_id": "mika-hakkinen",
           "driver_name": "Mika Häkkinen",
+          "last_name": "Häkkinen",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -409,6 +448,7 @@
         "winner": {
           "driver_id": "david-coulthard",
           "driver_name": "David Coulthard",
+          "last_name": "Coulthard",
           "team_id": "mclaren",
           "team_name": "McLaren",
           "grid": 1
@@ -416,6 +456,7 @@
         "pole": {
           "driver_id": "david-coulthard",
           "driver_name": "David Coulthard",
+          "last_name": "Coulthard",
           "team_id": "mclaren",
           "team_name": "McLaren"
         },
@@ -426,6 +467,7 @@
         "winner": {
           "driver_id": "heinz-harald-frentzen",
           "driver_name": "Heinz-Harald Frentzen",
+          "last_name": "Frentzen",
           "team_id": "williams",
           "team_name": "Williams",
           "grid": 2
@@ -433,6 +475,7 @@
         "pole": {
           "driver_id": "jacques-villeneuve",
           "driver_name": "Jacques Villeneuve",
+          "last_name": "Villeneuve",
           "team_id": "williams",
           "team_name": "Williams"
         },
@@ -479,6 +522,7 @@
             "winner": {
               "driver_id": "niki-lauda",
               "driver_name": "Niki Lauda",
+              "last_name": "Lauda",
               "team_id": "mclaren",
               "team_name": "McLaren",
               "grid": 2
@@ -486,6 +530,7 @@
             "pole": {
               "driver_id": "andrea-de-cesaris",
               "driver_name": "Andrea de Cesaris",
+              "last_name": "De Cesaris",
               "team_id": "alfa-romeo",
               "team_name": "Alfa Romeo"
             },
@@ -496,6 +541,7 @@
             "winner": {
               "driver_id": "alan-jones",
               "driver_name": "Alan Jones",
+              "last_name": "Jones",
               "team_id": "williams",
               "team_name": "Williams",
               "grid": 2
@@ -503,6 +549,7 @@
             "pole": {
               "driver_id": "riccardo-patrese",
               "driver_name": "Riccardo Patrese",
+              "last_name": "Patrese",
               "team_id": "arrows",
               "team_name": "Arrows"
             },
@@ -513,6 +560,7 @@
             "winner": {
               "driver_id": "nelson-piquet",
               "driver_name": "Nelson Piquet",
+              "last_name": "Piquet",
               "team_id": "brabham",
               "team_name": "Brabham",
               "grid": 1
@@ -520,6 +568,7 @@
             "pole": {
               "driver_id": "nelson-piquet",
               "driver_name": "Nelson Piquet",
+              "last_name": "Piquet",
               "team_id": "brabham",
               "team_name": "Brabham"
             },
@@ -530,6 +579,7 @@
             "winner": {
               "driver_id": "gilles-villeneuve",
               "driver_name": "Gilles Villeneuve",
+              "last_name": "Villeneuve",
               "team_id": "ferrari",
               "team_name": "Ferrari",
               "grid": 1
@@ -537,6 +587,7 @@
             "pole": {
               "driver_id": "gilles-villeneuve",
               "driver_name": "Gilles Villeneuve",
+              "last_name": "Villeneuve",
               "team_id": "ferrari",
               "team_name": "Ferrari"
             },
@@ -547,6 +598,7 @@
             "winner": {
               "driver_id": "carlos-reutemann",
               "driver_name": "Carlos Reutemann",
+              "last_name": "Reutemann",
               "team_id": "ferrari",
               "team_name": "Ferrari",
               "grid": 1
@@ -554,6 +606,7 @@
             "pole": {
               "driver_id": "carlos-reutemann",
               "driver_name": "Carlos Reutemann",
+              "last_name": "Reutemann",
               "team_id": "ferrari",
               "team_name": "Ferrari"
             },
@@ -564,6 +617,7 @@
             "winner": {
               "driver_id": "mario-andretti",
               "driver_name": "Mario Andretti",
+              "last_name": "Andretti",
               "team_id": "lotus",
               "team_name": "Lotus",
               "grid": 2
@@ -571,6 +625,7 @@
             "pole": {
               "driver_id": "niki-lauda",
               "driver_name": "Niki Lauda",
+              "last_name": "Lauda",
               "team_id": "ferrari",
               "team_name": "Ferrari"
             },
@@ -581,6 +636,7 @@
             "winner": {
               "driver_id": "clay-regazzoni",
               "driver_name": "Clay Regazzoni",
+              "last_name": "Regazzoni",
               "team_id": "ferrari",
               "team_name": "Ferrari",
               "grid": 1
@@ -588,6 +644,7 @@
             "pole": {
               "driver_id": "clay-regazzoni",
               "driver_name": "Clay Regazzoni",
+              "last_name": "Regazzoni",
               "team_id": "ferrari",
               "team_name": "Ferrari"
             },
@@ -598,18 +655,21 @@
           {
             "driver_id": "niki-lauda",
             "driver_name": "Niki Lauda",
+            "last_name": "Lauda",
             "wins": 1,
             "last_win": 1982
           },
           {
             "driver_id": "alan-jones",
             "driver_name": "Alan Jones",
+            "last_name": "Jones",
             "wins": 1,
             "last_win": 1981
           },
           {
             "driver_id": "nelson-piquet",
             "driver_name": "Nelson Piquet",
+            "last_name": "Piquet",
             "wins": 1,
             "last_win": 1980
           }

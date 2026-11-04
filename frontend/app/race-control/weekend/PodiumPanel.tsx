@@ -5,6 +5,8 @@ import Link from "next/link";
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
@@ -36,11 +38,13 @@ function Step({ pick, place, height, rise }: { pick: PodiumPick; place: number; 
         <p className="font-mono text-xl font-black text-white">{pick.driver_code}</p>
         <p className="truncate text-[11px] text-[#AEB6C6]">
           <DriverLink code={pick.driver_code} name={pick.driver_name}>
-            {pick.driver_name}
+            <DriverName name={pick.driver_name} code={pick.driver_code} />
           </DriverLink>
         </p>
         <p className="truncate text-[10px] text-[#6F7789]">
-          <TeamLink name={pick.team}>{pick.team}</TeamLink>
+          <TeamLink name={pick.team}>
+            <TeamName name={pick.team} />
+          </TeamLink>
         </p>
       </div>
       <div

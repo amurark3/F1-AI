@@ -1,0 +1,2149 @@
+{
+ "source": "The 2026:19 entry of the prediction snapshot cache (schema 2), copied unchanged from the local file store (backend/data/prediction_cache.json): one post-qualifying snapshot, computed 2026-11-01 01:38 UTC from FastF1's Mexico City qualifying results. Its names are the ones FastF1 handed the compute: \"Andrea Kimi Antonelli\", \"Carlos Sainz\", Hirakawa under the code \"NAN\" (FastF1 had no abbreviation for him), \"RB F1 Team\", \"Haas F1 Team\", \"Alpine F1 Team\", \"Cadillac F1 Team\".",
+ "entry": {
+  "schema_version": 2,
+  "stored_at": "2026-11-01T01:38:24.571857+00:00",
+  "updated_at": "2026-11-01T01:38:24.571857+00:00",
+  "policy": "stored_until_manual_recompute",
+  "active_snapshot_id": "v1-2026-11-01T01:38:24.571857+00:00",
+  "snapshots": [
+   {
+    "id": "v1-2026-11-01T01:38:24.571857+00:00",
+    "stored_at": "2026-11-01T01:38:24.571857+00:00",
+    "reason": "first_compute",
+    "result": {
+     "year": 2026,
+     "round": 19,
+     "grand_prix": "Mexico City Grand Prix",
+     "generated_at": "2026-11-01T01:38:22.330191+00:00",
+     "logic_version": 5,
+     "accuracy": {
+      "recent_winner_pct": 50,
+      "recent_top3_pct": 62,
+      "recent_top10_pct": 79,
+      "exact_position_pct": 12,
+      "avg_position_error": 3.6,
+      "dnf_capture_pct": 52,
+      "crash_capture_pct": null,
+      "races_evaluated": 8,
+      "rolling_window": 8
+     },
+     "data_sources": [
+      "adaptive_history",
+      "circuit_history",
+      "constructor_standings",
+      "driver_standings",
+      "last_5_races",
+      "qualifying",
+      "trained_ml_model",
+      "weekend_entry_list"
+     ],
+     "predictions": [
+      {
+       "position": 1,
+       "driver_code": "LEC",
+       "driver_name": "Charles Leclerc",
+       "team": "Ferrari",
+       "confidence_low": 74,
+       "confidence_high": 89,
+       "factors": [
+        "Trained model projects P4.8",
+        "Grid position lifts the projection ~3.2 places",
+        "Championship standing lifts the projection ~0.8 places",
+        "Front row start (qualifying P3)",
+        "Podium history here (best P2 in last 3 editions)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 3.0,
+         "contribution": -3.159,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 5.0,
+         "contribution": -0.823,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 2.0,
+         "contribution": -0.801,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 2.67,
+         "contribution": -0.668,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 3.2,
+         "contribution": -0.272,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 3.33,
+         "contribution": -0.049,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -0.33,
+         "contribution": -0.009,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 2,
+       "driver_code": "HAM",
+       "driver_name": "Lewis Hamilton",
+       "team": "Ferrari",
+       "confidence_low": 66,
+       "confidence_high": 81,
+       "factors": [
+        "Trained model projects P4.1",
+        "Grid position lifts the projection ~4.0 places",
+        "Championship standing lifts the projection ~1.1 places",
+        "Pole position (qualifying P1)",
+        "Podium history here (best P2 in last 3 editions)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 1.0,
+         "contribution": -3.999,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 3.0,
+         "contribution": -1.12,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 2.0,
+         "contribution": -0.801,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 4.67,
+         "contribution": -0.485,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 8.2,
+         "contribution": -0.087,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 3.67,
+         "contribution": -0.042,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.33,
+         "contribution": 0.03,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 3,
+       "driver_code": "VER",
+       "driver_name": "Max Verstappen",
+       "team": "Red Bull",
+       "confidence_low": 73,
+       "confidence_high": 88,
+       "factors": [
+        "Trained model projects P5.4",
+        "Grid position lifts the projection ~2.7 places",
+        "Championship standing lifts the projection ~1.0 place",
+        "Previous winner at this circuit (best P1 in last 3 editions)",
+        "Won 2 of last 5 races"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 4.0,
+         "contribution": -2.739,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 4.0,
+         "contribution": -0.972,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 3.33,
+         "contribution": -0.607,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 3.0,
+         "contribution": -0.575,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 1.8,
+         "contribution": -0.324,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 4.33,
+         "contribution": -0.029,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.0,
+         "contribution": 0.01,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 4,
+       "driver_code": "ANT",
+       "driver_name": "Andrea Kimi Antonelli",
+       "team": "Mercedes",
+       "confidence_low": 69,
+       "confidence_high": 84,
+       "factors": [
+        "Trained model projects P5.1",
+        "Grid position lifts the projection ~2.3 places",
+        "Championship standing lifts the projection ~1.4 places",
+        "Won 2 of last 5 races",
+        "Top team (constructor P1)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 5.0,
+         "contribution": -2.319,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 1.0,
+         "contribution": -1.416,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 1.0,
+         "contribution": -1.027,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 6.0,
+         "contribution": -0.362,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 2.4,
+         "contribution": -0.302,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 3.0,
+         "contribution": -0.055,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.0,
+         "contribution": 0.01,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 5,
+       "driver_code": "RUS",
+       "driver_name": "George Russell",
+       "team": "Mercedes",
+       "confidence_low": 64,
+       "confidence_high": 79,
+       "factors": [
+        "Trained model projects P4.3",
+        "Grid position lifts the projection ~3.6 places",
+        "Championship standing lifts the projection ~1.3 places",
+        "Front row start (qualifying P2)",
+        "Top team (constructor P1)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 2.0,
+         "contribution": -3.579,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 2.0,
+         "contribution": -1.268,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 1.0,
+         "contribution": -1.027,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 6.0,
+         "contribution": -0.362,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 8.6,
+         "contribution": -0.072,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 8.33,
+         "contribution": 0.05,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -0.33,
+         "contribution": -0.009,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 6,
+       "driver_code": "NOR",
+       "driver_name": "Lando Norris",
+       "team": "McLaren",
+       "confidence_low": 68,
+       "confidence_high": 83,
+       "factors": [
+        "Trained model projects P7.2",
+        "Grid position lifts the projection ~1.9 places",
+        "Championship standing lifts the projection ~0.7 places",
+        "Previous winner at this circuit (best P1 in last 3 editions)",
+        "Historically gains ~4 positions at this track"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 6.0,
+         "contribution": -1.899,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 6.0,
+         "contribution": -0.675,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 2.67,
+         "contribution": -0.668,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 4.0,
+         "contribution": -0.35,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 4.33,
+         "contribution": 0.267,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 8.0,
+         "contribution": -0.095,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 4.67,
+         "contribution": -0.022,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 7,
+       "driver_code": "HAD",
+       "driver_name": "Isack Hadjar",
+       "team": "Red Bull",
+       "confidence_low": 61,
+       "confidence_high": 76,
+       "factors": [
+        "Trained model projects P8.2",
+        "Grid position lifts the projection ~1.5 places",
+        "Car/team strength lifts the projection ~0.6 places",
+        "Qualifying P7",
+        "Consistent points finisher (avg P6)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 7.0,
+         "contribution": -1.479,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 3.0,
+         "contribution": -0.575,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 8.0,
+         "contribution": -0.378,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -5.0,
+         "contribution": -0.286,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 13.0,
+         "contribution": 0.279,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 16.0,
+         "contribution": 0.202,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 6.0,
+         "contribution": -0.169,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 8,
+       "driver_code": "PIA",
+       "driver_name": "Oscar Piastri",
+       "team": "McLaren",
+       "confidence_low": 62,
+       "confidence_high": 77,
+       "factors": [
+        "Trained model projects P10.7",
+        "Grid position drags the projection ~1.0 place",
+        "Championship standing lifts the projection ~0.5 places",
+        "Historically gains ~3 positions at this track",
+        "Consistent points finisher (avg P8)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 13.0,
+         "contribution": 1.041,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 7.0,
+         "contribution": -0.527,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 4.0,
+         "contribution": -0.35,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 7.0,
+         "contribution": -0.271,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 3.33,
+         "contribution": 0.208,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 7.8,
+         "contribution": -0.102,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 8.67,
+         "contribution": 0.057,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 9,
+       "driver_code": "LAW",
+       "driver_name": "Liam Lawson",
+       "team": "RB F1 Team",
+       "confidence_low": 59,
+       "confidence_high": 74,
+       "factors": [
+        "Trained model projects P10.8",
+        "Grid position lifts the projection ~1.1 places",
+        "Car/team strength drags the projection ~1.0 place",
+        "Qualifying P8",
+        "Consistent points finisher (avg P8)"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 8.0,
+         "contribution": -1.059,
+         "direction": "helps"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 10.0,
+         "contribution": 1.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 18.0,
+         "contribution": 0.737,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -4.5,
+         "contribution": -0.256,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 9.0,
+         "contribution": -0.23,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 8.2,
+         "contribution": -0.087,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 8.0,
+         "contribution": 0.044,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 10,
+       "driver_code": "LIN",
+       "driver_name": "Arvid Lindblad",
+       "team": "RB F1 Team",
+       "confidence_low": 75,
+       "confidence_high": 90,
+       "factors": [
+        "Trained model projects P11.2",
+        "Car/team strength drags the projection ~1.0 place",
+        "Grid position lifts the projection ~0.6 places",
+        "Qualifying P9",
+        "Recent average P11"
+       ],
+       "model_attribution": [
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 10.0,
+         "contribution": 1.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 9.0,
+         "contribution": -0.639,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 11.0,
+         "contribution": 0.103,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 11.0,
+         "contribution": 0.066,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.0,
+         "contribution": 0.01,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 10.0,
+         "contribution": 0.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 10.6,
+         "contribution": 0.002,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 11,
+       "driver_code": "HUL",
+       "driver_name": "Nico Hülkenberg",
+       "team": "Audi",
+       "confidence_low": 69,
+       "confidence_high": 84,
+       "factors": [
+        "Trained model projects P12.3",
+        "Car/team strength drags the projection ~0.6 places",
+        "Championship standing drags the projection ~0.5 places",
+        "Circuit history avg P14",
+        "Tends to lose ~2 positions here"
+       ],
+       "model_attribution": [
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 8.0,
+         "contribution": 0.552,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 14.0,
+         "contribution": 0.511,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 13.67,
+         "contribution": 0.34,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 11.0,
+         "contribution": 0.201,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 14.67,
+         "contribution": 0.175,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -2.0,
+         "contribution": -0.108,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 10.2,
+         "contribution": -0.013,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 12,
+       "driver_code": "GAS",
+       "driver_name": "Pierre Gasly",
+       "team": "Alpine F1 Team",
+       "confidence_low": 66,
+       "confidence_high": 81,
+       "factors": [
+        "Trained model projects P10.8",
+        "Grid position lifts the projection ~0.2 places",
+        "Circuit history drags the projection ~0.2 places",
+        "Qualifying P10",
+        "Circuit history avg P12"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 10.0,
+         "contribution": -0.219,
+         "direction": "helps"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 12.0,
+         "contribution": 0.187,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 13.4,
+         "contribution": 0.105,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 6.0,
+         "contribution": 0.101,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 10.0,
+         "contribution": -0.082,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 9.33,
+         "contribution": 0.07,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.33,
+         "contribution": 0.03,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 13,
+       "driver_code": "COL",
+       "driver_name": "Franco Colapinto",
+       "team": "Alpine F1 Team",
+       "confidence_low": 61,
+       "confidence_high": 76,
+       "factors": [
+        "Trained model projects P12.5",
+        "Grid position drags the projection ~0.6 places",
+        "Circuit history drags the projection ~0.4 places",
+        "Historically gains ~4 positions at this track",
+        "Circuit history avg P14"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 12.0,
+         "contribution": 0.621,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 14.0,
+         "contribution": 0.371,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 4.0,
+         "contribution": 0.247,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 12.0,
+         "contribution": 0.215,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 15.8,
+         "contribution": 0.194,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 14.33,
+         "contribution": 0.169,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 6.0,
+         "contribution": 0.101,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 14,
+       "driver_code": "BEA",
+       "driver_name": "Oliver Bearman",
+       "team": "Haas F1 Team",
+       "confidence_low": 55,
+       "confidence_high": 70,
+       "factors": [
+        "Trained model projects P13.2",
+        "Grid position drags the projection ~1.9 places",
+        "Circuit history lifts the projection ~0.5 places",
+        "Good circuit record (avg P4 over 1 editions)",
+        "Historically gains ~5 positions at this track"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 15.0,
+         "contribution": 1.881,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 4.0,
+         "contribution": -0.546,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 13.0,
+         "contribution": 0.363,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 7.0,
+         "contribution": 0.327,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 5.0,
+         "contribution": 0.306,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 14.6,
+         "contribution": 0.15,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 11.67,
+         "contribution": 0.116,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 15,
+       "driver_code": "BOR",
+       "driver_name": "Gabriel Bortoleto",
+       "team": "Audi",
+       "confidence_low": 63,
+       "confidence_high": 78,
+       "factors": [
+        "Trained model projects P14.0",
+        "Grid position drags the projection ~1.5 places",
+        "Championship standing drags the projection ~0.7 places",
+        "Historically gains ~6 positions at this track",
+        "Circuit history avg P10"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 14.0,
+         "contribution": 1.461,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 15.0,
+         "contribution": 0.66,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 8.0,
+         "contribution": 0.552,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 6.0,
+         "contribution": 0.366,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 16.2,
+         "contribution": 0.209,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 12.67,
+         "contribution": 0.136,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 10.0,
+         "contribution": 0.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 16,
+       "driver_code": "SAI",
+       "driver_name": "Carlos Sainz",
+       "team": "Williams",
+       "confidence_low": 59,
+       "confidence_high": 74,
+       "factors": [
+        "Trained model projects P14.8",
+        "Grid position drags the projection ~2.3 places",
+        "Championship standing drags the projection ~1.1 places",
+        "Previous winner at this circuit (best P1 in last 3 editions)",
+        "Tends to lose ~2 positions here"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 16.0,
+         "contribution": 2.301,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 18.0,
+         "contribution": 1.104,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 9.0,
+         "contribution": 0.778,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 7.33,
+         "contribution": -0.24,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 16.33,
+         "contribution": 0.208,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 15.6,
+         "contribution": 0.187,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -2.33,
+         "contribution": -0.128,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 17,
+       "driver_code": "NAN",
+       "driver_name": "Ryo Hirakawa",
+       "team": "Haas F1 Team",
+       "confidence_low": 40,
+       "confidence_high": 55,
+       "factors": [
+        "No qualifying time set — placed at back of grid",
+        "Trained model projects P16.0",
+        "Grid position drags the projection ~5.2 places",
+        "Car/team strength drags the projection ~0.3 places",
+        "Qualifying P23"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 23.0,
+         "contribution": 5.242,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 7.0,
+         "contribution": 0.327,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 0.0,
+         "contribution": -0.114,
+         "direction": "helps"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 10.0,
+         "contribution": -0.082,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 10.0,
+         "contribution": -0.021,
+         "direction": "helps"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.0,
+         "contribution": 0.01,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 10.0,
+         "contribution": 0.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 18,
+       "driver_code": "ALO",
+       "driver_name": "Fernando Alonso",
+       "team": "Aston Martin",
+       "confidence_low": 63,
+       "confidence_high": 78,
+       "factors": [
+        "Trained model projects P16.6",
+        "Grid position drags the projection ~3.1 places",
+        "Car/team strength drags the projection ~1.0 place",
+        "Circuit history avg P18",
+        "Tends to lose ~5 positions here"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 18.0,
+         "contribution": 3.141,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 10.0,
+         "contribution": 1.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 17.0,
+         "contribution": 0.956,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 18.0,
+         "contribution": 0.737,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -4.67,
+         "contribution": -0.266,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 16.33,
+         "contribution": 0.208,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 15.6,
+         "contribution": 0.187,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 19,
+       "driver_code": "ALB",
+       "driver_name": "Alexander Albon",
+       "team": "Williams",
+       "confidence_low": 61,
+       "confidence_high": 76,
+       "factors": [
+        "Trained model projects P16.2",
+        "Grid position drags the projection ~2.7 places",
+        "Championship standing drags the projection ~1.3 places",
+        "Circuit history avg P13",
+        "Qualifying P17"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 17.0,
+         "contribution": 2.721,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 19.0,
+         "contribution": 1.253,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 9.0,
+         "contribution": 0.778,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 13.33,
+         "contribution": 0.31,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 18.2,
+         "contribution": 0.283,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 16.33,
+         "contribution": 0.208,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 0.0,
+         "contribution": 0.01,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 20,
+       "driver_code": "STR",
+       "driver_name": "Lance Stroll",
+       "team": "Aston Martin",
+       "confidence_low": 59,
+       "confidence_high": 74,
+       "factors": [
+        "Trained model projects P18.3",
+        "Grid position drags the projection ~4.0 places",
+        "Championship standing drags the projection ~1.5 places",
+        "Historically gains ~4 positions at this track",
+        "Circuit history avg P14"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 20.0,
+         "contribution": 3.981,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 21.0,
+         "contribution": 1.549,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 10.0,
+         "contribution": 1.004,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 14.0,
+         "contribution": 0.371,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 20.0,
+         "contribution": 0.281,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 18.0,
+         "contribution": 0.275,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": 4.0,
+         "contribution": 0.247,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 21,
+       "driver_code": "BOT",
+       "driver_name": "Valtteri Bottas",
+       "team": "Cadillac F1 Team",
+       "confidence_low": 58,
+       "confidence_high": 73,
+       "factors": [
+        "Trained model projects P19.2",
+        "Grid position drags the projection ~4.8 places",
+        "Championship standing drags the projection ~1.7 places",
+        "Circuit history avg P14",
+        "Tends to lose ~2 positions here"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 22.0,
+         "contribution": 4.821,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 22.0,
+         "contribution": 1.698,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 11.0,
+         "contribution": 1.229,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 14.5,
+         "contribution": 0.416,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 19.0,
+         "contribution": 0.312,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 18.33,
+         "contribution": 0.248,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -2.5,
+         "contribution": -0.138,
+         "direction": "helps"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      },
+      {
+       "position": 22,
+       "driver_code": "PER",
+       "driver_name": "Sergio Pérez",
+       "team": "Cadillac F1 Team",
+       "confidence_low": 60,
+       "confidence_high": 75,
+       "factors": [
+        "Trained model projects P19.0",
+        "Grid position drags the projection ~4.4 places",
+        "Championship standing drags the projection ~1.8 places",
+        "Circuit history avg P18",
+        "Tends to lose ~7 positions here"
+       ],
+       "model_attribution": [
+        {
+         "feature": "grid_position",
+         "label": "grid position",
+         "value": 21.0,
+         "contribution": 4.401,
+         "direction": "hurts"
+        },
+        {
+         "feature": "driver_standing",
+         "label": "championship standing",
+         "value": 23.0,
+         "contribution": 1.846,
+         "direction": "hurts"
+        },
+        {
+         "feature": "team_standing",
+         "label": "car/team strength",
+         "value": 11.0,
+         "contribution": 1.229,
+         "direction": "hurts"
+        },
+        {
+         "feature": "circuit_avg",
+         "label": "circuit history",
+         "value": 18.5,
+         "contribution": 0.783,
+         "direction": "hurts"
+        },
+        {
+         "feature": "grid_delta_avg",
+         "label": "overtaking record here",
+         "value": -7.0,
+         "contribution": -0.404,
+         "direction": "helps"
+        },
+        {
+         "feature": "recent_sprint_avg",
+         "label": "recent sprint form",
+         "value": 21.33,
+         "contribution": 0.307,
+         "direction": "hurts"
+        },
+        {
+         "feature": "recent_form_avg",
+         "label": "recent form",
+         "value": 17.8,
+         "contribution": 0.268,
+         "direction": "hurts"
+        },
+        {
+         "feature": "sprint_position",
+         "label": "sprint result",
+         "value": 0.0,
+         "contribution": 0.009,
+         "direction": "hurts"
+        },
+        {
+         "feature": "had_sprint",
+         "label": "sprint weekend",
+         "value": 0.0,
+         "contribution": -0.001,
+         "direction": "helps"
+        }
+       ]
+      }
+     ],
+     "risk_predictions": [
+      {
+       "driver_code": "BOT",
+       "driver_name": "Valtteri Bottas",
+       "team": "Cadillac F1 Team",
+       "projected_finish": 21,
+       "dnf_risk_pct": 36,
+       "crash_risk_pct": 7,
+       "mechanical_risk_pct": 33,
+       "risk_level": "high",
+       "factors": [
+        "9 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "Lower constructor reliability proxy (P11)"
+       ]
+      },
+      {
+       "driver_code": "PER",
+       "driver_name": "Sergio Pérez",
+       "team": "Cadillac F1 Team",
+       "projected_finish": 22,
+       "dnf_risk_pct": 27,
+       "crash_risk_pct": 4,
+       "mechanical_risk_pct": 25,
+       "risk_level": "high",
+       "factors": [
+        "5 DNF events in recent history",
+        "Lower constructor reliability proxy (P11)",
+        "No same-weekend sprint reliability signal"
+       ]
+      },
+      {
+       "driver_code": "STR",
+       "driver_name": "Lance Stroll",
+       "team": "Aston Martin",
+       "projected_finish": 20,
+       "dnf_risk_pct": 25,
+       "crash_risk_pct": 6,
+       "mechanical_risk_pct": 22,
+       "risk_level": "high",
+       "factors": [
+        "14 DNF events in recent history",
+        "3 accident/collision flags in recent history",
+        "Lower constructor reliability proxy (P10)"
+       ]
+      },
+      {
+       "driver_code": "ALO",
+       "driver_name": "Fernando Alonso",
+       "team": "Aston Martin",
+       "projected_finish": 18,
+       "dnf_risk_pct": 23,
+       "crash_risk_pct": 7,
+       "mechanical_risk_pct": 20,
+       "risk_level": "high",
+       "factors": [
+        "11 DNF events in recent history",
+        "1 accident/collision flags in recent history",
+        "Lower constructor reliability proxy (P10)"
+       ]
+      },
+      {
+       "driver_code": "ALB",
+       "driver_name": "Alexander Albon",
+       "team": "Williams",
+       "projected_finish": 19,
+       "dnf_risk_pct": 22,
+       "crash_risk_pct": 10,
+       "mechanical_risk_pct": 18,
+       "risk_level": "high",
+       "factors": [
+        "11 DNF events in recent history",
+        "6 accident/collision flags in recent history",
+        "Lower constructor reliability proxy (P9)"
+       ]
+      },
+      {
+       "driver_code": "SAI",
+       "driver_name": "Carlos Sainz",
+       "team": "Williams",
+       "projected_finish": 16,
+       "dnf_risk_pct": 21,
+       "crash_risk_pct": 14,
+       "mechanical_risk_pct": 15,
+       "risk_level": "medium",
+       "factors": [
+        "8 DNF events in recent history",
+        "6 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "LAW",
+       "driver_name": "Liam Lawson",
+       "team": "RB F1 Team",
+       "projected_finish": 9,
+       "dnf_risk_pct": 21,
+       "crash_risk_pct": 10,
+       "mechanical_risk_pct": 16,
+       "risk_level": "medium",
+       "factors": [
+        "6 DNF events in recent history",
+        "4 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "HUL",
+       "driver_name": "Nico Hülkenberg",
+       "team": "Audi",
+       "projected_finish": 11,
+       "dnf_risk_pct": 21,
+       "crash_risk_pct": 10,
+       "mechanical_risk_pct": 16,
+       "risk_level": "medium",
+       "factors": [
+        "8 DNF events in recent history",
+        "1 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "BOR",
+       "driver_name": "Gabriel Bortoleto",
+       "team": "Audi",
+       "projected_finish": 15,
+       "dnf_risk_pct": 20,
+       "crash_risk_pct": 12,
+       "mechanical_risk_pct": 15,
+       "risk_level": "medium",
+       "factors": [
+        "7 DNF events in recent history",
+        "4 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "BEA",
+       "driver_name": "Oliver Bearman",
+       "team": "Haas F1 Team",
+       "projected_finish": 14,
+       "dnf_risk_pct": 20,
+       "crash_risk_pct": 11,
+       "mechanical_risk_pct": 15,
+       "risk_level": "medium",
+       "factors": [
+        "8 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "LIN",
+       "driver_name": "Arvid Lindblad",
+       "team": "RB F1 Team",
+       "projected_finish": 10,
+       "dnf_risk_pct": 18,
+       "crash_risk_pct": 8,
+       "mechanical_risk_pct": 14,
+       "risk_level": "medium",
+       "factors": [
+        "1 DNF events in recent history",
+        "Starts in the highest traffic band",
+        "Lower constructor reliability proxy (P10)"
+       ]
+      },
+      {
+       "driver_code": "COL",
+       "driver_name": "Franco Colapinto",
+       "team": "Alpine F1 Team",
+       "projected_finish": 13,
+       "dnf_risk_pct": 16,
+       "crash_risk_pct": 11,
+       "mechanical_risk_pct": 11,
+       "risk_level": "medium",
+       "factors": [
+        "4 DNF events in recent history",
+        "1 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "GAS",
+       "driver_name": "Pierre Gasly",
+       "team": "Alpine F1 Team",
+       "projected_finish": 12,
+       "dnf_risk_pct": 15,
+       "crash_risk_pct": 12,
+       "mechanical_risk_pct": 10,
+       "risk_level": "medium",
+       "factors": [
+        "5 DNF events in recent history",
+        "4 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "PIA",
+       "driver_name": "Oscar Piastri",
+       "team": "McLaren",
+       "projected_finish": 8,
+       "dnf_risk_pct": 15,
+       "crash_risk_pct": 11,
+       "mechanical_risk_pct": 10,
+       "risk_level": "medium",
+       "factors": [
+        "5 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "Starts in the highest traffic band"
+       ]
+      },
+      {
+       "driver_code": "LEC",
+       "driver_name": "Charles Leclerc",
+       "team": "Ferrari",
+       "projected_finish": 1,
+       "dnf_risk_pct": 13,
+       "crash_risk_pct": 8,
+       "mechanical_risk_pct": 9,
+       "risk_level": "medium",
+       "factors": [
+        "6 DNF events in recent history",
+        "4 accident/collision flags in recent history",
+        "Front group restart exposure"
+       ]
+      },
+      {
+       "driver_code": "NOR",
+       "driver_name": "Lando Norris",
+       "team": "McLaren",
+       "projected_finish": 6,
+       "dnf_risk_pct": 13,
+       "crash_risk_pct": 5,
+       "mechanical_risk_pct": 11,
+       "risk_level": "medium",
+       "factors": [
+        "7 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "No same-weekend sprint reliability signal"
+       ]
+      },
+      {
+       "driver_code": "VER",
+       "driver_name": "Max Verstappen",
+       "team": "Red Bull",
+       "projected_finish": 3,
+       "dnf_risk_pct": 12,
+       "crash_risk_pct": 7,
+       "mechanical_risk_pct": 9,
+       "risk_level": "low",
+       "factors": [
+        "5 DNF events in recent history",
+        "3 accident/collision flags in recent history",
+        "Front group restart exposure"
+       ]
+      },
+      {
+       "driver_code": "ANT",
+       "driver_name": "Andrea Kimi Antonelli",
+       "team": "Mercedes",
+       "projected_finish": 4,
+       "dnf_risk_pct": 12,
+       "crash_risk_pct": 5,
+       "mechanical_risk_pct": 10,
+       "risk_level": "low",
+       "factors": [
+        "5 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "No same-weekend sprint reliability signal"
+       ]
+      },
+      {
+       "driver_code": "NAN",
+       "driver_name": "Ryo Hirakawa",
+       "team": "Haas F1 Team",
+       "projected_finish": 17,
+       "dnf_risk_pct": 12,
+       "crash_risk_pct": 5,
+       "mechanical_risk_pct": 10,
+       "risk_level": "low",
+       "factors": [
+        "Lower constructor reliability proxy (P7)",
+        "No same-weekend sprint reliability signal"
+       ]
+      },
+      {
+       "driver_code": "HAM",
+       "driver_name": "Lewis Hamilton",
+       "team": "Ferrari",
+       "projected_finish": 2,
+       "dnf_risk_pct": 11,
+       "crash_risk_pct": 7,
+       "mechanical_risk_pct": 8,
+       "risk_level": "low",
+       "factors": [
+        "4 DNF events in recent history",
+        "2 accident/collision flags in recent history",
+        "Front group restart exposure"
+       ]
+      },
+      {
+       "driver_code": "RUS",
+       "driver_name": "George Russell",
+       "team": "Mercedes",
+       "projected_finish": 5,
+       "dnf_risk_pct": 11,
+       "crash_risk_pct": 6,
+       "mechanical_risk_pct": 8,
+       "risk_level": "low",
+       "factors": [
+        "3 DNF events in recent history",
+        "1 accident/collision flags in recent history",
+        "Front group restart exposure"
+       ]
+      },
+      {
+       "driver_code": "HAD",
+       "driver_name": "Isack Hadjar",
+       "team": "Red Bull",
+       "projected_finish": 7,
+       "dnf_risk_pct": 11,
+       "crash_risk_pct": 6,
+       "mechanical_risk_pct": 8,
+       "risk_level": "low",
+       "factors": [
+        "4 DNF events in recent history",
+        "3 accident/collision flags in recent history",
+        "No same-weekend sprint reliability signal"
+       ]
+      }
+     ],
+     "prediction_phase": "post_qualifying",
+     "weather_impact": "dry",
+     "wet_scenario": null,
+     "warnings": [
+      "1 driver(s) with session times are not in the entry list and were excluded",
+      "1 entered driver(s) had no session time; included at the back of the grid"
+     ],
+     "prediction_review": {
+      "evaluated": false,
+      "reason": "Actual race result is not available yet."
+     }
+    }
+   }
+  ]
+ }
+}

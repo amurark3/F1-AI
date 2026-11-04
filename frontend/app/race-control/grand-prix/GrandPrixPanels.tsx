@@ -5,6 +5,9 @@ import { useMemo } from "react";
 
 import { LocalTime } from "@/app/components/LocalTime";
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { ModelAttributionBars, type AttributionEntry } from "../components/Charts";
@@ -23,7 +26,6 @@ import {
   formatPct,
   modelStatusColor,
   pointsForPosition,
-  shortName,
 } from "./predictionHelpers";
 import { WeekendGlance } from "./WeekendGlance";
 
@@ -85,12 +87,18 @@ export function FullGridTable({
                         {prediction.driver_code}
                       </span>
                       <DriverLink code={prediction.driver_code} name={name} className="truncate text-[#AEB5C5]">
-                        {shortName(name)}
+                        <DriverName variant="last" code={prediction.driver_code} name={name} />
                       </DriverLink>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[#AEB5C5]">
-                    {prediction.team ? <TeamLink name={prediction.team}>{prediction.team}</TeamLink> : "-"}
+                    {prediction.team ? (
+                      <TeamLink name={prediction.team}>
+                        <TeamName name={prediction.team} />
+                      </TeamLink>
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-[#7F8797]">
                     {risk ? `${risk.dnf_risk_pct}%` : "-"}
@@ -152,11 +160,11 @@ export function PodiumPanel({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-white">
                       <DriverLink code={prediction.driver_code}>
-                        {driverDisplayName(prediction, driverLookup)}
+                        <DriverName name={driverDisplayName(prediction, driverLookup)} code={prediction.driver_code} />
                       </DriverLink>
                     </p>
                     <p className="truncate font-mono text-[11px] text-[#6F7789]">
-                      {prediction.team} - {prediction.driver_code}
+                      <TeamName name={prediction.team} /> - {prediction.driver_code}
                     </p>
                   </div>
                   <p className="font-mono text-xl font-black text-white">{formatPct(estimatePodiumPct(prediction))}</p>
@@ -187,7 +195,7 @@ function ModelWhyPanel({ prediction, driverLookup }: { prediction?: DriverPredic
   return (
     <Panel as="section">
       <PanelHeading
-        eyebrow={`Why the model picks ${driverDisplayName(prediction, driverLookup)}`}
+        eyebrow={`Why the model picks ${driverLabel({ name: driverDisplayName(prediction, driverLookup), code: prediction.driver_code }, "full")}`}
         aside={<span className="font-mono text-[10px] text-[#7F8797]">exact linear attribution</span>}
         inset
       />
@@ -306,11 +314,13 @@ export function RiskTable({ rows }: { rows: RiskPrediction[] }) {
                       name={risk.driver_name}
                       className="font-sans font-normal text-[#8E96A8]"
                     >
-                      {shortName(risk.driver_name)}
+                      <DriverName variant="last" code={risk.driver_code} name={risk.driver_name} />
                     </DriverLink>
                   </td>
                   <td className="px-4 py-3">
-                    <TeamLink name={risk.team}>{risk.team}</TeamLink>
+                    <TeamLink name={risk.team}>
+                      <TeamName name={risk.team} />
+                    </TeamLink>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-white">{risk.dnf_risk_pct}%</td>
                   <td className="px-4 py-3 text-right font-mono text-white">{risk.crash_risk_pct}%</td>

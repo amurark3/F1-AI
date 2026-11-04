@@ -24,10 +24,32 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import pytest
 
-from app.services.race_control import strategy_context as module
+from app.services.race_control import live, stakes, strategy_context as module
 from tests.standings_support import standings_from_rows
 
-_NOW = datetime.now(UTC).replace(tzinfo=None)
+_NOW_UTC = datetime.now(UTC)
+_NOW = _NOW_UTC.replace(tzinfo=None)
+
+
+class _Clock(datetime):
+    """``datetime`` whose ``now`` is ``_NOW``, the instant every row here is built around."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return _NOW_UTC.astimezone(tz) if tz else _NOW_UTC
+
+
+@pytest.fixture(autouse=True)
+def _frozen_clock(monkeypatch):
+    """Freeze every clock the code under test reads at ``_NOW``.
+
+    The rows are built from ``_NOW`` when this file is imported, at collection;
+    the modules read the clock when each test runs. A full suite can put more
+    than a minute between the two, which turned a session 30 s ahead into one
+    that had already started.
+    """
+    for clock_reader in (module, live, stakes):
+        monkeypatch.setattr(clock_reader, "datetime", _Clock)
 
 
 # ---------------------------------------------------------------------------
@@ -237,8 +259,9 @@ def test_dashboard_ignores_a_session_slot_with_no_name(monkeypatch):
     event = module.build_strategy_dashboard(2026)["race"]
 
     assert list(event["sessions"]) == ["Race"]
-    # The countdown now runs to the race itself, the only session left dated.
-    assert event["days_until"] == 10
+    # The countdown now runs to the race itself (11 days), the only session left
+    # dated, not to the nameless practice slot 9 days out.
+    assert event["days_until"] == 11
 
 
 @pytest.mark.unit
@@ -562,7 +585,7 @@ def test_context_stint_plan_spans_the_full_race_distance():
 
 def _sessions_starting(offset: timedelta) -> dict[str, str]:
     """A race session that started ``offset`` ago (negative: still to come)."""
-    start = datetime.now(UTC) - offset
+    start = _NOW_UTC - offset
     return {"Race": start.isoformat()}
 
 

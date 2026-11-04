@@ -24,7 +24,7 @@ SCHEMA = """
 CREATE TABLE circuit (
     id TEXT PRIMARY KEY, full_name TEXT, place_name TEXT, length REAL, turns INTEGER, direction TEXT
 );
-CREATE TABLE driver (id TEXT PRIMARY KEY, name TEXT);
+CREATE TABLE driver (id TEXT PRIMARY KEY, name TEXT, last_name TEXT);
 CREATE TABLE constructor (id TEXT PRIMARY KEY, name TEXT);
 CREATE TABLE race (
     id INTEGER PRIMARY KEY, year INTEGER, round INTEGER, circuit_id TEXT,
@@ -40,12 +40,13 @@ CIRCUITS = [
     ("interlagos", "Autódromo José Carlos Pace", "São Paulo", 4.309, 15, "ANTI_CLOCKWISE"),
     ("melbourne", "Albert Park Circuit", "Melbourne", 5.278, 14, "CLOCKWISE"),
 ]
+# (id, name, last_name), as f1db stores them.
 DRIVERS = [
-    ("max-verstappen", "Max Verstappen"),
-    ("lando-norris", "Lando Norris"),
-    ("george-russell", "George Russell"),
-    ("emerson-fittipaldi", "Emerson Fittipaldi"),
-    ("ronnie-peterson", "Ronnie Peterson"),
+    ("max-verstappen", "Max Verstappen", "Verstappen"),
+    ("lando-norris", "Lando Norris", "Norris"),
+    ("george-russell", "George Russell", "Russell"),
+    ("emerson-fittipaldi", "Emerson Fittipaldi", "Fittipaldi"),
+    ("ronnie-peterson", "Ronnie Peterson", "Peterson"),
 ]
 CONSTRUCTORS = [("red-bull", "Red Bull"), ("mclaren", "McLaren"), ("mercedes", "Mercedes"), ("lotus", "Lotus")]
 # (id, year, round, circuit, laps, distance, course length, turns, direction)
@@ -82,7 +83,7 @@ def _seed(path: Path) -> Path:
     try:
         conn.executescript(SCHEMA)
         conn.executemany("INSERT INTO circuit VALUES (?, ?, ?, ?, ?, ?)", CIRCUITS)
-        conn.executemany("INSERT INTO driver VALUES (?, ?)", DRIVERS)
+        conn.executemany("INSERT INTO driver VALUES (?, ?, ?)", DRIVERS)
         conn.executemany("INSERT INTO constructor VALUES (?, ?)", CONSTRUCTORS)
         conn.executemany("INSERT INTO race VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", RACES)
         conn.executemany("INSERT INTO race_data VALUES (?, ?, ?, ?, ?, ?, ?)", RESULTS)
@@ -128,6 +129,7 @@ def test_editions_run_newest_first_with_the_winners_grid_slot_and_the_pole_sitte
         "winner": {
             "driver_id": "max-verstappen",
             "driver_name": "Max Verstappen",
+            "last_name": "Verstappen",
             "team_id": "red-bull",
             "team_name": "Red Bull",
             "grid": 17,
@@ -135,6 +137,7 @@ def test_editions_run_newest_first_with_the_winners_grid_slot_and_the_pole_sitte
         "pole": {
             "driver_id": "lando-norris",
             "driver_name": "Lando Norris",
+            "last_name": "Norris",
             "team_id": "mclaren",
             "team_name": "McLaren",
         },
@@ -145,8 +148,20 @@ def test_editions_run_newest_first_with_the_winners_grid_slot_and_the_pole_sitte
 
 def test_only_this_seasons_race_drivers_are_listed_among_winners_here():
     assert circuit_record(2026, 20)["active_winners"] == [
-        {"driver_id": "max-verstappen", "driver_name": "Max Verstappen", "wins": 2, "last_win": 2024},
-        {"driver_id": "lando-norris", "driver_name": "Lando Norris", "wins": 1, "last_win": 2025},
+        {
+            "driver_id": "max-verstappen",
+            "driver_name": "Max Verstappen",
+            "last_name": "Verstappen",
+            "wins": 2,
+            "last_win": 2024,
+        },
+        {
+            "driver_id": "lando-norris",
+            "driver_name": "Lando Norris",
+            "last_name": "Norris",
+            "wins": 1,
+            "last_win": 2025,
+        },
     ]
 
 

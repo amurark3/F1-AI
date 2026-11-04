@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { currentSeason, getPowerUnits } from "@/app/lib/server/raceControl";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
 
 import { findCar, type PowerUnitsResponse } from "../powerUnitsModel";
 
@@ -33,9 +34,11 @@ export async function generateMetadata({ params }: CarPageProps): Promise<Metada
   if (!car) {
     return { title: "Power Unit Tracker | F1 AI" };
   }
+  const driver = driverLabel(car.driver, "full");
+  const team = teamLabel({ id: car.team_id, name: car.team }, "name");
   return {
-    title: `#${car.car_number} ${car.driver.name} — Power Units | F1 AI`,
-    description: `${car.driver.name}'s ${car.team} power-unit allocation: every engine, turbo, MGU-K, energy store and more, the Grand Prix each arrived at, and the grid penalties they cost.`,
+    title: `#${car.car_number} ${driver} — Power Units | F1 AI`,
+    description: `${driver}'s ${team} power-unit allocation: every engine, turbo, MGU-K, energy store and more, the Grand Prix each arrived at, and the grid penalties they cost.`,
   };
 }
 

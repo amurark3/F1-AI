@@ -11,6 +11,8 @@
 import { Cpu, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel } from "@/app/ui/names/names";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
@@ -53,10 +55,12 @@ function penaltyLine(car: PowerUnitCar): string {
 
 function driversLine(car: PowerUnitCar, focus?: DriverFocus): string {
   if (!focus) {
-    return car.drivers.map((driver) => driver.name).join(", ");
+    return car.drivers.map((driver) => driverLabel(driver, "full")).join(", ");
   }
-  const shared = focus.sharedWith.map((other) => `${other.name} (${other.rounds_label})`).join(", ");
-  return shared ? `Shared with ${shared}` : `Raced only by ${focus.driverName}`;
+  const shared = focus.sharedWith
+    .map((other) => `${driverLabel({ name: other.name, id: other.id }, "full")} (${other.rounds_label})`)
+    .join(", ");
+  return shared ? `Shared with ${shared}` : `Raced only by ${driverLabel({ name: focus.driverName }, "full")}`;
 }
 
 function partsInRounds(car: PowerUnitCar, rounds: number[]): Part[] {
@@ -99,7 +103,8 @@ function FocusDetail({ car, focus }: { car: PowerUnitCar; focus: DriverFocus }) 
     <div className="mt-4 space-y-3 border-t border-[#1E2633] pt-3 text-sm">
       <p className="text-[#8E96A8]">
         <span className="font-bold text-white">{parts.length}</span> new part{parts.length === 1 ? "" : "s"} in{" "}
-        {focus.driverName}&apos;s rounds
+        <DriverName name={focus.driverName} />
+        &apos;s rounds
         {parts.length > 0 && (
           <span className="ml-1 font-mono text-xs text-[#B7BDCA]">
             ({parts.map((part) => `${part.code} #${part.number} R${part.round}`).join(", ")})

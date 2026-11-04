@@ -6,168 +6,216 @@
       "name": "Alexander Albon",
       "code": "ALB",
       "number": 23,
-      "team_id": "williams"
+      "team_id": "williams",
+      "first_name": "Alexander",
+      "last_name": "Albon"
     },
     {
       "id": "arvid-lindblad",
       "name": "Arvid Lindblad",
       "code": "LIN",
       "number": 41,
-      "team_id": "racing-bulls"
+      "team_id": "racing-bulls",
+      "first_name": "Arvid",
+      "last_name": "Lindblad"
     },
     {
       "id": "carlos-sainz-jr",
       "name": "Carlos Sainz Jr.",
       "code": "SAI",
       "number": 55,
-      "team_id": "williams"
+      "team_id": "williams",
+      "first_name": "Carlos",
+      "last_name": "Sainz Jr."
     },
     {
       "id": "charles-leclerc",
       "name": "Charles Leclerc",
       "code": "LEC",
       "number": 16,
-      "team_id": "ferrari"
+      "team_id": "ferrari",
+      "first_name": "Charles",
+      "last_name": "Leclerc"
     },
     {
       "id": "esteban-ocon",
       "name": "Esteban Ocon",
       "code": "OCO",
       "number": 31,
-      "team_id": "haas"
+      "team_id": "haas",
+      "first_name": "Esteban",
+      "last_name": "Ocon"
     },
     {
       "id": "fernando-alonso",
       "name": "Fernando Alonso",
       "code": "ALO",
       "number": 14,
-      "team_id": "aston-martin"
+      "team_id": "aston-martin",
+      "first_name": "Fernando",
+      "last_name": "Alonso"
     },
     {
       "id": "franco-colapinto",
       "name": "Franco Colapinto",
       "code": "COL",
       "number": 43,
-      "team_id": "alpine"
+      "team_id": "alpine",
+      "first_name": "Franco",
+      "last_name": "Colapinto"
     },
     {
       "id": "gabriel-bortoleto",
       "name": "Gabriel Bortoleto",
       "code": "BOR",
       "number": 5,
-      "team_id": "audi"
+      "team_id": "audi",
+      "first_name": "Gabriel",
+      "last_name": "Bortoleto"
     },
     {
       "id": "george-russell",
       "name": "George Russell",
       "code": "RUS",
       "number": 63,
-      "team_id": "mercedes"
+      "team_id": "mercedes",
+      "first_name": "George",
+      "last_name": "Russell"
     },
     {
       "id": "isack-hadjar",
       "name": "Isack Hadjar",
       "code": "HAD",
       "number": 6,
-      "team_id": "red-bull"
+      "team_id": "red-bull",
+      "first_name": "Isack",
+      "last_name": "Hadjar"
     },
     {
       "id": "kimi-antonelli",
       "name": "Kimi Antonelli",
       "code": "ANT",
       "number": 12,
-      "team_id": "mercedes"
+      "team_id": "mercedes",
+      "first_name": "Kimi",
+      "last_name": "Antonelli"
     },
     {
       "id": "lance-stroll",
       "name": "Lance Stroll",
       "code": "STR",
       "number": 18,
-      "team_id": "aston-martin"
+      "team_id": "aston-martin",
+      "first_name": "Lance",
+      "last_name": "Stroll"
     },
     {
       "id": "lando-norris",
       "name": "Lando Norris",
       "code": "NOR",
       "number": 1,
-      "team_id": "mclaren"
+      "team_id": "mclaren",
+      "first_name": "Lando",
+      "last_name": "Norris"
     },
     {
       "id": "lewis-hamilton",
       "name": "Lewis Hamilton",
       "code": "HAM",
       "number": 44,
-      "team_id": "ferrari"
+      "team_id": "ferrari",
+      "first_name": "Lewis",
+      "last_name": "Hamilton"
     },
     {
       "id": "liam-lawson",
       "name": "Liam Lawson",
       "code": "LAW",
       "number": 30,
-      "team_id": "racing-bulls"
+      "team_id": "racing-bulls",
+      "first_name": "Liam",
+      "last_name": "Lawson"
     },
     {
       "id": "max-verstappen",
       "name": "Max Verstappen",
       "code": "VER",
       "number": 3,
-      "team_id": "red-bull"
+      "team_id": "red-bull",
+      "first_name": "Max",
+      "last_name": "Verstappen"
     },
     {
       "id": "nico-hulkenberg",
       "name": "Nico Hülkenberg",
       "code": "HUL",
       "number": 27,
-      "team_id": "audi"
+      "team_id": "audi",
+      "first_name": "Nico",
+      "last_name": "Hülkenberg"
     },
     {
       "id": "oliver-bearman",
       "name": "Oliver Bearman",
       "code": "BEA",
       "number": 87,
-      "team_id": "haas"
+      "team_id": "haas",
+      "first_name": "Oliver",
+      "last_name": "Bearman"
     },
     {
       "id": "oscar-piastri",
       "name": "Oscar Piastri",
       "code": "PIA",
       "number": 81,
-      "team_id": "mclaren"
+      "team_id": "mclaren",
+      "first_name": "Oscar",
+      "last_name": "Piastri"
     },
     {
       "id": "pierre-gasly",
       "name": "Pierre Gasly",
       "code": "GAS",
       "number": 10,
-      "team_id": "alpine"
+      "team_id": "alpine",
+      "first_name": "Pierre",
+      "last_name": "Gasly"
     },
     {
       "id": "sergio-perez",
       "name": "Sergio Pérez",
       "code": "PER",
       "number": 11,
-      "team_id": "cadillac"
+      "team_id": "cadillac",
+      "first_name": "Sergio",
+      "last_name": "Pérez"
     },
     {
       "id": "valtteri-bottas",
       "name": "Valtteri Bottas",
       "code": "BOT",
       "number": 77,
-      "team_id": "cadillac"
+      "team_id": "cadillac",
+      "first_name": "Valtteri",
+      "last_name": "Bottas"
     },
     {
       "id": "yuki-tsunoda",
       "name": "Yuki Tsunoda",
       "code": "TSU",
       "number": 22,
-      "team_id": "racing-bulls"
+      "team_id": "racing-bulls",
+      "first_name": "Yuki",
+      "last_name": "Tsunoda"
     },
     {
       "id": "ryo-hirakawa",
       "name": "Ryō Hirakawa",
       "code": "HIR",
       "number": 50,
-      "team_id": "haas"
+      "team_id": "haas",
+      "first_name": "Ryō",
+      "last_name": "Hirakawa"
     }
   ],
   "teams": [

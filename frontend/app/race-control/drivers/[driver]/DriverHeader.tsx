@@ -6,6 +6,8 @@
 import Link from "next/link";
 
 import { grandPrixHref, teamHref } from "@/app/lib/entityLinks";
+import { driverLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { MetricCard, MetricRow, Panel, SectionHeader } from "../../components/RaceControlPrimitives";
@@ -22,7 +24,7 @@ function TeamLine({ profile }: { profile: DriverProfile }) {
         <span key={spell.id} className="inline-flex items-center gap-2">
           <span className="h-3 w-1 rounded-full" style={{ background: spell.color }} aria-hidden="true" />
           <Link href={teamHref(spell.id)} className="font-bold text-white hover:underline">
-            {spell.name}
+            <TeamName name={spell.name} id={spell.id} year={profile.year} />
           </Link>
           {profile.teams.length > 1 && <span className="font-mono text-xs">{spell.rounds_label}</span>}
         </span>
@@ -40,7 +42,10 @@ export function DriverHeader({ profile }: { profile: DriverProfile }) {
   return (
     <>
       <div className="[&>div]:mb-3">
-        <SectionHeader eyebrow={eyebrow} title={driver.name} />
+        <SectionHeader
+          eyebrow={eyebrow}
+          title={driverLabel({ name: driver.name, code: driver.code, id: driver.id, year }, "full")}
+        />
       </div>
       <TeamLine profile={profile} />
       <MetricRow>

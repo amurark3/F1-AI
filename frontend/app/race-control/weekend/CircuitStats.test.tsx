@@ -28,7 +28,7 @@ function readCells(): string[] {
 const { race, circuit } = SAO_PAULO_2026;
 
 describe("CircuitStats", () => {
-  it("lists Interlagos from f1db's record, with the schedule's lap record", () => {
+  it("lists Interlagos from f1db's record, with the lap record holder's f1db surname", () => {
     vi.mocked(useReducedMotion).mockReturnValue(true);
     render(<CircuitStats record={circuit.record} lapRecord={circuit.lap_record} basics={race.circuit ?? {}} />);
 
@@ -62,10 +62,11 @@ describe("CircuitStats", () => {
     vi.mocked(useReducedMotion).mockReturnValue(true);
     render(<CircuitStats record={null} lapRecord={race.circuit?.lap_record ?? null} basics={race.circuit ?? {}} />);
 
+    // The schedule's copy of the lap record carries no surname: the full name, never a split.
     expect(readCells()).toEqual([
       "Length: 4.309km",
       "Laps: 71",
-      "Lap record: 1:10.540 (Bottas · 2018)",
+      "Lap record: 1:10.540 (Valtteri Bottas · 2018)",
       "First GP: 1973",
     ]);
   });

@@ -11,6 +11,8 @@ are resolution-shaped and status-shaped rather than arithmetic-shaped:
   to a driver who crashed out.
 * **A missing sector is an unknown gap, not a dead heat.** Zero would show as
   the driver being level; the tools render a dash instead.
+* **Names are f1db's.** FastF1 writes "Carlos Sainz" and "RB F1 Team"; the
+  table the model reads says "Carlos Sainz Jr." and "Racing Bulls".
 
 FastF1 is mocked at the ``get_session`` boundary and the anomaly service at its
 import site; the frames and Series are real pandas.
@@ -28,6 +30,7 @@ from app.api.tools.race import (
     get_race_anomalies,
     get_race_results,
 )
+from tests.identity_support import mexico_fastf1_results
 
 
 class _FakeLaps:
@@ -516,3 +519,27 @@ def test_an_anomaly_failure_is_reported_rather_than_raised(monkeypatch):
     _install_anomalies(monkeypatch, RuntimeError("f1db is locked"))
 
     assert get_race_anomalies.invoke({"year": 2026, "round_num": 4}) == "Anomaly analysis failed: f1db is locked"
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names in the table the model reads
+# ---------------------------------------------------------------------------
+
+
+def _mexico_race() -> pd.DataFrame:
+    """FastF1's Mexico City rows (2026 R19, real spellings); FullName is FastF1's join of the two halves."""
+    frame = pd.DataFrame(mexico_fastf1_results())
+    frame["FullName"] = frame["FirstName"] + " " + frame["LastName"]
+    frame["Time"] = pd.NaT
+    return frame
+
+
+@pytest.mark.integration
+def test_the_classification_names_drivers_and_teams_as_f1db_does(identity_f1db, monkeypatch):
+    _install_session(monkeypatch, _FakeSession(_mexico_race()))
+
+    lines = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico City"}).splitlines()
+
+    assert "| 9 | Liam Lawson (LAW) | Racing Bulls | 22 | ⬆️13 | Interval | 2 |" in lines
+    assert "| 13 | Ryō Hirakawa | Haas | 18 | ⬆️5 | Interval | 0 |" in lines
+    assert "| 15 | Carlos Sainz Jr. (SAI) | Williams | 15 | ➖ | Interval | 0 |" in lines

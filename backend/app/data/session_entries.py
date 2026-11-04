@@ -18,6 +18,9 @@ OpenF1 lists the cars of every session. How that list is read:
 * **A blank team is filled from the same car in the weekend's other sessions.**
   The Mexico City race list has no team for Hirakawa's car 50, while
   qualifying names it Haas.
+* **Names are f1db's.** OpenF1 writes "Ryo HIRAKAWA" and "Haas F1 Team"; an
+  entry prints "Ryō Hirakawa" and "Haas" (:mod:`app.data.canonical_names`).
+  The code and car number stay OpenF1's.
 
 Before any session counts, ``load_weekend_entry_list`` reports "unavailable"
 rather than guessing, so callers fall back to a provisional roster and label
@@ -37,7 +40,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, new_client
-from app.data.openf1.sessions import entry_list, weekend_sessions
+from app.data.openf1.sessions import canonical_entry, entry_list, weekend_sessions
 from app.utils.ttl_cache import TtlCache
 
 if TYPE_CHECKING:
@@ -108,11 +111,6 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def display_name(full_name: str) -> str:
-    """OpenF1 writes surnames in capitals ("Lando NORRIS"); a name on screen does not."""
-    return " ".join(part.title() if part.isupper() else part for part in full_name.split())
-
-
 def _sessions_run(sessions: Iterable[OpenF1Session], now: datetime) -> tuple[OpenF1Session, ...]:
     """The weekend's sessions that have started, newest first."""
     started = [session for session in sessions if session.date_start is not None and session.date_start <= now]
@@ -136,8 +134,10 @@ def _fill_teams(
     return cars
 
 
-def _entry(car: EntryDriver) -> EntryListDriver:
-    return EntryListDriver(code=car.code, name=display_name(car.name) or car.code, team=car.team, number=car.number)
+def _entry(car: EntryDriver, year: int) -> EntryListDriver:
+    """One car under f1db's driver and team names, keeping OpenF1's code and number."""
+    named = canonical_entry(car, year)
+    return EntryListDriver(code=car.code, name=named.name or car.code, team=named.team, number=car.number)
 
 
 def _read_weekend(client: httpx.Client, year: int, round_num: int) -> WeekendEntryList:
@@ -148,7 +148,7 @@ def _read_weekend(client: httpx.Client, year: int, round_num: int) -> WeekendEnt
         cars = entry_list(client, session.session_key)
         if cars:
             cars = _fill_teams(client, cars, (other for other in run if other != session))
-            entries = tuple(_entry(car) for car in sorted(cars.values(), key=lambda car: car.number))
+            entries = tuple(_entry(car, year) for car in sorted(cars.values(), key=lambda car: car.number))
             return WeekendEntryList(entries=entries, session=session.code)
     return UNAVAILABLE
 

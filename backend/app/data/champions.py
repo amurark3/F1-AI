@@ -12,6 +12,9 @@ Key f1db facts this relies on (verified against schema v2026.10.0):
   - Race winners are ``race_data`` rows with ``type = 'RACE_RESULT'`` and
     ``position_number = 1``.
   - A driver's team for a season comes from ``season_entrant_driver``.
+  - A driver is printed by ``driver.name`` ("Juan Manuel Fangio", "Carlos Sainz
+    Jr."), with ``last_name`` on driver records. Never ``full_name``: it is the
+    legal name ("Juan Manuel Fangio Déramo", "Carlos Sainz Vázquez de Castro").
 """
 
 from __future__ import annotations
@@ -69,7 +72,7 @@ def _driver_wins(conn: sqlite3.Connection, year: int, driver_id: str) -> int:
 def _driver_champion(conn: sqlite3.Connection, year: int) -> dict | None:
     row = conn.execute(
         """
-        SELECT d.id, d.full_name, d.abbreviation, sds.points, sds.championship_won,
+        SELECT d.id, d.name, d.last_name, d.abbreviation, sds.points, sds.championship_won,
                co.name AS nationality
         FROM season_driver_standing sds
         JOIN driver d ON d.id = sds.driver_id
@@ -81,7 +84,8 @@ def _driver_champion(conn: sqlite3.Connection, year: int) -> dict | None:
     if row is None:
         return None
     return {
-        "name": row["full_name"],
+        "name": row["name"],
+        "last_name": row["last_name"],
         "code": row["abbreviation"],
         "team": _champion_team(conn, year, row["id"]),
         "points": float(row["points"]) if row["points"] is not None else 0.0,
@@ -151,7 +155,7 @@ def get_season_detail(year: int) -> dict:
         winners = conn.execute(
             """
             SELECT r.round, r.official_name AS race_name, r.date,
-                   d.full_name AS winner, d.id AS driver_id,
+                   d.name AS winner, d.id AS driver_id,
                    con.name AS team, rd.constructor_id AS team_id
             FROM race_data rd
             JOIN race r ON r.id = rd.race_id
@@ -167,7 +171,7 @@ def get_season_detail(year: int) -> dict:
         constructor = _constructor_champion(conn, year)
         runner_up = conn.execute(
             """
-            SELECT d.full_name AS name, sds.points
+            SELECT d.name AS name, d.last_name AS last_name, sds.points
             FROM season_driver_standing sds
             JOIN driver d ON d.id = sds.driver_id
             WHERE sds.year = ? AND sds.position_number = 2
@@ -180,7 +184,11 @@ def get_season_detail(year: int) -> dict:
         "is_in_progress": bool(driver and not driver["title_decided"]),
         "driver_champion": driver,
         "constructor_champion": constructor,
-        "runner_up": ({"name": runner_up["name"], "points": float(runner_up["points"])} if runner_up else None),
+        "runner_up": (
+            {"name": runner_up["name"], "last_name": runner_up["last_name"], "points": float(runner_up["points"])}
+            if runner_up
+            else None
+        ),
         "race_winners": [
             {
                 "round": w["round"],
@@ -207,7 +215,7 @@ def get_champion_stats() -> dict:
     with connect() as conn:
         driver_titles = conn.execute(
             """
-            SELECT d.full_name AS name, COUNT(*) AS titles
+            SELECT d.name AS name, d.last_name AS last_name, COUNT(*) AS titles
             FROM season_driver_standing sds
             JOIN driver d ON d.id = sds.driver_id
             WHERE sds.championship_won = 1
@@ -229,7 +237,9 @@ def get_champion_stats() -> dict:
         ).fetchall()
 
     stats = {
-        "most_driver_titles": [{"name": r["name"], "titles": r["titles"]} for r in driver_titles],
+        "most_driver_titles": [
+            {"name": r["name"], "last_name": r["last_name"], "titles": r["titles"]} for r in driver_titles
+        ],
         "most_constructor_titles": [{"name": r["name"], "titles": r["titles"]} for r in constructor_titles],
     }
     _cache["stats"] = stats

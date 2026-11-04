@@ -11,6 +11,8 @@
 import Link from "next/link";
 
 import { driverHref, grandPrixHref } from "@/app/lib/entityLinks";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../../components/RaceControlPrimitives";
@@ -72,7 +74,8 @@ export function TeamResultsGrid({ profile }: { profile: TeamProfile }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
           <caption className="sr-only">
-            {profile.team.name} results by round, one column per driver, with the team&apos;s points
+            <TeamName name={profile.team.name} id={profile.team.id} year={profile.year} /> results by round, one column
+            per driver, with the team&apos;s points
           </caption>
           <thead>
             <tr className="border-b border-[#1E2633] text-left font-mono text-[10px] uppercase tracking-[0.18em] text-[#6F7789]">
@@ -84,8 +87,14 @@ export function TeamResultsGrid({ profile }: { profile: TeamProfile }) {
               </th>
               {drivers.map((driver) => (
                 <th key={driver.id} scope="col" className="px-2 py-2 text-center">
-                  <Link href={driverHref(driver.id)} className="hover:text-white" title={driver.name}>
-                    {driver.code ?? driver.name}
+                  <Link href={driverHref(driver.id)} className="hover:text-white">
+                    <DriverName
+                      variant="code"
+                      name={driver.name}
+                      code={driver.code}
+                      id={driver.id}
+                      year={profile.year}
+                    />
                   </Link>
                 </th>
               ))}

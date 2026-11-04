@@ -4,7 +4,10 @@ import { fetchFromBackend } from "./backend";
 import { REVALIDATE } from "./revalidate";
 
 export interface DriverChampion {
+  /** f1db's `driver.name` ("Juan Manuel Fangio"), never the legal full name. */
   name: string;
+  /** f1db's `last_name`, as it stores it ("Sainz Jr.", "De Vries"). */
+  last_name: string | null;
   code: string | null;
   team: string | null;
   points: number;
@@ -34,6 +37,8 @@ export interface ChampionsResponse {
 
 export interface TitleEntry {
   name: string;
+  /** f1db's `last_name` on a driver row; constructor rows have none. */
+  last_name?: string | null;
   titles: number;
 }
 
@@ -59,7 +64,7 @@ export interface SeasonDetail {
   is_in_progress: boolean;
   driver_champion: DriverChampion | null;
   constructor_champion: ConstructorChampion | null;
-  runner_up: { name: string; points: number } | null;
+  runner_up: { name: string; last_name: string | null; points: number } | null;
   race_winners?: RaceWinner[];
   error?: string;
 }

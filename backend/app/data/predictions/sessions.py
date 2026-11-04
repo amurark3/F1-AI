@@ -4,6 +4,10 @@ The three sources a race prediction starts from, plus the schedule checks
 that gate them: whether the weekend has started (practice pace and the entry
 list exist from FP1) and whether qualifying has run — which decides between the
 qualifying-based and practice-based scoring paths.
+
+Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
+Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
+FastF1's. See :mod:`app.data.canonical_names`.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ import fastf1
 import pandas as pd
 import structlog
 
+from app.data.canonical_names import driver_identity, feed_text, team_display_name
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 logger = structlog.get_logger()
@@ -33,7 +38,15 @@ _practice_cache: dict[tuple[int, int], Any] = {}
 _sprint_cache: dict[tuple[int, int], list[dict]] = {}
 
 
-def _classified_order(results: pd.DataFrame | None) -> list[dict]:
+def _fastf1_names(row: pd.Series, code: str, year: int) -> dict[str, str]:
+    """A FastF1 row's driver and team as printed: f1db's names, else FastF1's words, else the code."""
+    feed_name = " ".join(part for part in (feed_text(row.get("FirstName")), feed_text(row.get("LastName"))) if part)
+    # The row's own cell, not ``code``: a missing abbreviation is NaN, which ``str()`` would turn into "nan".
+    driver = driver_identity(year, code=row.get("Abbreviation", code), number=row.get("DriverNumber"), name=feed_name)
+    return {"driver_name": driver.name or code, "team": team_display_name(year, row.get("TeamName"))}
+
+
+def _classified_order(results: pd.DataFrame | None, year: int) -> list[dict]:
     """A session's classification as driver dicts, in finishing order.
 
     A driver without a position (no time set, retired, or a session FastF1 has
@@ -48,14 +61,8 @@ def _classified_order(results: pd.DataFrame | None) -> list[dict]:
         pos = row.get("Position")
         if pd.isna(pos):  # covers None and the NaN pandas uses for a missing position
             continue
-        drivers.append(
-            {
-                "driver_code": str(row.get("Abbreviation", "")),
-                "driver_name": f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip(),
-                "team": str(row.get("TeamName", "")),
-                "position": int(pos),
-            }
-        )
+        code = str(row.get("Abbreviation", ""))
+        drivers.append({"driver_code": code, **_fastf1_names(row, code, year), "position": int(pos)})
     return drivers
 
 
@@ -81,7 +88,7 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
             session = fastf1.get_session(year, round_num, "Q")
             session.load(telemetry=False, laps=True, weather=False, messages=True)
 
-        drivers = _classified_order(session.results)
+        drivers = _classified_order(session.results, year)
         if not drivers:
             logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
             return None
@@ -132,26 +139,10 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
             if best_laps.empty:
                 continue
 
-            drivers = []
-            for pos, (driver_code, _lap_time) in enumerate(best_laps.items(), 1):
-                # Try to get full name/team from session results
-                driver_info = session.results[session.results["Abbreviation"] == driver_code]
-                if not driver_info.empty:
-                    row = driver_info.iloc[0]
-                    name = f"{row.get('FirstName', '')} {row.get('LastName', '')}".strip()
-                    team = str(row.get("TeamName", ""))
-                else:
-                    name = driver_code
-                    team = ""
-
-                drivers.append(
-                    {
-                        "driver_code": str(driver_code),
-                        "driver_name": name,
-                        "team": team,
-                        "position": pos,
-                    }
-                )
+            drivers = [
+                _practice_row(session.results, str(driver_code), pos, year)
+                for pos, driver_code in enumerate(best_laps.index, 1)
+            ]
 
             _practice_cache[cache_key] = drivers
             logger.info(
@@ -175,6 +166,17 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
 
     logger.warning("predictions.no_practice_data", year=year, round=round_num)
     return None
+
+
+def _practice_row(results: pd.DataFrame, driver_code: str, position: int, year: int) -> dict:
+    """A practice pace rank, named from the session results.
+
+    A Friday rookie can run laps without a results row; f1db still names them
+    by their code, and only a code it does not know is printed as the code.
+    """
+    matches = results[results["Abbreviation"] == driver_code]
+    row = matches.iloc[0] if not matches.empty else pd.Series(dtype=object)
+    return {"driver_code": driver_code, **_fastf1_names(row, driver_code, year), "position": position}
 
 
 def _sprint_session(year: int, round_num: int) -> Any | None:
@@ -214,7 +216,7 @@ def _load_sprint_result(year: int, round_num: int) -> list[dict]:
                 _sprint_cache[cache_key] = []  # a conventional weekend stays one
                 return []
             session.load(telemetry=False, laps=True, weather=False, messages=True)
-        drivers = _classified_order(session.results)
+        drivers = _classified_order(session.results, year)
     except Exception as exc:
         logger.warning("predictions.sprint_unavailable", year=year, round=round_num, error=str(exc))
         return []

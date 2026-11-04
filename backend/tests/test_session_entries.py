@@ -12,23 +12,29 @@ about believing the right list:
   Mexico City race) is filled from the weekend's other sessions.
 * **"Not yet known" is not cached like an answer**, so the real list is picked
   up minutes after the cars run, not hours.
+* **Names are f1db's.** OpenF1 shouts surnames and spells teams its own way
+  ("Ryo HIRAKAWA", "Haas F1 Team"); an entry prints f1db's driver and team
+  names ("Ryō Hirakawa", "Haas"), or OpenF1's words recased when f1db cannot
+  be read.
 
-OpenF1 is faked over HTTP with the real Mexico City and São Paulo responses.
+OpenF1 is faked over HTTP with the real Mexico City and São Paulo responses,
+and f1db is the real 2026 season through round 19 (``f1db_identity``).
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import sqlite3
 
 import httpx
 import pytest
+import structlog
 
-from app.data import session_entries as module
+from app.data import f1db_source, session_entries as module
 from app.data.session_entries import (
     UNAVAILABLE,
     EntryListDriver,
     WeekendEntryList,
-    display_name,
     load_weekend_entry_list,
 )
 from app.utils.ttl_cache import TtlCache
@@ -55,8 +61,8 @@ AFTER_QUALIFYING = datetime(2026, 10, 31, 23, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def openf1(monkeypatch):
-    """OpenF1 serving the Mexico City weekend, read the morning after the race."""
+def openf1(monkeypatch, identity_f1db):
+    """OpenF1 serving the Mexico City weekend, read the morning after the race, with f1db through R19."""
     state = {
         "now": AFTER_MEXICO,
         "clock": 1000.0,
@@ -123,7 +129,7 @@ class TestTeams:
     def test_a_blank_team_is_filled_from_the_same_car_in_another_session(self, openf1):
         hirakawa = entries_by_code(load_weekend_entry_list(2026, 19))["HIR"]
 
-        assert hirakawa == EntryListDriver(code="HIR", name="Ryo Hirakawa", team="Haas F1 Team", number=50)
+        assert hirakawa == EntryListDriver(code="HIR", name="Ryō Hirakawa", team="Haas", number=50)
         assert requested_sessions(openf1["fake"]) == [MEXICO_RACE, MEXICO_QUALIFYING]
 
     def test_the_search_for_a_team_stops_once_every_car_has_one(self, openf1):
@@ -137,12 +143,12 @@ class TestTeams:
 
         assert entries_by_code(load_weekend_entry_list(2026, 19))["HIR"].team == ""
 
-    def test_every_other_car_keeps_its_own_team(self, openf1):
+    def test_every_other_car_keeps_its_own_team_under_f1dbs_name(self, openf1):
         entries = entries_by_code(load_weekend_entry_list(2026, 19))
 
-        assert entries["BEA"].team == "Haas F1 Team"
+        assert entries["BEA"].team == "Haas"
         assert entries["LAW"].team == "Racing Bulls"
-        assert entries["VER"].team == "Red Bull Racing"
+        assert entries["VER"].team == "Red Bull"
 
 
 class TestUnavailable:
@@ -195,13 +201,39 @@ class TestCaching:
         assert load_weekend_entry_list(2026, 18) is UNAVAILABLE
 
 
-class TestDisplayName:
+class TestNames:
     @pytest.mark.parametrize(
-        ("full_name", "expected"),
-        [("Lando NORRIS", "Lando Norris"), ("Ryo HIRAKAWA", "Ryo Hirakawa"), ("Kimi Antonelli", "Kimi Antonelli")],
+        ("code", "expected"),
+        [
+            ("NOR", "Lando Norris"),
+            ("HIR", "Ryō Hirakawa"),
+            ("HUL", "Nico Hülkenberg"),
+            ("SAI", "Carlos Sainz Jr."),
+            ("PER", "Sergio Pérez"),
+            ("ANT", "Kimi Antonelli"),
+        ],
     )
-    def test_openf1s_capital_surnames_are_not_kept(self, full_name, expected):
-        assert display_name(full_name) == expected
+    def test_an_entry_prints_f1dbs_name_not_openf1s(self, openf1, code, expected):
+        """OpenF1 writes "Ryo HIRAKAWA", "Nico HULKENBERG", "Carlos SAINZ", "Sergio PEREZ"."""
+        assert entries_by_code(load_weekend_entry_list(2026, 19))[code].name == expected
+
+    def test_codes_and_numbers_stay_openf1s(self, openf1):
+        entries = load_weekend_entry_list(2026, 19).entries
+
+        assert [(entry.code, entry.number) for entry in entries][:3] == [("NOR", 1), ("VER", 3), ("BOR", 5)]
+
+    def test_an_unreadable_f1db_keeps_openf1s_words_recased_and_logs_why(self, openf1, monkeypatch):
+        def connect() -> None:
+            raise sqlite3.OperationalError("unable to open database file")
+
+        monkeypatch.setattr(f1db_source, "connect", connect)
+
+        with structlog.testing.capture_logs() as logs:
+            entries = entries_by_code(load_weekend_entry_list(2026, 19))
+
+        assert entries["HIR"] == EntryListDriver(code="HIR", name="Ryo Hirakawa", team="Haas F1 Team", number=50)
+        assert entries["HUL"].name == "Nico Hulkenberg"
+        assert {log["event"] for log in logs if log["log_level"] == "warning"} == {"canonical_names.f1db_unreadable"}
 
     def test_the_driver_number_travels_with_the_entry(self, openf1):
         assert entries_by_code(load_weekend_entry_list(2026, 19))["NOR"].number == 1

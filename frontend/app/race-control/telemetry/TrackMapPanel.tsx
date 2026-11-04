@@ -2,6 +2,9 @@
 
 import { useMemo } from "react";
 
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
+
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 
 import { AnalysisGate, AnalysisWarnings, ModeledNote } from "./AnalysisNotice";
@@ -172,7 +175,12 @@ export function TrackMapPanel({ year, round, session, driver, lap, onPick }: Tra
       {map.data?.available && (
         <Panel className="space-y-4 p-4">
           <p className="text-sm font-semibold text-white" style={rcFont}>
-            {map.data.driver?.name} · {map.data.driver?.team}
+            {map.data.driver && (
+              <>
+                <DriverName name={map.data.driver.name} code={map.data.driver.code} year={year} /> ·{" "}
+                <TeamName name={map.data.driver.team} year={year} />
+              </>
+            )}
           </p>
           <MapStats data={map.data} />
           <SpeedMap data={map.data} />

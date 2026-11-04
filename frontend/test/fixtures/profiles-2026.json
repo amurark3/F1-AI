@@ -1,0 +1,73 @@
+{
+  "haas_team": {
+    "year": 2026,
+    "status": "ok",
+    "team": {
+      "id": "haas",
+      "name": "Haas",
+      "full_name": "Haas F1 Team",
+      "color": "#B6BABD",
+      "position": 7,
+      "points": 31.0,
+      "wins": 0,
+      "podiums": 0,
+      "poles": 0
+    },
+    "results_through": {
+      "round": 19,
+      "name": "Mexican Grand Prix"
+    },
+    "as_of_round": 19,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 19,
+        "version": "v2026.19.0"
+      }
+    ]
+  },
+  "hulkenberg_driver": {
+    "year": 2026,
+    "status": "ok",
+    "driver": {
+      "id": "nico-hulkenberg",
+      "name": "Nico Hülkenberg",
+      "code": "HUL",
+      "number": 27,
+      "nationality": "Germany",
+      "team_id": "audi",
+      "team_name": "Audi",
+      "color": "#FF0000"
+    },
+    "standing": {
+      "position": 15,
+      "points": 13.0
+    },
+    "results_through": {
+      "round": 19,
+      "name": "Mexican Grand Prix"
+    },
+    "as_of_round": 19,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 19,
+        "version": "v2026.19.0"
+      }
+    ]
+  },
+  "unknown_team": {
+    "year": 2026,
+    "status": "not_found",
+    "team": null
+  },
+  "hirakawa_driver": {
+    "year": 2026,
+    "status": "not_found",
+    "driver": null
+  }
+}

@@ -3,6 +3,7 @@
 import { CloudRain, Crown, Target, Timer } from "lucide-react";
 
 import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
+import { driverLabel } from "@/app/ui/names/names";
 
 import { WeatherGlyph } from "./WeatherGlyph";
 import { formatPoints, rainColor } from "./weekendModel";
@@ -60,8 +61,9 @@ export interface KeyNumbersProps {
 function titleTile(stakes: TableStakes | null | undefined): { value: ReactNode; sub: string } {
   if (!stakes) return { value: "—", sub: "Standings unavailable" };
   const rival = stakes.contenders[1];
-  if (stakes.decided) return { value: "Decided", sub: `${stakes.leader.name} has clinched the title` };
-  if (!rival) return { value: "—", sub: `${stakes.leader.name} leads unopposed` };
+  const leader = driverLabel(stakes.leader, "full");
+  if (stakes.decided) return { value: "Decided", sub: `${leader} has clinched the title` };
+  if (!rival) return { value: "—", sub: `${leader} leads unopposed` };
   return {
     value: (
       <>
@@ -69,7 +71,7 @@ function titleTile(stakes: TableStakes | null | undefined): { value: ReactNode; 
         <span className="ml-1 text-base text-[#8E96A8]">pts</span>
       </>
     ),
-    sub: `${stakes.leader.name} leads ${rival.name} · ${formatPoints(stakes.max_available)} still on offer`,
+    sub: `${leader} leads ${driverLabel(rival, "full")} · ${formatPoints(stakes.max_available)} still on offer`,
   };
 }
 

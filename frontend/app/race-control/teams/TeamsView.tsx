@@ -4,6 +4,7 @@ import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
 import { SourceBadge } from "@/app/ui/SourceBadge";
 import { fetcher } from "@/app/utils/fetcher";
 
@@ -126,14 +127,22 @@ function TeamsMetrics({
     <MetricRow>
       <MetricCard
         label="Driver Leader"
-        value={driverLeader?.driver ?? "No standings"}
+        value={
+          driverLeader ? driverLabel({ name: driverLeader.driver, code: driverLeader.code }, "full") : "No standings"
+        }
         sub={
-          driverLeader ? `${driverLeader.team} · ${formatPoints(driverLeader.points)} pts` : "Driver table unavailable"
+          driverLeader
+            ? `${teamLabel({ name: driverLeader.team }, "name")} · ${formatPoints(driverLeader.points)} pts`
+            : "Driver table unavailable"
         }
       />
       <MetricCard
         label="Constructor Leader"
-        value={constructorLeader?.name ?? "No standings"}
+        value={
+          constructorLeader
+            ? teamLabel({ id: constructorLeader.slug, name: constructorLeader.name }, "name")
+            : "No standings"
+        }
         sub={constructorLeader ? `${formatPoints(constructorLeader.points)} pts` : "Constructor table unavailable"}
       />
       <MetricCard label="Drivers" value={String(driverCount || "No data")} sub="Current WDC entries" />

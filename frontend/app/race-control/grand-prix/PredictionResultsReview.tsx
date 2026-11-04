@@ -3,20 +3,14 @@
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 import { StatTile } from "@/app/ui/StatTile";
 
 import { Panel, StatusPill } from "../components/RaceControlPrimitives";
 import { DriverLink } from "../profiles/EntityLinks";
 
-import {
-  deltaColor,
-  deltaLabel,
-  driverDisplayName,
-  reviewBadgeLabel,
-  reviewColor,
-  shortName,
-} from "./predictionHelpers";
+import { deltaColor, deltaLabel, driverDisplayName, reviewBadgeLabel, reviewColor } from "./predictionHelpers";
 
 import type {
   DriverLookup,
@@ -93,7 +87,7 @@ function DriverComparisonRow({ row, identities }: { row: PredictionDriverResult;
           <span className="h-5 w-[3px] rounded-full" style={{ background: teamColor(identity.team) }} />
           <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">{row.driver_code}</span>
           <DriverLink code={row.driver_code} name={identity.name} className="truncate text-[#AEB5C5]">
-            {shortName(identity.name)}
+            <DriverName variant="last" code={row.driver_code} name={identity.name} />
           </DriverLink>
         </div>
       </td>
@@ -161,14 +155,26 @@ function WinnerCallPanel({ review, identities }: { review: PredictionReview; ide
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Predicted winner</p>
         <p className="mt-1 text-xl font-black text-white">
-          {predicted ? <DriverLink code={predicted}>{identityFor(predicted, identities).name}</DriverLink> : "-"}
+          {predicted ? (
+            <DriverLink code={predicted}>
+              <DriverName name={identityFor(predicted, identities).name} code={predicted} />
+            </DriverLink>
+          ) : (
+            "-"
+          )}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{predicted ?? "no stored call"}</p>
       </div>
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">Actual winner</p>
         <p className={`mt-1 text-xl font-black ${review.winner_correct ? "text-[#00FF78]" : "text-[#FF4655]"}`}>
-          {actual ? <DriverLink code={actual}>{identityFor(actual, identities).name}</DriverLink> : "-"}
+          {actual ? (
+            <DriverLink code={actual}>
+              <DriverName name={identityFor(actual, identities).name} code={actual} />
+            </DriverLink>
+          ) : (
+            "-"
+          )}
         </p>
         <p className="mt-1 font-mono text-xs text-[#6F7789]">{actual ?? "not recorded"}</p>
       </div>

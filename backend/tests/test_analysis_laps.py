@@ -4,16 +4,23 @@
   time was deleted, and mapping it would show a lap that does not count.
 * The head-to-head delta at the line is the published gap, and mini-sector and
   corner gains add up to it.
+* Every driver object prints f1db's names under OpenF1's keys: car 50 at Mexico
+  City is "Ryō Hirakawa" of "Haas", where OpenF1 wrote "Ryo HIRAKAWA" of "Haas
+  F1 Team". Names resolve as the answer is built, so a session kept in the
+  cache with OpenF1's words still prints f1db's.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import json
+from pathlib import Path
 
+import httpx
 import pytest
 
 from app.data.multiviewer import CircuitInfo, Corner
-from app.data.openf1.sessions import ScheduledSession
+from app.data.openf1.sessions import ScheduledSession, entry_list
 from app.data.openf1.telemetry import LapTrace
 from app.services.analysis import (
     comparison as comparison_module,
@@ -27,7 +34,7 @@ from app.services.analysis.lap_selection import LapChoice, choose_lap, fastest_v
 from app.services.analysis.loading import LoadedLap, require_lap, require_session
 from app.services.analysis.track_map import DELETED_LAP_WARNING, build_track_map, corner_markers
 from app.services.analysis.weekend import build_lap_list, build_weekend
-from tests.openf1_support import NOR, VER, make_lap, make_session_laps
+from tests.openf1_support import NOR, VER, FakeOpenF1, make_lap, make_session_laps
 
 pytestmark = pytest.mark.unit
 
@@ -330,3 +337,49 @@ def test_an_unavailable_answer_says_why_and_whether_to_wait():
         "message": "No timed lap to show for that driver in this session.",
         "source": "openf1",
     }
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names under OpenF1's keys
+# ---------------------------------------------------------------------------
+
+MEXICO_QUALIFYING = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "openf1_drivers_qualifying.json"
+DRIVER_KEYS = {"number", "code", "name", "team", "colour"}
+
+
+def _mexico_cars() -> dict:
+    """OpenF1's Mexico City qualifying entry list, read the way the session loader reads it."""
+    routes = {"drivers": json.loads(MEXICO_QUALIFYING.read_text())}
+    with httpx.Client(transport=httpx.MockTransport(FakeOpenF1(routes))) as client:
+        return entry_list(client, 11400)
+
+
+def test_the_lap_list_names_each_car_as_f1db_does(identity_f1db, monkeypatch):
+    cars = _mexico_cars()
+    session = make_session_laps((make_lap(50, 1, start=0, time=78.5),), drivers=tuple(cars.values()))
+    monkeypatch.setattr(weekend_module, "require_session", lambda _ref: session)
+
+    drivers = {driver["number"]: driver for driver in build_lap_list(REF)["drivers"]}
+
+    assert {key: drivers[50][key] for key in DRIVER_KEYS} == {
+        "number": 50,
+        "code": "HIR",
+        "name": "Ryō Hirakawa",
+        "team": "Haas",
+        "colour": cars[50].colour,
+    }
+    assert (drivers[27]["name"], drivers[55]["name"], drivers[3]["team"]) == (
+        "Nico Hülkenberg",
+        "Carlos Sainz Jr.",
+        "Red Bull",
+    )
+
+
+def test_the_speed_maps_driver_prints_f1dbs_names(identity_f1db, map_inputs, monkeypatch):
+    car = _mexico_cars()[50]
+    loaded = map_inputs(_loaded(driver=car), CIRCUIT)
+    monkeypatch.setattr(track_map_module, "require_lap", lambda *_args: loaded)
+
+    driver = build_track_map(REF, DriverLap("HIR"))["driver"]
+
+    assert driver == {"number": 50, "code": "HIR", "name": "Ryō Hirakawa", "team": "Haas", "colour": car.colour}

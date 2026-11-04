@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getDirectory, getDriverProfile } from "@/app/lib/server/profiles";
 import { currentSeason } from "@/app/lib/server/raceControl";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
 
 import { isDriverProfile } from "../../profiles/profilesModel";
 
@@ -34,9 +35,11 @@ export async function generateMetadata({ params }: DriverPageProps): Promise<Met
     return { title: "Teams & Drivers | F1 AI" };
   }
   const { driver } = profile;
+  const name = driverLabel({ name: driver.name, code: driver.code, id: driver.id, year }, "full");
+  const team = teamLabel({ id: driver.team_id, name: driver.team_name, year }, "name");
   return {
-    title: `${driver.name} — ${year} F1 Season | F1 AI`,
-    description: `${driver.name}'s ${year} Formula 1 season with ${driver.team_name}: race wins, the result of every round, and the power-unit usage of the car they drive.`,
+    title: `${name} — ${year} F1 Season | F1 AI`,
+    description: `${name}'s ${year} Formula 1 season with ${team}: race wins, the result of every round, and the power-unit usage of the car they drive.`,
   };
 }
 

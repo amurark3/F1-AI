@@ -5,15 +5,17 @@ import { useState } from "react";
 
 import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
-import { clinchLine, formatPoints, reachLine, type ClinchTone } from "./weekendModel";
+import { clinchLine, formatPoints, reachLine, type ChampionshipTable, type ClinchTone } from "./weekendModel";
 
 import type { ChampionshipStakes as Stakes, Contender, TableStakes } from "./weekendTypes";
 
-type Table = "drivers" | "constructors";
+type Table = ChampionshipTable;
 
 const TONE: Record<ClinchTone, { color: string; icon: typeof Trophy }> = {
   decided: { color: "#00FF78", icon: Trophy },
@@ -50,10 +52,16 @@ function TableToggle({ table, onChange }: { table: Table; onChange: (table: Tabl
 }
 
 function ContenderName({ contender, table }: { contender: Contender; table: Table }) {
-  if (table === "constructors") return <TeamLink name={contender.name}>{contender.name}</TeamLink>;
+  if (table === "constructors") {
+    return (
+      <TeamLink name={contender.name}>
+        <TeamName name={contender.name} />
+      </TeamLink>
+    );
+  }
   return (
     <DriverLink code={contender.code} name={contender.name}>
-      {contender.name}
+      <DriverName name={contender.name} code={contender.code} />
     </DriverLink>
   );
 }
@@ -103,7 +111,7 @@ function ContenderBar({ contender, leaderPoints, table, index }: ContenderBarPro
 }
 
 function StakesTable({ stakes, table, venue }: { stakes: TableStakes; table: Table; venue: string }) {
-  const headline = clinchLine(stakes, venue);
+  const headline = clinchLine(stakes, venue, table);
   const tone = TONE[headline.tone];
   const reach = reachLine(stakes);
   const Icon = tone.icon;

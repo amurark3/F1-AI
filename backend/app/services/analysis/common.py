@@ -3,6 +3,9 @@
 Every answer says where its numbers came from (``source``) and, when there is
 nothing to show, why not (``reason``), so the page never renders an empty chart
 as if the session had no data.
+
+A driver is printed under f1db's names (``canonical_entry``), resolved as the
+answer is built, so a session cached with OpenF1's words still prints f1db's.
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.api.errors import GENERIC_ERROR_MESSAGE
+from app.data.openf1.sessions import canonical_entry
 
 if TYPE_CHECKING:
     from app.data.openf1.laps import Lap
@@ -85,13 +89,15 @@ def session_json(session: SessionLaps) -> dict:
     }
 
 
-def driver_json(driver: EntryDriver) -> dict:
+def driver_json(driver: EntryDriver, year: int) -> dict:
+    """A car as every Telemetry Lab answer prints it: f1db's driver and team names, OpenF1's number and colour."""
+    named = canonical_entry(driver, year)
     return {
-        "number": driver.number,
-        "code": driver.code,
-        "name": driver.name,
-        "team": driver.team,
-        "colour": driver.colour,
+        "number": named.number,
+        "code": named.code,
+        "name": named.name,
+        "team": named.team,
+        "colour": named.colour,
     }
 
 

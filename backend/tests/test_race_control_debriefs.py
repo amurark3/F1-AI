@@ -12,6 +12,10 @@ just the shapes. The risks worth guarding:
   the most places.
 * **A missing grid slot must disable the comparison, not default to zero.**
   Pit-lane starts arrive as grid 0/NaN.
+* **Names are f1db's.** FastF1 writes "Andrea Kimi Antonelli" and "RB F1 Team";
+  the classification, and every sentence built from it, prints "Kimi
+  Antonelli" and "Racing Bulls" under the same keys, and FastF1's own words
+  when f1db cannot be read.
 
 FastF1 is mocked at the ``get_event_schedule`` / ``get_session`` boundary; the
 frames themselves are real pandas so the coercion paths are exercised.
@@ -20,12 +24,16 @@ frames themselves are real pandas so the coercion paths are exercised.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import sqlite3
 
 import pandas as pd
 import pytest
+import structlog
 
+from app.data import f1db_source
 from app.services import race_control_debriefs as module
 from app.services.race_control_debriefs import DebriefSections
+from tests.identity_support import mexico_fastf1_results
 
 _NOW = datetime.now(UTC).replace(tzinfo=None)
 
@@ -779,3 +787,84 @@ def test_a_debrief_for_an_unraced_round_says_so_without_inventing_sections(
             "detail": "Final race classification has not been published or loaded yet.",
         }
     ]
+
+
+# ---------------------------------------------------------------------------
+# Names: f1db's driver and team names under FastF1's keys
+# ---------------------------------------------------------------------------
+
+CLASSIFICATION_ROW_KEYS = {"position", "driver", "full_name", "team", "grid", "points", "status"}
+
+
+def _stub_mexico(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FastF1's Mexico City race (2026 R19), with the real spellings it carried."""
+    _stub_fastf1(
+        monkeypatch,
+        schedule=_schedule([_event(19, _NOW - timedelta(days=2), name="Mexico City Grand Prix")]),
+        session=_FakeSession(pd.DataFrame(mexico_fastf1_results())),
+    )
+
+
+@pytest.mark.integration
+def test_the_classification_prints_f1dbs_driver_and_team_names(identity_f1db, monkeypatch: pytest.MonkeyPatch):
+    _stub_mexico(monkeypatch)
+
+    rows = module.load_race_classification(2026, 19)["race_results"]
+
+    assert [(row["full_name"], row["team"]) for row in rows] == [
+        ("Max Verstappen", "Red Bull"),
+        ("Kimi Antonelli", "Mercedes"),
+        ("Liam Lawson", "Racing Bulls"),
+        ("Ryō Hirakawa", "Haas"),
+        ("Carlos Sainz Jr.", "Williams"),
+        ("Nico Hülkenberg", "Audi"),
+        ("Sergio Pérez", "Cadillac"),
+    ]
+
+
+@pytest.mark.integration
+def test_the_classification_keeps_fastf1s_codes_and_every_key(identity_f1db, monkeypatch: pytest.MonkeyPatch):
+    """Hirakawa's car resolves by its number; his missing abbreviation is not filled in."""
+    _stub_mexico(monkeypatch)
+
+    rows = module.load_race_classification(2026, 19)["race_results"]
+
+    assert all(set(row) == CLASSIFICATION_ROW_KEYS for row in rows)
+    assert [row["driver"] for row in rows if isinstance(row["driver"], str)] == [
+        "VER",
+        "ANT",
+        "LAW",
+        "SAI",
+        "HUL",
+        "PER",
+    ]
+    assert pd.isna(rows[3]["driver"])
+
+
+@pytest.mark.integration
+def test_the_debrief_sentences_name_drivers_and_teams_as_f1db_does(identity_f1db, monkeypatch: pytest.MonkeyPatch):
+    _stub_mexico(monkeypatch)
+
+    debrief = module.build_race_debrief(2026, 19)
+
+    assert [row["full_name"] for row in debrief["podium"]] == ["Max Verstappen", "Kimi Antonelli"]
+    assert debrief["podium_cause"][1]["full_name"] == "Kimi Antonelli"
+    assert debrief["takeaways"][1] == (
+        "Liam Lawson gained 13 positions from the grid, the clearest strategy or execution gain."
+    )
+    assert {row["team"] for row in debrief["constructor_impact"]} == {"Red Bull", "Mercedes", "Racing Bulls"}
+
+
+@pytest.mark.integration
+def test_an_unreadable_f1db_prints_fastf1s_own_names_and_logs_why(monkeypatch: pytest.MonkeyPatch):
+    def connect() -> None:
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(f1db_source, "connect", connect)
+    _stub_mexico(monkeypatch)
+
+    with structlog.testing.capture_logs() as logs:
+        rows = module.load_race_classification(2026, 19)["race_results"]
+
+    assert (rows[1]["full_name"], rows[2]["team"]) == ("Andrea Kimi Antonelli", "RB F1 Team")
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}

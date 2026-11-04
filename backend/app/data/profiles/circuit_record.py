@@ -6,6 +6,8 @@ The Command Center's circuit panels read three things from here:
   taken from the round's own ``race`` row, falling back to the ``circuit`` row
   where f1db has not filled the round in yet;
 * the recent editions: who won, from which grid slot, and who took pole;
+  each person by f1db's ``name`` and ``last_name`` (the surname as f1db
+  stores it, "Sainz Jr." or "De Vries", so no client splits a name);
 * how often pole became the win, and which of this season's race drivers have
   won here before.
 
@@ -60,7 +62,7 @@ _EDITIONS_QUERY = """
 # list is the same subquery with the same parameters, so the two agree.
 _HEADLINERS_QUERY = """
     SELECT rd.race_id AS race_id, rd.driver_id AS driver_id, d.name AS driver_name,
-           rd.constructor_id AS team_id, c.name AS team_name,
+           d.last_name AS last_name, rd.constructor_id AS team_id, c.name AS team_name,
            rd.position_number AS position, rd.race_grid_position_number AS grid,
            rd.race_pole_position AS pole
     FROM race_data rd
@@ -78,7 +80,7 @@ _HEADLINERS_QUERY = """
 """
 
 _ACTIVE_WINNERS_QUERY = """
-    SELECT rd.driver_id AS driver_id, d.name AS driver_name,
+    SELECT rd.driver_id AS driver_id, d.name AS driver_name, d.last_name AS last_name,
            COUNT(*) AS wins, MAX(r.year) AS last_win
     FROM race r
     JOIN race_data rd ON rd.race_id = r.id
@@ -88,7 +90,7 @@ _ACTIVE_WINNERS_QUERY = """
       AND rd.driver_id IN (
           SELECT driver_id FROM season_entrant_driver WHERE year = ? AND test_driver = 0
       )
-    GROUP BY rd.driver_id, d.name
+    GROUP BY rd.driver_id, d.name, d.last_name
     ORDER BY wins DESC, last_win DESC
     LIMIT ?
 """
@@ -98,6 +100,7 @@ def _person(row: sqlite3.Row) -> dict:
     return {
         "driver_id": row["driver_id"],
         "driver_name": row["driver_name"],
+        "last_name": row["last_name"],
         "team_id": row["team_id"],
         "team_name": row["team_name"],
     }
@@ -126,6 +129,7 @@ def _active_winners(conn: sqlite3.Connection, earlier: tuple, year: int) -> list
         {
             "driver_id": row["driver_id"],
             "driver_name": row["driver_name"],
+            "last_name": row["last_name"],
             "wins": int(row["wins"]),
             "last_win": int(row["last_win"]),
         }

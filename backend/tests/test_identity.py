@@ -114,7 +114,15 @@ def test_directory_as_dict_is_the_api_shape(profiles_f1db):
     assert payload == {
         "year": 2027,
         "drivers": [
-            {"id": "max-verstappen", "name": "Max Verstappen", "code": "VER", "number": 1, "team_id": "red-bull"}
+            {
+                "id": "max-verstappen",
+                "name": "Max Verstappen",
+                "code": "VER",
+                "number": 1,
+                "team_id": "red-bull",
+                "first_name": "Max",
+                "last_name": "Verstappen",
+            }
         ],
         "teams": [
             {

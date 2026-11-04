@@ -1,10 +1,10 @@
 "use client";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
 
 import { DriverLink } from "../profiles/EntityLinks";
-
-import { shortName } from "./predictionHelpers";
 
 import type { SessionEntry } from "./sessionsModel";
 
@@ -24,7 +24,7 @@ function DriverCell({ entry }: { entry: SessionEntry }) {
         <span className="h-4 w-[3px] rounded-full" style={{ background: getTeamColor(entry.team) }} />
         <span className="font-mono text-sm font-black uppercase tracking-[0.06em] text-white">{entry.driver_code}</span>
         <DriverLink code={entry.driver_code} name={entry.driver_name} className="truncate text-[#AEB5C5]">
-          {shortName(entry.driver_name)}
+          <DriverName variant="last" code={entry.driver_code} name={entry.driver_name} />
         </DriverLink>
       </span>
     </td>
@@ -70,7 +70,7 @@ export function PracticeTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono font-bold text-white">{entry.time ?? "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#8E96A8]">{entry.gap ?? "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#7F8797]">{entry.laps ?? "-"}</td>
@@ -101,7 +101,7 @@ export function QualifyingTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             {[entry.q1, entry.q2, entry.q3].map((segment, index) => (
               <td
                 key={index}
@@ -138,7 +138,7 @@ export function RaceTable({ entries }: { entries: SessionEntry[] }) {
           <Row key={entry.driver_code}>
             <PositionCell entry={entry} />
             <DriverCell entry={entry} />
-            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team || "-"}</td>
+            <td className="px-4 py-2.5 text-[#AEB5C5]">{entry.team ? <TeamName name={entry.team} /> : "-"}</td>
             <td className="px-4 py-2.5 text-right font-mono text-[#8E96A8]">
               {entry.grid === null ? "-" : `P${entry.grid}`}
             </td>

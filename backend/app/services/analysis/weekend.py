@@ -54,7 +54,7 @@ def build_lap_list(ref: SessionRef) -> dict:
     for driver in session.drivers.values():
         laps = timed_laps(session, driver.number)
         best = min((lap["time"] for lap in laps if not lap["deleted"]), default=None)
-        drivers.append({**driver_json(driver), "best": best, "laps": laps})
+        drivers.append({**driver_json(driver, session.year), "best": best, "laps": laps})
     drivers.sort(key=lambda entry: (entry["best"] is None, entry["best"] or 0.0, entry["code"]))
     return {
         "available": True,

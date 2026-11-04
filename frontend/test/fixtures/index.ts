@@ -9,6 +9,10 @@
  *   `strategy_tendency`, `standing_profile`, `recent_form` and `pace_profile`
  *   are dropped (the championship hub reads none of them); the rest is as served.
  * - `profiles-directory-2026.json`: `GET /api/profiles/2026/directory`, as served.
+ *   Re-captured at 22:25 UTC on 3 Nov through the backend's own
+ *   `profiles.build_directory(2026)` (f1db v2026.19.0, round 19 confirmed), so
+ *   each driver now carries f1db's `first_name` / `last_name` (P2.1); every
+ *   other value is unchanged from the first capture.
  * - `ready.json`: `GET /api/ready`, kept to the `ready`, `stage` and `detail`
  *   fields the warm-up probe reads.
  *
@@ -71,11 +75,46 @@
  *   the competitor rows from the current constructors' table.
  * - `no_race_risk_register`: the same function with no race: an empty register.
  *
+ * The names kit (`app/ui/names/`, P2.3a) reads these, captured at 22:25 UTC on
+ * 3 Nov on f1db v2026.19.0:
+ *
+ * - `profiles-directory-2023.json`: `profiles.build_directory(2023)`, as the
+ *   `GET /api/profiles/2023/directory` route serves it: Nyck de Vries (`DEV`,
+ *   last name "De Vries") among the 22 drivers of that season.
+ * - `champions-stats.json`: `champions.get_champion_stats()`, as
+ *   `GET /api/champions/stats` serves it: driver rows carry f1db's `name` and
+ *   `last_name` ("Juan Manuel Fangio" / "Fangio"), never the legal `full_name`.
+ * - `openf1-drivers-mexico-2026.json`: OpenF1 `drivers?session_key=11404`
+ *   (Mexico City race), copied unedited from the backend's capture
+ *   (`backend/tests/fixtures/mexico_2026_r19/openf1_drivers.json`, 2 Nov): the
+ *   feed's own spellings ("Haas F1 Team", "Red Bull Racing", "Ryo HIRAKAWA").
+ *
+ * - `profiles-2026.json`: `profiles.build_team_profile(2026, "haas")` and
+ *   `build_driver_profile(2026, "nico-hulkenberg")` (01:46 UTC on 4 Nov, same
+ *   f1db), each kept to the summary, `results_through` and freshness fields
+ *   `profilesModel` reads; and the routes' `not_found` answers for "lotus" and
+ *   for "ryo-hirakawa" (f1db marks Hirakawa a 2026 test driver although he
+ *   raced round 19, so his profile is not found while the directory lists him).
+ *
+ * `overview-circuit-2026.json` (`record`, `lap_record`) and `circuit-records.json`
+ * (each `record`) were re-computed at 22:25 UTC on 3 Nov by
+ * `circuit_record.circuit_record` and the segment's lap-record step, after P2.3a
+ * added f1db's `last_name` to every edition winner, pole sitter, active winner
+ * and the lap-record holder; a script asserted every other value equal to the
+ * first capture. The Interlagos `map` is the 07:50 capture.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
+import type { StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
-import type { SeasonDirectory } from "@/app/race-control/profiles/profilesModel";
+import type {
+  DriverProfile,
+  DriverProfileResponse,
+  SeasonDirectory,
+  TeamProfile,
+  TeamProfileResponse,
+} from "@/app/race-control/profiles/profilesModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
 import type { HeroRace } from "@/app/race-control/weekend/WeekendHero";
@@ -88,12 +127,16 @@ import type {
   SessionWeather,
 } from "@/app/race-control/weekend/weekendTypes";
 
+import championStats from "./champions-stats.json";
 import circuitRecords from "./circuit-records.json";
+import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
 import overviewPredictions2026 from "./overview-predictions-2026.json";
 import overviewShell2026 from "./overview-shell-2026.json";
 import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
+import profiles2026 from "./profiles-2026.json";
+import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
 import ready from "./ready.json";
 import sessionWeather2026 from "./session-weather-2026.json";
@@ -104,6 +147,27 @@ import teams2026 from "./teams-2026.json";
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
 export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
+export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
+export const CHAMPION_STATS = championStats as StatsResponse;
+
+/** Team and driver profiles of 2026, kept to the fields `profilesModel` reads. */
+export const PROFILES_2026 = {
+  haas: profiles2026.haas_team as TeamProfile,
+  hulkenberg: profiles2026.hulkenberg_driver as DriverProfile,
+  unknownTeam: profiles2026.unknown_team as TeamProfileResponse,
+  hirakawa: profiles2026.hirakawa_driver as DriverProfileResponse,
+};
+
+/** One row of OpenF1's `drivers` list, as the feed spells it. */
+export interface OpenF1Driver {
+  driver_number: number;
+  name_acronym: string;
+  full_name: string;
+  team_name: string | null;
+}
+
+/** OpenF1's entry list for the 2026 Mexico City Grand Prix (session 11404). */
+export const OPENF1_DRIVERS_MEXICO_2026: OpenF1Driver[] = openF1DriversMexico2026;
 export const READY = ready;
 
 /** São Paulo 2026 (round 20) as the Command Center served it on 3 Nov. */

@@ -19,6 +19,9 @@ import {
   rcFont,
 } from "@/app/race-control/components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "@/app/race-control/profiles/EntityLinks";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { driverLabel, teamLabel } from "@/app/ui/names/names";
+import { TeamName } from "@/app/ui/names/TeamName";
 import { fetcher } from "@/app/utils/fetcher";
 
 export function SeasonDetailView({ year, initial }: { year: string; initial: SeasonDetail | null }) {
@@ -67,8 +70,14 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
 
       {data.runner_up && (
         <p className="mb-6 text-sm text-[#8E96A8]">
-          Runner-up: <span className="font-semibold text-white">{data.runner_up.name}</span> ({data.runner_up.points}{" "}
-          pts)
+          Runner-up:{" "}
+          <DriverName
+            className="font-semibold text-white"
+            name={data.runner_up.name}
+            lastName={data.runner_up.last_name}
+            year={data.season}
+          />{" "}
+          ({data.runner_up.points} pts)
         </p>
       )}
 
@@ -80,7 +89,7 @@ export function SeasonDetailView({ year, initial }: { year: string; initial: Sea
       </div>
 
       {/* Team and driver pages cover the current season only. */}
-      <RaceWinnersList winners={winners} linkable={data.season === new Date().getFullYear()} />
+      <RaceWinnersList winners={winners} season={data.season} linkable={data.season === new Date().getFullYear()} />
     </div>
   );
 }
@@ -94,25 +103,34 @@ function SeasonChampionMetrics({
   driver: DriverChampion | null;
   raceCount: number;
 }) {
+  const champion = driver && { name: driver.name, lastName: driver.last_name, code: driver.code, year: data.season };
   return (
     <MetricRow>
       <MetricCard
         label={data.is_in_progress ? "Championship Leader" : "World Champion"}
-        value={driver?.code ?? "—"}
-        sub={driver?.name}
+        value={champion ? driverLabel(champion, "code") : "—"}
+        sub={champion ? driverLabel(champion, "full") : undefined}
       />
-      <MetricCard label="Points" value={driver ? String(driver.points) : "—"} sub={driver?.team ?? undefined} />
+      <MetricCard
+        label="Points"
+        value={driver ? String(driver.points) : "—"}
+        sub={driver?.team ? teamLabel({ name: driver.team, year: data.season }, "name") : undefined}
+      />
       <MetricCard label="Wins" value={driver ? String(driver.wins) : "—"} sub={`of ${raceCount} races`} />
       <MetricCard
         label="Constructors' Champion"
-        value={data.constructor_champion?.name ?? "—"}
+        value={
+          data.constructor_champion
+            ? teamLabel({ name: data.constructor_champion.name, year: data.season }, "name")
+            : "—"
+        }
         sub={data.constructor_champion ? undefined : "Title introduced in 1958"}
       />
     </MetricRow>
   );
 }
 
-function RaceWinnersList({ winners, linkable }: { winners: RaceWinner[]; linkable: boolean }) {
+function RaceWinnersList({ winners, season, linkable }: { winners: RaceWinner[]; season: number; linkable: boolean }) {
   if (winners.length === 0) {
     return (
       <InlineNotice title="No races yet" tone="info">
@@ -125,18 +143,20 @@ function RaceWinnersList({ winners, linkable }: { winners: RaceWinner[]; linkabl
     <Panel className="divide-y divide-[#1E2633]">
       {winners.map((race) => {
         const color = getTeamColor(race.team ?? "");
+        const winner = <DriverName name={race.winner} id={race.driver_id} year={season} />;
+        const team = race.team ? <TeamName name={race.team} id={race.team_id} year={season} /> : null;
         return (
           <div key={race.round} className="flex items-center gap-3 px-4 py-2.5">
             <span className="w-8 shrink-0 font-mono text-sm font-bold text-[#6F7789]">R{race.round}</span>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
-                {linkable ? <DriverLink id={race.driver_id}>{race.winner}</DriverLink> : race.winner}
+                {linkable ? <DriverLink id={race.driver_id}>{winner}</DriverLink> : winner}
               </p>
               <p className="truncate text-xs text-[#8E96A8]">{race.race_name}</p>
             </div>
             <span className="hidden shrink-0 text-xs text-[#6F7789] sm:block">
-              {linkable ? <TeamLink id={race.team_id}>{race.team}</TeamLink> : race.team}
+              {linkable ? <TeamLink id={race.team_id}>{team}</TeamLink> : team}
             </span>
           </div>
         );

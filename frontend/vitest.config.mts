@@ -18,6 +18,10 @@ const COVERAGE_INCLUDE = [
   "app/race-control/components/RaceControlPrimitives.tsx",
   "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
+  // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
+  // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
+  "app/race-control/profiles/EntityLinks.tsx",
+  "app/race-control/profiles/profilesModel.ts",
   "app/race-control/weekend/**",
 ];
 

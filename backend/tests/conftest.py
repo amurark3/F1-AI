@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 # without importing them itself. `pytest_plugins` is only honoured in the
 # rootdir conftest, which this is not, so a plain import is the supported route.
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
+from tests.identity_support import identity_f1db  # noqa: F401
 from tests.profiles_support import profiles_f1db  # noqa: F401
 
 # ---------------------------------------------------------------------------
@@ -136,3 +137,24 @@ def _no_real_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     monkeypatch.setattr(socket, "socket", _BlockedSocket)
     return
+
+
+@pytest.fixture(autouse=True)
+def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """A test that builds no f1db reads an empty one, never the developer's download.
+
+    ``DB_PATH`` defaults to ``data/f1db.db``, which exists on a developer's machine
+    and not in CI. Every emit point now prints names through ``app.data.identity``,
+    so a test that silently read the local file would pass here and fail there.
+    An empty file fails every query with ``sqlite3.OperationalError``, which the
+    emit points answer with the feed's own words. Tests that need data build an
+    f1db and point ``DB_PATH`` at it, which overrides this.
+    """
+    from app.data import f1db_source, identity
+
+    empty = tmp_path_factory.getbasetemp() / "f1db-empty.db"
+    empty.touch()
+    monkeypatch.setattr(f1db_source, "DB_PATH", empty)
+    identity.clear_cache()
+    yield
+    identity.clear_cache()

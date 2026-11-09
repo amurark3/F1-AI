@@ -27,7 +27,8 @@ a runner's disk is thrown away when the job ends, so a run without a usable
 and leave production with nothing. That happened for the first week of the
 job. With the flag, a missing URL — or Supabase's direct host, which is
 IPv6-only and unreachable from GitHub's runners — stops the run before it
-touches fia.com.
+touches fia.com. A self-hosted Postgres (the Oracle VM's ``postgres``
+container, or localhost) passes.
 
 Exit status: 0 when every document was collected and read; 1 when any could
 not be (they are kept, and listed as unread on the screen); 2 when the store
@@ -68,7 +69,9 @@ EXIT_NO_DATABASE = 3
 
 NO_DATABASE = (
     "DATABASE_URL is not set, so every document would go to a file this machine throws away. "
-    "Set the DATABASE_URL Actions secret to the Supabase session-pooler URL "
+    "On the Oracle VM, run the job in the jobs container, which reads DATABASE_URL from /srv/f1ai/.env "
+    "(the self-hosted Postgres, …@postgres:5432/…). In GitHub Actions, until the cutover, set the "
+    "DATABASE_URL secret to the Supabase session-pooler URL "
     "(postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:5432/postgres)."
 )
 DIRECT_HOST = (

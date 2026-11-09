@@ -245,3 +245,37 @@ def test_db_path_honours_the_f1db_path_environment_variable(monkeypatch, reload_
     assert str(reloaded.VERSION_PATH) == "/srv/data/custom-f1db.db.version", "the stamp lives beside the database"
     assert reloaded.DOWNLOAD_TIMEOUT_SECONDS == 7
     assert reloaded.F1DB_VERSION == "v2030.1.0"
+
+
+@pytest.mark.integration
+def test_everything_f1db_writes_follows_f1db_path(tmp_path, monkeypatch, reload_module):
+    """The database, its release stamp and both staging files land beside F1DB_PATH, nowhere else.
+
+    The container mounts one volume at the configured directory; a file written
+    anywhere else would be lost on the next deploy, or fail on a read-only path.
+    """
+    volume = tmp_path / "volume" / "f1db"
+    elsewhere = tmp_path / "workdir"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setenv("F1DB_PATH", str(volume / "f1db.db"))
+    reloaded = reload_module("app.data.f1db_source")
+    _stub_get(monkeypatch, _StubResponse(content=_zip_bytes({"f1db.db": b"SQLite payload"})))
+    replaced: list[tuple[str, str]] = []
+    real_replace = reloaded.os.replace
+
+    def recording_replace(src, dst):
+        replaced.append((str(src), str(dst)))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(reloaded.os, "replace", recording_replace)
+
+    reloaded.refresh_f1db("v2027.1.0")
+
+    assert sorted(path.name for path in volume.iterdir()) == ["f1db.db", "f1db.db.version"]
+    assert replaced == [
+        (str(volume / "f1db.db.incoming"), str(volume / "f1db.db")),
+        (str(volume / "f1db.db.version.incoming"), str(volume / "f1db.db.version")),
+    ]
+    assert list(elsewhere.iterdir()) == []
+    assert reloaded.installed_version() == "v2027.1.0"

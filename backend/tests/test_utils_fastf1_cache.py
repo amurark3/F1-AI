@@ -106,6 +106,35 @@ def test_enable_creates_the_cache_directory(tmp_path, stub_cache):
 
 
 @pytest.mark.unit
+def test_enable_without_a_path_uses_fastf1_cache_dir(tmp_path, monkeypatch, stub_cache):
+    """The container keeps the cache on a mounted volume, so a redeploy does not empty it."""
+    target = tmp_path / "volume" / "f1_cache"
+    monkeypatch.setenv("FASTF1_CACHE_DIR", str(target))
+
+    assert fastf1_cache.enable_fastf1_cache() == target
+    assert target.is_dir()
+    assert stub_cache == [str(target)]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("value", [None, "", "   "], ids=["unset", "empty", "blank"])
+def test_enable_without_a_path_or_override_uses_the_backend_cache(monkeypatch, stub_cache, value):
+    if value is None:
+        monkeypatch.delenv("FASTF1_CACHE_DIR", raising=False)
+    else:
+        monkeypatch.setenv("FASTF1_CACHE_DIR", value)
+
+    assert fastf1_cache.enable_fastf1_cache() == fastf1_cache.DEFAULT_CACHE_DIR
+
+
+@pytest.mark.unit
+def test_an_explicit_path_wins_over_fastf1_cache_dir(tmp_path, monkeypatch, stub_cache):
+    monkeypatch.setenv("FASTF1_CACHE_DIR", str(tmp_path / "from-env"))
+
+    assert fastf1_cache.enable_fastf1_cache(tmp_path / "explicit") == tmp_path / "explicit"
+
+
+@pytest.mark.unit
 def test_enable_accepts_a_string_path(tmp_path, stub_cache):
     result = fastf1_cache.enable_fastf1_cache(str(tmp_path / "cache"))
 

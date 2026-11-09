@@ -31,8 +31,8 @@ from app.utils.lap_deltas import LAP_DELTA_COLUMNS, format_delta, lap_deltas
 # ---------------------------------------------------------------------------
 load_dotenv()
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "f1_cache")
-enable_fastf1_cache(CACHE_DIR)
+# backend/f1_cache, or FASTF1_CACHE_DIR when set — the cache the API shares.
+enable_fastf1_cache()
 
 # Silence FastF1's verbose logging.
 fastf1.logger.set_log_level(logging.ERROR)

@@ -47,8 +47,10 @@ def init_error_tracking() -> bool:
     sentry_sdk.init(
         dsn=dsn,
         environment=os.getenv("ENVIRONMENT", "development"),
-        # Render sets this to the deployed commit; elsewhere the SDK detects it.
-        release=os.getenv("RENDER_GIT_COMMIT") or None,
+        # The deployed commit: the image's build argument on the Oracle VM, then
+        # the variable Render sets, so Render keeps its releases until the
+        # cutover. Neither (local runs): the SDK detects one itself.
+        release=os.getenv("GIT_COMMIT") or os.getenv("RENDER_GIT_COMMIT") or None,
         traces_sample_rate=_traces_sample_rate(),
         # No `send_default_pii` (deprecated) and no `data_collection`: leaving
         # both unset keeps the SDK's conservative default of no user data,

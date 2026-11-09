@@ -43,7 +43,14 @@ from app.data.store import (
     FileDocumentStore,
     PostgresDocumentStore,
 )
-from app.data.store_hosts import HOST_OTHER, HOST_SUPABASE_POOLER, REASON_AUTH, REASON_DNS
+from app.data.store_hosts import (
+    HOST_OTHER,
+    HOST_SELF_HOSTED,
+    HOST_SUPABASE_POOLER,
+    REASON_AUTH,
+    REASON_DNS,
+    REASON_UNKNOWN,
+)
 
 POOLER_DSN = "postgresql://postgres.abcdefgh:pw@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
 
@@ -348,6 +355,18 @@ def test_postgres_store_starts_in_the_unknown_health_state(pg_store):
     assert health.ok is None, "no operation attempted yet — unknown is not healthy"
     assert health.checked_seconds_ago is None
     assert health.host_kind == HOST_SUPABASE_POOLER
+
+
+@pytest.mark.unit
+def test_a_self_hosted_store_reports_its_failures_without_the_pooler_code(monkeypatch):
+    """On the VM, "tenant not found" cannot come from Supavisor; it must not send anyone to fix a pooler user."""
+    _install_connect(monkeypatch, error=psycopg.OperationalError("FATAL: Tenant or user not found"))
+    store = PostgresDocumentStore("postgresql://f1ai:pw@postgres:5432/f1ai")
+
+    store.read(DOCUMENT_PREDICTION_CACHE)
+    health = store.health()
+
+    assert (health.host_kind, health.reason) == (HOST_SELF_HOSTED, REASON_UNKNOWN)
 
 
 @pytest.mark.unit

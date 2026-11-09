@@ -276,7 +276,7 @@ class PostgresDocumentStore:
             self._last_ok = ok
             self._last_error = error
             self._last_error_id = error_id
-            self._last_reason = classify_failure(error) if not ok else None
+            self._last_reason = classify_failure(error, self._host_kind) if not ok else None
             self._last_checked = time.monotonic()
         return error_id
 

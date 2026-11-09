@@ -102,6 +102,7 @@ def test_nothing_starts_without_a_dsn(sentry, monkeypatch, dsn):
 def test_a_dsn_starts_the_sdk_without_personal_data(sentry, monkeypatch):
     monkeypatch.setenv("SENTRY_DSN", "https://key@o1.ingest.sentry.io/2")
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.delenv("GIT_COMMIT", raising=False)
     monkeypatch.setenv("RENDER_GIT_COMMIT", "4151544")
     monkeypatch.delenv("SENTRY_TRACES_SAMPLE_RATE", raising=False)
 
@@ -149,13 +150,32 @@ def test_only_the_named_integrations_are_enabled(sentry, monkeypatch):
 
 
 @pytest.mark.unit
-def test_a_missing_release_is_left_for_the_sdk_to_detect(sentry, monkeypatch):
+@pytest.mark.parametrize(
+    ("git_commit", "render_git_commit", "release"),
+    [
+        # The image's build argument (the Oracle VM) wins over Render's variable.
+        ("a1b2c3d", "4151544", "a1b2c3d"),
+        ("a1b2c3d", None, "a1b2c3d"),
+        # Render keeps its own until the cutover; an image built without the
+        # argument carries an empty GIT_COMMIT, which must not hide it.
+        (None, "4151544", "4151544"),
+        ("", "4151544", "4151544"),
+        (None, None, None),
+    ],
+    ids=["image-over-render", "image-only", "render-only", "empty-image-arg", "neither"],
+)
+def test_the_release_is_the_image_commit_then_renders(sentry, monkeypatch, git_commit, render_git_commit, release):
     monkeypatch.setenv("SENTRY_DSN", "https://key@o1.ingest.sentry.io/2")
-    monkeypatch.delenv("RENDER_GIT_COMMIT", raising=False)
+    for name, value in (("GIT_COMMIT", git_commit), ("RENDER_GIT_COMMIT", render_git_commit)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
 
     error_tracking.init_error_tracking()
 
-    assert sentry.inits[0]["release"] is None
+    # None leaves the SDK to detect a release itself.
+    assert sentry.inits[0]["release"] == release
 
 
 @pytest.mark.unit

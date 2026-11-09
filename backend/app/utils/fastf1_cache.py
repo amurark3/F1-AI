@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import os
 from pathlib import Path
 import sqlite3
 from typing import TYPE_CHECKING, Any
@@ -18,6 +19,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+# Beside the code by default. A container sets ``FASTF1_CACHE_DIR`` to a mounted
+# volume instead: the image's own disk is replaced on every deploy, and an empty
+# cache means re-fetching every session FastF1 has ever loaded.
 DEFAULT_CACHE_DIR = BACKEND_ROOT / "f1_cache"
 FASTF1_HTTP_CACHE = "fastf1_http_cache.sqlite"
 _PATCHED = False
@@ -26,8 +30,16 @@ _ORIGINAL_GET_SESSION: Callable[..., Any] | None = None
 _ORIGINAL_GET_EVENT_SCHEDULE: Callable[..., Any] | None = None
 
 
-def enable_fastf1_cache(cache_dir: str | Path = DEFAULT_CACHE_DIR) -> Path:
+def configured_cache_dir() -> Path:
+    """``FASTF1_CACHE_DIR`` when it is set, else :data:`DEFAULT_CACHE_DIR`."""
+    override = os.getenv("FASTF1_CACHE_DIR", "").strip()
+    return Path(override) if override else DEFAULT_CACHE_DIR
+
+
+def enable_fastf1_cache(cache_dir: str | Path | None = None) -> Path:
     """Enable FastF1's HTTP cache and recover from malformed cache databases.
+
+    ``cache_dir`` defaults to :func:`configured_cache_dir`, read at call time.
 
     FastF1 uses requests-cache with a SQLite backend. If the process is killed
     during a write, that cache can become malformed and later crash unrelated
@@ -35,7 +47,7 @@ def enable_fastf1_cache(cache_dir: str | Path = DEFAULT_CACHE_DIR) -> Path:
     FastF1 recreate it.
     """
 
-    cache_path = Path(cache_dir)
+    cache_path = Path(cache_dir) if cache_dir is not None else configured_cache_dir()
     cache_path.mkdir(parents=True, exist_ok=True)
     _repair_if_malformed(cache_path)
 

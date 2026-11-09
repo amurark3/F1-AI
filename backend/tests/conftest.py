@@ -47,6 +47,9 @@ _CLEARED_ENV = (
     "GITHUB_TOKEN",
     "GITHUB_OUTPUT",
     "F1DB_PATH",
+    # Importing the API enables the FastF1 cache; a developer's override must not
+    # send the suite's cache directory somewhere else.
+    "FASTF1_CACHE_DIR",
     "RACE_PREDICTOR_MODEL_PATH",
     # Clearable since `app/api/tools/external.py` builds its Tavily client
     # lazily. While it built the client at import time, clearing this made

@@ -30,7 +30,12 @@ from app.data.power_units.status import (  # noqa: E402
     OUTCOME_WRITE_FAILED,
 )
 from app.data.store import BACKEND_FILE, BACKEND_POSTGRES  # noqa: E402
-from app.data.store_hosts import HOST_OTHER, HOST_SUPABASE_DIRECT, HOST_SUPABASE_POOLER  # noqa: E402
+from app.data.store_hosts import (  # noqa: E402
+    HOST_OTHER,
+    HOST_SELF_HOSTED,
+    HOST_SUPABASE_DIRECT,
+    HOST_SUPABASE_POOLER,
+)
 from app.data.store_types import StoreHealth, WriteResult  # noqa: E402
 
 
@@ -181,12 +186,23 @@ def test_require_database_refuses_a_store_the_job_would_lose(calls, capsys, monk
     assert recorded == []
 
 
-@pytest.mark.parametrize("host_kind", [HOST_SUPABASE_POOLER, HOST_OTHER])
+@pytest.mark.parametrize("host_kind", [HOST_SELF_HOSTED, HOST_SUPABASE_POOLER, HOST_OTHER])
 def test_require_database_lets_a_reachable_postgres_run(calls, monkeypatch, host_kind):
     seen = calls(report())
     store_health(monkeypatch, StoreHealth(backend=BACKEND_POSTGRES, host_kind=host_kind))
     assert script.main(["--require-database"]) == script.EXIT_OK
     assert len(seen) == 1
+
+
+def test_the_missing_database_message_names_both_deployments(calls, capsys, monkeypatch):
+    """The VM's job reads the URL from its env file; GitHub's runner from a secret, until the cutover."""
+    calls(report())
+    store_health(monkeypatch, StoreHealth(backend=BACKEND_FILE))
+    script.main(["--require-database"])
+
+    out = capsys.readouterr().out
+    assert "/srv/f1ai/.env" in out
+    assert "pooler.supabase.com:5432" in out
 
 
 def test_without_the_flag_a_local_file_run_is_allowed(calls, monkeypatch):

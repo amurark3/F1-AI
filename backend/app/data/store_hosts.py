@@ -7,6 +7,7 @@ than the driver message, which names the host, port and user.
 
 from __future__ import annotations
 
+import ipaddress
 from urllib.parse import urlparse
 
 import structlog
@@ -17,12 +18,16 @@ logger = structlog.get_logger()
 # string change take effect?" without naming the host or project.
 HOST_SUPABASE_DIRECT = "supabase_direct"  # db.<ref>.supabase.co — IPv6-only
 HOST_SUPABASE_POOLER = "supabase_pooler"  # <region>.pooler.supabase.com
+# A Postgres on our own network: the Oracle VM's Compose service (``postgres``),
+# localhost, or a private address. None of the Supabase advice applies to it.
+HOST_SELF_HOSTED = "self_hosted"
 HOST_OTHER = "other"
 
 # Client-safe classification of a connection failure. Each maps to a distinct
 # operator action, which is the whole point of separating them.
-# DNS: host does not resolve — wrong name, or an IPv6-only host on an
-# IPv4-only network.
+# DNS: host does not resolve — wrong name, an IPv6-only host on an IPv4-only
+# network, or (self-hosted) a database container that is not on the API's
+# Docker network.
 REASON_DNS = "dns_unresolved"
 REASON_REFUSED = "connection_refused"  # resolved, nothing listening — wrong port
 REASON_AUTH = "auth_failed"  # reached it, credentials rejected
@@ -61,11 +66,17 @@ _REASON_SIGNATURES: tuple[tuple[str, str], ...] = (
     ("ssl", REASON_TLS),
 )
 
+# Supavisor's codes cannot come from a database we run ourselves, and naming
+# one there would send an operator off to fix a pooler username that does not
+# exist.
+_SELF_HOSTED_SIGNATURES = tuple(entry for entry in _REASON_SIGNATURES if entry[1] != REASON_POOLER_USER)
 
-def classify_failure(message: str) -> str:
+
+def classify_failure(message: str | None, host_kind: str = HOST_OTHER) -> str:
     """Map a driver error message to a client-safe reason code."""
     lowered = (message or "").lower()
-    for signature, reason in _REASON_SIGNATURES:
+    signatures = _SELF_HOSTED_SIGNATURES if host_kind == HOST_SELF_HOSTED else _REASON_SIGNATURES
+    for signature, reason in signatures:
         if signature in lowered:
             return reason
     return REASON_UNKNOWN
@@ -82,7 +93,20 @@ def classify_host(dsn: str) -> str:
         return HOST_SUPABASE_POOLER
     if host.startswith("db.") and host.endswith(".supabase.co"):
         return HOST_SUPABASE_DIRECT
-    return HOST_OTHER
+    return HOST_SELF_HOSTED if _on_our_network(host) else HOST_OTHER
+
+
+def _on_our_network(host: str) -> bool:
+    """A loopback or private address, or a bare name only a local resolver knows.
+
+    Compose service names (``postgres``) and ``localhost`` have no dot; a
+    managed database's public name always does.
+    """
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return bool(host) and "." not in host
+    return address.is_loopback or address.is_private
 
 
 def warn_if_ipv6_only_host(dsn: str) -> None:

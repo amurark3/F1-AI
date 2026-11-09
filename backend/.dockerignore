@@ -1,0 +1,30 @@
+# The image is published to a public registry (GHCR), so this is an allowlist:
+# everything is out unless named below. backend/ holds production secrets
+# (.env), real data in the local fallback files (data/*.json, data/backups/),
+# and downloaded or generated artefacts (f1db, f1_cache, reports, .venv). A
+# denylist would ship the next such file the day someone adds it.
+#
+# What goes in is the git-tracked code the API and its one-shot jobs run:
+#   main.py, app/       the API
+#   scripts/            jobs run with the same image (power-unit ingest, backfills)
+#   data/raw/           the FIA regulation PDFs: the rulebook ingest reads them,
+#                       and the API checks which seasons' rules exist
+#   models/…joblib      the trained race predictor the API serves
+#   requirements*.txt   what the image installs
+# Tests, tooling, the MCP server and dev configs stay out: nothing in the
+# container runs them.
+*
+!main.py
+!app/
+!scripts/
+!data/raw/
+!models/race_predictor.joblib
+!requirements.txt
+!requirements-ingest.txt
+
+# Never, even inside an allowed directory.
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store
+**/.env
+**/.env.*

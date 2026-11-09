@@ -41,7 +41,8 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Order        | **Bugs first.** Phase P0 ships as its own small PR, then the redesign phases.                                                                                                                                                          |
 | Navigation   | One top bar on every screen; the Race Control sidebar is removed. Champions, Debriefs and Rulebook go under "More".                                                                                                                    |
-| Homepage     | Photo hero using `frontend/public/hero-car.jpg` (the user's image, currently untracked), with live data below it.                                                                                                                      |
+| Homepage     | Photo hero using `frontend/public/hero-car.jpg`. **Static: it fetches nothing and shows no live or baked-in data** (user, 2026-11-06).                                                                                                 |
+| Loading      | No page waits on the backend; each section owns its fetch and its pending/failed/stale state. Warm-up: mini top-bar lights on `/` (non-blocking), full overlay on data routes; the lights fill 1→5 continuously (user, 2026-11-06).    |
 | Display font | Barlow Condensed for page titles and section heads. Geist Sans for UI and body, Geist Mono for labels and data.                                                                                                                        |
 | Logo         | **B1 "Apex"**: `docs/design/redesign/logo/rl-1-apex.svg` (racing line + red apex dot on a #0B0F18 tile). The user rejected the other variants; B8 is "too strong and blinding".                                                        |
 | Visual spec  | The mockups in `docs/design/redesign/` (start at `index.html`, tokens in `system.css`). Build each screen to match its mockup.                                                                                                         |
@@ -100,6 +101,11 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
     - a dedicated `--gain` green for positions gained (not DRS green).
   - **Motion:** entrance animations only, behind `motion-safe` / `useReducedMotion`. No new glows or looping animations.
   - **Names:** full name in heroes, code + surname in tables, code on chart axes. Always via `DriverName` / `TeamName` after P2.
+  - **Loading** (user, 2026-11-06):
+    - No page awaits backend data at page level. The page shell renders at once, and every data section is its own Suspense boundary (server seed) or `useSection` fetch (P0b.3) with its own skeleton.
+    - A section that has data keeps showing it when a refresh fails, marked stale. It never reads "Unavailable" over real data.
+    - One endpoint per independent section. Split an endpoint that feeds unrelated sections, as the Command Center overview was split into five segments.
+    - Every page built or rebuilt from P3 on follows this.
 - **TDD:** write the failing test first for every model, hook, parser and resolver.
 
 ---
@@ -246,6 +252,146 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
     - No coverage for the ones a later phase rewrites or removes (the 2026-11-03 rule): `FinishChip.tsx`, `ProfileCharts.tsx` and `ProfileStates.tsx` (the Team and Driver pages are rebuilt per `team.html` / `driver.html` in P5.4) and `PowerUnitCards.tsx` (neither mockup has a power-unit section; P6.3 builds the car page per `power-units.html`).
 - **PR:** `feat: one canonical name for every driver and team`.
 
+## Phase P0b — Hotfixes, round 2: weather, strategy, map labels (next, own PR)
+
+Added 2026-11-06 from the user's review of the live Command Center during the São Paulo weekend (R20). Bugs first, so this phase runs before P3. The evidence is in the `STATUS.md` log entry of 2026-11-06.
+
+### P0b.1 Race-day weather that loads
+
+- **Bug.**
+  - In production the Open-Meteo call fails most of the time. On 2026-11-06 the weather segment returned `session_weather.status = "unavailable"` ("The forecast feed is unavailable right now"), so every session forecast was blank, including the hero's session cards.
+  - The card then falls back to `build_weather_block` (`backend/app/services/race_control/weather.py`): OpenWeatherMap **current conditions**, whose `rain_risk` is OWM's next three-hour step (`app/data/weather.py:241`). That is not race day.
+  - On the same day, Open-Meteo called directly answered in 0.5 s with **88–92% rain for the race window**, while the site showed 5%.
+- **Do:**
+  - **Diagnose first.** Make `open_meteo._request` log the status code and exception type, then read the Render logs. Sentry doesn't receive these warnings. Suspects: 429s from Render's shared egress IPs, or the 8 s timeout. Write the cause in the log.
+  - **Fix by cause:**
+    - Retry once with backoff on 429, 5xx or timeout.
+    - Persist the last good hourly series per venue in the store (`app/data/store.py`) with `fetched_at`. When the live call fails, serve it labelled "as of HH:MM UTC".
+    - If Render's IP is the cause, add a refresher GitHub Action (the PU ingest pattern with `--require-database`; hourly Thursday to Sunday, daily otherwise) that writes the forecast to the store. The backend then reads the store first.
+  - Remove the OWM current-conditions fallback from the race-day card (`overview.weather_blocks`). With no forecast, the card shows the `session_weather` note instead of a number. The chat weather tool keeps OWM.
+- **Accept:**
+  - Tests: a 429 then 200 succeeds on the retry; a failed call serves the stored series with its "as of" label; no OWM reading ever reaches the `weather` block.
+  - After deploy (user's call), the production weather segment returns `ready` for the current round, and the hero's session cards show their forecasts.
+- **Verify:** pytest; ruff check, format and module size.
+
+### P0b.2 Risk register on the race-day forecast only
+
+- **Bug.** `_weather_risk` (`services/race_control/risk.py`) grades whatever `weather.rain_risk` holds and calls it "Live forecast shows N% rain probability". With the forecast missing it graded OWM's current 5% and printed "Dry conditions expected" before a likely wet race.
+- **Do:**
+  - Grade from `race_day_block` only, worded "Race-day forecast (Open-Meteo): N% peak rain probability in the race window".
+  - With no race-day forecast: "Race-day forecast unavailable" plus the reason from `session_weather`. No percentage, and never "Dry conditions expected".
+- **Accept:** an R20 fixture at 88–92% gives "Elevated rain risk"; feed down plus an OWM 5% gives no "Dry" card.
+- **Verify:** pytest.
+
+### P0b.3 Section state kit; the Command Center keeps data on a failed refresh
+
+- **Bug.** On 2026-11-06 all four key-number tiles read "Unavailable" while their sub-lines showed real data. `useOverviewSegment` (`frontend/app/race-control/CommandCenterView.tsx`) sets `failure` from any SWR error, including a failed revalidation while the data is still there, and `tileState` then hides the data.
+- **Do:**
+  - Build `app/ui/section/`:
+    - `useSection`, an SWR wrapper returning `pending | ready | stale | failed`. A failed refresh with data is `stale`, never `failed`.
+    - `Section`: skeleton, failed reason with retry, and a small "couldn't refresh · retry" mark for stale.
+  - They generalize `useOverviewSegment`, `SegmentSlot` and `tileState`. The Command Center is the first user. P3.6 brings in every other page.
+- **Accept:**
+  - Kit tests at 100%.
+  - A revalidation error keeps the tile values visible with the stale mark.
+  - "Unavailable" shows only when a section has no data.
+- **Verify:** `npm run lint`, `typecheck`, `build`, `test:coverage`, `e2e`.
+
+### P0b.4 Baseline strategy from current data
+
+- **Bug** (the "Base race plan" panel, `app/data/strategy/reference.py` → `services/race_control/strategy_context.py`):
+  - **Source.** It is built from FastF1 laps of the most recent same-circuit edition that loads. Since F1's live-timing archive started requiring a login (2026-10-15), 2023–2025 most likely no longer load, so R20's plan came from **2022**: previous regulations, and a sprint weekend. The result sits in the durable `circuit_reference_cache` under `(city, 2026)`, so it stays 2022.
+  - **Compounds.** "Soft-to-Soft two-stop" names only the first and last compound (`strategy_context.py:233`) and drops the middle stint.
+  - **Undercut and overcut are fixed formulas** (`strategy_context.py:215-216`: `1.2 + 0.2` = 1.4 s, `0.8 + 0.1` = 0.9 s). The traffic grade is a heuristic.
+  - **Confidence.** "HIGH" means only that a prediction snapshot exists (`strategy_context.py:237`).
+- **Do:**
+  - Read the latest same-circuit edition: this season's once raced, else last year's (OpenF1 covers 2023 on). Use:
+    - OpenF1 `stints` through `openf1/client.get_json` for compound sequences;
+    - the Jolpica pit sheet, with P0.2's red-flag and >120 s exclusions, for stop counts and the first-stop window;
+    - OpenF1 `pit.pit_duration` for pit-lane time.
+  - The plan text names the full compound sequence, the share of the field that ran it, and the year. An edition before 2026 is labelled "previous regulations".
+  - Delete the fixed undercut and overcut formulas and the traffic heuristic. Show those values only once something measures them.
+  - Confidence comes from sample size and recency, not from whether a prediction exists.
+  - When P0b.1's race-day rain probability is at or above `RAIN_RISK_HIGH`, the panel says the dry plan is the secondary branch.
+  - Bump the `circuit_reference_cache` key so the cached 2022 entry is never served.
+  - The weekend's Pirelli compound allocation (C1–C5) arrives with D2.2; until then compounds read Soft / Medium / Hard.
+- **Accept:**
+  - An R20 fixture built from captured 2025 São Paulo OpenF1 + Jolpica responses gives the full sequence, stop counts and first-stop window, labelled 2025 and "previous regulations".
+  - `grep` finds no fixed undercut or overcut constants.
+  - A test proves the rain branch.
+- **Verify:** pytest; ruff; frontend lint and typecheck if the panel's fields change.
+
+### P0b.5 Corner numbers clear of the track
+
+- **Bug** (user, 2026-11-06; both the live map and the `grand-prix.html` mockup):
+  - Corner numbers sit at a fixed `CORNER_LABEL_OFFSET` (500 units) along MultiViewer's corner angle (`backend/app/services/analysis/track_map.py:26-38`). They are never checked against the rest of the outline.
+  - Where the track doubles back, the number lands on it: at Interlagos, T10 sits on the run to T14 and T15 on the T7–T8 section.
+  - The same labels feed the Command Center map (`app/ui/CircuitMap.tsx`), the Grand Prix Weekend map and the Telemetry speed map (`race-control/telemetry/TrackMap.tsx`).
+- **Do:**
+  - One pure placement function, `app/ui/cornerLabels.ts`, used by `CircuitMap` and `TrackMap`. It takes the outline points, each corner's apex and MultiViewer angle, and the label size and track halo width in viewBox units.
+  - Try MultiViewer's angle first, then rotate in 30° steps either side and step the offset outwards. Take the first spot whose label box clears every outline segment by the halo half-width plus a gap and overlaps no label already placed. When none clears, take the clearest spot and draw a thin leader line to the apex.
+  - Give each number a `--background` halo (`paint-order: stroke`) as a legibility backstop. Not a glow.
+  - The backend sends each corner's apex and angle; `label_x` / `label_y` go.
+  - Move the numbers in `grand-prix.html` and `telemetry.html` to the same rule.
+- **Accept:**
+  - A test over captured MultiViewer layouts (Interlagos, Monaco, Singapore, Suzuka's crossover, Baku, Las Vegas) shows every label box clear of the track and of every other label, with Interlagos T10 and T15 asserted by name.
+  - Screenshots at 1280 and 390 px.
+  - Coverage for `cornerLabels.ts`. `TrackMap.tsx` stays off the list (P4.4 rebuilds it).
+- **Verify:** pytest; `npm run lint`, `typecheck`, `build`, `test:coverage`, `e2e`.
+
+### P0b.6 A qualifier FastF1 sends without a code keeps their slot
+
+- **Bug** (found 2026-11-08 while checking P0b.7 against production R20):
+  - FastF1's R20 qualifying results have no `Abbreviation` for Rafael Camara (P13). `_classified_order` (`backend/app/data/predictions/sessions.py:64`) runs `str(row.get("Abbreviation", ""))`, which gives the code `"nan"`.
+  - `resolve_grid` then drops `"nan"` as not on the entry list and back-fills CAM behind everyone. The post-qualifying prediction reads "No qualifying time set — placed at back of grid … Qualifying P23" on a 22-car grid, and **the model scores him from P23 instead of P13**.
+  - The Grid tab prints a `nan` row at P13: `/api/race-control/grid/2026/20` reads the same loader through `load_qualifying`.
+  - `_fastf1_names`, two functions up, already resolves him by car number and name through `driver_identity`. Only the code is thrown away.
+- **Do:**
+  - `_classified_order` takes the code from that same `driver_identity(...)` result (f1db's code), falling back to the feed's abbreviation only when `feed_text` finds one. A row with neither is left out and logged, never coded `"nan"`.
+  - Check the other `str(row.get("Abbreviation"…))` sites for the same NaN: `data/strategy/analysis.py:75`, `data/race_stints.py:182`, `api/race_detail.py:166,183`. Fix in the same way any that can receive one.
+- **Accept:**
+  - A test with a FastF1-shaped results frame whose `Abbreviation` is NaN puts f1db's code at the right position, and `resolve_grid` keeps that driver timed (no back-fill, no "No qualifying time set").
+  - A test over the provisional grid service shows no `nan` driver code.
+- **Verify:** pytest (`test_predictions_sessions.py`, `test_weekend_grid.py`, `test_race_grid.py`); ruff check, format and module size.
+
+### P0b.7 "vs grid" read from the starting grid, not from the explanation text
+
+- **Bug** (user, 2026-11-08: "Recheck logic for the vs grid column. I don't think it is correct. Where is it taking its reference data from?"):
+  - The column reads no grid. `deltaVsGrid` → `parseGridPosition` (`frontend/app/race-control/grand-prix/predictionHelpers.ts:111-123`) regex-matches the prediction's `factors` text: the first `P<n>` after "qualifying", "practice" or "front row start", else the first `P<n>` anywhere.
+  - `_build_factors` (`backend/app/data/predictions/driver_score.py`) keeps 5 factors ranked by weight, so the "Qualifying P<n>" line is often cut. The fallback then catches "Trained model projects P8.7", the model's own projection, and the column compares the prediction with itself.
+  - Before qualifying it takes practice rank ("P2 in sessions"), or whatever `P<n>` follows "pre-qualifying estimate", as the grid.
+  - Even a correct parse is the qualifying order, not the grid: grid penalties and pit-lane starts never reach it.
+  - **Checked against production R20 post-qualifying** (grid endpoint = qualifying order, provisional). 9 of 22 rows are wrong:
+
+    | Driver | Predicted | Shown | Grid | Correct |
+    | ------ | --------- | ----- | ---- | ------- |
+    | LEC    | P4        | +1    | P4   | 0       |
+    | HAM    | P7        | +1    | P11  | +4      |
+    | VER    | P8        | +2    | P16  | +8      |
+    | PIA    | P10       | 0     | P12  | +2      |
+    | GAS    | P15       | −1    | P18  | +3      |
+    | CAM    | P18       | −2    | P13  | −5 (his prediction moves once P0b.6 lands) |
+    | STR    | P19       | −2    | P19  | 0       |
+    | PER    | P20       | −2    | P21  | +1      |
+    | BOR    | P22       | −5    | P22  | 0       |
+
+- **Do:**
+  - Pass the hub's `StartingGridResponse` into the table. `useStartingGrid` (`GrandPrixView.tsx`) already fetches it and `GrandPrixBoardProps.grid` already carries it, so thread it through `PredictionSection` → `PredictionViewContent` → `FullGridTable`. No new fetch.
+  - Replace `parseGridPosition` and `deltaVsGrid` with one pure helper that finds the driver's `GridSlot` by code and returns `slot.position − prediction.position`. Delete the regex.
+  - Label every state (`docs/DATA_SOURCES.md` accuracy rules):
+    - **No grid yet** (`hasGrid` false): the cell reads "—" and the header aside says there is no grid yet.
+    - **Provisional** (`source = qualifying_classification`): show the numbers, and mark the header with `gridSourceLabel` ("qualifying order - provisional").
+    - **Pit-lane start** (`pit_lane`, `position` null): "Pit lane", no number.
+    - **Driver not on the grid:** "—". Never guess.
+  - Colours come from tokens: `text-rc-gain` gained, `text-rc-red-text` lost, `text-rc-ink-2` held, `text-rc-ink-3` unknown. The hard-coded hex in `deltaColor` goes.
+  - The column means the same on both phase tabs: the predicted finish against where the car actually starts.
+- **Accept:**
+  - Helper tests cover official, provisional, pit lane, a driver missing from the grid and no grid, plus the R20 rows above (HAM +4, VER +8, BOR 0).
+  - `grep -rn "parseGridPosition\|deltaVsGrid" frontend/app` finds nothing.
+  - Coverage for the new helper only. `FullGridTable` stays off the list (P4.3b rebuilds the Predictions tab).
+- **Verify:** `npm run lint`, `typecheck`, `build`, `test:coverage`.
+- **PR:** `fix: race-day weather, risk register, strategy baseline, map labels and grid deltas from current data`.
+
 ## Phase P3 — Global chrome and homepage
 
 - **P3.1 `app/ui/shell/`:**
@@ -253,16 +399,52 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - `SiteHeader` (logo B1 + wordmark, mono links, sliding red underline);
   - `MoreMenu`, `MobileNav` (uses `useScrollLock`);
   - `RaceStatusChip` ("● R20 · PRE-RACE", live pulse, countdown on hover; shell segment + `useClock`).
+    - It neither renders nor fetches on static routes (`/`, listed in `navConfig`). There, the slot holds P3.5's warm-up lights while the server wakes, and is empty otherwise.
   - Remove `NavShell` and `RaceControlShell`. `race-control/layout.tsx` becomes a container only.
 - **P3.2** Move `/race-control/teams` to `/race-control/standings`, with redirects in `next.config.ts`.
-- **P3.3 Homepage** per `home.html`:
-  - photo hero;
-  - next-up strip, with a champion tile when the title is decided;
-  - the **2026-so-far season rail**;
-  - sections 01–03 with data motifs.
-  - It must render with the backend cold (live parts stream in).
+- **P3.3 Homepage**, static (user, 2026-11-06: "there cannot be any live data on it"):
+  - **First revise `home.html`** to a data-free version with the same composition: photo hero, sections 01–03 and the CTAs.
+    - Remove the next-up strip and countdown, the champion tile, the 2026-so-far season rail, the standings motif (ANT 380 · VER 261 · HAM 259) and the sample AI Engineer answer.
+    - Data motifs become data-free illustrations (racing line, the B1 apex). No numbers that can go stale or wrong between deploys.
+  - **Then build it.** It fetches nothing, not even at build time, and `next build` lists `/` as static (○). The only API call on `/` is the readiness probe that wakes the server (P3.5).
 - **P3.4** Styled `not-found.tsx` and `global-error.tsx`; footer from `navConfig`.
-- **Accept:** e2e covers the nav, More menu, mobile drawer and homepage CTAs; coverage for `ui/shell`, `home`, `layout`, `page`. **PR.**
+- **P3.5 Warm-up loader rework** (user, 2026-11-06):
+  - **Today:** `StartLightGantry.litCountForStage` maps backend stages (`pending, database, model, season, store`) to lights. A cold container answers nothing for most of the ~50 s wait, so the gantry sits at one light and then jumps. `ServerWarmingGate` blocks every route, `/` included.
+  - **Lights fill 1→5 continuously.** A pure `lightsAt(elapsedMs, stage, ready)` replaces `litCountForStage`:
+    - lights come on one by one, paced over the expected cold start (a constant beside `STAGE_ORDER`, set from measured cold starts);
+    - the real stage is a floor, so the gantry is never behind the backend;
+    - lights never go out again once lit;
+    - light 5 waits for ready, then lights out (`LAUNCH_DURATION_MS`).
+    - Each lamp fades on. Under reduced motion, lamps switch on with no animation.
+  - **Background on the homepage.**
+    - On static routes (`/`), the gate doesn't block. The probe still runs, which wakes the server.
+    - A compact `WarmupLights` strip sits in the top bar's status-chip slot (P3.1), showing the same count.
+    - Navigating to a data route while still warming opens the full overlay at the same light count (shared `serverStatus` store and `warmingSince`).
+  - **Accept:**
+    - Unit tests for `lightsAt`: monotonic, 1→5, stage floor, 5 only when ready.
+    - e2e with a stalled `/api/ready`:
+      - `/` stays interactive (nothing `inert`) and shows the mini lights;
+      - going to `/race-control` shows the overlay at the same count;
+      - ready plays lights-out.
+- **P3.6 Non-blocking pages** (user, 2026-11-06: "the APIs should be non-blocking to the page"):
+  - **Today:**
+    - `race-control/page.tsx` awaits all five overview segments (`Promise.all`) before any HTML.
+    - `grand-prix`, the driver, team and power-unit car pages, `power-units`, `champions`, `debriefs`, `telemetry` and `teams` await their data at page level.
+    - `lib/server/backend.ts` allows 10 s per attempt and up to 3 attempts, so a cold backend can hold first paint for about 30 s.
+  - **Do:**
+    - Remove every page-level backend await. The shell renders at once.
+    - Each section takes its data through P0b.3's `useSection`, or a Suspense boundary with a server seed that SWR takes over.
+    - Survey the endpoints and split any that feed unrelated sections, as the overview was split. List the splits in the log.
+    - Metadata (`generateMetadata`) must not hold the stream either.
+  - **Coverage:** the kit is already covered (P0b.3). The pages are covered by the tasks that rebuild them, per the no-coverage-for-rewrites rule.
+  - **Accept:** e2e with the API delayed 20 s:
+    - the header and section skeletons show within 1 s;
+    - sections fill independently;
+    - a 500 on one section leaves the others intact.
+- **Accept (phase):**
+  - e2e covers the nav, More menu, mobile drawer, homepage CTAs, the warm-up on `/` vs data routes and a delayed-API page.
+  - Coverage for `ui/shell`, `home`, `layout`, `page` and the warm-up components.
+  - **PR.**
 
 ## Phase D1 — OpenF1 ingest and store (data platform, part 1)
 
@@ -288,11 +470,26 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - a `useSchedule` that dedupes the three separate schedule fetches.
   - It replaces `SeasonRoundStrip`, the Debriefs select and the Telemetry `YearPicker` row.
 - **P4.2** Add a `GET /api/race-control/circuit/{year}/{round}` route over `build_circuit_segment`.
-- **P4.3 Grand Prix tabs**, matching their mockups:
+- **P4.3a Grand Prix Hub rethink** (design only, no app code; user, 2026-11-04): rethink every tab and every column for what it means and what data it shows, and add a **Results** tab.
+  - Per tab (Weekend, Sessions, Grid, Stints, Results, Predictions), write down:
+    - the one question the tab answers;
+    - the data that answers it, and that data's authority per `docs/DATA_SOURCES.md`;
+    - every column: what it means, its unit, and its special states (DNF with reason, DNS, DSQ, NC, pit-lane start, penalty, provisional).
+    - A column that doesn't serve the tab's question goes. The tab order is part of the rethink.
+  - **Results** owns the official race and sprint classification: the FIA final classification, which f1db mirrors until D2.3. A car that retired reads DNF with its reason, never its classified place, and gains no places (user, 2026-11-04).
+  - **Sessions** keeps practice and qualifying.
+  - **Predictions' Review** stops printing a second results table: it scores the prediction against Results and decides what "vs call" shows for a DNF.
+  - **Draw the line with the Debrief** (P6.1, `debrief.html`): Results is the classification, the Debrief is the story of the race.
+  - **Output:**
+    - a spec, `docs/design/redesign/grand-prix-tabs.md`;
+    - a new `gp-results.html`, revised `gp-*.html` mockups wherever a column changes, and a Results card in `index.html`.
+    - **The user signs off before P4.3b starts.**
+- **P4.3b Grand Prix tabs**, matching the P4.3a mockups (where P4.3a changes nothing, these hold):
   - Weekend: hero with map, countdown and stakes (shows the clinch);
   - Sessions: qualifying table with gap bars, knock-out cuts, DSQ rows;
   - Grid: staggered grid, penalty chips with FIA document references once D2 lands, the pit-lane box;
   - Stints: the P0 logic plus the new visuals and legend;
+  - Results: per `gp-results.html`; `GrandPrixTab` (`app/lib/entityLinks.ts`) and `HUB_TABS` gain `results` (`?tab=results`);
   - Predictions: 22 cars, seat TBC, why-P1 attribution, risk, model scorecard.
   - Split `GrandPrixView.tsx` (443 lines) and `GrandPrixPanels.tsx` (404).
 - **P4.4 Telemetry:**
@@ -301,6 +498,40 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - Head-to-head becomes **independent cards** (lap/sectors, mini-sector map, delta (smoothed, ending at the official gap), speed, throttle, brake, gear).
   - Tyre wear has four charts (degradation scatter, race pace, wear rate by stint with the raw value beside it, stint lengths).
   - Titles computed. Shares of the lap are time-based, matching the speed map.
+- **P4.5 Qualifying segments in the Telemetry Lab** (user, 2026-11-07: "the speed map for qualifying should take Q1, Q2, Q3 into consideration and group accordingly"):
+  - **Today:** a qualifying session is one flat pool.
+    - The lap picker (`AnalysisPickers.LapPicker`) lists every timed lap with no segment.
+    - The driver picker shows one session-wide best.
+    - The default lap is the session's fastest valid lap (`services/analysis/lap_selection.choose_lap`).
+    - So a Q1 lap can be compared with a Q3 lap, and nothing shows who went out where.
+  - **Do (backend):**
+    - **Segment windows** come from OpenF1 `race_control` (`qualifying_phase` 1–3; SQ1–SQ3 in sprint qualifying): each phase runs from its first green light ("PIT EXIT OPEN") to its chequered flag, and red flags stay inside the window.
+      - Mexico City 2026 (session 11400): Q1 21:00:00–21:25:07 (red flag 21:06:54, restart 21:14:00), Q2 21:33:00–21:48:00, Q3 21:55:00–22:08:00 UTC.
+    - **Each lap gets a `segment`** from its `date_start`: a lap that starts before the chequered flag belongs to that segment even if it ends after.
+    - **Cross-check** against OpenF1 `session_result.duration` ([Q1, Q2, Q3]): each driver's best in segment n must be a lap inside window n. On a mismatch, log a warning and mark the grouping unconfirmed.
+    - **Never infer segments from lap gaps.** With no phases in race control, laps stay ungrouped, with a notice "Q1/Q2/Q3 not published for this session".
+    - **The segment each driver reached** comes from the classified position and the elimination cut for the entry count (22 cars: 6 out in Q1, 6 out in Q2, 10 in Q3), not from which times exist. In Mexico City, Hülkenberg (P10) reached Q3 with no Q3 time and Albon (P16) reached Q2 with no Q2 time; they read "no time set in Q3" / "no time set in Q2".
+    - **Disqualifications:** OpenF1 doesn't flag Lawson's qualifying disqualification (FIA doc 57; `dsq` is false). The label comes from f1db/Jolpica qualifying, and from the FIA classification after D2.2. A disqualified driver's laps stay viewable, labelled.
+    - **Payloads:**
+      - `timed_laps` carries `segment` per lap.
+      - The driver list carries the best valid lap per segment and the segment reached.
+      - `choose_lap` takes an optional `segment` and returns the fastest valid lap within it; the deleted-lap rule holds per segment.
+  - **Do (frontend):**
+    - When the session is qualifying, a `Segmented` control reads Q1 · Q2 · Q3 (SQ1–SQ3 for sprint qualifying). It defaults to the last segment the chosen driver reached. It sits in P4.4's toolbar and lives in the URL (`?segment=`).
+    - The driver picker groups drivers into Q3 / Out in Q2 / Out in Q1 / Disqualified. Each shows their best valid lap in the selected segment, or why they have none ("didn't reach Q3", "no time set in Q3").
+    - The lap picker groups laps under Q1 / Q2 / Q3 headings, with deleted laps marked as today.
+    - The head-to-head shares `DriverPicker`: it gets the same groups and compares both drivers within the selected segment.
+    - Titles are computed from data and name the segment (e.g. "Q3 · fastest valid lap").
+    - Practice, sprint and race sessions are unchanged.
+  - **Accept:**
+    - Fixture from the captured Mexico City qualifying (OpenF1 `race_control`, `laps`, `session_result` for session 11400):
+      - the three windows match the times above exactly;
+      - every driver's per-segment best matches `session_result.duration`;
+      - the groups are 10 / 6 / 6, with Hülkenberg in the Q3 group showing "no time set in Q3" and Albon in the Q2 group;
+      - Lawson is labelled disqualified.
+    - A sprint qualifying fixture groups SQ1–SQ3.
+    - A session with no phases stays ungrouped, with the notice.
+    - e2e switches Q1 → Q3 and the speed map redraws with that segment's lap.
 - **Accept:** e2e drives the picker by keyboard and changes `?round=`; coverage for `race-picker`, `grand-prix` and `telemetry`. **PR.**
 
 ## Phase P5 — Standings, Teams, Drivers (+ clinch calculator)
@@ -361,7 +592,8 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - Barlow title;
   - remove the glow orb;
   - `LiveTimingTower` with team-colour edges and `DriverName codeLast`;
-  - **Forecast vs measured** (idea #4): OpenF1 measured track temperature and rainfall beside the Open-Meteo forecast.
+  - **Forecast vs measured** (idea #4): OpenF1 measured track temperature and rainfall beside the Open-Meteo forecast. It builds on P0b.1's stored forecast.
+  - The weather card, the risk register, the strategy baseline and the corner labels were fixed in P0b. This task restyles them and doesn't rework their data.
 - **P7.4 Weekend live feed UI** (idea #1): a feed panel on the Command Center and the Grand Prix hub showing new FIA decisions as they publish (penalty, grid drop, deleted lap), each linking to its document.
 - **P7.5 Sweep.** `grep` for `#00FF78` used as an accent, `italic uppercase`, `text-neutral-`, `#151817`, `#0F1210` and `--font-barlow` fallbacks, and fix them. `SourceBadge` on every data screen (idea #5).
 - **Accept:** coverage for `rulebook`, `engineer` and `race-control/page`. **PR.**
@@ -393,8 +625,9 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P3 → D1 → P4 → P5 → D2 → P6 → P7 → P8 → P9`
+`P0 → P1 → P2 → P0b → P3 → D1 → P4 → P5 → D2 → P6 → P7 → P8 → P9`
 
+- P0b was added on 2026-11-06 and runs before P3 (bugs first). P3.6 depends on P0b.3's section kit.
 - P4 can start before D1 finishes; the Grid tab's FIA reasons wait for D2.
 - P6.1's penalty timeline uses race control first and gains FIA decisions after D2.
 - P9 can be chipped at any time but finishes last.

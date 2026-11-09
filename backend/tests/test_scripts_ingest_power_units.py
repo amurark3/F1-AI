@@ -29,13 +29,8 @@ from app.data.power_units.status import (  # noqa: E402
     OUTCOME_OK,
     OUTCOME_WRITE_FAILED,
 )
-from app.data.store import (  # noqa: E402
-    BACKEND_FILE,
-    BACKEND_POSTGRES,
-    HOST_OTHER,
-    HOST_SUPABASE_DIRECT,
-    HOST_SUPABASE_POOLER,
-)
+from app.data.store import BACKEND_FILE, BACKEND_POSTGRES  # noqa: E402
+from app.data.store_hosts import HOST_OTHER, HOST_SUPABASE_DIRECT, HOST_SUPABASE_POOLER  # noqa: E402
 from app.data.store_types import StoreHealth, WriteResult  # noqa: E402
 
 

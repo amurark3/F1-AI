@@ -58,7 +58,8 @@ from app.data.power_units.status import (
     IngestStatus,
     record_status,
 )
-from app.data.store import BACKEND_POSTGRES, HOST_SUPABASE_DIRECT, document_store
+from app.data.store import BACKEND_POSTGRES, document_store
+from app.data.store_hosts import HOST_SUPABASE_DIRECT
 
 EXIT_OK = 0
 EXIT_DOCUMENT_FAILURES = 1

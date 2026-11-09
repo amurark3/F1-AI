@@ -424,26 +424,37 @@ class PostgresDocumentStore:
 
     # -- the retry queue ----------------------------------------------------
     def _flush(self, conn: psycopg.Connection) -> None:
-        """Replay what an outage queued, now that the database answers.
+        """Replay what an outage queued, before this contact's own statement.
 
-        A database error propagates and leaves the rest queued; a change that
-        can no longer apply is dropped, so it cannot block every later write.
+        Runs before every read and write, so a cache re-reading its document
+        sees the changes it still holds only in memory. A database error stops
+        the replay and leaves the rest queued; the caller's own statement then
+        succeeds or fails on its own.
         """
         import psycopg
 
         documents, changes = self._pending.snapshot()
-        for name, (payload, seen) in documents.items():
-            self._replay_document(conn, name, payload, seen)
-        for name, queued in changes.items():
-            try:
-                self._apply(conn, name, compose(queued))
-            except psycopg.Error:
-                raise
-            except Exception as exc:
-                logger.exception("store.pg_pending_dropped", document=name, error=str(exc))
-            else:
-                logger.info("store.pg_pending_flushed", document=name)
-            self._pending.drop_changes(name, len(queued))
+        try:
+            for name, (payload, seen) in documents.items():
+                self._replay_document(conn, name, payload, seen)
+            for name, queued in changes.items():
+                self._replay_changes(conn, name, queued)
+        except psycopg.Error as exc:
+            logger.warning("store.pg_pending_flush_failed", error=str(exc))
+
+    def _replay_changes(self, conn: psycopg.Connection, name: str, queued: tuple[DocumentChange, ...]) -> None:
+        """Re-apply queued changes; one that can no longer apply is dropped so it cannot block every write."""
+        import psycopg
+
+        try:
+            self._apply(conn, name, compose(queued))
+        except psycopg.Error:
+            raise
+        except Exception as exc:
+            logger.exception("store.pg_pending_dropped", document=name, error=str(exc))
+        else:
+            logger.info("store.pg_pending_flushed", document=name)
+        self._pending.drop_changes(name, len(queued))
 
     def _replay_document(self, conn: psycopg.Connection, name: str, payload: dict, seen: int | None) -> None:
         """Write a queued whole document unless the row moved on since this process read it."""
@@ -461,6 +472,7 @@ class PostgresDocumentStore:
         try:
             with self._connect() as conn:
                 self._ensure_schema(conn)
+                self._flush(conn)
                 current = self._current(conn, name)
         except Exception as exc:
             error_id = self._record_outcome(False, str(exc))

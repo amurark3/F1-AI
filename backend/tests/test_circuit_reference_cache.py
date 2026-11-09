@@ -6,9 +6,11 @@ cold start reloaded the telemetry behind it), a superseded reference expires,
 and a store outage is never mistaken for an empty cache — writing on top of
 one would drop every reference this process failed to read.
 
-The document is read once per process, so a write applies to the latest stored
+The document is held in memory, so a write applies to the latest stored
 document rather than to that copy: a reference another process stored since is
-kept, and for the same circuit the newer ``stored_at`` wins.
+kept, and for the same circuit the newer ``stored_at`` wins. The held copy is
+read again once ``REFRESH_SECONDS`` have passed, so another process's references
+are served without a restart.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -350,3 +352,30 @@ def test_an_undated_stored_entry_loses_to_a_dated_one(table):
     CircuitReferenceCache().set(CITY, YEAR, REFERENCE)
 
     assert _stored(table)["zandvoort:2026"]["reference"] == REFERENCE
+
+
+def test_a_reference_another_process_stored_is_served_after_the_refresh_interval(store, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(cache_module.time, "monotonic", lambda: clock[0])
+    running = CircuitReferenceCache()
+    assert running.get(CITY, YEAR) is None
+
+    CircuitReferenceCache().set(CITY, YEAR, REFERENCE)  # another process
+    assert running.get(CITY, YEAR) is None, "inside the interval the held copy is served"
+
+    clock[0] += cache_module.REFRESH_SECONDS
+    hit = running.get(CITY, YEAR)
+    assert hit is not None
+    assert hit.reference == REFERENCE
+
+
+def test_a_failed_refresh_keeps_serving_the_held_references(store, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(cache_module.time, "monotonic", lambda: clock[0])
+    running = CircuitReferenceCache()
+    running.set(CITY, YEAR, REFERENCE)
+
+    store.readable = False
+    clock[0] += cache_module.REFRESH_SECONDS
+
+    assert running.get(CITY, YEAR) is not None

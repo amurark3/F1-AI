@@ -356,6 +356,40 @@ def test_ensure_loaded_short_circuits_once_loaded(cache):
     assert len(cache.store.reads) == 1, "a warm cache must not re-read the store"
 
 
+@pytest.mark.unit
+def test_a_snapshot_another_process_stored_is_served_after_the_refresh_interval(monkeypatch):
+    """The backfill case without a restart: the server picks the script's snapshot up on its own."""
+    clock = [1000.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: clock[0])
+    store = FakeStore()
+    monkeypatch.setattr(module, "document_store", store)
+    running = PredictionSnapshotCache()
+    running.load()
+
+    PredictionSnapshotCache().set(2026, 1, _result("NOR"), reason="backfill")
+    assert running.get(2026, 1) is None, "inside the interval the held copy is served"
+
+    clock[0] += module.REFRESH_SECONDS
+    assert running.get(2026, 1)["predictions"][0]["driver_code"] == "NOR"
+
+
+@pytest.mark.unit
+def test_a_failed_refresh_keeps_serving_the_held_snapshots(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: clock[0])
+    store = FakeStore()
+    monkeypatch.setattr(module, "document_store", store)
+    running = PredictionSnapshotCache()
+    running.set(2026, 1, _result("VER"))
+
+    store.read_ok = False
+    clock[0] += module.REFRESH_SECONDS
+
+    assert running.get(2026, 1)["predictions"][0]["driver_code"] == "VER"
+    assert running.get(2026, 1) is not None
+    assert len(store.reads) == 2, "the failed re-read backs off rather than retrying per call"
+
+
 # ---------------------------------------------------------------------------
 # set / get round trip
 # ---------------------------------------------------------------------------

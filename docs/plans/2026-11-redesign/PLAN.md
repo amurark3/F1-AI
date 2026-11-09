@@ -153,7 +153,7 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - Tests: R20 roster is 22 with ≤2 per team.
   - A stand-in (TSU, R12–14) never appears once the regular driver is back.
   - Seat TBC is set for the Haas seat.
-- **Verify:** pytest. After deploy (user's call), recompute R20 (see the prediction-backfill memory; `scripts/backfill_predictions.py`). Note that writes from another process get clobbered by running production until Render restarts.
+- **Verify:** pytest. After deploy (user's call), recompute R20 (see the prediction-backfill memory; `scripts/backfill_predictions.py`). No restart is needed afterwards: since P0c.4 the running server keeps writes from other processes and serves them within a minute.
 
 ### P0.4 Prediction explanations agree with the inputs
 

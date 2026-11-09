@@ -3,12 +3,14 @@
 A snapshot is stored exactly as computed and served with canonical driver and
 team names overlaid on the copy (:mod:`app.services.prediction_names`).
 
-The document is read once per process, but other processes write it too (the
-backfill script, a scheduled job), so storing a snapshot is a change applied to
-the latest stored document (:meth:`~app.data.store_types.DocumentStore.update`),
-never this process's copy. Merge rule: races another process stored are kept;
-for the same race both processes' snapshots are kept in ``stored_at`` order, and
-the newest one is the race's active snapshot.
+The document is held in memory, but other processes write it too (the backfill
+script, a scheduled job). So storing a snapshot is a change applied to the
+latest stored document (:meth:`~app.data.store_types.DocumentStore.update`),
+never this process's copy, and the held copy is read again once
+``REFRESH_SECONDS`` have passed, so their snapshots are served without a
+restart. Merge rule: races another process stored are kept; for the same race
+both processes' snapshots are kept in ``stored_at`` order, and the newest one is
+the race's active snapshot.
 """
 
 from __future__ import annotations
@@ -45,6 +47,12 @@ CACHE_POLICY = "stored_until_manual_recompute"
 # set for the entire process lifetime — which is exactly how a recovered
 # database still served "no stored prediction" until the container restarted.
 RELOAD_BACKOFF_SECONDS = 30.0
+
+# How long a loaded document is served before it is read again. Another process
+# (the backfill script, a scheduled job) may have stored snapshots since, and a
+# server that never restarts would otherwise never serve them. A failed re-read
+# keeps serving the held copy.
+REFRESH_SECONDS = 60.0
 
 
 class PredictionCacheUnavailableError(RuntimeError):
@@ -338,12 +346,15 @@ class PredictionSnapshotCache:
         empty".
         """
         with self._lock:
-            self._next_load_attempt = time.monotonic() + RELOAD_BACKOFF_SECONDS
+            started = time.monotonic()
+            self._next_load_attempt = started + RELOAD_BACKOFF_SECONDS
             read = document_store.read(DOCUMENT_PREDICTION_CACHE)
 
             if not read.ok:
                 logger.error("prediction_cache.load_failed", error=read.error)
                 return False
+
+            self._next_load_attempt = started + REFRESH_SECONDS
 
             payload = read.payload
             if payload is None:
@@ -365,13 +376,14 @@ class PredictionSnapshotCache:
             return True
 
     def _ensure_loaded(self) -> bool:
-        """Load on first use, retrying a previous failure after a backoff."""
+        """Load on first use and re-read once due; a failure retries after a backoff.
+
+        True while any copy is held: a failed re-read keeps serving the last one.
+        """
         with self._lock:
-            if self._loaded:
-                return True
             if time.monotonic() < self._next_load_attempt:
-                return False
-            return self.load()
+                return self._loaded
+            return self.load() or self._loaded
 
     def _entries_of(self, document: dict | None) -> dict[str, dict[str, Any]]:
         """The normalised entries of a stored document; none from an unknown schema."""

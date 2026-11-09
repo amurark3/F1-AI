@@ -9,9 +9,12 @@ session, and FastF1 has no lap data on Render's always-cold cache. The risks:
 * **A document from an older schema is not trusted.** Stint semantics have
   changed before (FastF1's tyre age was one lap high), and a stale document must
   not resurrect them.
-* **Another process's races survive this one's writes.** The document is read
-  once per process, so a write must apply to the latest stored document, not to
-  that copy: a race another process stored since is kept beside this one's.
+* **Another process's races survive this one's writes.** The document is held
+  in memory, so a write must apply to the latest stored document, not to that
+  copy: a race another process stored since is kept beside this one's.
+* **Another process's races are served without a restart.** The held copy is
+  read again once ``REFRESH_SECONDS`` have passed; a failed re-read keeps
+  serving it.
 """
 
 from __future__ import annotations
@@ -108,7 +111,7 @@ def test_an_unknown_race_is_a_miss(store):
 
 
 @pytest.mark.unit
-def test_the_document_is_read_once_per_process(store):
+def test_the_document_is_not_read_again_within_the_refresh_interval(store):
     fake = store(payload=_document({"2026-13": [asdict(STINT)]}))
     cache = RaceStintsStore()
 
@@ -293,3 +296,36 @@ def test_dropping_a_race_keeps_the_races_another_process_stored_since(table):
     running.drop(2026, 19)
 
     assert _stored_races(table) == {"2026-12": [asdict(OTHER)]}
+
+
+@pytest.mark.unit
+def test_a_race_another_process_stored_is_served_after_the_refresh_interval(store, monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(module, "_clock", lambda: now[0])
+    fake = store(payload=None)
+    running = RaceStintsStore()
+    assert running.get(2026, 13) is None
+
+    fake.payload = _document({"2026-13": [asdict(STINT)]})  # another process stored it
+    assert running.get(2026, 13) is None, "inside the interval the held copy is served"
+
+    now[0] += module.REFRESH_SECONDS
+    assert running.get(2026, 13) == (STINT,)
+    assert fake.reads == 2
+
+
+@pytest.mark.unit
+def test_a_failed_refresh_keeps_serving_the_held_races(store, monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(module, "_clock", lambda: now[0])
+    fake = store(payload=_document({"2026-13": [asdict(STINT)]}))
+    running = RaceStintsStore()
+    running.get(2026, 13)
+
+    fake.readable = False
+    now[0] += module.REFRESH_SECONDS
+    assert running.get(2026, 13) == (STINT,)
+    running.put(2026, 12, (OTHER,))
+
+    assert set(fake.payload["races"]) == {"2026-12", "2026-13"}, "writes still go through"
+    assert fake.reads == 2, "the failed re-read backs off rather than retrying per call"

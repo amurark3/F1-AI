@@ -251,7 +251,7 @@ Next.js: /race-control/power-units · /race-control/power-units/[driver] · Grid
 - It is untested whether fia.com accepts requests from Render's shared egress IPs. A runner is easy to test and
   retry.
 - The web service never writes these documents, so the backfill clobber hazard cannot happen. (That is where
-  prod's in-memory copy erases out-of-process writes.)
+  prod's in-memory copy erased out-of-process writes; fixed for every document in redesign task P0c.4.)
 - There is a precedent: `ingest-rulebook.yml` already runs an ingest with `DATABASE_URL` as a secret.
 
 **Facts stored raw, interpreted at read time.** Fixing the seat mapping or reconciliation needs no re-ingest and

@@ -14,11 +14,12 @@ A write after a failed read is refused, for the reason
 :mod:`app.data.circuit_reference_cache` gives: it would upload a document
 holding only this process's races and silently drop every other one.
 
-The document is read once per process, but other processes write it too, so a
-write is a change applied to the latest stored document
-(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy.
-Merge rule: races another process stored are kept; stint rows carry no
-timestamp, so for a race this process puts or drops, this process's write wins.
+The document is held in memory, but other processes write it too, so a write is
+a change applied to the latest stored document
+(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy,
+and the held copy is read again once ``REFRESH_SECONDS`` have passed. Merge
+rule: races another process stored are kept; stint rows carry no timestamp, so
+for a race this process puts or drops, this process's write wins.
 """
 
 from __future__ import annotations
@@ -50,6 +51,11 @@ SCHEMA_VERSION = 1
 # would leave the store unusable for the life of the process.
 RELOAD_BACKOFF_SECONDS = 30.0
 
+# How long the held races are served before the document is read again, so races
+# another process stored are served without a restart. A failed re-read keeps
+# serving the held copy.
+REFRESH_SECONDS = 60.0
+
 _clock = time.monotonic
 
 
@@ -65,7 +71,7 @@ def _races_of(document: dict | None) -> dict[str, list[dict]]:
 
 
 class RaceStintsStore:
-    """Stints by race, read from the document store once per process."""
+    """Stints by race, read from the document store and re-read every ``REFRESH_SECONDS``."""
 
     def __init__(self) -> None:
         # None until a read succeeds; writes are refused until then.
@@ -74,17 +80,19 @@ class RaceStintsStore:
         self._lock = threading.Lock()
 
     def _loaded(self) -> dict[str, list[dict]] | None:
-        """The stored races, reading the document on first use. Call under the lock."""
-        if self._races is not None:
-            return self._races
+        """The stored races, reading the document on first use and once due. Call under the lock.
+
+        A failed read keeps the held races (``None`` before any read succeeded).
+        """
         now = _clock()
         if now < self._next_load_attempt:
-            return None
+            return self._races
         result = document_store.read(DOCUMENT_RACE_STINTS)
         if not result.ok:
             self._next_load_attempt = now + RELOAD_BACKOFF_SECONDS
             logger.warning("race_stints_store.read_failed", error=result.error)
-            return None
+            return self._races
+        self._next_load_attempt = now + REFRESH_SECONDS
         self._races = _races_of(result.payload)
         return self._races
 

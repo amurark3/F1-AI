@@ -22,6 +22,10 @@ the race. Both documents are copied to ``--backup-dir`` before the first write.
 
 By default a phase that already holds a current-version snapshot is skipped,
 so an interrupted run resumes where it stopped. ``--recompute`` redoes those.
+
+A running server needs no restart afterwards: it keeps these snapshots when it
+next stores its own, and serves them once its copy is re-read (within
+``prediction_cache.REFRESH_SECONDS``).
 """
 
 from __future__ import annotations

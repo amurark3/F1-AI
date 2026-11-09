@@ -15,11 +15,12 @@ restarts, which is the whole point: the data is historical and immutable.
 Entries record the edition they came from so a superseded reference can expire
 without a schedule lookup — see ``SUPERSEDED_TTL_SECONDS``.
 
-The document is read once per process, but other processes write it too, so a
-write is a change applied to the latest stored document
-(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy.
-Merge rule: references another process stored are kept; for the same city and
-season the entry with the later ``stored_at`` wins, and an undatable one loses.
+The document is held in memory, but other processes write it too, so a write is
+a change applied to the latest stored document
+(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy,
+and the held copy is read again once ``REFRESH_SECONDS`` have passed. Merge
+rule: references another process stored are kept; for the same city and season
+the entry with the later ``stored_at`` wins, and an undatable one loses.
 """
 
 from __future__ import annotations
@@ -59,6 +60,11 @@ MISS_TTL_SECONDS = 24 * 60 * 60
 # failed read (a paused database, a network blip) would pin an empty cache for
 # the whole process lifetime.
 RELOAD_BACKOFF_SECONDS = 30.0
+
+# How long a loaded document is served before it is read again, so references
+# another process stored are served without a restart. A failed re-read keeps
+# serving the held copy.
+REFRESH_SECONDS = 60.0
 
 
 class CircuitReferenceCacheUnavailableError(RuntimeError):
@@ -217,12 +223,15 @@ class CircuitReferenceCache:
         never recorded as "loaded and empty".
         """
         with self._lock:
-            self._next_load_attempt = time.monotonic() + RELOAD_BACKOFF_SECONDS
+            started = time.monotonic()
+            self._next_load_attempt = started + RELOAD_BACKOFF_SECONDS
             read = document_store.read(DOCUMENT_CIRCUIT_REFERENCE)
 
             if not read.ok:
                 logger.error("circuit_reference_cache.load_failed", error=read.error)
                 return False
+
+            self._next_load_attempt = started + REFRESH_SECONDS
 
             payload = read.payload
             if payload is None:
@@ -245,13 +254,14 @@ class CircuitReferenceCache:
             return True
 
     def _ensure_loaded(self) -> bool:
-        """Load on first use, retrying a previous failure after a backoff."""
+        """Load on first use and re-read once due; a failure retries after a backoff.
+
+        True while any copy is held: a failed re-read keeps serving the last one.
+        """
         with self._lock:
-            if self._loaded:
-                return True
             if time.monotonic() < self._next_load_attempt:
-                return False
-            return self.load()
+                return self._loaded
+            return self.load() or self._loaded
 
     @staticmethod
     def _key(city: str, year: int) -> str:

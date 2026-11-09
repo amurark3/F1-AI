@@ -350,6 +350,47 @@ def test_a_queued_change_survives_a_second_outage(table, pg):
     assert set(pg.health().pending_documents) == {DOC, DOCUMENT_PREDICTION_HISTORY}
 
 
+@pytest.mark.unit
+def test_a_read_replays_queued_changes_first(table, pg):
+    """A cache re-reading its document after an outage must not lose the change it still holds in memory."""
+    table.fail_on = "SELECT payload"
+    pg.update(DOC, _add("2026:1", "ours"))
+    table.fail_on = None
+
+    read = pg.read(DOC)
+
+    assert read.payload == {"2026:1": "ours"}
+    assert pg.health().pending_documents == ()
+
+
+@pytest.mark.unit
+def test_a_replay_that_hits_a_database_error_stays_queued_and_the_read_still_answers(table, pg):
+    table.fail_on = "SELECT payload"
+    pg.update(DOC, _add("2026:1", "ours"))
+    table.fail_on = "DO NOTHING"  # the queued change cannot land; plain reads still work
+    table.put(DOCUMENT_PREDICTION_HISTORY, {"a": 1})
+
+    with structlog.testing.capture_logs() as logs:
+        read = pg.read(DOCUMENT_PREDICTION_HISTORY)
+
+    assert read.payload == {"a": 1}
+    assert pg.health().pending_documents == (DOC,)
+    assert "store.pg_pending_flush_failed" in [entry["event"] for entry in logs]
+
+
+@pytest.mark.unit
+def test_a_replay_that_hits_a_database_error_does_not_fail_an_unrelated_write(table, pg):
+    table.fail_on = "SELECT payload"
+    pg.update(DOC, _add("2026:1", "ours"))
+    table.fail_on = "DO NOTHING"
+
+    written = pg.write(DOCUMENT_PREDICTION_HISTORY, {"a": 1})
+
+    assert written.ok is True
+    assert table.payload(DOCUMENT_PREDICTION_HISTORY) == {"a": 1}
+    assert pg.health().pending_documents == (DOC,)
+
+
 # ---------------------------------------------------------------------------
 # File backend: one process, so the change applies to what is on disk
 # ---------------------------------------------------------------------------

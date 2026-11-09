@@ -7,10 +7,11 @@ user conversation. With ``DATABASE_URL`` unset, an unreachable Postgres, or a
 model that will not load, each one must degrade to a no-op / empty result and
 never raise into the streaming handler.
 
-**Never load torch by accident.** ``ENABLE_LOCAL_MODELS`` is off by default and
-this module holds a *second* copy of the embedding model, so it needs its own
-gate. The enabled path is exercised through a fake ``sentence_transformers``
-injected into ``sys.modules`` — no torch import, no real model.
+**One model per process.** Chat turns are embedded with the shared embedder in
+``app.utils.embeddings`` (the one the rulebook uses), never a second copy of the
+same weights: on a small host that duplicate was the difference between
+fitting and an OOM kill. A spy on the ``sentence_transformers`` loader proves
+it; the loader's own gating and latching are pinned in ``test_utils_embeddings``.
 
 **SQL parameter order.** Both recall statements interpolate the query vector
 twice (similarity select and ORDER BY) around the user and thread predicates.
@@ -29,6 +30,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from app.data import memory
+from app.utils import embeddings
 
 
 class _FakeResult:
@@ -75,21 +77,21 @@ class _FakeEmbedder:
 
 @pytest.fixture(autouse=True)
 def _reset_module_state():
-    """Schema flag and embedder are process-global singletons."""
+    """The schema flag and the shared embedder are process-global singletons."""
     memory._schema_ready = False
-    memory._embedder = None
-    memory._embedder_failed = False
+    embeddings._model = None
+    embeddings._failed = False
     yield
     memory._schema_ready = False
-    memory._embedder = None
-    memory._embedder_failed = False
+    embeddings._model = None
+    embeddings._failed = False
 
 
 @pytest.fixture
 def enabled(monkeypatch):
     """Turn memory on and short-circuit embedding to a fixed vector."""
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
-    monkeypatch.setattr(memory, "_embed", lambda text: [0.5, 0.25])
+    monkeypatch.setattr(memory, "embed", lambda text: [0.5, 0.25])
 
 
 def _install_connection(monkeypatch, conn: _FakeConnection) -> _FakeConnection:
@@ -164,114 +166,59 @@ def test_schema_creation_short_circuits_inside_the_lock(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Embedding
+# Embedding: the shared model, never a second one
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-def test_no_model_is_loaded_when_local_models_are_disabled(monkeypatch):
-    monkeypatch.setattr(memory, "ENABLE_LOCAL_MODELS", False)
+def test_the_schema_vector_width_is_the_shared_embedders():
+    """A width of its own would let chat vectors drift from the model that makes them."""
+    assert f"vector({embeddings.EMBEDDING_DIM})" in memory._SCHEMA_SQL
+
+
+@pytest.mark.unit
+def test_memory_embeds_with_the_shared_model_and_never_loads_a_second(monkeypatch):
+    """The spy counts every model the process builds: rulebook + save + recall = one."""
+    monkeypatch.setattr(embeddings, "ENABLE_LOCAL_MODELS", True)
+    # Were memory still gating a loader of its own, this is what would open it.
+    monkeypatch.setattr(memory, "ENABLE_LOCAL_MODELS", True, raising=False)
+    built: list[_FakeEmbedder] = []
+
+    def _load(name):
+        assert name == embeddings.EMBEDDING_MODEL_NAME
+        built.append(_FakeEmbedder())
+        return built[-1]
+
+    monkeypatch.setitem(sys.modules, "sentence_transformers", SimpleNamespace(SentenceTransformer=_load))
+    monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[]))
+
+    embeddings.embed("pit lane speed limit")  # the rulebook's query path
+    memory.save_message("u1", "t1", "user", "who wins Monaco")
+    memory.recall_relevant("u1", "Monaco")
+
+    assert len(built) == 1, "memory must reuse the rulebook's model, not build its own"
+    assert [text for text, _ in built[0].calls] == ["pit lane speed limit", "who wins Monaco", "Monaco"]
+    # And the shared model's vector is the one stored and searched with.
+    assert conn.statements[-2][1][-1] == "[0.500000,0.250000]"
+    assert conn.statements[-1][1][0] == "[0.500000,0.250000]"
+
+
+@pytest.mark.unit
+def test_with_local_models_off_a_turn_is_stored_and_torch_is_never_imported(monkeypatch):
+    monkeypatch.setattr(embeddings, "ENABLE_LOCAL_MODELS", False)
     monkeypatch.setitem(
         sys.modules,
         "sentence_transformers",
         SimpleNamespace(SentenceTransformer=lambda *_: pytest.fail("torch must not be imported when disabled")),
     )
+    monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
+    conn = _install_connection(monkeypatch, _FakeConnection())
 
-    assert memory._get_embedder() is None
+    memory.save_message("u1", "t1", "user", "who wins Monaco")
 
-
-@pytest.mark.unit
-def test_the_embedder_is_loaded_once_and_memoised(monkeypatch):
-    monkeypatch.setattr(memory, "ENABLE_LOCAL_MODELS", True)
-    built: list[str] = []
-    monkeypatch.setitem(
-        sys.modules,
-        "sentence_transformers",
-        SimpleNamespace(SentenceTransformer=lambda name: built.append(name) or _FakeEmbedder()),
-    )
-
-    first = memory._get_embedder()
-
-    assert memory._get_embedder() is first
-    assert built == [memory.EMBEDDING_MODEL_NAME]
-
-
-@pytest.mark.unit
-def test_a_load_failure_is_latched_and_not_retried(monkeypatch):
-    monkeypatch.setattr(memory, "ENABLE_LOCAL_MODELS", True)
-    attempts: list[int] = []
-
-    def failing(_name):
-        attempts.append(1)
-        raise OSError("no space left on device")
-
-    monkeypatch.setitem(sys.modules, "sentence_transformers", SimpleNamespace(SentenceTransformer=failing))
-
-    assert memory._get_embedder() is None
-    assert memory._get_embedder() is None
-    assert len(attempts) == 1, "a failed load must not be retried on every chat turn"
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("latched_field", ["_embedder", "_embedder_failed"])
-def test_another_thread_winning_the_load_race_is_honoured(monkeypatch, latched_field):
-    """The two post-lock re-checks, driven from inside the lock acquisition."""
-    monkeypatch.setattr(memory, "ENABLE_LOCAL_MODELS", True)
-    winner = _FakeEmbedder()
-    real_lock = memory._embedder_lock
-
-    class _LatchingLock:
-        def __enter__(self):
-            setattr(memory, latched_field, winner if latched_field == "_embedder" else True)
-            return real_lock.__enter__()
-
-        def __exit__(self, *exc):
-            return real_lock.__exit__(*exc)
-
-    monkeypatch.setattr(memory, "_embedder_lock", _LatchingLock())
-    monkeypatch.setitem(
-        sys.modules,
-        "sentence_transformers",
-        SimpleNamespace(SentenceTransformer=lambda *_: pytest.fail("the race was already won")),
-    )
-
-    expected = winner if latched_field == "_embedder" else None
-    assert memory._get_embedder() is expected
-
-
-@pytest.mark.unit
-def test_embed_normalises_and_returns_plain_floats(monkeypatch):
-    embedder = _FakeEmbedder()
-    monkeypatch.setattr(memory, "_get_embedder", lambda: embedder)
-
-    vector = memory._embed("who wins Monaco")
-
-    assert vector == [0.5, 0.25]
-    # Cosine distance in pgvector assumes unit-length vectors.
-    assert embedder.calls[0][1] == {"normalize_embeddings": True}
-
-
-@pytest.mark.unit
-def test_embed_returns_none_without_a_model(monkeypatch):
-    monkeypatch.setattr(memory, "_get_embedder", lambda: None)
-
-    assert memory._embed("anything") is None
-
-
-@pytest.mark.unit
-def test_embed_swallows_encode_failures(monkeypatch):
-    class _Exploding:
-        def encode(self, *_args, **_kwargs):
-            raise RuntimeError("CUDA out of memory")
-
-    monkeypatch.setattr(memory, "_get_embedder", _Exploding)
-
-    assert memory._embed("boom") is None
-
-
-@pytest.mark.unit
-def test_vector_literal_matches_postgres_syntax_at_six_places():
-    assert memory._vec_literal([1.0, -0.5, 1 / 3]) == "[1.000000,-0.500000,0.333333]"
+    # Stored without a vector: the backfill script embeds it once models are on.
+    assert conn.statements[-1][1] == ("u1", "t1", "user", "who wins Monaco")
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +257,7 @@ def test_save_message_stores_the_embedding_alongside_the_turn(monkeypatch, enabl
 @pytest.mark.unit
 def test_a_system_turn_is_stored_without_an_embedding(monkeypatch):
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
-    monkeypatch.setattr(memory, "_embed", lambda text: pytest.fail("only user/assistant turns are embedded"))
+    monkeypatch.setattr(memory, "embed", lambda text: pytest.fail("only user/assistant turns are embedded"))
     conn = _install_connection(monkeypatch, _FakeConnection())
 
     memory.save_message("u1", "t1", "system", "you are a race engineer")
@@ -323,7 +270,7 @@ def test_a_system_turn_is_stored_without_an_embedding(monkeypatch):
 @pytest.mark.unit
 def test_a_turn_that_cannot_be_embedded_is_still_stored(monkeypatch):
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
-    monkeypatch.setattr(memory, "_embed", lambda text: None)
+    monkeypatch.setattr(memory, "embed", lambda text: None)
     conn = _install_connection(monkeypatch, _FakeConnection())
 
     memory.save_message("u1", "t1", "assistant", "Verstappen")
@@ -358,7 +305,7 @@ def test_recall_returns_nothing_when_there_is_nothing_to_search(monkeypatch, mem
 @pytest.mark.unit
 def test_recall_returns_nothing_when_the_query_cannot_be_embedded(monkeypatch):
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
-    monkeypatch.setattr(memory, "_embed", lambda text: None)
+    monkeypatch.setattr(memory, "embed", lambda text: None)
     monkeypatch.setattr(memory, "_connect", lambda: pytest.fail("no vector, no search"))
 
     assert memory.recall_relevant("u1", "q") == []

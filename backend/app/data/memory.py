@@ -4,10 +4,12 @@ Gives the assistant a memory across sessions:
 
   * ``user_profile`` — favourite driver/team and free-form preferences, so the
     engineer can tailor briefings to the person on the pit wall.
-  * ``chat_message`` — every user/assistant turn, embedded with the same
-    sentence-transformers model used for the rulebook, so past conversation can
-    be recalled semantically (pgvector cosine search) rather than just by
-    recency.
+  * ``chat_message`` — every user/assistant turn, embedded with the shared
+    sentence-transformers model in ``app.utils.embeddings`` (the instance the
+    rulebook uses), so past conversation can be recalled semantically (pgvector
+    cosine search) rather than just by recency. A turn saved while local models
+    are off keeps a NULL embedding; ``scripts/backfill_chat_embeddings.py``
+    fills those in later.
 
 Everything here is a no-op when ``DATABASE_URL`` is unset, so local development
 without a database keeps working exactly as before.
@@ -26,12 +28,9 @@ from typing import Any
 
 import structlog
 
-from app.config import EMBEDDING_MODEL_NAME, ENABLE_LOCAL_MODELS
+from app.utils.embeddings import EMBEDDING_DIM, embed, to_pgvector_literal
 
 logger = structlog.get_logger()
-
-# 384 = output dim of all-MiniLM-L6-v2 (the configured embedding model).
-EMBEDDING_DIM = 384
 
 MEMORY_ENABLED = bool(os.getenv("DATABASE_URL", "").strip())
 
@@ -68,14 +67,10 @@ ALTER TABLE chat_message ENABLE ROW LEVEL SECURITY;
 """
 
 # ---------------------------------------------------------------------------
-# Lazy singletons: DB schema + embedding model
+# Lazy singleton: DB schema
 # ---------------------------------------------------------------------------
 _schema_ready = False
 _schema_lock = threading.Lock()
-
-_embedder = None
-_embedder_lock = threading.Lock()
-_embedder_failed = False
 
 
 def _connect() -> psycopg.Connection:
@@ -95,57 +90,6 @@ def _ensure_schema(conn: psycopg.Connection) -> None:
         _schema_ready = True
 
 
-def _get_embedder() -> object | None:
-    """Lazily load the sentence-transformers model; None if unavailable.
-
-    Note this is a *second* instance of the same model — ``app.utils.embeddings``
-    holds another for the rulebook. That duplication is why chat could exhaust
-    memory independently of rulebook search, so this call site needs the same
-    gate. Returns None without importing torch when local models are disabled;
-    messages are still stored, only semantic recall goes quiet.
-    """
-    global _embedder, _embedder_failed
-    if not ENABLE_LOCAL_MODELS:
-        return None
-    if _embedder is not None:
-        return _embedder
-    if _embedder_failed:
-        return None
-    with _embedder_lock:
-        if _embedder is not None:
-            return _embedder
-        if _embedder_failed:
-            return None
-        try:
-            from sentence_transformers import SentenceTransformer
-
-            model_name = EMBEDDING_MODEL_NAME.split("/", 1)[-1] if "/" in EMBEDDING_MODEL_NAME else EMBEDDING_MODEL_NAME
-            _embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
-            logger.info("memory.embedder_loaded", model=model_name)
-            return _embedder
-        except Exception as exc:
-            logger.exception("memory.embedder_load_failed", error=str(exc))
-            _embedder_failed = True
-            return None
-
-
-def _embed(text: str) -> list[float] | None:
-    embedder = _get_embedder()
-    if embedder is None:
-        return None
-    try:
-        vec = embedder.encode(text, normalize_embeddings=True)
-        return [float(x) for x in vec]
-    except Exception as exc:
-        logger.warning("memory.embed_failed", error=str(exc))
-        return None
-
-
-def _vec_literal(vec: list[float]) -> str:
-    """pgvector text form: '[0.1,0.2,...]' — cast to ::vector in SQL."""
-    return "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
-
-
 # ---------------------------------------------------------------------------
 # Public API — all no-op safe when memory is disabled or the DB is down
 # ---------------------------------------------------------------------------
@@ -153,7 +97,7 @@ def save_message(user_id: str, thread_id: str, role: str, content: str) -> None:
     """Persist a chat turn (embedded when possible). Never raises."""
     if not MEMORY_ENABLED or not user_id or not content:
         return
-    embedding = _embed(content) if role in ("user", "assistant") else None
+    embedding = embed(content) if role in ("user", "assistant") else None
     try:
         with _connect() as conn:
             _ensure_schema(conn)
@@ -161,7 +105,7 @@ def save_message(user_id: str, thread_id: str, role: str, content: str) -> None:
                 conn.execute(
                     "INSERT INTO chat_message (user_id, thread_id, role, content, embedding) "
                     "VALUES (%s, %s, %s, %s, %s::vector)",
-                    (user_id, thread_id, role, content, _vec_literal(embedding)),
+                    (user_id, thread_id, role, content, to_pgvector_literal(embedding)),
                 )
             else:
                 conn.execute(
@@ -201,10 +145,10 @@ def recall_relevant(user_id: str, query: str, *, k: int = 4, exclude_thread: str
     """
     if not MEMORY_ENABLED or not user_id or not query:
         return []
-    embedding = _embed(query)
+    embedding = embed(query)
     if embedding is None:
         return []
-    literal = _vec_literal(embedding)
+    literal = to_pgvector_literal(embedding)
     if exclude_thread:
         statement = _RECALL_EXCLUDING_THREAD
         # Order: sim-select vec, user_id, excluded thread, order vec, k.

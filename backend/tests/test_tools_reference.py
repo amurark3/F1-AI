@@ -36,8 +36,15 @@ class _FakeDoc:
         self.metadata = metadata
 
 
-def _install_rulebook(monkeypatch, *, enabled: bool = True, hits=None) -> list[dict]:
-    """Patch the pgvector search and bypass the cross-encoder rerank."""
+def _install_rulebook(
+    monkeypatch, *, enabled: bool = True, hits=None, local_models: bool = True, model_loads: bool = True
+) -> list[dict]:
+    """Patch the pgvector search and bypass the cross-encoder rerank.
+
+    ``local_models`` is the deployment's ``ENABLE_LOCAL_MODELS``; ``model_loads``
+    is whether the shared embedder actually comes up. Both default to a working
+    search so the retrieval tests below exercise retrieval.
+    """
     calls: list[dict] = []
 
     def _search(query, year, *, category=None, k=24):
@@ -48,6 +55,8 @@ def _install_rulebook(monkeypatch, *, enabled: bool = True, hits=None) -> list[d
 
     monkeypatch.setattr(pgvector_store, "RULEBOOK_ENABLED", enabled)
     monkeypatch.setattr(pgvector_store, "search", _search)
+    monkeypatch.setattr(reference_module, "ENABLE_LOCAL_MODELS", local_models)
+    monkeypatch.setattr(reference_module, "get_embedder", lambda: object() if model_loads else None)
     # The reranker loads a torch model; order is not what these tests are about.
     monkeypatch.setattr(reference_module, "rerank", lambda query, docs, top_k: docs[:top_k])
     return calls
@@ -206,14 +215,50 @@ def test_a_question_with_no_matching_regulation_says_so(monkeypatch):
     )
 
 
+_NOT_SEARCHED = "The regulations were not searched, so do not tell the user they are silent on this question."
+
+
 @pytest.mark.unit
 def test_an_unconfigured_rulebook_names_the_missing_setting(monkeypatch):
     """Without DATABASE_URL there are no embeddings; "not found" would be misleading."""
-    _install_rulebook(monkeypatch, enabled=False)
+    calls = _install_rulebook(monkeypatch, enabled=False)
 
     assert consult_rulebook.invoke({"query": "anything", "year": 2026}) == (
-        "Rulebook search is unavailable — DATABASE_URL is not configured."
+        f"Rulebook search is unavailable on this deployment: DATABASE_URL is not configured. {_NOT_SEARCHED}"
     )
+    assert calls == []
+
+
+@pytest.mark.unit
+def test_disabled_local_models_say_the_search_is_unavailable_not_that_nothing_matched(monkeypatch):
+    """The search would embed to None and match nothing: the rules would read as silent.
+
+    The deployed default until the always-on host. The model must hear that the
+    search never ran, in the same words the Rules Search page uses.
+    """
+    calls = _install_rulebook(monkeypatch, local_models=False)
+    # A disabled deployment must not even try to load torch to find out.
+    monkeypatch.setattr(reference_module, "get_embedder", lambda: pytest.fail("no model load when disabled"))
+
+    answer = consult_rulebook.invoke({"query": "tyre warmers", "year": 2026})
+
+    assert answer == (
+        "Rulebook search is unavailable on this deployment: embedding a query needs a model "
+        f"this instance does not have the memory to load. {_NOT_SEARCHED}"
+    )
+    assert "No regulations found" not in answer
+    assert calls == []
+
+
+@pytest.mark.unit
+def test_an_embedding_model_that_fails_to_load_says_unavailable(monkeypatch):
+    """Enabled but broken (a failed download, a corrupt cache) is still a search that never ran."""
+    calls = _install_rulebook(monkeypatch, model_loads=False)
+
+    assert consult_rulebook.invoke({"query": "tyre warmers", "year": 2026}) == (
+        f"Rulebook search is unavailable on this deployment: the embedding model could not be loaded. {_NOT_SEARCHED}"
+    )
+    assert calls == []
 
 
 @pytest.mark.unit

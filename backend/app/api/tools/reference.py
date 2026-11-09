@@ -9,7 +9,7 @@ from langchain_core.tools import tool
 import structlog
 
 from app.api.tools.tallies import tally_lines
-from app.config import RULEBOOK_TOP_K
+from app.config import ENABLE_LOCAL_MODELS, RULEBOOK_TOP_K
 from app.data.f1db_query import (
     F1DB_SCHEMA_DOC,
     QueryValidationError,
@@ -18,8 +18,35 @@ from app.data.f1db_query import (
     run_readonly_query,
 )
 from app.rag.rerank import rerank
+from app.utils.embeddings import get_embedder
 
 logger = structlog.get_logger()
+
+# A search that never ran must not read as "No regulations found": the model
+# would tell the user the rules are silent on the question. Same reasons, and
+# the same words, as the Rules Search page (``services/rulebook.py``).
+_SEARCH_UNAVAILABLE = (
+    "Rulebook search is unavailable on this deployment: {reason}. "
+    "The regulations were not searched, so do not tell the user they are silent on this question."
+)
+
+
+def _search_unavailable_reason() -> str | None:
+    """Why the rulebook cannot be searched on this instance, or ``None`` if it can.
+
+    The embedder check loads the model when it is enabled and not yet loaded,
+    which the search would do next anyway; when local models are off it is never
+    reached, so torch is never imported to find out.
+    """
+    from app.rag.pgvector_store import RULEBOOK_ENABLED
+
+    if not RULEBOOK_ENABLED:
+        return "DATABASE_URL is not configured"
+    if not ENABLE_LOCAL_MODELS:
+        return "embedding a query needs a model this instance does not have the memory to load"
+    if get_embedder() is None:
+        return "the embedding model could not be loaded"
+    return None
 
 
 @tool
@@ -51,10 +78,12 @@ def consult_rulebook(query: str, year: int | None = None) -> str:
     logger.info("tool.consult_rulebook", year=year, query=query)
 
     try:
-        from app.rag.pgvector_store import RULEBOOK_ENABLED, search as rulebook_search
+        from app.rag.pgvector_store import search as rulebook_search
 
-        if not RULEBOOK_ENABLED:
-            return "Rulebook search is unavailable — DATABASE_URL is not configured."
+        reason = _search_unavailable_reason()
+        if reason:
+            logger.warning("tool.consult_rulebook.unavailable", reason=reason)
+            return _SEARCH_UNAVAILABLE.format(reason=reason)
 
         # Over-fetch by vector similarity from pgvector, then cross-encoder rerank
         # down to RULEBOOK_TOP_K. Similarity is recall-oriented; the reranker fixes

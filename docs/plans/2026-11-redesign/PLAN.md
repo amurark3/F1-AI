@@ -37,19 +37,20 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 
 ## Locked decisions (don't re-litigate)
 
-| Topic        | Decision                                                                                                                                                                                                                               |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Order        | **Bugs first.** Phase P0 ships as its own small PR, then the redesign phases.                                                                                                                                                          |
-| Navigation   | One top bar on every screen; the Race Control sidebar is removed. Champions, Debriefs and Rulebook go under "More".                                                                                                                    |
-| Homepage     | Photo hero using `frontend/public/hero-car.jpg`. **Static: it fetches nothing and shows no live or baked-in data** (user, 2026-11-06).                                                                                                 |
-| Loading      | No page waits on the backend; each section owns its fetch and its pending/failed/stale state. Warm-up: mini top-bar lights on `/` (non-blocking), full overlay on data routes; the lights fill 1→5 continuously (user, 2026-11-06).    |
-| Display font | Barlow Condensed for page titles and section heads. Geist Sans for UI and body, Geist Mono for labels and data.                                                                                                                        |
-| Logo         | **B1 "Apex"**: `docs/design/redesign/logo/rl-1-apex.svg` (racing line + red apex dot on a #0B0F18 tile). The user rejected the other variants; B8 is "too strong and blinding".                                                        |
-| Visual spec  | The mockups in `docs/design/redesign/` (start at `index.html`, tokens in `system.css`). Build each screen to match its mockup.                                                                                                         |
-| Charts       | Legends are **welcome when they add data points**. Telemetry Head-to-Head charts are **independent cards**, each with its own insight title, not one synced stack. Every chart title is **computed from data**, never written by hand. |
-| Tests        | Frontend coverage reaches **literal 100%** by the end. Use a per-folder ratchet. No `v8/istanbul/c8 ignore` comments; delete dead code instead.                                                                                        |
-| Names        | f1db is canonical: `driver.name` / `last_name` / `abbreviation` and the constructor id. No new Postgres identity table; read-path overlay only.                                                                                        |
-| New ideas    | All 6 approved. See the "New ideas" map below.                                                                                                                                                                                         |
+| Topic        | Decision                                                                                                                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Order        | **Bugs first.** Phase P0 ships as its own small PR, then the redesign phases.                                                                                                                                                                                                                                             |
+| Navigation   | One top bar on every screen; the Race Control sidebar is removed. Champions, Debriefs and Rulebook go under "More".                                                                                                                                                                                                       |
+| Homepage     | Photo hero using `frontend/public/hero-car.jpg`. **Static: it fetches nothing and shows no live or baked-in data** (user, 2026-11-06).                                                                                                                                                                                    |
+| Loading      | No page waits on the backend; each section owns its fetch and its pending/failed/stale state. Warm-up: **never blocks a page**. With the backend always on, only a restart shows it: a small non-blocking notice, lights from the real warm-up stages (user, 2026-11-08; replaces the 2026-11-06 overlay on data routes). |
+| Display font | Barlow Condensed for page titles and section heads. Geist Sans for UI and body, Geist Mono for labels and data.                                                                                                                                                                                                           |
+| Logo         | **B1 "Apex"**: `docs/design/redesign/logo/rl-1-apex.svg` (racing line + red apex dot on a #0B0F18 tile). The user rejected the other variants; B8 is "too strong and blinding".                                                                                                                                           |
+| Visual spec  | The mockups in `docs/design/redesign/` (start at `index.html`, tokens in `system.css`). Build each screen to match its mockup.                                                                                                                                                                                            |
+| Charts       | Legends are **welcome when they add data points**. Telemetry Head-to-Head charts are **independent cards**, each with its own insight title, not one synced stack. Every chart title is **computed from data**, never written by hand.                                                                                    |
+| Tests        | Frontend coverage reaches **literal 100%** by the end. Use a per-folder ratchet. No `v8/istanbul/c8 ignore` comments; delete dead code instead.                                                                                                                                                                           |
+| Names        | f1db is canonical: `driver.name` / `last_name` / `abbreviation` and the constructor id. No new Postgres identity table; read-path overlay only.                                                                                                                                                                           |
+| New ideas    | All 6 approved. See the "New ideas" map below.                                                                                                                                                                                                                                                                            |
+| Hosting      | Backend, Postgres + pgvector and scheduled jobs on **one Oracle Always Free A1 VM** (2 OCPU / 8 GB, Always Free account only, **$0**); frontend stays on Vercel; API at a DuckDNS subdomain over HTTPS. Supabase and Render are retired (user, 2026-11-08).                                                               |
 
 ## References
 
@@ -252,7 +253,221 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
     - No coverage for the ones a later phase rewrites or removes (the 2026-11-03 rule): `FinishChip.tsx`, `ProfileCharts.tsx` and `ProfileStates.tsx` (the Team and Driver pages are rebuilt per `team.html` / `driver.html` in P5.4) and `PowerUnitCards.tsx` (neither mockup has a power-unit section; P6.3 builds the car page per `power-units.html`).
 - **PR:** `feat: one canonical name for every driver and team`.
 
-## Phase P0b — Hotfixes, round 2: weather, strategy, map labels (next, own PR)
+## Phase P0c — Always-on backend on Oracle Cloud (P0, runs before P0b, own PR)
+
+Added 2026-11-08. The user: "the cold start cannot continue … the cost has to be 0", and every decision taken because of Render gets fixed. The evidence and the audit are in the `STATUS.md` log entry of 2026-11-08.
+
+- **Why.**
+  - Render's free plan sleeps after 15 idle minutes, so a visitor waits about 50 s.
+  - `keep-warm.yml` runs every 4–7 hours in practice (GitHub throttles cron), so it never prevents this.
+  - Render's limits also switched things off:
+    - 512 MB: `ENABLE_LOCAL_MODELS=false` turns off rulebook search and chat-memory recall.
+    - Wiped disk: the FastF1 cache, the f1db file and the in-memory caches are lost on every restart.
+    - Shared IP: GitHub API and Open-Meteo throttling.
+    - Unreliable cron.
+- **Target** (all $0; Oracle limits checked against Oracle's documentation 2026-11-08):
+  - **The VM:**
+    - One `VM.Standard.A1.Flex` with 2 OCPU and 8 GB, Ubuntu 24.04 arm64, on an **Always Free-only account**, so Oracle cannot charge it.
+    - The A1 allowance is now 2 OCPU and 12 GB.
+    - Oracle reclaims a VM only when CPU (95th percentile), network **and** memory all stay below 20% for 7 days. At 8 GB, the API with local models plus Postgres stays well above 20% memory.
+  - **Storage:** a 100 GB block volume at `/srv/f1ai` holds pgdata, `f1_cache`, f1db, the HuggingFace cache and `.env`.
+  - **Containers (Docker Compose):**
+    - `caddy`: Let's Encrypt on `<name>.duckdns.org`, WebSocket upgrade.
+    - `api`: uvicorn, **one worker**, `ENABLE_LOCAL_MODELS=true`.
+    - `postgres`: `pgvector/pgvector:pg17`, on the Docker network plus `127.0.0.1` only.
+  - **systemd timers:** PU ingest, nightly `pg_dump` to OCI Object Storage plus a weekly restore check, DuckDNS refresh.
+  - **Deploys:** a push to `main` builds on GitHub's free `ubuntu-24.04-arm` runner, pushes to GHCR, then runs a forced-command SSH `deploy.sh` that rolls back on its own.
+  - **Unchanged:** the frontend stays on Vercel; CI and `retrain.yml` stay.
+- **Stays** (not Render choices, or still right): f1db as SQLite, single-flight, lazy imports, Sentry `auto_enabling_integrations=False`, pgvector, readiness and `/api/ready`, one uvicorn worker. The FastF1 lock, the f1db sync, the lifespan loops and the whole-document stores all assume one process.
+- **Merging is safe before the VM exists.** `deploy-oracle.yml` does nothing while `ORACLE_HOST` is unset, and all code stays host-agnostic, so Render plus Supabase keep running until cutover.
+
+### P0c.1 Oracle guide, part 1: provisioning
+
+- **Do:** write `docs/deploy/ORACLE.md` for the user (not an engineer audience), as numbered console steps:
+  - **Account:**
+    - Create it as Always Free only; never upgrade.
+    - The home region is permanent. Choose one with A1 capacity; Vercel's function region is set to the nearest one at cutover.
+  - **VM:**
+    - `VM.Standard.A1.Flex`, 2 OCPU and 8 GB, Ubuntu 24.04 aarch64, 50 GB boot volume, public IPv4, an SSH key.
+    - On "Out of host capacity", retry in another availability domain, or later.
+  - **Disk:** a 100 GB block volume, attached and mounted at `/srv/f1ai` (`bootstrap.sh` in P0c.5 formats it and mounts it).
+  - **Network:** VCN wizard. Ingress for 22, 80 and 443 in the security list; Ubuntu's own iptables rules come from `bootstrap.sh`.
+  - **DuckDNS:** a subdomain pointed at the VM's IP, and the token.
+  - **Backups:**
+    - An Object Storage bucket `f1ai-backups` with a lifecycle rule deleting objects older than 14 days.
+    - A dynamic group for the instance, and a policy that lets it manage objects in that bucket, so uploads use instance-principal auth with no keys on disk.
+  - **Idle reclamation:** the rule, why 8 GB keeps us clear, and the week-1 check in OCI Monitoring that memory utilization stays at or above 25%.
+  - **Hand-back:** what to send back (the IP and the DuckDNS name), and nothing secret in chat.
+  - **Stubs:** sections 2–4 (cutover, rollback, operations) marked "written in P0c.8".
+- **Accept:** every step names the exact console path and value; the Oracle limits in it match `STATUS.md`'s 2026-11-08 log; no secret values appear.
+- **Verify:** Prettier on the file; links resolve.
+
+### P0c.2 Backend container
+
+- **Do:**
+  - **Image:** `backend/Dockerfile` and `backend/.dockerignore`.
+    - `python:3.13-slim` (matches `runtime.txt` 3.13.17), multi-arch, non-root user.
+    - `pip install -r requirements.txt` plus `requirements-ingest.txt`: CPU torch, sentence-transformers, pypdf. torch's aarch64 wheels on PyPI are CPU-only; confirm the size.
+    - `CMD uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*' --workers 1`.
+    - `ARG GIT_COMMIT`, exposed as `GIT_COMMIT`.
+  - **Paths from the environment:**
+    - `FASTF1_CACHE_DIR` overrides `DEFAULT_CACHE_DIR` (`app/utils/fastf1_cache.py:21`).
+    - Confirm `F1DB_PATH` covers the whole f1db directory (the `.version` stamp included).
+    - `HF_HOME` for the model cache.
+  - **Sentry:** the release reads `GIT_COMMIT`, then `RENDER_GIT_COMMIT` (`app/error_tracking.py:51`).
+  - **Database host checks:**
+    - `app/data/store.py` host classification and its warnings (`:76-145`, `:414-447`) and `scripts/ingest_power_units.py:71-76` learn a self-hosted host, such as `postgres` or `localhost`.
+    - No Supabase pooler warning for it. The Supabase hosts stay classified until P0c.9.
+- **Accept:**
+  - Tests cover the env overrides, the release fallback order and the self-hosted classification.
+  - `docker buildx build --platform linux/arm64 backend` succeeds, and the image size is recorded.
+  - The container, run against a local `pgvector/pgvector:pg17` with `ENABLE_LOCAL_MODELS=true`, reaches every `/api/ready` stage.
+- **Verify:** pytest (coverage 100%), `ruff check`, `ruff format --check`, module size; the build and run above.
+
+### P0c.3 Rulebook RAG and chat-memory recall back on
+
+- **Do:**
+  - **Fix `consult_rulebook`** (`app/api/tools/reference.py:53-64`). When local models are off or embedding fails, it says rulebook search is unavailable, never "No regulations found". Mirror the guard in `services/rulebook.py:72-83`.
+  - **One embedder:** `app/data/memory.py:98-129` uses `app.utils.embeddings` instead of loading its own `SentenceTransformer`.
+  - **Backfill:** `scripts/backfill_chat_embeddings.py`, idempotent and batched. It embeds the `chat_message` rows whose `embedding IS NULL`, dry-run by default, `--apply` to write.
+  - **Measure:** the API's memory with the models loaded after a rulebook query and a recall (`ps -o rss` or `/proc` in the container). Record it in STATUS.
+- **Accept:**
+  - With local models off, the tool's text says "unavailable".
+  - With them on, results are cited.
+  - The memory module never builds a second model, proven by a test spying on the loader.
+  - The backfill updates only NULL rows and reports counts.
+- **Verify:** pytest (100%), ruff, format, size.
+
+### P0c.4 Stores stay correct in a process that never restarts
+
+- **Do:**
+  - `services/prediction_cache.py`, `data/circuit_reference_cache.py` and `data/race_stints_store.py` load a whole `app_documents` document once and write it back whole, so a write from another process is overwritten. Examples: `scripts/backfill_predictions.py`, a VM job.
+  - Give writes optimistic concurrency: re-read and compare the document's version or `updated_at` before writing; on conflict, merge per key (newest entry wins) and retry.
+  - Remove the "restart after a backfill" rule: `PLAN.md` P0.3 Verify and the `STATUS.md` notes.
+- **Accept:** a test writes from "another process" (a second store instance) between the running instance's read and write, and both updates survive; no regression in the existing store tests.
+- **Verify:** pytest (100%), ruff, format, size.
+
+### P0c.5 Deploy stack and scheduled jobs
+
+- **Do:**
+  - **`deploy/oracle/compose.yaml`:**
+    - Services: `caddy`, `api` (image `ghcr.io/amurark3/f1-ai-api:${API_TAG}`, `env_file: /srv/f1ai/.env`), `postgres` (tuned for 8 GB: `shared_buffers=1GB`, `effective_cache_size=4GB`), and a `jobs` profile (same image, one-shot).
+    - Volumes under `/srv/f1ai`.
+    - Docker `json-file` log rotation.
+    - Postgres published on `127.0.0.1:5432` only.
+    - Health checks.
+  - **`deploy/oracle/Caddyfile`:** `{$API_HOST}`, `reverse_proxy api:8000` (WebSocket works as-is), `encode zstd gzip`.
+  - **`deploy/oracle/bootstrap.sh`** (idempotent, run once as root):
+    - Docker Engine and the compose plugin.
+    - A 2 GB swap file.
+    - Format and mount the block volume at `/srv/f1ai` (fstab with `_netdev,nofail`).
+    - iptables accept for 80 and 443, persisted.
+    - unattended-upgrades.
+    - `PasswordAuthentication no`.
+    - A `deploy` user.
+    - Install the systemd units.
+  - **`deploy/oracle/deploy.sh`:** the only command the deploy key may run (`command=` in `authorized_keys`), which accepts only `deploy <sha>` or `ingest-rulebook`. It:
+    1. Pulls the SHA tag.
+    2. Records the previous tag.
+    3. Runs `up -d`.
+    4. Waits up to 120 s for `/api/ready`.
+    5. On failure, restores the previous tag and exits non-zero.
+  - **systemd units in `deploy/oracle/systemd/`:**
+    - `f1ai-pu-ingest`: the same schedule as `ingest-power-units.yml` (`17 * * * 4,5,6,0,1` and `47 5 * * *` UTC), running `scripts.ingest_power_units --require-database`.
+    - `f1ai-backup`: nightly `pg_dump -Fc` uploaded with the `oci` CLI under instance-principal auth.
+    - `f1ai-restore-check`: weekly; restores the latest dump into a scratch database and compares row counts.
+    - `f1ai-duckdns`: every 5 minutes.
+  - **`.github/workflows/deploy-oracle.yml`:**
+    1. Triggers on push to `main` (and `workflow_dispatch`).
+    2. Skips when `vars.ORACLE_HOST` is empty.
+    3. Builds on `ubuntu-24.04-arm` with `GIT_COMMIT` and pushes `ghcr.io/amurark3/f1-ai-api:{sha,latest}` (`packages: write`).
+    4. SSHes `deploy <sha>`.
+    5. When the push touched `backend/data/raw/**`, also SSHes `ingest-rulebook`, which replaces `ingest-rulebook.yml` after cutover.
+- **Accept:**
+  - `docker compose -f deploy/oracle/compose.yaml config` is valid.
+  - `shellcheck` is clean on every script.
+  - A local smoke run (the compose stack with a local `.env`; Caddy on `localhost` with an internal certificate) gives 200 on `/api/health/deep` and reaches `ready`.
+  - `deploy.sh` rejects any other command.
+  - A simulated failed health check rolls back.
+- **Verify:** the commands above, plus `actionlint` on the workflow when it is installed.
+
+### P0c.6 Supabase → VM data migration
+
+- **Do:**
+  - `deploy/oracle/migrate-from-supabase.sh SOURCE_URL TARGET_URL [--dry-run]`:
+    1. Requires the target schema to exist: the API has booted once, and the app creates the extension and its tables.
+    2. Runs `pg_dump --data-only` of `app_documents`, `analysis_cache`, `chat_message`, `user_profile` and `rulebook_chunk` from the Supabase session pooler.
+    3. Restores into the target in one transaction.
+    4. Fixes sequences.
+    5. Compares row counts per table and the `rulebook_chunk` vector dimension, and exits non-zero on any mismatch.
+  - `--dry-run` restores into a scratch database and drops it.
+  - First check that no other table is created anywhere: `grep -rn "CREATE TABLE"`.
+- **Accept:**
+  - A rehearsal against a local source database seeded from fixtures passes, and a deliberate mismatch fails.
+  - It never writes to the source; the source credentials are read from the environment, never from the command line.
+- **Verify:** shellcheck; the rehearsal.
+
+### P0c.7 Frontend: an always-on backend
+
+- **Do:**
+  - **`ServerWarmingGate`:** no `inert`, no scroll lock. A restart shows a small non-blocking notice ("Updating — back in a few seconds"), and the free-tier wording (`ServerWarmingOverlay.tsx:158`) goes.
+  - **`app/lib/serverStatus.ts`:**
+    - Only a failed probe counts as not ready. The rule that a first probe slower than 1.5 s means a cold server goes (`:36-41`).
+    - The 60 s stale-tab recheck goes (`:42-43`, `:185-205`).
+    - The back/forward-cache and online rechecks stay.
+  - **`app/lib/server/backend.ts`:** the per-request budget shrinks from 10 s to 5 s; build budget unchanged. Retries stay for 502/503/504 (a restart); the 429 rationale and the comments are updated.
+  - **`app/lib/server/champions.ts:108-116`:** prerender every season.
+  - **Comments:** the Render text in `page.tsx`, `fetcher.ts` and `CommandCenterView.tsx` is updated.
+  - **PLAN.md:** P3.5 rewritten to the 2026-11-08 Loading decision.
+- **Accept:**
+  - `serverStatus.ts` 100% (in the include list).
+  - An e2e check: a page stays interactive while `/api/ready` reports warming.
+  - No test for overlay code that P3.5 replaces (the no-coverage-for-rewrites rule).
+- **Verify:** `npm run lint`, `typecheck`, `build`, `test:coverage`, `e2e`.
+
+### P0c.8 Guide, part 2: cutover, rollback, operations; docs
+
+- **Do:** finish `docs/deploy/ORACLE.md`.
+  - **Cutover:**
+    1. Run `bootstrap.sh`.
+    2. Write `/srv/f1ai/.env` (chmod 600) from the variable list in `render.yaml`, plus the new `DATABASE_URL`, `ENABLE_LOCAL_MODELS=true`, `FASTF1_CACHE_DIR`, `HF_HOME`, `F1DB_PATH`, `API_HOST` and `DUCKDNS_*`.
+    3. Set the GitHub variable `ORACLE_HOST` and the secret `ORACLE_SSH_KEY`.
+    4. Run the first deploy.
+    5. Freeze writes: disable the `ingest-power-units` and `ingest-rulebook` Actions, then suspend Render.
+    6. Run the migration and check its counts.
+    7. Run the chat-embedding backfill (`--apply`).
+    8. In Vercel, set `NEXT_PUBLIC_API_URL` and `API_URL` to `https://<name>.duckdns.org`, set the function region nearest the Oracle region, and redeploy.
+    9. Add a free UptimeRobot monitor on `/api/health/deep`.
+    10. Run the smoke checklist.
+  - **Rollback:** point Vercel's environment back at `https://f1-ai.onrender.com`, resume Render and re-enable the Actions. Supabase is untouched and keeps its data at least 90 days.
+  - **Operations:**
+    - Logs, restart and deploy-by-hand.
+    - A `psql` shell over an SSH tunnel.
+    - Restore from Object Storage.
+    - Running scripts (`backfill_predictions`, rulebook ingest) with `docker compose run --rm jobs …`.
+    - Rotating secrets.
+    - Weekly checks: memory at or above 25%, $0, backups present.
+  - **Docs:**
+    - `DEPLOYMENT.md` is rewritten around the VM and points to the guide.
+    - `README.md` loses its Render references.
+    - P0b.1 drops the GitHub Actions refresher and diagnoses on the VM.
+    - Close `.planning/todos/pending/2026-03-10-handle-render-cold-start-with-ui-loading-state.md`.
+- **Accept:** every command in the guide matches the files from P0c.5–P0c.6; no secret values; no "Render" left in `DEPLOYMENT.md` except the rollback and history notes.
+- **Verify:** Prettier; grep for `onrender` and `Render` in the docs touched.
+
+### P0c.9 Decommission (after 7 stable days on the VM; goes into the next PR)
+
+- **Do:**
+  - Delete `render.yaml`, `keep-warm.yml`, `ingest-power-units.yml` and `ingest-rulebook.yml`.
+  - Delete the dead `CHROMA_DB_PATH`, and the Supabase-only host branches in `store.py` and `ingest_power_units.py`.
+  - The user deletes the GitHub secrets `DATABASE_URL` and `HF_TOKEN`, archives a final Supabase dump to Object Storage, deletes the Supabase project two weeks later, and deletes the Render service.
+  - Update the memory notes about Supabase, Render, cold start and local runs.
+- **Accept:** `grep -rni "onrender\|supabase" backend frontend .github` finds only history notes.
+- **Verify:** the full backend and frontend gates.
+
+- **PR:** `feat: always-on backend on Oracle Cloud` (P0c.1–P0c.8). P0c.9 goes into the next phase's PR.
+
+## Phase P0b — Hotfixes, round 2: weather, strategy, map labels (after P0c, own PR)
 
 Added 2026-11-06 from the user's review of the live Command Center during the São Paulo weekend (R20). Bugs first, so this phase runs before P3. The evidence is in the `STATUS.md` log entry of 2026-11-06.
 
@@ -363,17 +578,17 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
   - Even a correct parse is the qualifying order, not the grid: grid penalties and pit-lane starts never reach it.
   - **Checked against production R20 post-qualifying** (grid endpoint = qualifying order, provisional). 9 of 22 rows are wrong:
 
-    | Driver | Predicted | Shown | Grid | Correct |
-    | ------ | --------- | ----- | ---- | ------- |
-    | LEC    | P4        | +1    | P4   | 0       |
-    | HAM    | P7        | +1    | P11  | +4      |
-    | VER    | P8        | +2    | P16  | +8      |
-    | PIA    | P10       | 0     | P12  | +2      |
-    | GAS    | P15       | −1    | P18  | +3      |
+    | Driver | Predicted | Shown | Grid | Correct                                    |
+    | ------ | --------- | ----- | ---- | ------------------------------------------ |
+    | LEC    | P4        | +1    | P4   | 0                                          |
+    | HAM    | P7        | +1    | P11  | +4                                         |
+    | VER    | P8        | +2    | P16  | +8                                         |
+    | PIA    | P10       | 0     | P12  | +2                                         |
+    | GAS    | P15       | −1    | P18  | +3                                         |
     | CAM    | P18       | −2    | P13  | −5 (his prediction moves once P0b.6 lands) |
-    | STR    | P19       | −2    | P19  | 0       |
-    | PER    | P20       | −2    | P21  | +1      |
-    | BOR    | P22       | −5    | P22  | 0       |
+    | STR    | P19       | −2    | P19  | 0                                          |
+    | PER    | P20       | −2    | P21  | +1                                         |
+    | BOR    | P22       | −5    | P22  | 0                                          |
 
 - **Do:**
   - Pass the hub's `StartingGridResponse` into the table. `useStartingGrid` (`GrandPrixView.tsx`) already fetches it and `GrandPrixBoardProps.grid` already carries it, so thread it through `PredictionSection` → `PredictionViewContent` → `FullGridTable`. No new fetch.
@@ -625,8 +840,9 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P0b → P3 → D1 → P4 → P5 → D2 → P6 → P7 → P8 → P9`
+`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P6 → P7 → P8 → P9`
 
+- P0c was added on 2026-11-08 as P0 (user) and runs first: P0b.1's Open-Meteo diagnosis belongs on the new host.
 - P0b was added on 2026-11-06 and runs before P3 (bugs first). P3.6 depends on P0b.3's section kit.
 - P4 can start before D1 finishes; the Grid tab's FIA reasons wait for D2.
 - P6.1's penalty timeline uses race control first and gains FIA decisions after D2.

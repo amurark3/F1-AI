@@ -50,7 +50,7 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 | Tests        | Frontend coverage reaches **literal 100%** by the end. Use a per-folder ratchet. No `v8/istanbul/c8 ignore` comments; delete dead code instead.                                                                                                                                                                           |
 | Names        | f1db is canonical: `driver.name` / `last_name` / `abbreviation` and the constructor id. No new Postgres identity table; read-path overlay only.                                                                                                                                                                           |
 | New ideas    | All 6 approved. See the "New ideas" map below.                                                                                                                                                                                                                                                                            |
-| Hosting      | Backend, Postgres + pgvector and scheduled jobs on **one Oracle Always Free A1 VM** (2 OCPU / 8 GB, Always Free account only, **$0**); frontend stays on Vercel; API at a DuckDNS subdomain over HTTPS. Supabase and Render are retired (user, 2026-11-08).                                                               |
+| Hosting      | Backend, Postgres + pgvector and scheduled jobs on **one Oracle Always Free A1 VM** (2 OCPU / 6 GB, Always Free account only, **$0**); frontend stays on Vercel; API at a DuckDNS subdomain over HTTPS. Supabase and Render are retired (user, 2026-11-08).                                                               |
 
 ## References
 
@@ -267,9 +267,9 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
     - Unreliable cron.
 - **Target** (all $0; Oracle limits checked against Oracle's documentation 2026-11-08):
   - **The VM:**
-    - One `VM.Standard.A1.Flex` with 2 OCPU and 8 GB, Ubuntu 24.04 arm64, on an **Always Free-only account**, so Oracle cannot charge it.
+    - One `VM.Standard.A1.Flex` with 2 OCPU and 6 GB, Ubuntu 24.04 arm64, on an **Always Free-only account**, so Oracle cannot charge it.
     - The A1 allowance is now 2 OCPU and 12 GB.
-    - Oracle reclaims a VM only when CPU (95th percentile), network **and** memory all stay below 20% for 7 days. At 8 GB, the API with local models plus Postgres stays well above 20% memory.
+    - Oracle reclaims a VM only when CPU (95th percentile), network **and** memory all stay below 20% for 7 days. At 6 GB, the API with local models (measured at about 0.65 GB in P0c.3) plus Postgres, Caddy and the OS holds about 2 GB, roughly a third, so memory stays above 20%.
   - **Storage:** a 100 GB block volume at `/srv/f1ai` holds pgdata, `f1_cache`, f1db, the HuggingFace cache and `.env`.
   - **Containers (Docker Compose):**
     - `caddy`: Let's Encrypt on `<name>.duckdns.org`, WebSocket upgrade.
@@ -288,7 +288,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
     - Create it as Always Free only; never upgrade.
     - The home region is permanent. Choose one with A1 capacity; Vercel's function region is set to the nearest one at cutover.
   - **VM:**
-    - `VM.Standard.A1.Flex`, 2 OCPU and 8 GB, Ubuntu 24.04 aarch64, 50 GB boot volume, public IPv4, an SSH key.
+    - `VM.Standard.A1.Flex`, 2 OCPU and 6 GB, Ubuntu 24.04 aarch64, 50 GB boot volume, public IPv4, an SSH key.
     - On "Out of host capacity", retry in another availability domain, or later.
   - **Disk:** a 100 GB block volume, attached and mounted at `/srv/f1ai` (`bootstrap.sh` in P0c.5 formats it and mounts it).
   - **Network:** VCN wizard. Ingress for 22, 80 and 443 in the security list; Ubuntu's own iptables rules come from `bootstrap.sh`.
@@ -296,7 +296,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
   - **Backups:**
     - An Object Storage bucket `f1ai-backups` with a lifecycle rule deleting objects older than 14 days.
     - A dynamic group for the instance, and a policy that lets it manage objects in that bucket, so uploads use instance-principal auth with no keys on disk.
-  - **Idle reclamation:** the rule, why 8 GB keeps us clear, and the week-1 check in OCI Monitoring that memory utilization stays at or above 25%.
+  - **Idle reclamation:** the rule, why 6 GB keeps us clear, and the week-1 check in OCI Monitoring that memory utilization stays at or above 25%.
   - **Hand-back:** what to send back (the IP and the DuckDNS name), and nothing secret in chat.
   - **Stubs:** sections 2–4 (cutover, rollback, operations) marked "written in P0c.8".
 - **Accept:** every step names the exact console path and value; the Oracle limits in it match `STATUS.md`'s 2026-11-08 log; no secret values appear.
@@ -351,7 +351,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
 
 - **Do:**
   - **`deploy/oracle/compose.yaml`:**
-    - Services: `caddy`, `api` (image `ghcr.io/amurark3/f1-ai-api:${API_TAG}`, `env_file: /srv/f1ai/.env`), `postgres` (tuned for 8 GB: `shared_buffers=1GB`, `effective_cache_size=4GB`), and a `jobs` profile (same image, one-shot).
+    - Services: `caddy`, `api` (image `ghcr.io/amurark3/f1-ai-api:${API_TAG}`, `env_file: /srv/f1ai/.env`), `postgres` (tuned for 6 GB: `shared_buffers=768MB`, `effective_cache_size=3GB`), and a `jobs` profile (same image, one-shot).
     - Volumes under `/srv/f1ai`.
     - Docker `json-file` log rotation.
     - Postgres published on `127.0.0.1:5432` only.

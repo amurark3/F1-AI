@@ -12,7 +12,7 @@ Browser ──▶ Vercel (Next.js frontend, unchanged)
                ▼
 https://<name>.duckdns.org   (DuckDNS: name → the VM's public IP)
                │
-┌──────────────▼── VM "f1ai": VM.Standard.A1.Flex, 2 OCPU / 8 GB, Ubuntu 24.04 arm64 ──┐
+┌──────────────▼── VM "f1ai": VM.Standard.A1.Flex, 2 OCPU / 6 GB, Ubuntu 24.04 arm64 ──┐
 │ caddy     :80 / :443, Let's Encrypt certificate, WebSocket upgrade                   │
 │   └▶ api  uvicorn, one worker, ENABLE_LOCAL_MODELS=true (rulebook search + recall)   │
 │        └▶ postgres  pgvector/pgvector:pg17, Docker network and 127.0.0.1 only        │
@@ -31,7 +31,7 @@ https://<name>.duckdns.org   (DuckDNS: name → the VM's public IP)
 
 | Resource          | Always Free allowance                                                      | This setup                                    |
 | ----------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| Ampere A1 compute | 1,500 OCPU hours + 9,000 GB hours a month = 2 OCPU and 12 GB, split freely | One VM, 2 OCPU / 8 GB                         |
+| Ampere A1 compute | 1,500 OCPU hours + 9,000 GB hours a month = 2 OCPU and 12 GB, split freely | One VM, 2 OCPU / 6 GB                         |
 | AMD E2.1.Micro    | Two VMs, 1/8 OCPU and 1 GB each                                            | Not used                                      |
 | Block Volume      | 200 GB in total, boot volumes included; five volume backups                | 50 GB boot + 100 GB data = 150 GB; no backups |
 | Object Storage    | 20 GB; 50,000 API requests a month                                         | 14 nightly dumps; a few requests a day        |
@@ -78,7 +78,7 @@ The private key (`~/.ssh/f1ai`) never leaves your machine.
 2. **Basic information:**
    - **Name:** `f1ai`.
    - **Placement → Availability domain:** the first one (AD-1). Single-AD regions have only one.
-   - **Image and shape → Change shape:** **Instance type** Virtual machine → **Shape series** Ampere → `VM.Standard.A1.Flex` → **Number of OCPUs** `2`, **Amount of memory (GB)** `8` → **Select shape**. Leave **Burstable** off.
+   - **Image and shape → Change shape:** **Instance type** Virtual machine → **Shape series** Ampere → `VM.Standard.A1.Flex` → **Number of OCPUs** `2`, **Amount of memory (GB)** `6` → **Select shape**. Leave **Burstable** off.
    - **Image and shape → Change image:** Ubuntu → **Canonical Ubuntu 24.04** (not "Minimal") → **Select image**. The image summary should name an `aarch64` build; if it doesn't, pick the aarch64 build.
    - Both should carry the **Always Free-eligible** label.
 3. **Security:** leave the defaults.
@@ -96,7 +96,7 @@ The private key (`~/.ssh/f1ai`) never leaves your machine.
    ssh -i ~/.ssh/f1ai ubuntu@<public-ip>
    ```
 
-**"Out of host capacity".** Oracle's meaning: a temporary lack of Always Free A1 hosts in your home region. Its guidance is to create the instance in another availability domain, or to wait and try again (its third suggestion, upgrading, is ruled out). A free-only account can see this for hours or days. Retry the same settings; never raise the shape above 2 OCPU / 8 GB to get through.
+**"Out of host capacity".** Oracle's meaning: a temporary lack of Always Free A1 hosts in your home region. Its guidance is to create the instance in another availability domain, or to wait and try again (its third suggestion, upgrading, is ruled out). A free-only account can see this for hours or days. Retry the same settings; never raise the shape above 2 OCPU / 6 GB to get through.
 
 ### 1.4 Block volume
 
@@ -185,13 +185,13 @@ Oracle's rule: it deems a VM idle, and may reclaim an Always Free one, when over
 - network utilization is under 20%;
 - memory utilization is under 20% (counted on A1 shapes only).
 
-Oracle's page names no exemption for Pay As You Go accounts, so upgrading wouldn't avoid it either. We stay clear on memory: the API with its local models loaded plus Postgres uses about 3 GB (P0c.3 measures it), roughly 40% of 8 GB, around the clock. That's why the VM has 8 GB rather than the full 12.
+Oracle's page names no exemption for Pay As You Go accounts, so upgrading wouldn't avoid it either. We stay clear on memory. P0c.3 measured the API at about 0.65 GB with its local models loaded (macOS, before its caches fill); with Postgres, Caddy and the OS the VM should hold about 2 GB around the clock, roughly a third of 6 GB. That's why the VM has 6 GB rather than the full 12: the more memory it has, the harder it is to stay above 20%.
 
 **Week-1 check** (the first week the stack runs):
 
 1. **Compute → Instances → f1ai → Monitoring** tab [Resources → Metrics] → metric namespace `oci_computeagent` → **Memory Utilization**. It should read at or above 25% across the week.
 2. If the charts are empty: **Oracle Cloud Agent** tab → **Compute Instance Monitoring** → Enabled. Data appears within about 10 minutes.
-3. If memory reads under 25%, lower the denominator rather than add load. On the instance page: **More actions** → **Edit** → **Edit shape** → **Amount of memory (GB)** `6` → **Save changes**. The VM reboots; 3 GB of 6 is 50%.
+3. If memory reads under 25%, lower the denominator rather than add load. On the instance page: **More actions** → **Edit** → **Edit shape** → **Amount of memory (GB)** `4` → **Save changes**. The VM reboots; 2 GB of 4 is 50%. Never go below 4 GB: FastF1 race loads need the headroom.
 
 ### 1.9 Stay at $0
 

@@ -5,6 +5,10 @@ survives a process restart (it used to live in a module-level dict, so every
 cold start reloaded the telemetry behind it), a superseded reference expires,
 and a store outage is never mistaken for an empty cache — writing on top of
 one would drop every reference this process failed to read.
+
+The document is read once per process, so a write applies to the latest stored
+document rather than to that copy: a reference another process stored since is
+kept, and for the same circuit the newer ``stored_at`` wins.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -19,7 +23,9 @@ from app.data.circuit_reference_cache import (
     CircuitReferenceCache,
     CircuitReferenceCacheUnavailableError,
 )
-from app.data.store_types import ReadResult, WriteResult
+from app.data.store import DOCUMENT_CIRCUIT_REFERENCE, PostgresDocumentStore
+from app.data.store_types import ReadResult, UpdateResult
+from tests.document_table_support import DocumentTable, install_document_table
 
 pytestmark = pytest.mark.unit
 
@@ -50,10 +56,10 @@ class FakeStore:
             return ReadResult(ok=False, error="connection refused")
         return ReadResult(payload=self.payload)
 
-    def write(self, name, payload):
-        self.writes.append(payload)
-        self.payload = payload
-        return WriteResult(ok=True, durable=self.durable)
+    def update(self, name, change):
+        self.payload = change(self.payload)
+        self.writes.append(self.payload)
+        return UpdateResult(ok=True, durable=self.durable, payload=self.payload)
 
 
 @pytest.fixture
@@ -258,3 +264,89 @@ def test_an_entry_with_an_unreadable_timestamp_is_treated_as_expired(store):
     }
 
     assert CircuitReferenceCache().get(CITY, YEAR) is None
+
+
+# ---------------------------------------------------------------------------
+# Two processes sharing one stored document
+# ---------------------------------------------------------------------------
+
+MONZA = {**REFERENCE, "median_first_stop": 21, "pit_loss_seconds": 24.0}
+
+
+@pytest.fixture
+def table(monkeypatch, tmp_path) -> DocumentTable:
+    """One fake ``app_documents`` table behind the real Postgres store."""
+    shared = install_document_table(monkeypatch, tmp_path)
+    monkeypatch.setattr(cache_module, "document_store", PostgresDocumentStore("postgresql://u:p@postgres:5432/f1ai"))
+    return shared
+
+
+def _stored(table: DocumentTable) -> dict:
+    return table.payload(DOCUMENT_CIRCUIT_REFERENCE)["entries"]
+
+
+def test_a_reference_another_process_stored_after_this_one_read_is_kept(table):
+    running = CircuitReferenceCache()
+    assert running.get(CITY, YEAR) is None  # this process reads the document now
+
+    CircuitReferenceCache().set("Monza", YEAR, MONZA)  # another process
+    running.set(CITY, YEAR, REFERENCE)
+
+    assert set(_stored(table)) == {"zandvoort:2026", "monza:2026"}
+    hit = running.get("Monza", YEAR)
+    assert hit is not None, "the running process now serves it too"
+    assert hit.reference == MONZA
+
+
+def test_a_reference_stored_between_the_read_and_the_write_is_kept(table):
+    running = CircuitReferenceCache()
+    running.get(CITY, YEAR)
+    table.before_next_write(lambda: CircuitReferenceCache().set("Monza", YEAR, MONZA))
+
+    running.set(CITY, YEAR, REFERENCE)
+
+    assert set(_stored(table)) == {"zandvoort:2026", "monza:2026"}
+
+
+def test_for_the_same_circuit_the_newer_reference_wins_over_a_later_write(table, at):
+    """The other process minted its entry after this one did, so its entry is the newer one."""
+    minted = datetime(2026, 1, 1, tzinfo=UTC)
+    at(minted)
+    running = CircuitReferenceCache()
+    running.get(CITY, YEAR)
+
+    def other_process_stores_a_newer_one() -> None:
+        at(minted + timedelta(hours=1))
+        CircuitReferenceCache().set(CITY, YEAR, MONZA)
+
+    table.before_next_write(other_process_stores_a_newer_one)
+    running.set(CITY, YEAR, REFERENCE)
+
+    assert _stored(table)["zandvoort:2026"]["reference"] == MONZA
+    hit = running.get(CITY, YEAR)
+    assert hit is not None
+    assert hit.reference == MONZA
+
+
+def test_for_the_same_circuit_this_process_wins_with_the_newer_entry(table, at):
+    minted = datetime(2026, 1, 1, tzinfo=UTC)
+    at(minted)
+    running = CircuitReferenceCache()
+    running.get(CITY, YEAR)
+    CircuitReferenceCache().set(CITY, YEAR, MONZA)
+
+    at(minted + timedelta(hours=1))
+    running.set(CITY, YEAR, REFERENCE)
+
+    assert _stored(table)["zandvoort:2026"]["reference"] == REFERENCE
+
+
+def test_an_undated_stored_entry_loses_to_a_dated_one(table):
+    table.put(
+        DOCUMENT_CIRCUIT_REFERENCE,
+        {"schema_version": CACHE_SCHEMA_VERSION, "entries": {"zandvoort:2026": {"reference": MONZA}}},
+    )
+
+    CircuitReferenceCache().set(CITY, YEAR, REFERENCE)
+
+    assert _stored(table)["zandvoort:2026"]["reference"] == REFERENCE

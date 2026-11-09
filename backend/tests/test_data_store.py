@@ -503,7 +503,7 @@ def test_schema_creation_is_skipped_when_another_thread_won_the_lock(pg_store):
 
 @pytest.mark.unit
 def test_postgres_read_returns_the_stored_row(monkeypatch, pg_store):
-    conn = _FakeConnection(row=({"2026": {"round": 1}},))
+    conn = _FakeConnection(row=({"2026": {"round": 1}}, 3))
     _install_connect(monkeypatch, connection=conn)
 
     result = pg_store.read(DOCUMENT_PREDICTION_CACHE)
@@ -527,7 +527,7 @@ def test_postgres_read_promotes_a_pre_postgres_local_file_when_no_row_exists(mon
 
 @pytest.mark.unit
 def test_postgres_read_falls_back_when_the_row_payload_is_not_an_object(monkeypatch, pg_store, fallback_files):
-    _install_connect(monkeypatch, connection=_FakeConnection(row=("not a dict",)))
+    _install_connect(monkeypatch, connection=_FakeConnection(row=("not a dict", 1)))
 
     assert pg_store.read(DOCUMENT_PREDICTION_CACHE).missing is True
 
@@ -586,7 +586,7 @@ def test_a_successful_read_clears_a_previous_failure(monkeypatch, pg_store):
     _install_connect(monkeypatch, error=psycopg.OperationalError(DRIVER_MESSAGE))
     pg_store.read(DOCUMENT_PREDICTION_CACHE)
 
-    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1},)))
+    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1}, 1)))
     pg_store.read(DOCUMENT_PREDICTION_CACHE)
 
     health = pg_store.health()
@@ -676,7 +676,8 @@ def test_a_repeated_failure_keeps_only_the_latest_payload_queued(monkeypatch, pg
     pg_store.write(DOCUMENT_PREDICTION_CACHE, {"version": "old"})
     pg_store.write(DOCUMENT_PREDICTION_CACHE, {"version": "new"})
 
-    assert pg_store._pending == {DOCUMENT_PREDICTION_CACHE: {"version": "new"}}
+    documents, changes = pg_store._pending.snapshot()
+    assert (documents, changes) == ({DOCUMENT_PREDICTION_CACHE: ({"version": "new"}, None)}, {})
 
 
 @pytest.mark.unit
@@ -722,7 +723,7 @@ def test_ping_reports_a_connection_failure_with_a_classified_reason(monkeypatch,
 @pytest.mark.unit
 def test_ping_reuses_a_recent_result_instead_of_opening_a_connection(monkeypatch, pg_store):
     """An unauthenticated endpoint must not burn a connection per request."""
-    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1},)))
+    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1}, 1)))
     pg_store.read(DOCUMENT_PREDICTION_CACHE)
 
     calls = _install_connect(monkeypatch, error=AssertionError("ping must not reconnect"))
@@ -734,7 +735,7 @@ def test_ping_reuses_a_recent_result_instead_of_opening_a_connection(monkeypatch
 
 @pytest.mark.unit
 def test_ping_reprobes_once_the_cached_result_is_too_old(monkeypatch, pg_store):
-    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1},)))
+    _install_connect(monkeypatch, connection=_FakeConnection(row=({"a": 1}, 1)))
     pg_store.read(DOCUMENT_PREDICTION_CACHE)
 
     conn = _FakeConnection(row=(1,))

@@ -14,8 +14,15 @@ read.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
+
+# A write expressed as a change to the latest stored document: given what is
+# stored now (``None`` when nothing is), return the document to store. Unlike a
+# whole document built from an earlier read, a change can be re-applied when
+# another process wrote in between, so neither write is lost.
+DocumentChange = Callable[[dict | None], dict]
 
 
 @dataclass(frozen=True)
@@ -31,6 +38,9 @@ class ReadResult:
     payload: dict | None = None
     ok: bool = True
     error: str | None = None
+    # The stored row's version (Postgres only). ``update`` writes only while the
+    # row is still at the version it read.
+    version: int | None = None
 
     @property
     def missing(self) -> bool:
@@ -51,6 +61,22 @@ class WriteResult:
     ok: bool = True
     durable: bool = True
     error: str | None = None
+
+
+@dataclass(frozen=True)
+class UpdateResult:
+    """Outcome of :meth:`DocumentStore.update`.
+
+    ``payload`` is the document as stored once the change applied: the latest
+    document, other processes' writes included, so a caller can adopt it as its
+    in-memory copy. It is ``None`` whenever nothing was stored; the caller then
+    applies the change to its own copy, and a Postgres store has queued it.
+    """
+
+    ok: bool = True
+    durable: bool = True
+    error: str | None = None
+    payload: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +137,8 @@ class DocumentStore(Protocol):
     def read(self, name: str) -> ReadResult: ...
 
     def write(self, name: str, payload: dict) -> WriteResult: ...
+
+    def update(self, name: str, change: DocumentChange) -> UpdateResult: ...
 
     def health(self) -> StoreHealth: ...
 

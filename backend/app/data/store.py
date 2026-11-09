@@ -15,6 +15,18 @@ Failures are reported, never disguised.  A failed read returns
 write is **not** diverted to the local file — on an ephemeral host that would
 turn a visible outage into silent data loss.  The payload is held in memory
 instead and retried on the next write, so a transient outage self-heals.
+
+More than one process writes these documents (the API, a backfill script, a
+scheduled job), and some callers hold a document in memory for the life of the
+process.  ``update`` therefore takes a *change* rather than a whole document: it
+reads the latest row and its ``version``, applies the change, and writes only
+while the row is still at that version (``UPDATE … WHERE version = seen``),
+otherwise re-reading and re-applying, a bounded number of times.  A change queued
+through an outage is re-applied the same way, and a whole document queued by
+``write`` is replayed only while the row is still at the version this process
+last read, so a stale copy never overwrites a newer write.  Only a database
+error queues a change: one that cannot apply (lost every race, or raised) would
+fail again on every retry, so it is reported and dropped instead.
 """
 
 from __future__ import annotations
@@ -25,6 +37,7 @@ if TYPE_CHECKING:
     import psycopg
 
 import contextlib
+import dataclasses
 import json
 import os
 from pathlib import Path
@@ -35,7 +48,8 @@ import structlog
 
 from app.api.errors import new_error_id
 from app.config import PREDICTION_CACHE_PATH, PREDICTION_HISTORY_PATH
-from app.data.store_types import DocumentStore, ReadResult, StoreHealth, WriteResult
+from app.data.store_queue import PendingWrites, compose
+from app.data.store_types import DocumentChange, DocumentStore, ReadResult, StoreHealth, UpdateResult, WriteResult
 
 logger = structlog.get_logger()
 
@@ -67,6 +81,12 @@ _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_POWER_UNIT_STATUS: "data/power_unit_ingest_status.json",
     DOCUMENT_RACE_STINTS: "data/race_stints.json",
 }
+
+# How many times ``update`` re-reads and re-applies a change after another writer
+# changed the document between its read and its write. These documents are
+# written rarely (a computed prediction, a circuit reference, a race's stints),
+# so running out means something is rewriting the document in a loop.
+MAX_UPDATE_ATTEMPTS = 5
 
 BACKEND_POSTGRES = "postgres"
 BACKEND_FILE = "file"
@@ -158,6 +178,11 @@ CREATE TABLE IF NOT EXISTS app_documents (
 -- so enabling it with no policies denies the anon/authenticated API while
 -- leaving the app untouched.  Idempotent: a no-op once already enabled.
 ALTER TABLE app_documents ENABLE ROW LEVEL SECURITY;
+
+-- Optimistic concurrency: every write moves the version on, and ``update``
+-- writes only while the row is still at the version it read.  Idempotent, so an
+-- existing table gains the column on the next boot.
+ALTER TABLE app_documents ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
 """
 
 
@@ -170,11 +195,22 @@ def _dumps(payload: dict) -> str:
     return json.dumps(payload, default=_json_default)
 
 
+class DocumentUpdateError(RuntimeError):
+    """An update could not be applied: the document kept changing, or its base was unreadable."""
+
+
 # ---------------------------------------------------------------------------
 # File backend (local dev / fallback)
 # ---------------------------------------------------------------------------
 class FileDocumentStore:
-    """Reads/writes each document to its configured JSON file (atomic writes)."""
+    """Reads/writes each document to its configured JSON file (atomic writes).
+
+    Local development only, where one process owns the files: ``update`` applies
+    the change to what is on disk under a process-local lock.
+    """
+
+    def __init__(self) -> None:
+        self._update_lock = threading.Lock()
 
     def read(self, name: str) -> ReadResult:
         path_str = _FALLBACK_FILES.get(name)
@@ -227,6 +263,18 @@ class FileDocumentStore:
                 tmp_path.unlink(missing_ok=True)
             return WriteResult(ok=False, durable=False, error=str(exc))
 
+    def update(self, name: str, change: DocumentChange) -> UpdateResult:
+        """Apply ``change`` to the document on disk; a failed read writes nothing."""
+        with self._update_lock:
+            current = self.read(name)
+            if not current.ok:
+                return UpdateResult(ok=False, durable=False, error=current.error)
+            payload = change(current.payload)
+            written = self.write(name, payload)
+        if not written.ok:
+            return UpdateResult(ok=False, durable=False, error=written.error)
+        return UpdateResult(durable=written.durable, payload=payload)
+
     def health(self) -> StoreHealth:
         return StoreHealth(
             backend=BACKEND_FILE,
@@ -262,7 +310,9 @@ class PostgresDocumentStore:
         self._file_fallback = FileDocumentStore()
         self._schema_ready = False
         self._lock = threading.Lock()
-        self._pending: dict[str, dict] = {}
+        self._pending = PendingWrites()
+        # The version of each document as this process last read it.
+        self._seen: dict[str, int] = {}
         self._last_ok: bool | None = None
         self._last_error: str | None = None
         self._last_error_id: str | None = None
@@ -303,57 +353,136 @@ class PostgresDocumentStore:
             self._last_checked = time.monotonic()
         return error_id
 
+    def _remember(self, name: str, version: int | None) -> None:
+        """Record the version this process last saw; ``None`` forgets it."""
+        with self._lock:
+            others = {key: value for key, value in self._seen.items() if key != name}
+            self._seen = others if version is None else {**others, name: version}
+
     @staticmethod
     def _upsert(conn: psycopg.Connection, name: str, payload: dict) -> None:
         from psycopg.types.json import Jsonb
 
         conn.execute(
             """
-            INSERT INTO app_documents (name, payload, updated_at)
-            VALUES (%s, %s, now())
+            INSERT INTO app_documents (name, payload, updated_at, version)
+            VALUES (%s, %s, now(), 1)
             ON CONFLICT (name)
-            DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
+            DO UPDATE SET payload = EXCLUDED.payload, updated_at = now(), version = app_documents.version + 1
             """,
             (name, Jsonb(payload, dumps=_dumps)),
         )
+
+    @staticmethod
+    def _swap(conn: psycopg.Connection, name: str, payload: dict, version: int | None) -> bool:
+        """Store ``payload`` only while the row is still at ``version`` (``None``: still absent)."""
+        from psycopg.types.json import Jsonb
+
+        document = Jsonb(payload, dumps=_dumps)
+        if version is None:
+            cursor = conn.execute(
+                """
+                INSERT INTO app_documents (name, payload, updated_at, version)
+                VALUES (%s, %s, now(), 1)
+                ON CONFLICT (name) DO NOTHING
+                """,
+                (name, document),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                UPDATE app_documents SET payload = %s, updated_at = now(), version = version + 1
+                WHERE name = %s AND version = %s
+                """,
+                (document, name, version),
+            )
+        return cursor.rowcount == 1
+
+    def _current(self, conn: psycopg.Connection, name: str) -> ReadResult:
+        """The stored document and its row version."""
+        row = conn.execute("SELECT payload, version FROM app_documents WHERE name = %s", (name,)).fetchone()
+        version = row[1] if row else None
+        self._remember(name, version)
+        if row and isinstance(row[0], dict):
+            return ReadResult(payload=row[0], version=version)
+        # No usable row yet: surface any pre-Postgres local file so existing data
+        # keeps working and is promoted to Postgres on the next write.
+        return dataclasses.replace(self._file_fallback.read(name), version=version)
+
+    def _apply(self, conn: psycopg.Connection, name: str, change: DocumentChange) -> dict:
+        """Apply ``change`` to the latest document, re-reading after each lost race."""
+        for attempt in range(1, MAX_UPDATE_ATTEMPTS + 1):
+            current = self._current(conn, name)
+            if not current.ok:
+                raise DocumentUpdateError(f"cannot read {name!r} to update it: {current.error}")
+            payload = change(current.payload)
+            if self._swap(conn, name, payload, current.version):
+                self._remember(name, (current.version or 0) + 1)
+                return payload
+            logger.info("store.pg_update_conflict", document=name, attempt=attempt)
+        raise DocumentUpdateError(f"{name!r} changed on each of {MAX_UPDATE_ATTEMPTS} attempts (write conflict)")
+
+    # -- the retry queue ----------------------------------------------------
+    def _flush(self, conn: psycopg.Connection) -> None:
+        """Replay what an outage queued, now that the database answers.
+
+        A database error propagates and leaves the rest queued; a change that
+        can no longer apply is dropped, so it cannot block every later write.
+        """
+        import psycopg
+
+        documents, changes = self._pending.snapshot()
+        for name, (payload, seen) in documents.items():
+            self._replay_document(conn, name, payload, seen)
+        for name, queued in changes.items():
+            try:
+                self._apply(conn, name, compose(queued))
+            except psycopg.Error:
+                raise
+            except Exception as exc:
+                logger.exception("store.pg_pending_dropped", document=name, error=str(exc))
+            else:
+                logger.info("store.pg_pending_flushed", document=name)
+            self._pending.drop_changes(name, len(queued))
+
+    def _replay_document(self, conn: psycopg.Connection, name: str, payload: dict, seen: int | None) -> None:
+        """Write a queued whole document unless the row moved on since this process read it."""
+        if seen is None:
+            # Never read here, so there is no version to check: last writer wins.
+            self._upsert(conn, name, payload)
+        elif not self._swap(conn, name, payload, seen):
+            logger.error("store.pg_pending_stale_dropped", document=name, seen_version=seen)
+        self._pending.drop_document(name)
+        self._remember(name, None)
+        logger.info("store.pg_pending_flushed", document=name)
 
     # -- DocumentStore ------------------------------------------------------
     def read(self, name: str) -> ReadResult:
         try:
             with self._connect() as conn:
                 self._ensure_schema(conn)
-                row = conn.execute("SELECT payload FROM app_documents WHERE name = %s", (name,)).fetchone()
+                current = self._current(conn, name)
         except Exception as exc:
             error_id = self._record_outcome(False, str(exc))
             logger.exception("store.pg_read_failed", document=name, error=str(exc), error_id=error_id)
             return ReadResult(ok=False, error=str(exc))
 
         self._record_outcome(True)
-        if row and isinstance(row[0], dict):
-            return ReadResult(payload=row[0])
-
-        # No row yet — surface any pre-Postgres local file so existing data keeps
-        # working and is promoted to Postgres on the next write.
-        return self._file_fallback.read(name)
+        return current
 
     def write(self, name: str, payload: dict) -> WriteResult:
+        # This write supersedes any queued copy of the same document.
+        self._pending.drop_document(name)
         with self._lock:
-            # This write supersedes any queued copy of the same document.
-            self._pending.pop(name, None)
-            queued = dict(self._pending)
+            seen = self._seen.get(name)
 
         try:
             with self._connect() as conn:
                 self._ensure_schema(conn)
-                for queued_name, queued_payload in queued.items():
-                    self._upsert(conn, queued_name, queued_payload)
-                    with self._lock:
-                        self._pending.pop(queued_name, None)
-                    logger.info("store.pg_pending_flushed", document=queued_name)
+                self._flush(conn)
                 self._upsert(conn, name, payload)
         except Exception as exc:
-            with self._lock:
-                self._pending[name] = payload
+            self._pending.queue_document(name, payload, seen)
             error_id = self._record_outcome(False, str(exc))
             logger.exception(
                 "store.pg_write_failed_queued_for_retry",
@@ -363,8 +492,37 @@ class PostgresDocumentStore:
             )
             return WriteResult(ok=False, durable=False, error=str(exc))
 
+        self._remember(name, None)
         self._record_outcome(True)
         return WriteResult()
+
+    def update(self, name: str, change: DocumentChange) -> UpdateResult:
+        """Apply ``change`` to the latest stored document; see the module docstring."""
+        import psycopg
+
+        changes = (*self._pending.take_changes(name), change)
+
+        try:
+            with self._connect() as conn:
+                self._ensure_schema(conn)
+                self._flush(conn)
+                payload = self._apply(conn, name, compose(changes))
+        except psycopg.Error as exc:
+            self._pending.queue_changes(name, changes)
+            error_id = self._record_outcome(False, str(exc))
+            logger.exception(
+                "store.pg_update_failed_queued_for_retry",
+                document=name,
+                error=str(exc),
+                error_id=error_id,
+            )
+            return UpdateResult(ok=False, durable=False, error=str(exc))
+        except Exception as exc:
+            logger.exception("store.pg_update_failed", document=name, error=str(exc))
+            return UpdateResult(ok=False, durable=False, error=str(exc))
+
+        self._record_outcome(True)
+        return UpdateResult(payload=payload)
 
     def health(self) -> StoreHealth:
         """Report the last observed outcome. Opens no connection."""
@@ -377,7 +535,7 @@ class PostgresDocumentStore:
                 error_id=self._last_error_id,
                 reason=self._last_reason,
                 host_kind=self._host_kind,
-                pending_documents=tuple(sorted(self._pending)),
+                pending_documents=self._pending.names(),
                 checked_seconds_ago=age,
             )
 

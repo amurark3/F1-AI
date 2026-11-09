@@ -9,6 +9,9 @@ session, and FastF1 has no lap data on Render's always-cold cache. The risks:
 * **A document from an older schema is not trusted.** Stint semantics have
   changed before (FastF1's tyre age was one lap high), and a stale document must
   not resurrect them.
+* **Another process's races survive this one's writes.** The document is read
+  once per process, so a write must apply to the latest stored document, not to
+  that copy: a race another process stored since is kept beside this one's.
 """
 
 from __future__ import annotations
@@ -21,7 +24,9 @@ import structlog
 from app.data import race_stints_store as module
 from app.data.race_stints_store import RaceStintsStore
 from app.data.stint_model import Stint
-from app.data.store_types import ReadResult, WriteResult
+from app.data.store import DOCUMENT_RACE_STINTS, PostgresDocumentStore
+from app.data.store_types import ReadResult, UpdateResult
+from tests.document_table_support import DocumentTable, install_document_table
 
 STINT = Stint(
     driver_code="LEC",
@@ -35,6 +40,7 @@ STINT = Stint(
     fresh=True,
     ended_under_red_flag=False,
 )
+OTHER = Stint(**{**asdict(STINT), "driver_code": "HAM", "compound": "HARD"})
 
 
 class FakeStore:
@@ -53,12 +59,12 @@ class FakeStore:
             return ReadResult(ok=False, error="connection refused")
         return ReadResult(payload=self.payload)
 
-    def write(self, name, payload):
-        self.writes.append(payload)
+    def update(self, name, change):
         if not self.writable:
-            return WriteResult(ok=False, durable=False, error="read-only")
-        self.payload = payload
-        return WriteResult()
+            return UpdateResult(ok=False, durable=False, error="read-only")
+        self.payload = change(self.payload)
+        self.writes.append(self.payload)
+        return UpdateResult(payload=self.payload)
 
 
 @pytest.fixture
@@ -222,3 +228,68 @@ def test_a_failed_write_is_logged_and_kept_in_memory(store):
     assert [entry["event"] for entry in logs] == ["race_stints_store.write_failed"]
     assert cache.get(2026, 13) == (STINT,)
     assert fake.reads == 1
+
+
+# ---------------------------------------------------------------------------
+# Two processes sharing one stored document
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def table(monkeypatch, tmp_path) -> DocumentTable:
+    """One fake ``app_documents`` table behind the real Postgres store."""
+    shared = install_document_table(monkeypatch, tmp_path)
+    monkeypatch.setattr(module, "document_store", PostgresDocumentStore("postgresql://u:p@postgres:5432/f1ai"))
+    return shared
+
+
+def _stored_races(table: DocumentTable) -> dict:
+    return table.payload(DOCUMENT_RACE_STINTS)["races"]
+
+
+@pytest.mark.unit
+def test_a_race_another_process_stored_after_this_one_read_is_kept(table):
+    running = RaceStintsStore()
+    assert running.get(2026, 12) is None  # this process reads the document now
+
+    RaceStintsStore().put(2026, 12, (STINT,))  # another process, e.g. a job container
+    running.put(2026, 13, (OTHER,))
+
+    assert _stored_races(table) == {"2026-12": [asdict(STINT)], "2026-13": [asdict(OTHER)]}
+    assert running.get(2026, 12) == (STINT,), "the running process now serves it too"
+
+
+@pytest.mark.unit
+def test_a_race_stored_between_the_read_and_the_write_is_kept(table):
+    running = RaceStintsStore()
+    running.get(2026, 12)
+    table.before_next_write(lambda: RaceStintsStore().put(2026, 12, (STINT,)))
+
+    running.put(2026, 13, (OTHER,))
+
+    assert set(_stored_races(table)) == {"2026-12", "2026-13"}
+
+
+@pytest.mark.unit
+def test_for_a_race_both_processes_stored_the_later_write_wins(table):
+    """Stint rows carry no timestamp, so the race this process writes is the one it keeps."""
+    running = RaceStintsStore()
+    running.get(2026, 13)
+    RaceStintsStore().put(2026, 13, (STINT,))
+
+    running.put(2026, 13, (OTHER,))
+
+    assert _stored_races(table) == {"2026-13": [asdict(OTHER)]}
+    assert RaceStintsStore().get(2026, 13) == (OTHER,)
+
+
+@pytest.mark.unit
+def test_dropping_a_race_keeps_the_races_another_process_stored_since(table):
+    table.put(DOCUMENT_RACE_STINTS, _document({"2026-19": [asdict(STINT)]}))
+    running = RaceStintsStore()
+    running.get(2026, 19)
+    RaceStintsStore().put(2026, 12, (OTHER,))
+
+    running.drop(2026, 19)
+
+    assert _stored_races(table) == {"2026-12": [asdict(OTHER)]}

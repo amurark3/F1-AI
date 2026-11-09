@@ -14,6 +14,12 @@ restarts, which is the whole point: the data is historical and immutable.
 
 Entries record the edition they came from so a superseded reference can expire
 without a schedule lookup — see ``SUPERSEDED_TTL_SECONDS``.
+
+The document is read once per process, but other processes write it too, so a
+write is a change applied to the latest stored document
+(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy.
+Merge rule: references another process stored are kept; for the same city and
+season the entry with the later ``stored_at`` wins, and an undatable one loses.
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ import structlog
 from app.data.store import DOCUMENT_CIRCUIT_REFERENCE, document_store
 
 if TYPE_CHECKING:
-    from app.data.store_types import WriteResult
+    from app.data.store_types import UpdateResult
 
 logger = structlog.get_logger()
 
@@ -89,6 +95,23 @@ def _parse_iso(value: Any) -> datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _entries_of(document: dict | None) -> dict[str, dict[str, Any]]:
+    """The entries of a stored document; none from another schema version."""
+    if not document or document.get("schema_version") != CACHE_SCHEMA_VERSION:
+        return {}
+    return {str(key): value for key, value in (document.get("entries") or {}).items() if isinstance(value, dict)}
+
+
+def _document(entries: dict[str, dict[str, Any]]) -> dict:
+    return {"schema_version": CACHE_SCHEMA_VERSION, "entries": entries}
+
+
+def _newer(stored: dict[str, Any] | None, ours: dict[str, Any], ours_at: datetime) -> dict[str, Any]:
+    """The newer of two entries for one key, by ``stored_at``; an undatable stored entry loses."""
+    stored_at = _parse_iso((stored or {}).get("stored_at"))
+    return stored if stored is not None and stored_at is not None and stored_at > ours_at else ours
 
 
 class CircuitReferenceCache:
@@ -150,7 +173,7 @@ class CircuitReferenceCache:
         return now - stored_at > timedelta(seconds=ttl)
 
     # -- writes -------------------------------------------------------------
-    def set(self, city: str, year: int, reference: dict | None) -> WriteResult:
+    def set(self, city: str, year: int, reference: dict | None) -> UpdateResult:
         """Store a reference (or a remembered miss) for this city and season."""
         if not self._ensure_loaded():
             raise CircuitReferenceCacheUnavailableError(
@@ -158,16 +181,24 @@ class CircuitReferenceCache:
                 "stored references with an incomplete set. Try again shortly."
             )
 
+        now = _utc_now()
+        key = self._key(city, year)
         entry = {
             "schema_version": CACHE_SCHEMA_VERSION,
-            "stored_at": _iso(_utc_now()),
+            "stored_at": _iso(now),
             "source_year": (reference or {}).get("source_year"),
             "reference": copy.deepcopy(reference) if isinstance(reference, dict) else None,
         }
 
+        def change(document: dict | None) -> dict:
+            entries = _entries_of(document)
+            return _document({**entries, key: _newer(entries.get(key), entry, now)})
+
         with self._lock:
-            self._entries = {**self._entries, self._key(city, year): entry}
-            write = self._save()
+            write = document_store.update(DOCUMENT_CIRCUIT_REFERENCE, change)
+            # Stored: hold what is stored now, other processes' entries included.
+            # Not stored: hold the change so this process still serves it.
+            self._entries = _entries_of(write.payload if write.ok else change(_document(self._entries)))
 
         logger.info(
             "circuit_reference_cache.stored",
@@ -208,9 +239,7 @@ class CircuitReferenceCache:
                 self._loaded = True
                 return True
 
-            self._entries = {
-                str(key): value for key, value in (payload.get("entries") or {}).items() if isinstance(value, dict)
-            }
+            self._entries = _entries_of(payload)
             self._loaded = True
             logger.info("circuit_reference_cache.loaded", entries=len(self._entries))
             return True
@@ -223,12 +252,6 @@ class CircuitReferenceCache:
             if time.monotonic() < self._next_load_attempt:
                 return False
             return self.load()
-
-    def _save(self) -> WriteResult:
-        return document_store.write(
-            DOCUMENT_CIRCUIT_REFERENCE,
-            {"schema_version": CACHE_SCHEMA_VERSION, "entries": self._entries},
-        )
 
     @staticmethod
     def _key(city: str, year: int) -> str:

@@ -21,7 +21,7 @@ import inspect
 
 import pytest
 
-from app.data.store_types import DocumentStore, ReadResult, StoreHealth, WriteResult
+from app.data.store_types import DocumentStore, ReadResult, StoreHealth, UpdateResult, WriteResult
 
 # The exact shape psycopg produces when a Supabase project is paused. Every
 # fragment below is infrastructure detail a client has no business seeing.
@@ -113,6 +113,33 @@ def test_write_result_is_immutable():
 
     with pytest.raises(AttributeError):
         result.durable = False
+
+
+@pytest.mark.unit
+def test_read_result_carries_no_version_unless_the_backend_has_one():
+    """The file backend has no versions; Postgres reports the row's, which guards the next write."""
+    assert ReadResult(payload={"a": 1}).version is None
+    assert ReadResult(payload={"a": 1}, version=7).version == 7
+
+
+# ---------------------------------------------------------------------------
+# UpdateResult
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_update_result_defaults_to_a_durable_success_with_no_document():
+    result = UpdateResult()
+
+    assert (result.ok, result.durable, result.error, result.payload) == (True, True, None, None)
+
+
+@pytest.mark.unit
+def test_update_result_is_immutable():
+    result = UpdateResult(payload={"a": 1})
+
+    with pytest.raises(AttributeError):
+        result.payload = {}
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +266,7 @@ def test_pending_documents_default_is_not_shared_between_instances():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("method", ["read", "write", "health", "ping"])
+@pytest.mark.parametrize("method", ["read", "write", "update", "health", "ping"])
 def test_document_store_protocol_declares_the_full_backend_surface(method):
     """Pins the contract both backends must satisfy structurally, without inheriting it."""
     assert callable(getattr(DocumentStore, method))

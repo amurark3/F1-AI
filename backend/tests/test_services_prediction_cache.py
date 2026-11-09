@@ -13,27 +13,30 @@ So the properties under test are:
 * the failure is retried after a backoff rather than pinned for the process;
 * a snapshot computed by superseded logic is a miss, not a stale answer;
 * a non-durable write still returns the prediction, with ``durable=False`` said
-  out loud rather than hidden.
+  out loud rather than hidden;
+* a write applies to the latest stored document, not to this process's copy, so
+  a race another process stored since (a backfill, a job) survives, and for the
+  same race both calls are kept with the newer one served.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
-import sys
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 from app.data.predictions import PREDICTION_LOGIC_VERSION
-from app.data.store import DOCUMENT_PREDICTION_CACHE
-from app.data.store_types import ReadResult, WriteResult
+from app.data.store import DOCUMENT_PREDICTION_CACHE, PostgresDocumentStore
+from app.data.store_types import ReadResult, UpdateResult
 from app.services import prediction_cache as module
 from app.services.prediction_cache import (
     CACHE_SCHEMA_VERSION,
     PredictionCacheUnavailableError,
     PredictionSnapshotCache,
 )
+from tests.document_table_support import DocumentTable, install_document_table
 
 
 class FakeStore:
@@ -53,12 +56,13 @@ class FakeStore:
             return ReadResult(ok=False, error="connection to server failed")
         return ReadResult(payload=self.payload)
 
-    def write(self, name, payload):
+    def update(self, name, change):
+        payload = change(self.payload)
         self.writes.append((name, payload))
         if not self.write_ok:
-            return WriteResult(ok=False, durable=False, error="write failed")
+            return UpdateResult(ok=False, durable=False, error="write failed")
         self.payload = payload
-        return WriteResult(durable=self.durable)
+        return UpdateResult(durable=self.durable, payload=payload)
 
 
 def _result(driver="VER", *, logic_version=PREDICTION_LOGIC_VERSION):
@@ -607,56 +611,13 @@ def test_module_exposes_a_shared_cache_instance():
 # ---------------------------------------------------------------------------
 
 
-class _FakePgConnection:
-    """Enough of ``psycopg.Connection`` for the document store's two statements."""
-
-    def __init__(self, rows: dict, *, fail_on):
-        self._rows = rows
-        self._fail_on = fail_on
-        self._pending = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_exc):
-        return False
-
-    def execute(self, sql, params=None):
-        if self._fail_on and self._fail_on in sql:
-            raise RuntimeError("connection to server failed: the database is paused")
-        if sql.strip().startswith("SELECT payload"):
-            self._pending = self._rows.get(params[0])
-        elif "INSERT INTO app_documents" in sql:
-            self._rows[params[0]] = params[1].obj
-        return self
-
-    def fetchone(self):
-        return (self._pending,) if self._pending is not None else None
-
-
 @pytest.fixture
-def postgres_store(monkeypatch):
-    """A ``PostgresDocumentStore`` over a fake psycopg driver (no network)."""
-    rows: dict[str, dict] = {}
-    state = SimpleNamespace(rows=rows, fail_on=None)
-
-    def connect(_dsn, **_kwargs):
-        return _FakePgConnection(state.rows, fail_on=state.fail_on)
-
-    fake_psycopg = SimpleNamespace(
-        connect=connect,
-        Connection=_FakePgConnection,
-        types=SimpleNamespace(json=SimpleNamespace(Jsonb=lambda obj, **_kw: SimpleNamespace(obj=obj))),
-    )
-    monkeypatch.setitem(sys.modules, "psycopg", fake_psycopg)
-    monkeypatch.setitem(sys.modules, "psycopg.types", fake_psycopg.types)
-    monkeypatch.setitem(sys.modules, "psycopg.types.json", fake_psycopg.types.json)
-
-    from app.data.store import PostgresDocumentStore
-
+def postgres_store(monkeypatch, tmp_path) -> DocumentTable:
+    """A ``PostgresDocumentStore`` over one fake ``app_documents`` table (no network)."""
+    table = install_document_table(monkeypatch, tmp_path)
     store = PostgresDocumentStore("postgresql://user:pw@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")
     monkeypatch.setattr(module, "document_store", store)
-    return state
+    return table
 
 
 @pytest.mark.unit
@@ -676,7 +637,7 @@ def test_a_paused_database_never_truncates_the_stored_snapshots(postgres_store):
     seeded = PredictionSnapshotCache()
     seeded.set(2026, 1, _result("VER"))
     seeded.set(2026, 2, _result("NOR"))
-    persisted_before = dict(postgres_store.rows[DOCUMENT_PREDICTION_CACHE]["entries"])
+    persisted_before = dict(postgres_store.payload(DOCUMENT_PREDICTION_CACHE)["entries"])
 
     postgres_store.fail_on = "SELECT payload"
     cold = PredictionSnapshotCache()
@@ -684,7 +645,7 @@ def test_a_paused_database_never_truncates_the_stored_snapshots(postgres_store):
     with pytest.raises(PredictionCacheUnavailableError):
         cold.set(2026, 3, _result("LEC"))
 
-    assert postgres_store.rows[DOCUMENT_PREDICTION_CACHE]["entries"] == persisted_before
+    assert postgres_store.payload(DOCUMENT_PREDICTION_CACHE)["entries"] == persisted_before
 
 
 @pytest.mark.unit
@@ -697,3 +658,79 @@ def test_a_failed_postgres_write_is_reported_as_not_durable(postgres_store):
 
     assert stored["cache"]["durable"] is False
     assert DOCUMENT_PREDICTION_CACHE not in postgres_store.rows
+
+
+# ---------------------------------------------------------------------------
+# Two processes sharing one stored document
+# ---------------------------------------------------------------------------
+
+
+def _stored_entries(table: DocumentTable) -> dict:
+    return table.payload(DOCUMENT_PREDICTION_CACHE)["entries"]
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """Freeze the cache's clock; advance it by assigning ``clock.now``."""
+    state = SimpleNamespace(now=datetime(2026, 11, 8, 12, 0, tzinfo=UTC))
+    monkeypatch.setattr(module, "_utc_now", lambda: state.now)
+    return state
+
+
+@pytest.mark.unit
+def test_a_race_another_process_stored_after_this_one_loaded_is_kept(postgres_store):
+    """The backfill case: the server loaded at boot, the script stored R2, the server then stores R1."""
+    running = PredictionSnapshotCache()
+    assert running.load() is True
+
+    PredictionSnapshotCache().set(2026, 2, _result("NOR"), reason="backfill")
+    running.set(2026, 1, _result("VER"))
+
+    assert set(_stored_entries(postgres_store)) == {"2026:1", "2026:2"}
+    assert running.get(2026, 2)["predictions"][0]["driver_code"] == "NOR", "the server now serves it too"
+
+
+@pytest.mark.unit
+def test_a_race_stored_between_the_read_and_the_write_is_kept(postgres_store):
+    running = PredictionSnapshotCache()
+    running.load()
+    postgres_store.before_next_write(lambda: PredictionSnapshotCache().set(2026, 2, _result("NOR")))
+
+    running.set(2026, 1, _result("VER"))
+
+    assert set(_stored_entries(postgres_store)) == {"2026:1", "2026:2"}
+
+
+@pytest.mark.unit
+def test_for_the_same_race_both_calls_are_kept_and_the_newer_one_is_served(postgres_store, clock):
+    """The other process stored a newer call for this race while this one was writing."""
+    running = PredictionSnapshotCache()
+    running.load()
+    minted = clock.now
+
+    def other_process_stores_a_newer_call() -> None:
+        clock.now = minted + timedelta(minutes=5)
+        PredictionSnapshotCache().set(2026, 1, _result("NOR"), reason="backfill")
+
+    postgres_store.before_next_write(other_process_stores_a_newer_call)
+    returned = running.set(2026, 1, _result("VER"))
+
+    assert returned["predictions"][0]["driver_code"] == "VER", "the caller gets the call it computed"
+    snapshots = _stored_entries(postgres_store)["2026:1"]["snapshots"]
+    assert [item["result"]["predictions"][0]["driver_code"] for item in snapshots] == ["VER", "NOR"]
+    assert PredictionSnapshotCache().get(2026, 1)["predictions"][0]["driver_code"] == "NOR"
+    assert running.get(2026, 1)["predictions"][0]["driver_code"] == "NOR"
+
+
+@pytest.mark.unit
+def test_for_the_same_race_this_process_wins_with_the_newer_call(postgres_store, clock):
+    running = PredictionSnapshotCache()
+    running.load()
+    PredictionSnapshotCache().set(2026, 1, _result("NOR"), reason="backfill")
+
+    clock.now += timedelta(minutes=5)
+    running.set(2026, 1, _result("VER"))
+
+    stored = PredictionSnapshotCache().get(2026, 1)
+    assert stored["predictions"][0]["driver_code"] == "VER"
+    assert stored["cache"]["snapshot_count"] == 2

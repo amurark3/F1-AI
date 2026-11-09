@@ -2,6 +2,13 @@
 
 A snapshot is stored exactly as computed and served with canonical driver and
 team names overlaid on the copy (:mod:`app.services.prediction_names`).
+
+The document is read once per process, but other processes write it too (the
+backfill script, a scheduled job), so storing a snapshot is a change applied to
+the latest stored document (:meth:`~app.data.store_types.DocumentStore.update`),
+never this process's copy. Merge rule: races another process stored are kept;
+for the same race both processes' snapshots are kept in ``stored_at`` order, and
+the newest one is the race's active snapshot.
 """
 
 from __future__ import annotations
@@ -26,7 +33,7 @@ from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
 from app.services.prediction_names import with_canonical_names
 
 if TYPE_CHECKING:
-    from app.data.store_types import WriteResult
+    from app.data.store_types import DocumentChange, UpdateResult
 
 logger = structlog.get_logger()
 
@@ -192,45 +199,53 @@ class PredictionSnapshotCache:
         key = self._key(year, round_num)
         stored_result = copy.deepcopy(result)
         stored_result.pop("cache", None)
+        stored_at = _iso(_utc_now())
+
+        def change(document: dict | None) -> dict:
+            entries = self._entries_of(document)
+            entry = self._with_snapshot(entries.get(key), stored_at=stored_at, reason=reason, result=stored_result)
+            return self._document({**entries, key: entry})
 
         with self._lock:
-            previous = self._normalise_entry(self._entries.get(key))
-            snapshots = list(previous.get("snapshots") or [])
-            stored_at = _iso(_utc_now())
-            snapshot = {
-                "id": f"v{len(snapshots) + 1}-{stored_at}",
-                "stored_at": stored_at,
-                "reason": reason,
-                "result": stored_result,
-            }
-            snapshots = trim_snapshots(
-                [*snapshots, snapshot],
-                phase_of=self._snapshot_phase,
-            )
+            write = self._update(change)
+            entry = self._entries[key]
 
-            entry = {
-                "schema_version": CACHE_SCHEMA_VERSION,
-                "stored_at": previous.get("stored_at") or stored_at,
-                "updated_at": stored_at,
-                "policy": CACHE_POLICY,
-                "active_snapshot_id": snapshot["id"],
-                "snapshots": snapshots,
-            }
-            self._entries[key] = entry
-            write = self._save()
-
+        snapshot = next((item for item in entry["snapshots"] if item.get("stored_at") == stored_at), None)
         logger.info(
             "prediction_cache.stored",
             year=year,
             round=round_num,
-            snapshot_id=snapshot["id"],
+            snapshot_id=(snapshot or {}).get("id"),
             reason=reason,
             durable=write.durable,
         )
         # A failed write is queued by the store and retried, and the snapshot is
         # live in memory either way — so the caller still gets its prediction,
         # with the durability caveat stated rather than hidden.
-        return self._with_metadata(entry, status="stored", durable=write.durable)
+        return self._with_metadata(entry, status="stored", durable=write.durable, snapshot=snapshot)
+
+    def _with_snapshot(self, raw: dict[str, Any] | None, *, stored_at: str, reason: str, result: dict) -> dict:
+        """The race's entry with one more snapshot; the newest by ``stored_at`` is active."""
+        previous = self._normalise_entry(raw)
+        snapshots = list(previous.get("snapshots") or [])
+        snapshot = {
+            "id": f"v{len(snapshots) + 1}-{stored_at}",
+            "stored_at": stored_at,
+            "reason": reason,
+            "result": result,
+        }
+        # Already in order unless another process stored a newer call for this
+        # race while this one was computing or queued; sorting keeps both.
+        ordered = sorted([*snapshots, snapshot], key=lambda item: str(item.get("stored_at") or ""))
+        kept = trim_snapshots(ordered, phase_of=self._snapshot_phase)
+        return {
+            "schema_version": CACHE_SCHEMA_VERSION,
+            "stored_at": previous.get("stored_at") or stored_at,
+            "updated_at": kept[-1]["stored_at"],
+            "policy": CACHE_POLICY,
+            "active_snapshot_id": kept[-1]["id"],
+            "snapshots": kept,
+        }
 
     def _with_metadata(
         self,
@@ -344,11 +359,7 @@ class PredictionSnapshotCache:
                 self._loaded = True
                 return True
 
-            self._entries = {
-                str(key): self._normalise_entry(value)
-                for key, value in (payload.get("entries") or {}).items()
-                if isinstance(value, dict)
-            }
+            self._entries = self._entries_of(payload)
             self._loaded = True
             logger.info("prediction_cache.loaded", entries=len(self._entries))
             return True
@@ -362,12 +373,27 @@ class PredictionSnapshotCache:
                 return False
             return self.load()
 
-    def _save(self) -> WriteResult:
-        payload = {
-            "schema_version": CACHE_SCHEMA_VERSION,
-            "entries": self._entries,
+    def _entries_of(self, document: dict | None) -> dict[str, dict[str, Any]]:
+        """The normalised entries of a stored document; none from an unknown schema."""
+        if not document or document.get("schema_version") not in {1, CACHE_SCHEMA_VERSION}:
+            return {}
+        return {
+            str(key): self._normalise_entry(value)
+            for key, value in (document.get("entries") or {}).items()
+            if isinstance(value, dict)
         }
-        return document_store.write(DOCUMENT_PREDICTION_CACHE, payload)
+
+    @staticmethod
+    def _document(entries: dict[str, dict[str, Any]]) -> dict:
+        return {"schema_version": CACHE_SCHEMA_VERSION, "entries": entries}
+
+    def _update(self, change: DocumentChange) -> UpdateResult:
+        """Apply ``change`` to the latest stored document. Call under the lock."""
+        write = document_store.update(DOCUMENT_PREDICTION_CACHE, change)
+        # Stored: hold what is stored now, other processes' races included.
+        # Not stored: hold the change so this process still serves it.
+        self._entries = self._entries_of(write.payload if write.ok else change(self._document(self._entries)))
+        return write
 
     @staticmethod
     def _key(year: int, round_num: int) -> str:

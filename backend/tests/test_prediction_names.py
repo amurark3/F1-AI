@@ -26,7 +26,7 @@ import structlog
 
 from app.data import f1db_source
 from app.data.predictions import PREDICTION_LOGIC_VERSION
-from app.data.store_types import ReadResult, WriteResult
+from app.data.store_types import DocumentChange, ReadResult, UpdateResult
 from app.services import prediction_cache, predictions as service
 from app.services.prediction_cache import PredictionSnapshotCache
 from app.services.prediction_names import with_canonical_names
@@ -45,9 +45,10 @@ class _Store:
     def read(self, _name: str) -> ReadResult:
         return ReadResult(payload=self.payload)
 
-    def write(self, _name: str, payload: dict) -> WriteResult:
+    def update(self, _name: str, change: DocumentChange) -> UpdateResult:
+        payload = change(self.payload)
         self.writes.append(copy.deepcopy(payload))
-        return WriteResult(durable=True)
+        return UpdateResult(durable=True, payload=payload)
 
 
 def _r19_entry() -> dict:

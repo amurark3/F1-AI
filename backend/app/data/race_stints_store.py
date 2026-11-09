@@ -13,6 +13,12 @@ by :mod:`app.data.race_stints`.
 A write after a failed read is refused, for the reason
 :mod:`app.data.circuit_reference_cache` gives: it would upload a document
 holding only this process's races and silently drop every other one.
+
+The document is read once per process, but other processes write it too, so a
+write is a change applied to the latest stored document
+(:meth:`~app.data.store_types.DocumentStore.update`), never this process's copy.
+Merge rule: races another process stored are kept; stint rows carry no
+timestamp, so for a race this process puts or drops, this process's write wins.
 """
 
 from __future__ import annotations
@@ -28,7 +34,11 @@ from app.data.stint_model import Stint
 from app.data.store import DOCUMENT_RACE_STINTS, document_store
 
 if TYPE_CHECKING:
-    from app.data.store_types import WriteResult
+    from collections.abc import Callable
+
+    from app.data.store_types import UpdateResult
+
+    RacesChange = Callable[[dict[str, list[dict]]], dict[str, list[dict]]]
 
 logger = structlog.get_logger()
 
@@ -45,6 +55,13 @@ _clock = time.monotonic
 
 def _key(year: int, round_num: int) -> str:
     return f"{year}-{round_num}"
+
+
+def _races_of(document: dict | None) -> dict[str, list[dict]]:
+    """The races of a stored document; none from another schema version."""
+    payload = document or {}
+    races = payload.get("races") if payload.get("version") == SCHEMA_VERSION else None
+    return dict(races) if isinstance(races, dict) else {}
 
 
 class RaceStintsStore:
@@ -68,9 +85,7 @@ class RaceStintsStore:
             self._next_load_attempt = now + RELOAD_BACKOFF_SECONDS
             logger.warning("race_stints_store.read_failed", error=result.error)
             return None
-        payload = result.payload or {}
-        races = payload.get("races") if payload.get("version") == SCHEMA_VERSION else None
-        self._races = dict(races) if isinstance(races, dict) else {}
+        self._races = _races_of(result.payload)
         return self._races
 
     def get(self, year: int, round_num: int) -> tuple[Stint, ...] | None:
@@ -90,33 +105,40 @@ class RaceStintsStore:
         """Keep a race's stints. An empty answer is never kept."""
         if not stints:
             return
+        key = _key(year, round_num)
+        rows = [asdict(stint) for stint in stints]
         with self._lock:
             races = self._loaded()
             if races is None:
                 logger.warning("race_stints_store.write_skipped", year=year, round=round_num, reason="unread")
                 return
-            updated = {**races, _key(year, round_num): [asdict(stint) for stint in stints]}
-            result = self._write(updated)
+            result = self._update(races, lambda latest: {**latest, key: rows})
         if not result.ok:
             logger.warning("race_stints_store.write_failed", year=year, round=round_num, error=result.error)
 
     def drop(self, year: int, round_num: int) -> None:
         """Forget a race's stints: kept for a race that had not run, they came from another session."""
+        dropped = _key(year, round_num)
         with self._lock:
             races = self._loaded()
-            if races is None or _key(year, round_num) not in races:
+            if races is None or dropped not in races:
                 return
-            result = self._write({key: rows for key, rows in races.items() if key != _key(year, round_num)})
+            result = self._update(races, lambda latest: {key: rows for key, rows in latest.items() if key != dropped})
         logger.warning("race_stints_store.dropped", year=year, round=round_num)
         if not result.ok:
             logger.warning("race_stints_store.write_failed", year=year, round=round_num, error=result.error)
 
-    def _write(self, races: dict[str, list[dict]]) -> WriteResult:
-        """Replace the stored races. Call under the lock, after a successful read."""
-        # Held in memory either way: a failed Postgres write is retried by the
-        # store on its next write, and this process can still serve it.
-        self._races = races
-        return document_store.write(DOCUMENT_RACE_STINTS, {"version": SCHEMA_VERSION, "races": races})
+    def _update(self, races: dict[str, list[dict]], change: RacesChange) -> UpdateResult:
+        """Apply ``change`` to the latest stored races; ``races`` is this process's copy. Call under the lock."""
+        result = document_store.update(
+            DOCUMENT_RACE_STINTS,
+            lambda document: {"version": SCHEMA_VERSION, "races": change(_races_of(document))},
+        )
+        # Stored: hold what is stored now, other processes' races included.
+        # Not stored: hold the change in memory so this process still serves it;
+        # a Postgres store has queued it and re-applies it on its next write.
+        self._races = _races_of(result.payload) if result.ok else change(races)
+        return result
 
 
 stint_store = RaceStintsStore()

@@ -8,7 +8,7 @@ prediction tabs rest on.
 import pytest
 
 from app.data.predictions import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING
-from app.data.store_types import ReadResult, WriteResult
+from app.data.store_types import DocumentChange, ReadResult, UpdateResult
 from app.services import prediction_cache as cache_module, predictions as service_module
 from app.services.prediction_cache import (
     PREDICTION_LOGIC_VERSION,
@@ -34,9 +34,9 @@ class FakeDocumentStore:
     def read(self, name: str) -> ReadResult:
         return ReadResult(payload=self.payload)
 
-    def write(self, name: str, payload: dict) -> WriteResult:
-        self.payload = payload
-        return WriteResult()
+    def update(self, name: str, change: DocumentChange) -> UpdateResult:
+        self.payload = change(self.payload)
+        return UpdateResult(payload=self.payload)
 
 
 def _result(phase: str, winner: str) -> dict:

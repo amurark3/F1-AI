@@ -12,14 +12,16 @@ The call is retried once on a 429, a 5xx or a timeout, and every failed attempt
 is logged with its HTTP status or exception type. When it still fails, the
 venue's last good series (``open_meteo_store``) is served, marked ``stored``
 with the time it was fetched, so the page can say "as of" instead of going
-blank or passing an old forecast off as new.
+blank or passing an old forecast off as new. The failed request is then not
+sent again for ``FAILURE_COOLDOWN_SECONDS``: a feed that times out costs up to
+17 s a call, and without the pause every page view would wait that long.
 
 Weather data by Open-Meteo.com (CC BY 4.0).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 import threading
 import time
@@ -47,6 +49,11 @@ MAX_ATTEMPTS = 2
 RETRY_BACKOFF_SECONDS = 1.0
 TOO_MANY_REQUESTS = 429
 SERVER_ERROR = 500
+# After a call fails (both attempts, or one a retry cannot fix), the same
+# request is not sent again for this long: the stored series, or no forecast,
+# is served meanwhile. While the feed times out each call costs 8 s + 1 s + 8 s,
+# and without the pause every page view would wait that long and hold a thread.
+FAILURE_COOLDOWN_SECONDS = 300.0
 # Open-Meteo explains a refusal in a JSON ``reason``; logs keep this much of it.
 REASON_LOG_CHARS = 200
 
@@ -101,10 +108,30 @@ class _Attempt:
     retryable: bool = False
 
 
+@dataclass(frozen=True)
+class _Cooldown:
+    """A request whose last call failed: when, and whether a skipped view has been logged since."""
+
+    failed_at: float
+    skip_logged: bool = False
+
+
+@dataclass(frozen=True)
+class _Recall:
+    """What memory holds for a request: a fresh answer, or a cooldown that rules out calling."""
+
+    series: HourlySeries | None = None
+    cooling_down: bool = False
+    first_skip: bool = False
+    retry_in: float = 0.0
+
+
 _CacheKey = tuple[float, float, str, str]
 _cache: dict[_CacheKey, tuple[float, HourlySeries]] = {}
+_failures: dict[_CacheKey, _Cooldown] = {}
 _cache_lock = threading.Lock()
 _sleep = time.sleep
+_clock = time.monotonic
 
 
 def _utcnow() -> datetime:
@@ -255,35 +282,78 @@ def _last_good(lat: float, lon: float, start: date, end: date) -> HourlySeries |
     )
     if not readings:
         return None
-    logger.info("open_meteo.serving_stored", lat=lat, lon=lon, fetched_at=utc_isoformat(stored.fetched_at))
     return HourlySeries(readings=readings, fetched_at=stored.fetched_at, stored=True)
 
 
+def _prune(stamp: float) -> None:
+    """Drop answers and cooldowns that have run out. Call under ``_cache_lock``."""
+    for old in [old for old, (kept_at, _) in _cache.items() if stamp - kept_at >= WEATHER_CACHE_TTL]:
+        del _cache[old]
+    for old in [old for old, cooldown in _failures.items() if stamp - cooldown.failed_at >= FAILURE_COOLDOWN_SECONDS]:
+        del _failures[old]
+
+
 def _remember(key: _CacheKey, stamp: float, series: HourlySeries) -> None:
+    """Keep a good answer; it ends any cooldown a concurrent view's failure started."""
     with _cache_lock:
-        expired = [old for old, (kept_at, _) in _cache.items() if stamp - kept_at >= WEATHER_CACHE_TTL]
-        for old in expired:
-            del _cache[old]
+        _prune(stamp)
+        _failures.pop(key, None)
         _cache[key] = (stamp, series)
+
+
+def _remember_failure(key: _CacheKey, stamp: float) -> None:
+    with _cache_lock:
+        _prune(stamp)
+        _failures[key] = _Cooldown(failed_at=stamp)
+
+
+def _recall(key: _CacheKey, now: float) -> _Recall:
+    """A fresh answer for the request, or whether its cooldown rules out a call (the first skip is flagged)."""
+    with _cache_lock:
+        kept = _cache.get(key)
+        if kept is not None and now - kept[0] < WEATHER_CACHE_TTL:
+            return _Recall(series=kept[1])
+        cooldown = _failures.get(key)
+        if cooldown is None or now - cooldown.failed_at >= FAILURE_COOLDOWN_SECONDS:
+            return _Recall()
+        if not cooldown.skip_logged:
+            _failures[key] = replace(cooldown, skip_logged=True)
+    return _Recall(
+        cooling_down=True,
+        first_skip=not cooldown.skip_logged,
+        retry_in=cooldown.failed_at + FAILURE_COOLDOWN_SECONDS - now,
+    )
+
+
+def _announced(lat: float, lon: float, series: HourlySeries | None) -> HourlySeries | None:
+    """The stored series a failed call falls back on, logged; views in the cooldown get it silently."""
+    if series is not None:
+        logger.info("open_meteo.serving_stored", lat=lat, lon=lon, fetched_at=utc_isoformat(series.fetched_at))
+    return series
 
 
 def fetch_hourly(lat: float, lon: float, start: date, end: date) -> HourlySeries | None:
     """Every hour from ``start`` to ``end`` (UTC days, inclusive); None when there is none to give.
 
     A good answer is kept in memory for ``WEATHER_CACHE_TTL`` seconds and stored
-    as the venue's last good series. A failure is not cached, so the next page
-    view asks again; meanwhile it is answered from the stored series, marked
-    ``stored``, or None when the venue has never had a good answer for these days.
+    as the venue's last good series. A failure is not kept as an answer, but the
+    same request is not sent again for ``FAILURE_COOLDOWN_SECONDS``. Until a call
+    succeeds it is answered from the stored series, marked ``stored``, or None
+    when the venue has never had a good answer for these days.
     """
     key = (round(lat, 4), round(lon, 4), start.isoformat(), end.isoformat())
-    now = time.monotonic()
-    with _cache_lock:
-        kept = _cache.get(key)
-    if kept is not None and now - kept[0] < WEATHER_CACHE_TTL:
-        return kept[1]
+    now = _clock()
+    recall = _recall(key, now)
+    if recall.series is not None:
+        return recall.series
+    if recall.cooling_down:
+        if recall.first_skip:
+            logger.info("open_meteo.fetch_skipped", lat=lat, lon=lon, retry_in_seconds=round(recall.retry_in))
+        return _last_good(lat, lon, start, end)
     answer = _request(lat, lon, start, end)
     if answer is None:
-        return _last_good(lat, lon, start, end)
+        _remember_failure(key, _clock())
+        return _announced(lat, lon, _last_good(lat, lon, start, end))
     hourly, readings = answer
     series = HourlySeries(readings=readings, fetched_at=_utcnow())
     _remember(key, now, series)

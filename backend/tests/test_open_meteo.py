@@ -8,12 +8,15 @@ than a partial series.
 Since the production outage of 6 Nov 2026 (P0b.1a), the call is retried once on
 a 429, a 5xx or a timeout, every failed attempt logs its status or exception
 type, and a call that still fails serves the venue's last good series, marked
-stored with when it was fetched, never as a fresh one.
+stored with when it was fetched, never as a fresh one. After a failure the same
+request is not sent again for a cooldown, so a feed that is down does not make
+every page view wait up to 17 s for it.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+import time
 
 import httpx
 import pytest
@@ -156,9 +159,27 @@ def sleeps(monkeypatch):
     return waited
 
 
+class FakeClock:
+    """The module's monotonic clock, moved by hand."""
+
+    def __init__(self, now: float = 1000.0):
+        self.now = now
+
+    def __call__(self) -> float:
+        return self.now
+
+
 @pytest.fixture
-def open_meteo(monkeypatch, documents, sleeps):
+def clock(monkeypatch):
+    fake = FakeClock()
+    monkeypatch.setattr(module, "_clock", fake)
+    return fake
+
+
+@pytest.fixture
+def open_meteo(monkeypatch, documents, sleeps, clock):
     monkeypatch.setattr(module, "_cache", {})
+    monkeypatch.setattr(module, "_failures", {})
     monkeypatch.setattr(module, "_utcnow", lambda: FETCHED_AT)
     calls: list[httpx.Request] = []
 
@@ -227,12 +248,11 @@ def test_a_series_served_from_memory_is_not_stored_again(open_meteo, documents):
     assert len(documents.writes) == 1
 
 
-def test_an_expired_series_is_fetched_again_and_old_entries_pruned(open_meteo, monkeypatch):
+def test_an_expired_series_is_fetched_again_and_old_entries_pruned(open_meteo, clock):
     calls = open_meteo(lambda request: httpx.Response(200, json=PAYLOAD))
-    clock = iter([1000.0, 1000.0 + module.WEATHER_CACHE_TTL + 1])
-    monkeypatch.setattr(module.time, "monotonic", lambda: next(clock))
 
     fetch_hourly(1.0, 2.0, *WEEKEND)
+    clock.now += module.WEATHER_CACHE_TTL + 1
     fetch_hourly(1.0, 2.0, *WEEKEND)
 
     assert len(calls) == 2
@@ -398,18 +418,19 @@ def test_a_stored_copy_from_other_days_is_no_forecast(open_meteo, documents):
     assert fetch_hourly(1.0, 2.0, *WEEKEND) is None
 
 
-def test_a_failed_call_is_not_kept_so_the_next_view_asks_again(open_meteo, documents):
+def test_a_stored_copy_is_never_written_back_as_a_fresh_one(open_meteo, documents, clock):
     documents.payload = _stored()
     calls = open_meteo(lambda request: httpx.Response(400))
 
     first = fetch_hourly(1.0, 2.0, *WEEKEND)
+    clock.now += module.FAILURE_COOLDOWN_SECONDS
     second = fetch_hourly(1.0, 2.0, *WEEKEND)
 
     assert first == second
     assert first is not None
     assert first.stored is True
-    assert len(calls) == 2
-    assert documents.writes == [], "a stored copy is never written back as a fresh one"
+    assert len(calls) == 2, "a failure is not kept as an answer: once the cooldown ends the feed is asked again"
+    assert documents.writes == []
 
 
 @pytest.mark.parametrize(
@@ -426,7 +447,7 @@ def test_a_venue_that_never_had_a_good_answer_gets_none(open_meteo, respond, cap
 
     assert fetch_hourly(1.0, 2.0, *WEEKEND) is None
     assert fetch_hourly(1.0, 2.0, *WEEKEND) is None
-    assert len(calls) == 2
+    assert len(calls) == 1, "the second view falls in the cooldown"
     assert "open_meteo." in capsys.readouterr().out
 
 
@@ -439,6 +460,178 @@ def test_an_unreadable_store_with_a_failing_feed_gets_none(open_meteo, documents
     open_meteo(boom)
 
     assert fetch_hourly(1.0, 2.0, *WEEKEND) is None
+
+
+# -- cooldown after a failure ------------------------------------------------------
+
+VIEWS = 5
+
+FAILED_CALLS = [
+    pytest.param((httpx.Response(429), httpx.Response(502)), id="both-attempts-failed"),
+    pytest.param((httpx.Response(400),), id="final-failure"),
+    pytest.param((httpx.ReadTimeout("slow"), httpx.ReadTimeout("slow")), id="both-timed-out"),
+]
+
+
+@pytest.mark.parametrize("failure", FAILED_CALLS)
+def test_within_the_cooldown_the_feed_is_not_called_and_the_stored_copy_is_served(
+    open_meteo, documents, clock, failure
+):
+    documents.payload = _stored()
+    calls = open_meteo(answers(*failure))
+    failed = fetch_hourly(1.0, 2.0, *WEEKEND)
+    sent = len(calls)
+
+    clock.now += module.FAILURE_COOLDOWN_SECONDS - 1
+    views = [fetch_hourly(1.0, 2.0, *WEEKEND) for _ in range(VIEWS)]
+
+    assert len(calls) == sent, "no request reaches the feed during the cooldown"
+    assert failed is not None
+    assert failed.stored is True
+    assert views == [failed] * VIEWS
+
+
+@pytest.mark.parametrize("failure", FAILED_CALLS)
+def test_within_the_cooldown_a_venue_with_no_stored_copy_gets_none_without_a_call(open_meteo, failure):
+    calls = open_meteo(answers(*failure))
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+    sent = len(calls)
+
+    views = [fetch_hourly(1.0, 2.0, *WEEKEND) for _ in range(VIEWS)]
+
+    assert views == [None] * VIEWS
+    assert len(calls) == sent
+
+
+def test_the_cooldown_is_kept_per_request(open_meteo):
+    calls = open_meteo(answers(httpx.Response(400), httpx.Response(200, json=PAYLOAD)))
+
+    assert fetch_hourly(1.0, 2.0, *WEEKEND) is None
+    other_venue = fetch_hourly(3.0, 4.0, *WEEKEND)
+
+    assert other_venue is not None
+    assert len(calls) == 2
+
+
+def test_after_the_cooldown_one_live_attempt_is_made(open_meteo, clock):
+    calls = open_meteo(lambda request: httpx.Response(400))
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    clock.now += module.FAILURE_COOLDOWN_SECONDS
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    assert len(calls) == 2, "one attempt when the cooldown ends; its failure starts the next one"
+
+
+def test_the_cooldown_starts_when_the_failure_is_known(open_meteo, clock):
+    """A failing call can take 17 s; the cooldown is counted from its end, not its start."""
+
+    def slow_failure(request):
+        clock.now += 17
+        return httpx.Response(400)
+
+    calls = open_meteo(slow_failure)
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    clock.now += module.FAILURE_COOLDOWN_SECONDS - 1
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    assert len(calls) == 1
+
+
+def test_a_good_answer_after_the_cooldown_clears_it(open_meteo, documents, clock):
+    documents.payload = _stored()
+    calls = open_meteo(answers(httpx.Response(400), httpx.Response(200, json=PAYLOAD)))
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    clock.now += module.FAILURE_COOLDOWN_SECONDS
+    live = fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    assert live == HourlySeries(readings=parse_hourly(PAYLOAD), fetched_at=FETCHED_AT, stored=False)
+    assert fetch_hourly(1.0, 2.0, *WEEKEND) == live
+    assert len(calls) == 2
+    assert module._failures == {}
+
+
+def test_a_good_answer_clears_a_failure_recorded_while_it_was_in_flight(open_meteo, monkeypatch, clock):
+    """Two views ask at once; one fails, the other's good answer lands after it.
+
+    With a memory TTL shorter than the cooldown, the next view after that answer
+    expires must ask the feed again rather than sit out the other view's cooldown.
+    """
+    monkeypatch.setattr(module, "WEATHER_CACHE_TTL", 60)
+    in_flight: list[httpx.Request] = []
+
+    def handler(request):
+        in_flight.append(request)
+        if len(in_flight) == 1:
+            assert fetch_hourly(1.0, 2.0, *WEEKEND) is None, "the concurrent view fails"
+            return httpx.Response(200, json=PAYLOAD)
+        if len(in_flight) == 2:
+            return httpx.Response(400)
+        return httpx.Response(200, json=PAYLOAD)
+
+    calls = open_meteo(handler)
+    first = fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    clock.now += 61
+    later = fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    assert first is not None
+    assert later is not None
+    assert later.stored is False
+    assert len(calls) == 3
+
+
+def _skips(logs: list[dict]) -> list[dict]:
+    return [entry for entry in logs if entry["event"] == "open_meteo.fetch_skipped"]
+
+
+def test_a_skipped_call_is_logged_once_per_cooldown_window(open_meteo, documents, clock):
+    documents.payload = _stored()
+    open_meteo(lambda request: httpx.Response(429))
+
+    with structlog.testing.capture_logs() as logs:
+        fetch_hourly(1.0, 2.0, *WEEKEND)
+        clock.now += 60
+        for _ in range(VIEWS):
+            fetch_hourly(1.0, 2.0, *WEEKEND)
+        clock.now += module.FAILURE_COOLDOWN_SECONDS
+        for _ in range(VIEWS + 1):
+            fetch_hourly(1.0, 2.0, *WEEKEND)
+
+    skips = _skips(logs)
+    assert len(skips) == 2, "one per window, not one per view"
+    assert (skips[0]["lat"], skips[0]["lon"], skips[0]["log_level"]) == (1.0, 2.0, "info")
+    assert skips[0]["retry_in_seconds"] == module.FAILURE_COOLDOWN_SECONDS - 60
+    assert [entry["event"] for entry in logs].count("open_meteo.serving_stored") == 2, (
+        "the stored copy is announced when a live call fails, not on every view it is served to"
+    )
+
+
+def test_failures_past_their_cooldown_are_pruned(open_meteo, clock):
+    open_meteo(lambda request: httpx.Response(400))
+
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+    clock.now += module.FAILURE_COOLDOWN_SECONDS
+    fetch_hourly(3.0, 4.0, *WEEKEND)
+
+    assert list(module._failures) == [(3.0, 4.0, "2026-11-06", "2026-11-08")]
+
+
+def test_a_good_answer_prunes_failures_past_their_cooldown(open_meteo, clock):
+    open_meteo(answers(httpx.Response(400), httpx.Response(200, json=PAYLOAD)))
+
+    fetch_hourly(1.0, 2.0, *WEEKEND)
+    clock.now += module.FAILURE_COOLDOWN_SECONDS
+    fetch_hourly(3.0, 4.0, *WEEKEND)
+
+    assert module._failures == {}
+
+
+def test_the_default_clock_is_monotonic():
+    assert module._clock is time.monotonic
 
 
 def test_the_default_client_has_a_timeout():

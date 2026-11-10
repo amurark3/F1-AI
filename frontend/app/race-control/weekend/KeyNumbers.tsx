@@ -78,7 +78,8 @@ function Tile({ label, accent, icon: Icon, state, value, sub, visual, index }: T
 
 export interface KeyNumbersProps {
   rain: { value: number | null; source: string; forecast: SessionForecast | null; state: SectionState };
-  pit: { lossSeconds: number | null; detail: string; state: SectionState };
+  /** The latest same-circuit edition's median pit-lane time (`pitLaneFigure`). */
+  pit: { seconds: number | null; detail: string; state: SectionState };
   title: { stakes: TableStakes | null | undefined; state: SectionState };
   history: { record: CircuitRecord | null | undefined; state: SectionState };
 }
@@ -141,16 +142,16 @@ export function KeyNumbers({ rain, pit, title, history }: KeyNumbersProps) {
       />
       <Tile
         index={1}
-        label="Pit lane loss"
+        label="Pit lane time"
         accent="#3671C6"
         icon={Timer}
         state={pit.state}
         value={
-          pit.lossSeconds === null ? (
-            "No model"
+          pit.seconds === null ? (
+            "—"
           ) : (
             <>
-              <AnimatedNumber value={pit.lossSeconds} decimals={1} />s
+              <AnimatedNumber value={pit.seconds} decimals={1} />s
             </>
           )
         }

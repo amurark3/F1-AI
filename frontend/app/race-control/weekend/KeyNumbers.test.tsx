@@ -4,9 +4,10 @@ import { useReducedMotion } from "framer-motion";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SectionState, SectionStatus } from "@/app/ui/section/sectionState";
-import { CIRCUIT_RECORDS, SAO_PAULO_2026, SESSION_WEATHER_2026, STAKES_2026 } from "@/test/fixtures";
+import { CIRCUIT_RECORDS, SAO_PAULO_2026, SESSION_WEATHER_2026, STAKES_2026, STRATEGY_2026 } from "@/test/fixtures";
 
 import { KeyNumbers, type KeyNumbersProps } from "./KeyNumbers";
+import { pitLaneFigure } from "./pitLaneFigure";
 
 import type * as FramerMotion from "framer-motion";
 
@@ -15,7 +16,7 @@ vi.mock("framer-motion", async (importOriginal) => ({
   useReducedMotion: vi.fn(),
 }));
 
-const { weatherCard, weather, pitModel, stakes, circuit } = SAO_PAULO_2026;
+const { weatherCard, weather, strategy, stakes, circuit } = SAO_PAULO_2026;
 
 /** A segment's state as `useSection` reports it. */
 function section(status: SectionStatus = "ready", reason: string | null = null): SectionState {
@@ -33,11 +34,7 @@ function saoPaulo(state: SectionState = READY): KeyNumbersProps {
       forecast: weather.sessions.find((row) => row.name === "Race")?.forecast ?? null,
       state,
     },
-    pit: {
-      lossSeconds: pitModel.pit_loss_seconds,
-      detail: `Undercut ${pitModel.undercut_delta}s · overcut ${pitModel.overcut_delta}s · modeled`,
-      state,
-    },
+    pit: { ...pitLaneFigure(strategy), state },
     title: { stakes: stakes.drivers, state },
     history: { record: circuit.record, state },
   };
@@ -54,11 +51,11 @@ describe("KeyNumbers", () => {
     vi.mocked(useReducedMotion).mockReturnValue(true);
   });
 
-  it("reads São Paulo's race-day rain, pit loss, decided title and pole record", () => {
+  it("reads São Paulo's race-day rain, pit-lane time, decided title and pole record", () => {
     const { container } = render(<KeyNumbers {...saoPaulo()} />);
 
     expect(tile("Race-day rain")).toEqual(["21%", "Race-day forecast (Open-Meteo)"]);
-    expect(tile("Pit lane loss")).toEqual(["21.9s", "Undercut 1.4s · overcut 0.9s · modeled"]);
+    expect(tile("Pit lane time")).toEqual(["23.5s", "Median of 34 stops · 2025 São Paulo Grand Prix"]);
     expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
     expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
     // The rain tile takes its accent from the rain band, and draws the race's sky.
@@ -87,14 +84,14 @@ describe("KeyNumbers", () => {
     const { container } = render(
       <KeyNumbers
         rain={{ value: lasVegas.rain_risk, source: lasVegas.confidence, forecast: null, state: READY }}
-        pit={{ lossSeconds: null, detail: "Baseline model unavailable", state: READY }}
+        pit={{ ...pitLaneFigure(STRATEGY_2026.madringNoEdition), state: READY }}
         title={{ stakes: STAKES_2026.preseason.drivers, state: READY }}
         history={{ record: CIRCUIT_RECORDS.madring2026.record, state: READY }}
       />,
     );
 
     expect(tile("Race-day rain")).toEqual(["—", "The race-day forecast opens on 7 Nov."]);
-    expect(tile("Pit lane loss")).toEqual(["No model", "Baseline model unavailable"]);
+    expect(tile("Pit lane time")).toEqual(["—", "No edition of this circuit measured"]);
     expect(tile("Title gap")).toEqual(["—", "Standings unavailable"]);
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);
     expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
@@ -124,7 +121,7 @@ describe("KeyNumbers", () => {
     const { container } = render(<KeyNumbers {...saoPaulo(stale)} />);
 
     expect(tile("Race-day rain")).toEqual(["21%", "Race-day forecast (Open-Meteo)"]);
-    expect(tile("Pit lane loss")).toEqual(["21.9s", "Undercut 1.4s · overcut 0.9s · modeled"]);
+    expect(tile("Pit lane time")).toEqual(["23.5s", "Median of 34 stops · 2025 São Paulo Grand Prix"]);
     expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
     expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();

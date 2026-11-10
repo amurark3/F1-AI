@@ -39,7 +39,7 @@ const STALE = { exact: true } as const;
 /** The four key numbers São Paulo's segments give. */
 async function expectSaoPauloNumbers(page: Page): Promise<void> {
   await expect(tile(page, "Race-day rain")).toContainText("21%");
-  await expect(tile(page, "Pit lane loss")).toContainText("21.9s");
+  await expect(tile(page, "Pit lane time")).toContainText("23.5s");
   await expect(tile(page, "Title gap")).toContainText("Decided");
   await expect(tile(page, "Pole → win here")).toContainText("6/10");
 }
@@ -63,7 +63,7 @@ test("a failed refresh keeps the key numbers, marked stale, and a retry brings t
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
   // 2026-11-06: all four tiles read "Unavailable" over real data here.
-  for (const label of ["Race-day rain", "Pit lane loss", "Title gap", "Pole → win here"]) {
+  for (const label of ["Race-day rain", "Pit lane time", "Title gap", "Pole → win here"]) {
     await expect(tile(page, label).getByText("Couldn't refresh", STALE)).toBeVisible();
   }
   await expectSaoPauloNumbers(page);
@@ -92,7 +92,7 @@ test("a segment that fails before it has data says so, and only there", async ({
   await expect(page.getByText("Risk register unavailable", { exact: true })).toBeVisible();
   // Every other segment is intact.
   await expect(tile(page, "Title gap")).toContainText("Decided");
-  await expect(tile(page, "Pit lane loss")).toContainText("21.9s");
+  await expect(tile(page, "Pit lane time")).toContainText("23.5s");
   await expect(tile(page, "Pole → win here")).toContainText("6/10");
   await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(1);
 

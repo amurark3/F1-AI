@@ -26,10 +26,13 @@
  * - `overview-circuit-2026.json`: `…/circuit` (Interlagos), as served.
  * - `overview-predictions-2026.json`: `…/predictions`, each pick kept to the
  *   fields `PodiumPanel` reads.
- * - `overview-strategy-2026.json`: `…/strategy`, re-captured at 08:20 UTC (the
- *   same `pit_model` as at 07:50), kept to the `strategy_context` fields the
- *   baseline strategy panel reads: `primary_call`, `data_source`, `pit_model`
- *   and `stint_windows` (Interlagos 2022 telemetry, high confidence).
+ * - `overview-strategy-2026.json`: `…/strategy`'s `strategy_context`, kept to
+ *   the fields the baseline strategy panel and the pit tile read. Regenerated
+ *   on 10 Nov 2026 (P0b.4) by the backend's own `baseline_plan.build_baseline`
+ *   for 2026 over the 2025 São Paulo Grand Prix (OpenF1 + Jolpica responses
+ *   captured that day, `backend/tests/fixtures/sao_paulo_2025_r21/`), with the
+ *   race-day block of `overview-weather-2026.json` (21%, so no rain branch).
+ *   It replaced the 3 Nov capture, which planned from 2022 FastF1 laps.
  *
  * Other weekends and moments cannot be asked of the endpoints (they serve the
  * selected weekend at the current time), so these were computed by the
@@ -64,15 +67,13 @@
  *   in the same capture (its weather card matches `overview-weather-2026.json`),
  *   except the weather risk's detail: P0b.2 (9 Nov) words it from the race-day
  *   forecast, so it is `risk._weather_risk` over that file's `session_weather`.
- * - `sao_paulo_without_reference`: `strategy_context.build_strategy_context`
- *   for São Paulo with its stored prediction and no telemetry reference, which
- *   is what `strategy_reference_for` returns when the edition cannot be loaded
- *   (a cold FastF1 cache): the heuristic plan, medium confidence.
- * - `spa_without_compounds`: the same function for the Belgian Grand Prix
- *   (round 10, no stored prediction), with the reference
- *   `reference._summarize_circuit_edition` makes from its own 2026 race laps
- *   (the cached FastF1 session) once the `Compound` column is removed: the
- *   backend's `UNKNOWN` compound, which `.title()` sends as "Unknown".
+ * - `sao_paulo_wet` (10 Nov, P0b.4): the same plan as `overview-strategy-2026.json`
+ *   with the race-day rain read at 92%, the peak of the 17:00-19:00 UTC race
+ *   window in the Open-Meteo answer of 6 Nov (STATUS.md log): the dry plan is
+ *   the secondary branch.
+ * - `madring_no_edition` (10 Nov, P0b.4): `build_baseline(2026, None, None)`,
+ *   what the panel gets for a circuit with no raced edition since 2023 (Madring
+ *   before its first Grand Prix, round 14): no plan and no number.
  * - `las_vegas_risk_register`: `risk.build_risk_register` for Las Vegas
  *   (round 21, a street circuit) with the weekend forecast in
  *   `session-weather-2026.json` (`las_vegas_pending.session_weather`, no race
@@ -185,7 +186,7 @@ export const SAO_PAULO_2026 = {
   weather: overviewWeather2026.session_weather as SessionWeather,
   circuit: overviewCircuit2026 as OverviewCircuit,
   podium: overviewPredictions2026.predicted_podium as PodiumPick[],
-  pitModel: overviewStrategy2026.strategy_context.pit_model,
+  strategy: overviewStrategy2026.strategy_context as StrategyContext,
 };
 
 /** The stakes on earlier weekends of 2026: before round 1, after round 1, after round 18. */
@@ -220,11 +221,11 @@ export const CIRCUIT_RECORDS = {
   },
 };
 
-/** The baseline strategy plan for 2026 weekends: as served, and derived by removal. */
+/** The baseline strategy plan for 2026 weekends: São Paulo dry and wet, and a circuit with no edition. */
 export const STRATEGY_2026 = {
   saoPaulo: overviewStrategy2026.strategy_context as StrategyContext,
-  saoPauloWithoutReference: strategyPanels2026.sao_paulo_without_reference as StrategyContext,
-  spaWithoutCompounds: strategyPanels2026.spa_without_compounds as StrategyContext,
+  saoPauloWet: strategyPanels2026.sao_paulo_wet as StrategyContext,
+  madringNoEdition: strategyPanels2026.madring_no_edition as StrategyContext,
 };
 
 /** Risk registers for 2026 weekends. */

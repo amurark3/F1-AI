@@ -4,14 +4,13 @@ import { API_BASE } from "@/app/constants/api";
 import { Section } from "@/app/ui/section/Section";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
 
+import { BaselineStrategyPanel } from "./components/BaselineStrategyPanel";
 import {
-  BaselineStrategyPanel,
   RiskRegisterPanel,
   type OverviewPredictions,
   type OverviewShell,
   type OverviewStrategy,
   type OverviewWeather,
-  type StrategyContext,
 } from "./components/CommandCenterPanels";
 import { Disclosure } from "./components/Disclosure";
 import { LiveTimingPanel } from "./components/LiveTimingPanel";
@@ -19,6 +18,7 @@ import { SectionHeader, SkeletonPanel } from "./components/RaceControlPrimitives
 import { ChampionshipStakes } from "./weekend/ChampionshipStakes";
 import { CircuitHistoryPanel } from "./weekend/CircuitHistoryPanel";
 import { KeyNumbers } from "./weekend/KeyNumbers";
+import { pitLaneFigure } from "./weekend/pitLaneFigure";
 import { PodiumPanel } from "./weekend/PodiumPanel";
 import { WeekendForecast } from "./weekend/WeekendForecast";
 import { WeekendHero } from "./weekend/WeekendHero";
@@ -83,12 +83,6 @@ function HeroSlot({ shell, circuit, weather }: HeroSlotProps) {
   );
 }
 
-function pitDetail(context: StrategyContext | undefined): string {
-  const pit = context?.pit_model;
-  if (!pit) return "Baseline model unavailable";
-  return `Undercut ${pit.undercut_delta}s · overcut ${pit.overcut_delta}s${pit.undercut_modeled ? " · modeled" : ""}`;
-}
-
 interface WeekendNumbersProps {
   shell: SectionResult<OverviewShell>;
   strategy: SectionResult<OverviewStrategy>;
@@ -99,7 +93,7 @@ interface WeekendNumbersProps {
 /** The four headline numbers, each following the segment it is read from. */
 function WeekendNumbers({ shell, strategy, weather, circuit }: WeekendNumbersProps) {
   const card = weather.data?.weather;
-  const context = strategy.data?.strategy_context;
+  const pitLane = pitLaneFigure(strategy.data?.strategy_context);
   const raceForecast = weather.data?.session_weather?.sessions.find((row) => row.name === "Race")?.forecast;
   return (
     <KeyNumbers
@@ -109,11 +103,7 @@ function WeekendNumbers({ shell, strategy, weather, circuit }: WeekendNumbersPro
         forecast: raceForecast ?? null,
         state: weather,
       }}
-      pit={{
-        lossSeconds: context?.pit_model.pit_loss_seconds ?? null,
-        detail: pitDetail(context),
-        state: strategy,
-      }}
+      pit={{ ...pitLane, state: strategy }}
       title={{ stakes: shell.data?.stakes?.drivers, state: shell }}
       history={{ record: circuit.data?.record, state: circuit }}
     />

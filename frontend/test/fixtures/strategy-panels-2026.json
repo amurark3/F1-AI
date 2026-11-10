@@ -11,65 +11,121 @@
       "detail": "Nearest rival (Ferrari) trails by 126 pts — lower direct championship pressure this round."
     }
   ],
-  "sao_paulo_without_reference": {
+  "sao_paulo_wet": {
     "primary_call": {
       "title": "Base race plan",
-      "summary": "Model a medium-to-hard one-stop around L30; keep a two-stop branch open if tyre age exceeds the working life before the stop.",
-      "confidence": "medium"
+      "summary": "Medium–Soft–Medium two-stop: 5 of 17 finishers ran it at the 2025 São Paulo Grand Prix (previous regulations), the winner among them. Soft–Medium–Medium two-stop was as common. 13 of 17 finishers stopped twice. First stops: median L21, middle half L17–L30.",
+      "confidence": "medium",
+      "confidence_basis": "17 finishers · 2025 edition · previous regulations"
     },
     "data_source": {
-      "mode": "heuristic",
-      "edition_year": null,
-      "sample_size": null
+      "mode": "edition",
+      "edition_year": 2025,
+      "event_name": "São Paulo Grand Prix",
+      "round": 21,
+      "previous_regulations": true,
+      "sample_size": 17,
+      "sources": ["OpenF1 stints", "Jolpica pit stops", "OpenF1 classification", "OpenF1 pit-lane times"],
+      "unread_years": []
     },
-    "pit_model": {
-      "pit_loss_seconds": 21,
-      "undercut_delta": 1.4,
-      "overcut_delta": 0.9,
-      "undercut_modeled": true,
-      "overcut_modeled": true,
-      "traffic_threshold": "medium",
-      "traffic_modeled": true
-    },
-    "stint_windows": {
+    "plan": {
+      "compounds": ["Medium", "Soft", "Medium"],
+      "stops": 2,
+      "drivers": ["NOR", "RUS", "PIA", "ALB", "COL"],
+      "finishers": 17,
       "total_laps": 71,
-      "opening_compound": "Medium",
-      "finishing_compound": "Hard",
-      "offset_lap": 26,
-      "primary_lap": 30,
-      "late_lap": 40,
-      "modeled": true
-    }
-  },
-  "spa_without_compounds": {
-    "primary_call": {
-      "title": "Base race plan",
-      "summary": "Field ran a Unknown-to-Unknown one-stop here in 2026 (median first stop L18, 22-car sample); keep a two-stop branch open if degradation shifts the crossover.",
-      "confidence": "medium"
+      "stints": [
+        {
+          "compound": "Medium",
+          "start_lap": 1,
+          "end_lap": 34
+        },
+        {
+          "compound": "Soft",
+          "start_lap": 35,
+          "end_lap": 50
+        },
+        {
+          "compound": "Medium",
+          "start_lap": 51,
+          "end_lap": 71
+        }
+      ]
     },
-    "data_source": {
-      "mode": "telemetry",
-      "edition_year": 2026,
-      "sample_size": 22
+    "alternatives": [
+      {
+        "compounds": ["Soft", "Medium", "Medium"],
+        "stops": 2,
+        "drivers": 5
+      },
+      {
+        "compounds": ["Hard", "Medium", "Medium"],
+        "stops": 2,
+        "drivers": 3
+      }
+    ],
+    "stop_counts": [
+      {
+        "stops": 2,
+        "drivers": 13
+      },
+      {
+        "stops": 1,
+        "drivers": 2
+      },
+      {
+        "stops": 3,
+        "drivers": 2
+      }
+    ],
+    "first_stop": {
+      "median_lap": 21,
+      "p25_lap": 17,
+      "p75_lap": 30,
+      "drivers": 17
     },
     "pit_model": {
-      "pit_loss_seconds": 31.7,
-      "undercut_delta": 1.4,
-      "overcut_delta": 0.9,
-      "undercut_modeled": true,
-      "overcut_modeled": true,
-      "traffic_threshold": "medium",
-      "traffic_modeled": false
+      "pit_lane_seconds": 23.5,
+      "pit_lane_stops": 34
     },
-    "stint_windows": {
-      "total_laps": 44,
-      "opening_compound": "Unknown",
-      "finishing_compound": "Unknown",
-      "offset_lap": 15,
-      "primary_lap": 18,
-      "late_lap": 31,
-      "modeled": false
-    }
+    "rain_branch": {
+      "rain_pct": 92,
+      "threshold_pct": 40,
+      "note": "Race-day forecast (Open-Meteo): 92% peak rain probability in the race window, so this dry plan is the secondary branch."
+    },
+    "assumptions": [
+      "Base plan: the 2025 São Paulo Grand Prix, 17 classified finishers, previous regulations. Compound sequences from OpenF1 stints; stop counts and stop laps from Jolpica pit stops; pit-lane time from OpenF1 pit-lane times; finishers from OpenF1 classification.",
+      "Compounds read Soft / Medium / Hard: the weekend's Pirelli allocation (C1–C5) is not read yet.",
+      "No undercut, overcut or rejoin-traffic figure is shown: nothing measures them yet."
+    ]
+  },
+  "madring_no_edition": {
+    "primary_call": {
+      "title": "Base race plan",
+      "summary": "No baseline plan: this circuit has no completed race since 2023, OpenF1's first season, to read tyre stints and pit stops from.",
+      "confidence": null,
+      "confidence_basis": null
+    },
+    "data_source": {
+      "mode": "none",
+      "edition_year": null,
+      "event_name": null,
+      "round": null,
+      "previous_regulations": false,
+      "sample_size": null,
+      "sources": [],
+      "unread_years": []
+    },
+    "plan": null,
+    "alternatives": [],
+    "stop_counts": [],
+    "first_stop": null,
+    "pit_model": {
+      "pit_lane_seconds": null,
+      "pit_lane_stops": null
+    },
+    "rain_branch": null,
+    "assumptions": ["No undercut, overcut or rejoin-traffic figure is shown: nothing measures them yet."]
   },
   "las_vegas_risk_register": [
     {

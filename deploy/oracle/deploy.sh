@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# The one command the deploy key may run. bootstrap.sh writes it into
+# ~deploy/.ssh/authorized_keys as that key's command=, so whatever the caller
+# asks for arrives in SSH_ORIGINAL_COMMAND and nothing else runs. It accepts
+# exactly two requests:
+#
+#   deploy <40-hex commit sha>
+#       Check out deploy/oracle at that commit, pull
+#       ghcr.io/amurark3/f1-ai-api:<sha>, restart the stack on it and wait for
+#       /api/ready (then /api/health/deep) from inside the API container. If it
+#       is not ready in time, go back to the previous image and exit 1.
+#   ingest-rulebook
+#       Re-embed the FIA regulation PDFs into pgvector with the deployed image.
+#
+# Anything else exits 2. GitHub Actions calls it (deploy-oracle.yml); by hand
+# on the VM it takes the same requests as arguments:
+#
+#   sudo -u deploy /srv/f1ai/app/deploy/oracle/deploy.sh deploy <sha>
+#   sudo -u deploy /srv/f1ai/app/deploy/oracle/deploy.sh ingest-rulebook
+#
+# Rehearsal knobs (environment; sshd never passes a caller's environment to a
+# forced command): F1AI_READY_TIMEOUT (seconds, default 180), F1AI_OFFLINE=1
+# (skip the git fetch and the image pull; use what is already on this machine).
+set -euo pipefail
+
+# shellcheck source-path=SCRIPTDIR source=bin/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/bin/lib.sh"
+
+READY_TIMEOUT=${F1AI_READY_TIMEOUT:-180}
+OFFLINE=${F1AI_OFFLINE:-0}
+POLL_SECONDS=5
+
+# Run inside the API container: exit 0 once warm-up is complete and the
+# database answers, 1 otherwise, printing why on one line. Warm-up that
+# finished with an error still counts as up (the error is printed): it means
+# an outside source failed, such as GitHub's release downloads, which the
+# previous image would hit just the same.
+READY_PROBE='
+import json, sys, urllib.error, urllib.request
+base = "http://127.0.0.1:8000/api"
+try:
+    state = json.load(urllib.request.urlopen(base + "/ready", timeout=5))
+except Exception as exc:
+    sys.exit(f"not answering: {exc}")
+stage, error = state.get("stage"), state.get("error")
+if not state.get("ready"):
+    sys.exit(f"warming up: {stage}")
+try:
+    urllib.request.urlopen(base + "/health/deep", timeout=15)
+except urllib.error.HTTPError as exc:
+    sys.exit(f"warmed up, but /api/health/deep answered {exc.code}")
+except Exception as exc:
+    sys.exit(f"warmed up, but /api/health/deep failed: {exc}")
+print("ready" + (f" (warm-up finished with an error: {error})" if error else ""))
+'
+
+usage() {
+  echo "usage: deploy <40-hex commit sha> | ingest-rulebook" >&2
+  exit 2
+}
+
+# Sets ACTION (and SHA) from the SSH request, or from the arguments when run
+# by hand. The patterns are anchored and whole: no shell ever sees the request.
+parse_request() {
+  local request
+  if [[ -n ${SSH_ORIGINAL_COMMAND+set} ]]; then
+    request=$SSH_ORIGINAL_COMMAND
+  else
+    request="$*"
+  fi
+  if [[ $request =~ ^deploy\ ([0-9a-f]{40})$ ]]; then
+    ACTION=deploy
+    SHA=${BASH_REMATCH[1]}
+  elif [[ $request == ingest-rulebook ]]; then
+    ACTION=ingest-rulebook
+  else
+    request=${request//[^[:print:]]/?}
+    log "rejected request: ${request:0:120}" >&2
+    usage
+  fi
+}
+
+is_commit_sha() {
+  [[ $1 =~ ^[0-9a-f]{40}$ ]]
+}
+
+# One deploy or ingest at a time; a second caller waits up to 15 minutes.
+take_lock() {
+  mkdir -p "$F1AI_STATE_DIR"
+  exec 9>"$F1AI_STATE_DIR/deploy.lock"
+  flock -w 900 9 || die "another deploy is still running"
+}
+
+# Put deploy/oracle (compose.yaml, Caddyfile, these scripts) at the commit
+# being deployed, so the stack definition always matches the image.
+sync_files() {
+  local sha=$1
+  if [[ $OFFLINE == 1 ]]; then
+    log "offline: deploy files left as they are"
+    return 0
+  fi
+  git -C "$F1AI_DEPLOY_DIR" fetch --quiet --depth 1 origin "$sha"
+  git -C "$F1AI_DEPLOY_DIR" checkout --quiet --detach "$sha"
+  log "deploy files at $sha"
+}
+
+pull_image() {
+  local ref="$F1AI_IMAGE_REPO:$1"
+  if [[ $OFFLINE == 1 ]]; then
+    if ! docker image inspect "$ref" >/dev/null 2>&1; then
+      log "offline, and $ref is not on this machine"
+      return 1
+    fi
+    log "offline: using the local $ref"
+    return 0
+  fi
+  log "pulling $ref"
+  if ! docker pull --quiet "$ref" >/dev/null; then
+    log "could not pull $ref"
+    return 1
+  fi
+}
+
+start_stack() {
+  local tag=$1
+  log "starting the stack on $F1AI_IMAGE_REPO:$tag"
+  API_TAG=$tag compose up --detach --remove-orphans --quiet-pull
+}
+
+# Poll the API until it is ready or READY_TIMEOUT passes. Prints each new
+# status once, not every poll.
+wait_ready() {
+  local deadline=$((SECONDS + READY_TIMEOUT)) status last=""
+  while ((SECONDS < deadline)); do
+    if status=$(compose exec -T api python -c "$READY_PROBE" 2>&1); then
+      log "api: $status"
+      return 0
+    fi
+    status=${status##*$'\n'}
+    if [[ $status != "$last" ]]; then
+      log "api: ${status:0:200}"
+      last=$status
+    fi
+    sleep "$POLL_SECONDS"
+  done
+  log "api: not ready after ${READY_TIMEOUT}s"
+  return 1
+}
+
+# Keep the images of the live and previous deploys; remove the other tags of
+# this repository (each holds a copy of the code layers on the boot disk).
+prune_images() {
+  local keep_live=$1 keep_previous=$2 ref
+  while IFS= read -r ref; do
+    case $ref in
+      *:"<none>" | "$F1AI_IMAGE_REPO:$keep_live" | "$F1AI_IMAGE_REPO:$keep_previous") continue ;;
+    esac
+    if docker image rm "$ref" >/dev/null 2>&1; then
+      log "removed old image $ref"
+    else
+      log "kept $ref (still in use)"
+    fi
+  done < <(docker image ls "$F1AI_IMAGE_REPO" --format '{{.Repository}}:{{.Tag}}')
+}
+
+rollback() {
+  local previous=$1
+  if [[ -z $previous ]]; then
+    log "no previous image to go back to: the stack stays on $SHA, which is not ready"
+    return 0
+  fi
+  log "rolling back to $previous"
+  if is_commit_sha "$previous"; then
+    sync_files "$previous"
+  fi
+  if start_stack "$previous" && wait_ready; then
+    log "rolled back: $previous is serving"
+  else
+    log "rolled back to $previous, but it is not ready either; check: bin/compose.sh logs api"
+  fi
+}
+
+deploy() {
+  local previous
+  previous=$(deployed_tag)
+  log "deploying $SHA (live: ${previous:-nothing yet})"
+  sync_files "$SHA"
+  # A failed pull or start goes back like a failed health check: the deploy
+  # files have already moved to the new commit.
+  if pull_image "$SHA" && start_stack "$SHA" && wait_ready; then
+    if [[ -n $previous && $previous != "$SHA" ]]; then
+      write_state "$F1AI_PREVIOUS_TAG_FILE" "$previous"
+    fi
+    write_state "$F1AI_TAG_FILE" "$SHA"
+    prune_images "$SHA" "${previous:-$SHA}"
+    log "deployed $SHA"
+    return 0
+  fi
+  rollback "$previous"
+  log "deploy of $SHA failed; on the VM: bin/compose.sh logs --tail 200 api"
+  return 1
+}
+
+ingest_rulebook() {
+  [[ -n $(deployed_tag) ]] || die "nothing is deployed yet; deploy first"
+  log "re-embedding the rulebook with $F1AI_IMAGE_REPO:$(deployed_tag)"
+  compose --profile jobs run --rm -T jobs python -m app.rag.ingest --force
+  log "rulebook ingest done"
+}
+
+main() {
+  parse_request "$@"
+  take_lock
+  case $ACTION in
+    deploy) deploy ;;
+    ingest-rulebook) ingest_rulebook ;;
+  esac
+}
+
+# On one line, so bash has read the whole call before running it: the deploy
+# may check out a new copy of this file while it runs.
+main "$@"; exit $?

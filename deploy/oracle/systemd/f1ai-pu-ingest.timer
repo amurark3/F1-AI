@@ -1,0 +1,10 @@
+[Unit]
+Description=F1 AI: power-unit ingest, hourly at :17 Thursday to Monday (race weekends)
+
+[Timer]
+# Mirrors .github/workflows/ingest-power-units.yml's cron "17 * * * 4,5,6,0,1".
+OnCalendar=Thu,Fri,Sat,Sun,Mon *-*-* *:17:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

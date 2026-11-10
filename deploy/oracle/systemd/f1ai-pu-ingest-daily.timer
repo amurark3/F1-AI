@@ -1,0 +1,10 @@
+[Unit]
+Description=F1 AI: power-unit ingest of every event page, daily at 05:47 UTC
+
+[Timer]
+# Mirrors .github/workflows/ingest-power-units.yml's cron "47 5 * * *" (--all-events).
+OnCalendar=*-*-* 05:47:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

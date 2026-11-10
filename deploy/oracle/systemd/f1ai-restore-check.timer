@@ -1,0 +1,9 @@
+[Unit]
+Description=F1 AI: weekly restore check, Wednesdays 04:30 UTC (after that night's backup)
+
+[Timer]
+OnCalendar=Wed *-*-* 04:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

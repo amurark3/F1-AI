@@ -1,0 +1,14 @@
+[Unit]
+Description=F1 AI: collect the FIA's power-unit documents
+Documentation=https://github.com/amurark3/F1-AI/tree/main/deploy/oracle
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+RequiresMountsFor=/srv/f1ai
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/srv/f1ai/app/deploy/oracle/bin/pu-ingest.sh
+TimeoutStartSec=50min

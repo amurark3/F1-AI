@@ -17,7 +17,8 @@ from app.services import race_control as rc
 pytestmark = pytest.mark.unit
 
 SAFETY_CAR_RISK = "Safety car exposure"
-OFFLINE_WEATHER = {"rain_risk": None, "confidence": "The forecast feed is unavailable right now."}
+# The weekend forecast with the feed down: the register grades the race-day forecast only.
+OFFLINE_FORECAST = {"status": "unavailable", "note": "The forecast feed is unavailable right now.", "sessions": []}
 
 
 def _race_at(location: str) -> dict:
@@ -33,7 +34,7 @@ def _race_at(location: str) -> dict:
 
 
 def _risk_titles(location: str) -> list[str]:
-    return [risk["title"] for risk in rc.build_risk_register(_race_at(location), OFFLINE_WEATHER, [])]
+    return [risk["title"] for risk in rc.build_risk_register(_race_at(location), OFFLINE_FORECAST, [])]
 
 
 def _pit_model(location: str) -> dict:

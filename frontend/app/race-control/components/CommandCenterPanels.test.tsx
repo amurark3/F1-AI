@@ -116,7 +116,9 @@ describe("RiskRegisterPanel", () => {
     expect(cards.map((card) => within(card).getByText(/^(High|Medium|Low)$/).textContent)).toEqual(["Medium", "Low"]);
     expect(within(cards[0]).getByText("Mixed conditions possible")).toBeInTheDocument();
     expect(
-      within(cards[0]).getByText("Live forecast shows 21% rain probability — keep the dry/wet crossover branch ready."),
+      within(cards[0]).getByText(
+        "Race-day forecast (Open-Meteo): 21% peak rain probability in the race window — keep the dry/wet crossover branch ready.",
+      ),
     ).toBeInTheDocument();
     expect(cards[0]).toHaveStyle({ borderLeft: "3px solid #FFF200", animationDelay: "0s" });
     expect(within(cards[1]).getByText("Rival offset plans")).toBeInTheDocument();
@@ -124,14 +126,17 @@ describe("RiskRegisterPanel", () => {
     expect(within(cards[1]).getByText("Low")).toHaveStyle({ color: "#00FF78" });
   });
 
-  it("marks a street circuit's safety-car exposure High, and an offline forecast as such", () => {
+  it("marks a street circuit's safety-car exposure High, and a race with no forecast yet Medium with why", () => {
     render(<RiskRegisterPanel risks={RISK_REGISTERS_2026.lasVegas} />);
 
     const [street, weather] = screen.getAllByRole("listitem");
     expect(within(street).getByText("Safety car exposure")).toBeInTheDocument();
     expect(street).toHaveStyle({ borderLeft: "3px solid #FF4655" });
     expect(within(street).getByText("High")).toHaveStyle({ color: "#FF4655" });
-    expect(within(weather).getByText("Weather feed offline")).toBeInTheDocument();
+    expect(within(weather).getByText("Race-day forecast unavailable")).toBeInTheDocument();
+    expect(within(weather).getByText("Medium")).toHaveStyle({ color: "#FFF200" });
+    expect(within(weather).getByText(/^The race-day forecast opens on 7 Nov\./)).toBeInTheDocument();
+    expect(within(weather).queryByText(/%/)).not.toBeInTheDocument();
     expect(screen.queryByText("No risks graded for this weekend.")).not.toBeInTheDocument();
   });
 

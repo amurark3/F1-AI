@@ -85,7 +85,7 @@ def weather_blocks(race: dict | None) -> tuple[dict, dict]:
 
 
 def build_overview_weather(year: int) -> dict:
-    """The weekend's forecast session by session, and the risk register it grades."""
+    """The weekend's forecast session by session, and the risk register graded from the race's."""
 
     race = _selected_race(year)
     weather, sessions = weather_blocks(race)
@@ -94,7 +94,7 @@ def build_overview_weather(year: int) -> dict:
         "year": year,
         "weather": weather,
         "session_weather": sessions,
-        "risk_register": build_risk_register(race, weather, competitors),
+        "risk_register": build_risk_register(race, sessions, competitors),
     }
 
 
@@ -158,7 +158,7 @@ def build_overview(year: int) -> dict:
         "weather": weather,
         "session_weather": sessions,
         "circuit": build_circuit_segment(year, race),
-        "risk_register": build_risk_register(race, weather, strategy_context.get("competitors", [])),
+        "risk_register": build_risk_register(race, sessions, strategy_context.get("competitors", [])),
         "workstreams": build_workstreams(race, predictions, strategy_context),
         "live_status": build_live_status(race),
     }

@@ -188,7 +188,9 @@ def test_the_race_day_forecast_feeds_the_summary_card(monkeypatch):
     }
     assert payload["session_weather"] == _RACE_DAY_FORECAST
     register = {card["title"]: card for card in payload["risk_register"]}
-    assert "55%" in register["Elevated rain risk"]["detail"]
+    assert register["Elevated rain risk"]["detail"].startswith(
+        f"{session_weather.RACE_DAY_FORECAST}: 55% peak rain probability in the race window"
+    )
 
 
 @pytest.mark.unit
@@ -254,8 +256,13 @@ def test_overview_shows_the_forecasts_note_rather_than_current_conditions(monkey
 
     assert payload["weather"] == _NO_FORECAST_CARD
     assert asked == []
-    assert [card["title"] for card in payload["risk_register"]][:1] == ["Safety car exposure"]
-    assert "Weather feed offline" in [card["title"] for card in payload["risk_register"]]
+    register = {card["title"]: card for card in payload["risk_register"]}
+    assert next(iter(register)) == "Safety car exposure"
+    assert "Dry conditions expected" not in register
+    unavailable = register["Race-day forecast unavailable"]
+    assert unavailable["level"] == "Medium"
+    assert unavailable["detail"].startswith("later ")
+    assert "%" not in unavailable["detail"]
 
 
 # ---------------------------------------------------------------------------

@@ -25,8 +25,11 @@ def _opens_on(value: object) -> str | None:
     return f"The race-day forecast opens on {day.day} {day:%b}."
 
 
-def _reason(session_weather: dict) -> str:
-    """Why there is no race-day number: the race's horizon, the forecast's note, or no reading."""
+def race_day_reason(session_weather: dict) -> str:
+    """Why there is no race-day number: the race's horizon, the forecast's note, or no reading.
+
+    The card and the risk register both print it, so they give the same reason.
+    """
     race = race_row(session_weather)
     opens = _opens_on(race.get("forecast_opens")) if race else None
     return opens or session_weather.get("note") or NOTE_NO_RACE_READING
@@ -38,5 +41,5 @@ def build_weather_block(session_weather: dict) -> dict:
         "rain_risk": None,
         "track_temp_c": None,
         "wind_kph": None,
-        "confidence": _reason(session_weather),
+        "confidence": race_day_reason(session_weather),
     }

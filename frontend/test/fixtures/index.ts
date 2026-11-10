@@ -61,7 +61,9 @@
  * 08:20 UTC on 3 Nov, each kept to the fields the panels read:
  *
  * - `sao_paulo_risk_register`: the `risk_register` of `…/weather`, as served
- *   in the same capture (its weather card matches `overview-weather-2026.json`).
+ *   in the same capture (its weather card matches `overview-weather-2026.json`),
+ *   except the weather risk's detail: P0b.2 (9 Nov) words it from the race-day
+ *   forecast, so it is `risk._weather_risk` over that file's `session_weather`.
  * - `sao_paulo_without_reference`: `strategy_context.build_strategy_context`
  *   for São Paulo with its stored prediction and no telemetry reference, which
  *   is what `strategy_reference_for` returns when the edition cannot be loaded
@@ -72,9 +74,11 @@
  *   (the cached FastF1 session) once the `Compound` column is removed: the
  *   backend's `UNKNOWN` compound, which `.title()` sends as "Unknown".
  * - `las_vegas_risk_register`: `risk.build_risk_register` for Las Vegas
- *   (round 21, a street circuit) with the weather card in
- *   `session-weather-2026.json` (`las_vegas_pending.weather`, no race forecast) and
- *   the competitor rows from the current constructors' table.
+ *   (round 21, a street circuit) with the weekend forecast in
+ *   `session-weather-2026.json` (`las_vegas_pending.session_weather`, no race
+ *   forecast yet) and the competitor rows from the current constructors' table.
+ *   Its weather risk was regenerated for P0b.2 (9 Nov): "Race-day forecast
+ *   unavailable" with the forecast's own reason, where it read "Weather feed offline".
  * - `no_race_risk_register`: the same function with no race: an empty register.
  *
  * The names kit (`app/ui/names/`, P2.3a) reads these, captured at 22:25 UTC on

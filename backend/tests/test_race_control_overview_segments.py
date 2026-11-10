@@ -107,7 +107,17 @@ REFERENCE = {
 }
 
 WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": session_weather.RACE_DAY_FORECAST}
-SESSIONS = {"status": "ready", "note": None, "sessions": [{"name": "Race", "forecast": {"rain_probability_pct": 5}}]}
+SESSIONS = {
+    "status": "ready",
+    "note": None,
+    "sessions": [
+        {
+            "name": "Race",
+            "phase": "upcoming",
+            "forecast": {"rain_probability_pct": 5, "track_temp_c": 35.8, "wind_kph": 30.6},
+        }
+    ],
+}
 CIRCUIT = {"record": {"circuit_id": "zandvoort"}, "lap_record": None, "map": None}
 
 

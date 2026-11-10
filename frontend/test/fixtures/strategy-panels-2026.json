@@ -3,7 +3,7 @@
     {
       "level": "Medium",
       "title": "Mixed conditions possible",
-      "detail": "Live forecast shows 21% rain probability — keep the dry/wet crossover branch ready."
+      "detail": "Race-day forecast (Open-Meteo): 21% peak rain probability in the race window — keep the dry/wet crossover branch ready."
     },
     {
       "level": "Low",
@@ -79,8 +79,8 @@
     },
     {
       "level": "Medium",
-      "title": "Weather feed offline",
-      "detail": "Live forecast unavailable — confirm dry/wet branches manually before lock."
+      "title": "Race-day forecast unavailable",
+      "detail": "The race-day forecast opens on 7 Nov. No rain probability to grade: keep both the dry and wet branches ready."
     },
     {
       "level": "Low",

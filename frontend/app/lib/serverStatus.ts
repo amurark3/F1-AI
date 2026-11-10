@@ -10,37 +10,32 @@ export interface ServerState {
   stage: string | null;
   /**
    * Counts probe runs. Lets the UI scope per-run state — a dismissal, the
-   * lights-out moment — to one run, so a later cold restart shows again.
+   * lights-out moment — to one run, so a later restart shows again.
    */
   run: number;
   /**
    * True once the current run has seen the server warming. Distinguishes "was
-   * already warm" from "finished warming while you waited", so a warm server
+   * already up" from "came back while you waited", so a server that is up
    * never flashes anything.
    */
   waited: boolean;
-  /** Epoch ms at which the current run first saw the server warming. */
-  warmingSince: number | null;
 }
 
 interface ReadyResponse {
   ready: boolean;
-  stage: string;
-  detail: string;
+  stage: string | null;
+  detail: string | null;
 }
 
+/** A probe with no answer by now has failed: the server is down or restarting. */
 const PROBE_TIMEOUT_MS = 4000;
 const PROBE_INTERVAL_MS = 3000;
-/** Give up after ~3 minutes. A cold start is ~50s; past this the server is down. */
-const MAX_ATTEMPTS = 60;
 /**
- * A warm server answers /api/ready well inside this. A first probe still
- * pending past it is being held by Render while the container boots, so the
- * warm-up screen goes up now rather than when the probe finally times out.
+ * Give up after two minutes. A restart after a deploy is ready well inside
+ * this, and the deploy itself rolls back when `/api/ready` has not answered
+ * ready within 120 s, so past it the server is down, not restarting.
  */
-const SLOW_PROBE_MS = 1500;
-/** A tab hidden this long may come back to a server that spun down or restarted. */
-const STALE_TAB_MS = 60_000;
+const GIVE_UP_MS = 120_000;
 /** A failed request this soon after a probe said "ready" is not worth another probe. */
 const RECHECK_COOLDOWN_MS = 10_000;
 
@@ -50,28 +45,27 @@ const INITIAL_STATE: ServerState = {
   stage: null,
   run: 0,
   waited: false,
-  warmingSince: null,
 };
 
 /**
  * Module-level store so every consumer shares one probe cycle.
  *
  * The probe hits /api/ready rather than /api/health deliberately. Health answers
- * "is the process up?", which on Render goes true within a second of the container
- * waking while the model and database are still loading — dropping the warm-up
- * screen long before the app can actually answer a data request. Readiness
- * tracks the thing the user is really waiting for.
+ * "is the process up?", which goes true within a second of a restart while the
+ * model and database are still loading. Readiness tracks the thing a data
+ * request actually needs.
  *
- * The probe doubles as the wake-up knock: any request to a spun-down Render
- * instance starts the container, which starts its warm-up. Because the probe is
- * started from the root layout, landing on any page triggers that.
+ * The backend is always on, so the probe normally answers "ready" at once and
+ * nothing is shown. Only a probe that fails — no answer, an error status, or a
+ * report that says not ready — counts as not ready; a slow answer that says
+ * ready is ready.
  */
 let state: ServerState = INITIAL_STATE;
 const listeners = new Set<() => void>();
 let started = false;
 let probing = false;
+let runStartedAt = 0;
 let lastReadyAt = 0;
-let hiddenAt: number | null = null;
 
 /** Publishes a new snapshot. Always builds a fresh object — never mutates. */
 function publish(patch: Partial<ServerState>): void {
@@ -91,9 +85,19 @@ export function getServerStatus(): ServerState {
   return state;
 }
 
-/** The server renders no warm-up screen; readiness is a client-only concern. */
+/** The server renders no status notice; readiness is a client-only concern. */
 export function getServerStatusOnServer(): ServerState {
   return INITIAL_STATE;
+}
+
+const textOrNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
+/** Reads a `/api/ready` body, or null when it is not a readiness report. */
+function parseReadiness(body: unknown): ReadyResponse | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { ready, stage, detail } = body as Record<string, unknown>;
+  if (typeof ready !== "boolean") return null;
+  return { ready, stage: textOrNull(stage), detail: textOrNull(detail) };
 }
 
 async function fetchReadiness(): Promise<ReadyResponse | null> {
@@ -102,9 +106,9 @@ async function fetchReadiness(): Promise<ReadyResponse | null> {
   try {
     const res = await fetch(`${API_BASE}/api/ready`, { signal: controller.signal });
     if (!res.ok) return null;
-    return (await res.json()) as ReadyResponse;
+    return parseReadiness(await res.json());
   } catch {
-    // Timeout, network error, or a container that has not woken yet.
+    // Timeout, network error, or a body that is not JSON: the server is not up.
     return null;
   } finally {
     clearTimeout(timeout);
@@ -117,7 +121,6 @@ function markWarming(readiness: ReadyResponse | null): void {
     detail: readiness?.detail ?? null,
     stage: readiness?.stage ?? null,
     waited: true,
-    warmingSince: state.warmingSince ?? Date.now(),
   });
 }
 
@@ -127,44 +130,43 @@ function finishRun(status: "ready" | "unreachable", stage: string | null): void 
   publish({ status, detail: null, stage });
 }
 
-async function poll(attempt: number): Promise<void> {
-  const slowProbe = attempt === 1 ? setTimeout(() => markWarming(null), SLOW_PROBE_MS) : undefined;
+async function poll(): Promise<void> {
   const readiness = await fetchReadiness();
-  clearTimeout(slowProbe);
 
   if (readiness?.ready) {
     finishRun("ready", readiness.stage);
     return;
   }
-  if (attempt >= MAX_ATTEMPTS) {
-    // Stop rather than claim "warming up" forever against a dead server.
+  if (Date.now() - runStartedAt >= GIVE_UP_MS) {
+    // Stop rather than claim "updating" forever against a dead server.
     finishRun("unreachable", null);
     return;
   }
 
   markWarming(readiness);
-  setTimeout(() => void poll(attempt + 1), PROBE_INTERVAL_MS);
+  setTimeout(() => void poll(), PROBE_INTERVAL_MS);
 }
 
 /**
  * Starts a probe run unless one is already looking.
  *
- * The status is left as it was until the probe answers (or is slow to), so a
- * recheck against a warm server changes nothing a consumer can see.
+ * The status is left as it was until the probe answers, so a recheck against a
+ * server that is up changes nothing a consumer can see.
  */
 function startRun(): void {
   if (probing) return;
   probing = true;
-  publish({ run: state.run + 1, waited: false, warmingSince: null });
-  void poll(1);
+  runStartedAt = Date.now();
+  publish({ run: state.run + 1, waited: false });
+  void poll();
 }
 
 /**
  * Asks the probe to look again because something suggests the server went away.
  *
  * Ignored before the first run (including during server rendering), while
- * offline — no connection is not a cold start, and coming back online
- * rechecks on its own — and just after a run confirmed the server ready.
+ * offline — no connection is not a restart, and coming back online rechecks on
+ * its own — and just after a run confirmed the server ready.
  */
 export function recheckServer(): void {
   if (!started) return;
@@ -182,29 +184,18 @@ export function retryServerProbe(): void {
   markWarming(null);
 }
 
-function onVisibilityChange(): void {
-  if (document.visibilityState === "hidden") {
-    hiddenAt = Date.now();
-    return;
-  }
-  const wasStale = hiddenAt !== null && Date.now() - hiddenAt >= STALE_TAB_MS;
-  hiddenAt = null;
-  if (wasStale) recheckServer();
-}
-
 function onPageShow(event: PageTransitionEvent): void {
   // A page restored from the back/forward cache keeps its old "ready" verdict.
   if (event.persisted) recheckServer();
 }
 
 /**
- * Listens for the moments a server that was ready may have gone cold: a tab
- * left in the background past Render's idle spin-down (the common mobile
- * case), a back/forward-cache restore, and the device coming back online.
+ * Listens for the moments a "ready" verdict may have gone stale without any
+ * request failing: a back/forward-cache restore, and the device coming back
+ * online. A failed data request asks for a recheck itself (`fetcher.ts`).
  * Installed once for the life of the page.
  */
 function installRecheckTriggers(): void {
-  document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("pageshow", onPageShow);
   window.addEventListener("online", recheckServer);
 }

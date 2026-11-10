@@ -20,6 +20,6 @@ test("the championship hub shows the standings once the backend is ready", async
   await badge.hover();
   await expect(sources).toBeVisible();
   await expect(sources).toContainText("Base: f1db v2026.19.0, through round 19");
-  // A backend that answers ready at once never raises the warm-up screen.
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // A backend that answers ready at once never shows the restart notice.
+  await expect(page.getByRole("status", { name: "Server status" })).toBeEmpty();
 });

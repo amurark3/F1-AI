@@ -71,8 +71,9 @@ and Reference. Older top-level routes (`/calendar`, `/standings`, `/champions`,
 | **Race Debriefs**   | `/race-control/debriefs`                                              | Post-race debrief built from the classification: podium, biggest movers, constructor impact                                                                                                                                                                                                  |
 | **Rules Search**    | `/race-control/rulebook`                                              | Semantic search of FIA regulations with reranking and page citations                                                                                                                                                                                                                         |
 
-While the backend cold-starts on Render, the app is blocked behind a warm-up
-screen that shows each startup stage, and rechecks when a stale tab comes back.
+While the backend restarts (after a deploy) or cannot be reached, a small
+notice at the bottom of every page says so and lights up each startup stage.
+It never blocks the page.
 
 #### Command Center data
 
@@ -462,7 +463,7 @@ frontend/app/
 │                             (standings), constructors + drivers + profiles (Teams &
 │                             Drivers), power-units, champions, debriefs, rulebook
 ├── calendar/  standings/  champions/  predictions/  consumer/   → redirects
-├── components/               NavShell, chat, LiveTimingTower, ServerWarmingGate, …
+├── components/               NavShell, chat, LiveTimingTower, ServerStatusNotice, …
 ├── hooks/                    useChat, useLocalChats, useLiveTiming, useServerStatus, useVoice
 └── lib/  utils/              server-side prefetch, server status store, fetcher, error tracking
 

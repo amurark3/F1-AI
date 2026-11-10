@@ -12,14 +12,15 @@ export function litCountForStage(stage: string | null): number {
   return Math.min(LIGHT_COUNT, Math.max(1, index + 1));
 }
 
-const LAMP_SIZE = "h-4 w-4 sm:h-5 sm:w-5 short:h-4 short:w-4";
-const LIT_GLOW = { boxShadow: "0 0 10px rgba(225, 6, 0, 0.6)" };
+/** Sized for the restart notice's card. */
+const LAMP_SIZE = "h-2.5 w-2.5";
+const LIT_GLOW = { boxShadow: "0 0 6px rgba(225, 6, 0, 0.6)" };
 
 function Lamp({ lit, out }: { lit: boolean; out: boolean }) {
   if (out) {
     return (
       <span
-        className={`${LAMP_SIZE} rounded-full bg-[#E10600] animate-lights-out motion-reduce:animate-none`}
+        className={`${LAMP_SIZE} rounded-full bg-f1-red animate-lights-out motion-reduce:animate-none`}
         style={LIT_GLOW}
       />
     );
@@ -28,7 +29,7 @@ function Lamp({ lit, out }: { lit: boolean; out: boolean }) {
   return (
     <span
       className={`${LAMP_SIZE} rounded-full transition-colors ${
-        lit ? "bg-[#E10600] animate-light-on motion-reduce:animate-none" : "border border-[#232C3D] bg-[#1A2130]"
+        lit ? "bg-f1-red animate-light-on motion-reduce:animate-none" : "border border-[#232C3D] bg-[#1A2130]"
       }`}
       style={lit ? LIT_GLOW : undefined}
     />
@@ -55,7 +56,7 @@ export default function StartLightGantry({ lit, out, label }: StartLightGantryPr
       aria-valuemin={0}
       aria-valuemax={LIGHT_COUNT}
       aria-valuenow={out ? LIGHT_COUNT : lit}
-      className="inline-flex items-center gap-2 rounded-lg border border-[#1E2633] bg-[#080B11] px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 short:py-2"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rc-line bg-[#080B11] p-1.5"
     >
       {Array.from({ length: LIGHT_COUNT }, (_, index) => {
         const isLit = index < lit;
@@ -63,7 +64,7 @@ export default function StartLightGantry({ lit, out, label }: StartLightGantryPr
         return (
           <span
             key={index}
-            className={`flex flex-col gap-1.5 rounded-md bg-[#05070B] p-1.5 ${
+            className={`flex flex-col gap-1 rounded bg-[#05070B] p-1 ${
               isNewest ? "animate-glow-pulse motion-reduce:animate-none" : ""
             }`}
           >

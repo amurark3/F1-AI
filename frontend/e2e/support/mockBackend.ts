@@ -21,16 +21,23 @@ function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
   return route.fulfill({ status, json: body, headers: CORS_HEADERS });
 }
 
+export interface MockBackendOptions {
+  /**
+   * What `/api/ready` answers, every time it is asked. Defaults to ready, so
+   * the restart notice never shows; `WARMING` holds the backend mid-restart.
+   */
+  readiness?: typeof READY;
+}
+
 /**
  * Answers the app's backend calls from the fixtures.
  *
- * `/api/ready` answers ready at once, so the cold-start gate never shows. A
- * path no test declared gets FastAPI's 404 instead of hanging; Playwright
+ * A path no test declared gets FastAPI's 404 instead of hanging; Playwright
  * tries routes newest first, so the catch-all is registered first.
  */
-export async function mockBackend(page: Page): Promise<void> {
+export async function mockBackend(page: Page, { readiness = READY }: MockBackendOptions = {}): Promise<void> {
   await page.route(`${E2E_API_ORIGIN}/**`, (route) => fulfillJson(route, { detail: "Not Found" }, NOT_FOUND));
-  await page.route(`${E2E_API_ORIGIN}/api/ready`, (route) => fulfillJson(route, READY));
+  await page.route(`${E2E_API_ORIGIN}/api/ready`, (route) => fulfillJson(route, readiness));
   // Pages ask for the calendar year's season; the fixture is 2026's table.
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));

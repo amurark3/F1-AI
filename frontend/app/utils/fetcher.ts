@@ -1,8 +1,9 @@
 import { recheckServer } from "../lib/serverStatus";
 
 /**
- * Answers Render's proxy gives while the instance is restarting or booting. The
- * API itself never sends these, so seeing one means the server went away.
+ * Answers a reverse proxy gives while the API behind it is down or restarting:
+ * Caddy answers 502 while a deploy restarts the API container. The API itself
+ * never sends these on a data route, so seeing one means the server went away.
  */
 const RESTARTING_STATUSES = new Set([502, 503, 504]);
 
@@ -12,8 +13,8 @@ const httpError = (res: Response): Error => new Error(`Request failed: ${res.sta
 /**
  * `fetch` that throws on non-2xx, and asks the readiness probe to look again
  * when the failure looks like a restart — a dropped connection, a timeout, or a
- * proxy error. A server that cold-restarts mid-visit then brings the warm-up
- * screen back instead of leaving every panel on an error.
+ * proxy error. A server that restarts mid-visit then shows the restart notice,
+ * so the reader knows why a panel failed and that it is coming back.
  */
 async function request(url: string): Promise<Response> {
   const res = await fetch(url).catch((err: unknown) => {

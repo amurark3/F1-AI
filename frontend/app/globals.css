@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* Short viewports — a phone in landscape — where full-screen cards must tighten up to fit. */
-@custom-variant short (@media (max-height: 480px));
-
 /* ================================================
    F1 AI Design System
    ================================================ */
@@ -75,7 +72,6 @@
   --animate-light-on: light-on 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-lights-out: lights-out 0.35s ease-out both;
   --animate-overlay-in: overlay-in 0.25s ease-out both;
-  --animate-overlay-out: overlay-out 1.2s ease-in both;
 
   /* Race-weekend showcase: weather glyphs, circuit map, entrance motion */
   --animate-wx-spin: wx-spin 18s linear infinite;
@@ -168,20 +164,9 @@ body {
   }
 }
 
-/* Warm-up screen fading in over the app */
+/* Plain fade-in entrance (SlopeChart's dashed series) */
 @keyframes overlay-in {
   from {
-    opacity: 0;
-  }
-}
-
-/* Warm-up screen holding on lights out, then clearing the track */
-@keyframes overlay-out {
-  0%,
-  55% {
-    opacity: 1;
-  }
-  100% {
     opacity: 0;
   }
 }

@@ -108,18 +108,12 @@ export const getSeasonDetail = cache((year: string): Promise<SeasonDetail | null
 });
 
 /**
- * How many recent seasons to prerender at build time.
+ * Every season year, newest first: the seasons to prerender at build time.
  *
- * Prerendering all 77 fired a burst of requests at a free-tier backend that
- * answered a third of them with 429, so most pages ended up unseeded anyway.
- * The recent seasons carry nearly all the traffic; the rest render on demand
- * on first visit and are then cached for an hour like everything else, which
- * costs one reader a moment and spares the backend the stampede.
- */
-const PRERENDERED_SEASONS = 12;
-
-/**
- * The season years to prerender, newest first.
+ * All of them, about 77 requests per build. Only 12 were prerendered while the
+ * backend sat on a free-tier host that answered a third of a full burst with
+ * 429; the always-on backend serves each from its local f1db file and has no
+ * rate limiter.
  *
  * Derived from the champions list rather than a hardcoded range so a new season
  * appears without touching this file. Returns an empty list when the backend is
@@ -132,6 +126,5 @@ export async function listSeasonYears(): Promise<string[]> {
   return seasons
     .map((season) => season.season)
     .sort((a, b) => b - a)
-    .slice(0, PRERENDERED_SEASONS)
     .map(String);
 }

@@ -17,11 +17,11 @@ import Link from "next/link";
 /**
  * Landing page.
  *
- * Deliberately static — it fetches nothing, so it renders the instant the
- * frontend loads even while the Render backend is still spinning up from idle.
- * The readiness probe in the root layout runs underneath it, which both wakes the
- * container and reports progress in the warming banner. By the time a visitor
- * picks a workspace, the server has usually finished warming.
+ * Deliberately static — it fetches nothing and shows no live or baked-in data
+ * (a locked decision, user 2026-11-06), so it renders the instant the frontend
+ * loads and never shows a number that has gone stale between deploys. The
+ * readiness probe in the root layout still runs here, as on every route; it
+ * shows a notice only while the backend restarts.
  *
  * Adding a data dependency here would defeat the point.
  */

@@ -443,6 +443,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
   - `serverStatus.ts` 100% (in the include list).
   - An e2e check: a page stays interactive while `/api/ready` reports warming.
   - No test for overlay code that P3.5 replaces (the no-coverage-for-rewrites rule).
+- **As built (2026-11-09):** the gate became `ServerStatusNotice`, a sibling of the page in the root layout; `ServerWarmingOverlay` was deleted. The probe gives up after 2 minutes (deploy.sh's ready window). 429 is no longer retried (no rate limiter on the VM). Every champions season is prerendered. Details in the `STATUS.md` log.
 - **Verify:** `npm run lint`, `typecheck`, `build`, `test:coverage`, `e2e`.
 
 ### P0c.8 Guide, part 2: cutover, rollback, operations; docs
@@ -657,38 +658,43 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
   - `SiteHeader` (logo B1 + wordmark, mono links, sliding red underline);
   - `MoreMenu`, `MobileNav` (uses `useScrollLock`);
   - `RaceStatusChip` ("● R20 · PRE-RACE", live pulse, countdown on hover; shell segment + `useClock`).
-    - It neither renders nor fetches on static routes (`/`, listed in `navConfig`). There, the slot holds P3.5's warm-up lights while the server wakes, and is empty otherwise.
+    - It neither renders nor fetches on static routes (`/`, listed in `navConfig`). There the slot is empty, except while the backend restarts or cannot be reached: then, on every route, it holds P3.5's restart lights, which never block.
   - Remove `NavShell` and `RaceControlShell`. `race-control/layout.tsx` becomes a container only.
 - **P3.2** Move `/race-control/teams` to `/race-control/standings`, with redirects in `next.config.ts`.
 - **P3.3 Homepage**, static (user, 2026-11-06: "there cannot be any live data on it"):
   - **First revise `home.html`** to a data-free version with the same composition: photo hero, sections 01–03 and the CTAs.
     - Remove the next-up strip and countdown, the champion tile, the 2026-so-far season rail, the standings motif (ANT 380 · VER 261 · HAM 259) and the sample AI Engineer answer.
     - Data motifs become data-free illustrations (racing line, the B1 apex). No numbers that can go stale or wrong between deploys.
-  - **Then build it.** It fetches nothing, not even at build time, and `next build` lists `/` as static (○). The only API call on `/` is the readiness probe that wakes the server (P3.5).
+  - **Then build it.** It fetches nothing, not even at build time, and `next build` lists `/` as static (○). The only API call on `/` is the readiness probe (P0c.7), which shows P3.5's restart lights only while the backend restarts.
 - **P3.4** Styled `not-found.tsx` and `global-error.tsx`; footer from `navConfig`.
-- **P3.5 Warm-up loader rework** (user, 2026-11-06):
-  - **Today:** `StartLightGantry.litCountForStage` maps backend stages (`pending, database, model, season, store`) to lights. A cold container answers nothing for most of the ~50 s wait, so the gantry sits at one light and then jumps. `ServerWarmingGate` blocks every route, `/` included.
-  - **Lights fill 1→5 continuously.** A pure `lightsAt(elapsedMs, stage, ready)` replaces `litCountForStage`:
-    - lights come on one by one, paced over the expected cold start (a constant beside `STAGE_ORDER`, set from measured cold starts);
-    - the real stage is a floor, so the gantry is never behind the backend;
-    - lights never go out again once lit;
-    - light 5 waits for ready, then lights out (`LAUNCH_DURATION_MS`).
-    - Each lamp fades on. Under reduced motion, lamps switch on with no animation.
-  - **Background on the homepage.**
-    - On static routes (`/`), the gate doesn't block. The probe still runs, which wakes the server.
-    - A compact `WarmupLights` strip sits in the top bar's status-chip slot (P3.1), showing the same count.
-    - Navigating to a data route while still warming opens the full overlay at the same light count (shared `serverStatus` store and `warmingSince`).
+- **P3.5 Restart lights** (user, 2026-11-06; rewritten 2026-11-09 for the always-on backend, P0c.7, to the 2026-11-08 Loading decision):
+  - **Today (after P0c.7):**
+    - `ServerStatusNotice` (`app/components/`, mounted beside the page in the root layout, never around it) shows a small card at the bottom of every route while `/api/ready` is not ready. It reads "Updating — back in a few seconds", with the backend's stage detail and a compact `StartLightGantry` lit by `litCountForStage(stage)` (`STAGE_ORDER` mirrors `WARMUP_STEPS`).
+    - Nothing is `inert` and scroll is never locked. The card is a polite live region that stays mounted, empty, while the backend is up.
+    - After two minutes of failed probes it reads "Server isn't responding", with Try again and Dismiss. When the backend comes back it shows "Back online" with lights out for `LAUNCH_DURATION_MS`, then goes.
+    - `e2e/server-status.spec.ts` guards it: a data route stays usable with `/api/ready` held at a stage, and nothing shows when it is ready.
+  - **Do:** restyle it to the redesign; the behaviour stays.
+    - **Lights from the real stages only, never paced by a timer.** A pure `lightsFor(stage, ready)` replaces `litCountForStage`:
+      - the stage in progress sets the count (`pending` 1 … `store` 5);
+      - ready keeps 5, then plays lights out;
+      - an unknown stage, or a failed probe (no stage), keeps the highest count the run has reached, so the lights never go out mid-restart.
+    - **Never blocking, on every route,** and only while the backend restarts or cannot be reached. No overlay, no `inert`, no scroll lock, and focus is never moved.
+    - **Placement:** a compact `WarmupLights` strip plus a short label in the top bar's status-chip slot (P3.1), which it takes over while showing. Decide against the mockups whether the bottom card stays (for example on phones, where the slot is narrow, or for the unreachable state's Try again), and record the decision.
+    - **Look:**
+      - Tokens only: the lamps still hard-code their colours.
+      - Each lamp fades on (entrance, behind `motion-safe`); under reduced motion, lamps switch on with no animation.
+      - The newest lamp's existing `glow-pulse` loop goes unless the mockup keeps it. No new glows or loops.
   - **Accept:**
-    - Unit tests for `lightsAt`: monotonic, 1→5, stage floor, 5 only when ready.
-    - e2e with a stalled `/api/ready`:
-      - `/` stays interactive (nothing `inert`) and shows the mini lights;
-      - going to `/race-control` shows the overlay at the same count;
-      - ready plays lights-out.
+    - Unit tests for `lightsFor`: 1→5 by stage, 5 when ready, an unknown stage or a failed probe never lowers the count within a run.
+    - e2e with `/api/ready` held at a stage (`mockBackend(page, { readiness })`):
+      - `/` and a data route stay interactive (nothing `inert`) and show the lights at the stage's count;
+      - ready plays lights out and the lights go;
+      - a backend that is up shows nothing.
 - **P3.6 Non-blocking pages** (user, 2026-11-06: "the APIs should be non-blocking to the page"):
   - **Today:**
     - `race-control/page.tsx` awaits all five overview segments (`Promise.all`) before any HTML.
     - `grand-prix`, the driver, team and power-unit car pages, `power-units`, `champions`, `debriefs`, `telemetry` and `teams` await their data at page level.
-    - `lib/server/backend.ts` allows 10 s per attempt and up to 3 attempts, so a cold backend can hold first paint for about 30 s.
+    - `lib/server/backend.ts` gives a server render 5 s, retries included (P0c.7; 10 s before), so a slow or restarting backend can hold first paint that long.
   - **Do:**
     - Remove every page-level backend await. The shell renders at once.
     - Each section takes its data through P0b.3's `useSection`, or a Suspense boundary with a server seed that SWR takes over.
@@ -700,8 +706,8 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
     - sections fill independently;
     - a 500 on one section leaves the others intact.
 - **Accept (phase):**
-  - e2e covers the nav, More menu, mobile drawer, homepage CTAs, the warm-up on `/` vs data routes and a delayed-API page.
-  - Coverage for `ui/shell`, `home`, `layout`, `page` and the warm-up components.
+  - e2e covers the nav, More menu, mobile drawer, homepage CTAs, the restart lights (never blocking, on `/` and data routes) and a delayed-API page.
+  - Coverage for `ui/shell`, `home`, `layout`, `page` and the restart-lights components.
   - **PR.**
 
 ## Phase D1 — OpenF1 ingest and store (data platform, part 1)
@@ -864,7 +870,7 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
 
 ## Phase P9 — Coverage completion
 
-- Cover what's left: hooks (`useChat`, `useLiveTiming` with a mock WebSocket, `useVoice`), lib, utils, chat components, LocalTime, ServerWarming*, and the root configs (`next.config.ts`, `instrumentation*`, `sentry.*`).
+- Cover what's left: hooks (`useChat`, `useLiveTiming` with a mock WebSocket, `useVoice`), lib, utils, chat components, LocalTime, and the root configs (`next.config.ts`, `instrumentation*`, `sentry.*`).
 - Switch the coverage include to `app/**` plus the root TypeScript files.
 - **Accept:** `npm run test:coverage` reports 100/100/100/100 per file, and CI enforces it. **PR.**
 

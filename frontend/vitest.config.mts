@@ -11,6 +11,8 @@ import { defineConfig } from "vitest/config";
  * code is either tested or deleted.
  */
 const COVERAGE_INCLUDE = [
+  // P0c.7: the readiness store stays; the notice's visuals are P3.5's to cover.
+  "app/lib/serverStatus.ts",
   "app/lib/standingsFreshness.ts",
   "app/ui/**",
   "app/race-control/components/CommandCenterPanels.tsx",

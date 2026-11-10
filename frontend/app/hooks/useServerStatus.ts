@@ -13,11 +13,11 @@ import {
 export type { ServerState, ServerStatus } from "../lib/serverStatus";
 
 /**
- * Reports whether the backend has finished warming up.
+ * Reports whether the backend is ready, or restarting.
  *
  * Starts as 'unknown' rather than optimistically 'warming', so a server that is
- * already warm never flashes the warm-up screen — the first probe resolves
- * straight to 'ready' and nothing is ever shown.
+ * up never flashes the restart notice — the first probe resolves straight to
+ * 'ready' and nothing is ever shown.
  */
 export function useServerStatus(): ServerState {
   useEffect(() => {

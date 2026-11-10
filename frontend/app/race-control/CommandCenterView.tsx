@@ -48,13 +48,13 @@ interface Segment<T> extends SegmentState {
  * Turns a fetch failure into something worth reading.
  *
  * A transport error surfaces as the browser's own "Failed to fetch", which
- * tells a reader nothing and — while the backend is still spinning up — is not
- * even the right story. The readiness probe already knows which case this is,
- * so warming gets named as warming and only a genuine fault reports as one.
+ * tells a reader nothing and — while the backend is restarting — is not even
+ * the right story. The readiness probe already knows which case this is, so a
+ * restart gets named as one and only a genuine fault reports as a fault.
  */
 function describeFailure(error: Error | undefined, backendReady: boolean): string | null {
   if (!error) return null;
-  if (!backendReady) return "Waiting for the server to finish waking up.";
+  if (!backendReady) return "Waiting for the server to finish restarting.";
 
   // A transport failure has no useful message; anything else came from us.
   return error.message === "Failed to fetch" ? "Could not reach the server." : error.message;
@@ -125,7 +125,7 @@ function SegmentSlot({
   height: string;
   children: React.ReactNode;
 }) {
-  // A waking backend is not a fault, so it keeps the skeleton rather than
+  // A restarting backend is not a fault, so it keeps the skeleton rather than
   // filling the page with red panels the reader can do nothing about.
   if (pending(state)) return <SkeletonPanel className={height} />;
   if (state.failure !== null) {
@@ -242,7 +242,7 @@ export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
   const { year } = seed;
 
   // The readiness probe in the root layout is already tracking the backend's
-  // wake-up; reuse its verdict so the panels and the banner tell one story.
+  // restarts; reuse its verdict so the panels and the notice tell one story.
   const { status } = useServerStatus();
   const backendReady = status === "ready";
 

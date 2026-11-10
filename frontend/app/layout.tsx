@@ -3,7 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 
 import NavShell from "./components/NavShell";
-import ServerWarmingGate from "./components/ServerWarmingGate";
+import ServerStatusNotice from "./components/ServerStatusNotice";
 
 import type { Metadata } from "next";
 import "./globals.css";
@@ -39,9 +39,9 @@ export default function RootLayout({
     // The font variables sit on <html> so :root-level tokens that read them resolve.
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${barlowCondensed.variable}`}>
       <body className="antialiased">
-        <ServerWarmingGate>
-          <NavShell>{children}</NavShell>
-        </ServerWarmingGate>
+        <NavShell>{children}</NavShell>
+        {/* A sibling, not a wrapper: it can never hold the page back. */}
+        <ServerStatusNotice />
         <Analytics />
         <SpeedInsights />
       </body>

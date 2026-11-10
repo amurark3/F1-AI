@@ -15,6 +15,9 @@
  *   other value is unchanged from the first capture.
  * - `ready.json`: `GET /api/ready`, kept to the `ready`, `stage` and `detail`
  *   fields the warm-up probe reads.
+ * - `warming.json`: the same three fields mid-restart, as the backend's
+ *   `ReadinessState(ready=False, …).as_dict()` reports its second warm-up step
+ *   (`WARMUP_STEPS[1]`, the model), computed on 2026-11-09.
  *
  * The race-weekend fixtures were captured the same way at 07:50 UTC on 3 Nov,
  * with São Paulo (round 20) the selected weekend:
@@ -143,6 +146,7 @@ import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
+import warming from "./warming.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
@@ -169,6 +173,8 @@ export interface OpenF1Driver {
 /** OpenF1's entry list for the 2026 Mexico City Grand Prix (session 11404). */
 export const OPENF1_DRIVERS_MEXICO_2026: OpenF1Driver[] = openF1DriversMexico2026;
 export const READY = ready;
+/** `/api/ready` while the backend restarts: its model step, not ready yet. */
+export const WARMING = warming;
 
 /** São Paulo 2026 (round 20) as the Command Center served it on 3 Nov. */
 export const SAO_PAULO_2026 = {

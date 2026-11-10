@@ -16,19 +16,22 @@ function resolveServerBase(): string {
 const SERVER_API_BASE = resolveServerBase();
 
 /**
- * How long a server render waits on the backend before giving up.
+ * How long a server render waits on the backend before giving up, retries
+ * included.
  *
- * Measured, not guessed: the slowest overview segment answers in ~3.3s when the
- * backend is already warm, so an earlier 3.5s budget left no margin at all and
- * timed out routinely in production. Ten seconds clears warm latency with room
- * to spare while still conceding a cold start rather than hanging on one.
+ * Measured, not guessed: the slowest overview segment answered in ~3.3s on the
+ * old free-tier host, so an earlier 3.5s budget left no margin at all and timed
+ * out routinely. Five seconds clears that. The always-on backend never has a
+ * cold start to wait out, so a request slower than this is a fault or a
+ * restart, and the browser fetching for itself recovers sooner than a server
+ * render that keeps waiting.
  *
  * A slow render here does not make a reader wait. Every page that calls this is
  * on ISR, so a regeneration happens in the background while the previous render
  * is served; only an outright cache miss blocks, and that is the one case where
  * waiting beats rendering an empty page.
  */
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 5_000;
 
 /**
  * Budget for build-time generation, where no reader is waiting.
@@ -44,14 +47,15 @@ const BUILD_TIMEOUT_MS = 25_000;
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 /**
- * Status codes worth trying again.
+ * Status codes worth trying again: a proxy's answers while the API behind it
+ * restarts (Caddy answers 502 while a deploy swaps the container). The API
+ * itself never sends them on a data route.
  *
- * 429 is the one that matters: the backend sits on a free-tier host that
- * throttles bursts, and a prerender pass is exactly a burst. A throttled
- * response is not a failure, it is a request to wait — retrying turns it into
- * a seeded page instead of an empty one.
+ * 429 is not retried. It was, for the free-tier host that throttled prerender
+ * bursts; the backend has no rate limiter and Caddy throttles nothing, so a 429
+ * now would be a deliberate refusal that a retry within the budget cannot fix.
  */
-const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 
 /** Attempts per request, including the first. */
 const MAX_ATTEMPTS = 3;
@@ -75,8 +79,8 @@ export interface FetchOptions {
  *
  * Never throws and never rejects: every failure path — non-2xx, timeout,
  * unreachable host, malformed body — resolves to null. Callers treat null as
- * "no server data available" and hand the fetch back to the client, so a cold
- * or broken backend degrades to today's behaviour instead of an error page.
+ * "no server data available" and hand the fetch back to the client, so a
+ * restarting or broken backend degrades to a client fetch, not an error page.
  */
 export async function fetchFromBackend<T>(path: string, options: FetchOptions = {}): Promise<T | null> {
   // One deadline for the whole operation, retries and backoff included.
@@ -133,7 +137,7 @@ async function attemptFetch<T>(path: string, options: FetchOptions, budget: numb
 
     return { ok: true, data: (await response.json()) as T };
   } catch (error: unknown) {
-    // A timeout is worth one more go; the backend may have been waking up.
+    // A dropped connection is worth one more go; the backend may be restarting.
     return { ok: false, retryable: true, reason: describeError(error) };
   } finally {
     clearTimeout(timer);
@@ -151,7 +155,7 @@ function describeError(error: unknown): string {
  * Records a degraded server fetch.
  *
  * Server-side only, so the detail never reaches a browser; it is the one signal
- * that distinguishes "backend is cold" from "page has no data to show".
+ * that distinguishes "backend unreachable" from "page has no data to show".
  */
 function logFailure(path: string, reason: string): void {
   console.warn(`[ssr] ${path} unavailable (${reason}) — falling back to client fetch`);

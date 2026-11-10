@@ -324,6 +324,16 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
   - The container, run against a local `pgvector/pgvector:pg17` with `ENABLE_LOCAL_MODELS=true`, reaches every `/api/ready` stage.
 - **Verify:** pytest (coverage 100%), `ruff check`, `ruff format --check`, module size; the build and run above.
 
+### P0c.2c f1db download backs off after a failure (user, 2026-11-09)
+
+- **Bug.**
+  - With no f1db file on disk, every f1db read retries the GitHub release download.
+  - During GitHub 504s the API started 637 downloads in about 4 minutes (2026-11-08), then 66 in a minute (2026-11-09 ~08:02 UTC).
+  - On the VM this happens on a first boot, or after a lost volume, during an outage, and it would hammer GitHub from our IP.
+- **Do:** after a failed download, `ensure_db` (`app/data/f1db_source.py`) refuses to try again until a backoff window passes. The window starts at 60 s and doubles up to 15 min, then resets on success. Readers in the window get the existing "f1db unavailable" path at once. One process-wide state, consistent with the existing per-process sync lock.
+- **Accept:** a test shows that repeated reads after a failure make one download attempt per window, the window doubles and caps, and a success resets it.
+- **Verify:** pytest (100%), ruff, format, size.
+
 ### P0c.3 Rulebook RAG and chat-memory recall back on
 
 - **Do:**
@@ -391,6 +401,15 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
   - A simulated failed health check rolls back.
 - **Verify:** the commands above, plus `actionlint` on the workflow when it is installed.
 
+### P0c.5d Promoted models deploy
+
+- **Gap** (found in P0c.5):
+  - `retrain.yml` merges the promoted model with `GITHUB_TOKEN`, and GitHub starts no workflow from such a push. So `deploy-oracle.yml` never ships a promoted model.
+  - Render deployed on any push, so this worked before.
+- **Do:** after its merge, `retrain.yml` dispatches the deploy (`gh workflow run deploy-oracle.yml --ref main`, `actions: write`). `workflow_dispatch` is exempt from the `GITHUB_TOKEN` rule. It is skipped when `vars.ORACLE_HOST` is empty, like the deploy job.
+- **Accept:** actionlint is clean; the dispatch step runs only after a successful merge.
+- **Verify:** actionlint (Docker image).
+
 ### P0c.6 Supabase → VM data migration
 
 - **Do:**
@@ -400,6 +419,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
     3. Restores into the target in one transaction.
     4. Fixes sequences.
     5. Compares row counts per table and the `rulebook_chunk` vector dimension, and exits non-zero on any mismatch.
+  - **Note from P0c.5:** only `app_documents` exists after the API boots. `analysis_cache`, `chat_message`, `user_profile` and `rulebook_chunk` are created on first use. So the script creates them first, by calling the app's own schema functions through the `jobs` container, not by copying the DDL.
   - `--dry-run` restores into a scratch database and drops it.
   - First check that no other table is created anywhere: `grep -rn "CREATE TABLE"`.
 - **Accept:**
@@ -452,6 +472,20 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
     - `README.md` loses its Render references.
     - P0b.1 drops the GitHub Actions refresher and diagnoses on the VM.
     - Close `.planning/todos/pending/2026-03-10-handle-render-cold-start-with-ui-loading-state.md`.
+- **From P0c.5, the guide must also cover:**
+  - **A separate deploy key** (`ssh-keygen -t ed25519 -N "" -f f1ai-deploy`). The public half is `bootstrap.sh`'s argument; the private half goes in the secret `ORACLE_SSH_KEY`.
+  - **`ORACLE_KNOWN_HOSTS`** from `ssh-keyscan -t ed25519 <ORACLE_HOST>`, checked against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the VM.
+  - **Make the GHCR package `f1-ai-api` public** after the first workflow run creates it (it starts private), then re-run that run.
+  - **Fill `/srv/f1ai/.env` before the first deploy.** `bootstrap.sh` creates it from `env.example` (600, `deploy`). `POSTGRES_PASSWORD` comes from `openssl rand -hex 32`, and the same value goes in `DATABASE_URL`.
+  - **Optional:** a UDP 443 security-list rule (HTTP/3).
+  - **Operations:**
+    - `sudo -u deploy /srv/f1ai/app/deploy/oracle/bin/compose.sh …`, `systemctl list-timers 'f1ai-*'`, `journalctl -u f1ai-*`.
+    - Re-run `bootstrap.sh` with no argument after unit changes.
+    - Weekly `systemctl --failed`: nothing alerts on a failed timer.
+    - Manual reboots for kernel updates.
+    - `ALTER USER` when the Postgres password changes.
+    - The first backup pulls the 1.36 GB OCI CLI image.
+  - **What is only verifiable on the real VM** (the P0c.5 log lists it), as a first-boot checklist.
 - **Accept:** every command in the guide matches the files from P0c.5–P0c.6; no secret values; no "Render" left in `DEPLOYMENT.md` except the rollback and history notes.
 - **Verify:** Prettier; grep for `onrender` and `Render` in the docs touched.
 

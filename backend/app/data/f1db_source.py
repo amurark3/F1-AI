@@ -31,6 +31,13 @@ fallback (round 11) and, because a failed check resolved to "whatever is
 installed", reported itself current on every check after. The redirect is not
 metered against that limit; the API stays on as a backup. A failed check now
 says so in its outcome, which ``/api/ready`` publishes as ``f1db_sync``.
+
+A failed download backs off before the next one. With no dataset on disk every
+read used to download again at once: during GitHub's release-download 504s the
+API started 637 downloads in four minutes (2026-11-08) and 66 in a minute
+(2026-11-09). Now a failure opens a window (60 s, doubling per consecutive
+failure up to 15 minutes, reset by a success) in which no download starts, and a
+reader that finds no dataset raises ``F1dbUnavailableError`` at once.
 """
 
 from __future__ import annotations
@@ -38,6 +45,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 import io
+import math
 import os
 from pathlib import Path
 import re
@@ -79,6 +87,11 @@ DOWNLOAD_TIMEOUT_SECONDS = int(os.getenv("F1DB_DOWNLOAD_TIMEOUT_SECONDS", "120")
 # guards against a caller that syncs more eagerly than intended.
 F1DB_CHECK_INTERVAL_SECONDS = int(os.getenv("F1DB_CHECK_INTERVAL_SECONDS", "3600"))
 
+# After a failed download no other download starts for this long; each
+# consecutive failure doubles the wait, up to the cap, and a success resets it.
+F1DB_DOWNLOAD_BACKOFF_SECONDS = int(os.getenv("F1DB_DOWNLOAD_BACKOFF_SECONDS", "60"))
+F1DB_DOWNLOAD_BACKOFF_MAX_SECONDS = int(os.getenv("F1DB_DOWNLOAD_BACKOFF_MAX_SECONDS", "900"))
+
 # ``None`` means "no release check has run in this process yet". The sentinel is
 # deliberately outside the number line: ``time.monotonic()`` counts from an
 # arbitrary epoch — system boot on Linux — so a numeric ``0.0`` reads as
@@ -87,7 +100,40 @@ F1DB_CHECK_INTERVAL_SECONDS = int(os.getenv("F1DB_CHECK_INTERVAL_SECONDS", "3600
 # which on a container booting with a dataset already on disk is exactly the
 # stale-dataset regression this module exists to prevent.
 _last_check_at: float | None = None
+# Serialises every download and guards the backoff state below. ``ensure_db``
+# takes it only when there is no dataset, so serving an existing file never
+# waits on it.
 _sync_lock = threading.Lock()
+
+
+class F1dbUnavailableError(OSError):
+    """A download refused inside the backoff window that follows a failure.
+
+    With no dataset on disk it reaches the reader: f1db is unavailable until the
+    window passes. An ``OSError`` because a failed download already is one (``requests``
+    errors are), and readers answer those as "f1db unavailable"
+    (``canonical_names.F1DB_READ_ERRORS``); a refusal must take the same path.
+    """
+
+
+@dataclass(frozen=True)
+class DownloadBackoff:
+    """Consecutive download failures, and when the next download may start."""
+
+    failures: int = 0
+    #: ``time.monotonic()`` reading before which no download starts; ``None``
+    #: when the last download succeeded or none has failed in this process.
+    retry_at: float | None = None
+    #: Whether this window's first refusal has been logged.
+    refusal_logged: bool = False
+
+    def remaining(self, now: float) -> float:
+        """Seconds of the window left at ``now``; 0 outside a window."""
+        return 0.0 if self.retry_at is None else max(0.0, self.retry_at - now)
+
+
+NO_BACKOFF = DownloadBackoff()
+_download_backoff = NO_BACKOFF
 
 
 @dataclass(frozen=True)
@@ -283,6 +329,44 @@ def _write_version_stamp(version: str, destination: Path) -> None:
     os.replace(staging, stamp)
 
 
+def _refuse_while_backing_off() -> None:
+    """Raise ``F1dbUnavailableError`` inside a backoff window. Caller holds ``_sync_lock``.
+
+    Logs the first refusal of each window only: inside one, every read lands
+    here, and a line per read would be the flood in another form.
+    """
+    global _download_backoff
+
+    backoff = _download_backoff
+    remaining = backoff.remaining(time.monotonic())
+    if not remaining:
+        return
+    if not backoff.refusal_logged:
+        logger.warning("f1db.download.refused", failures=backoff.failures, retry_in=math.ceil(remaining))
+        _download_backoff = replace(backoff, refusal_logged=True)
+    plural = "" if backoff.failures == 1 else "s"
+    raise F1dbUnavailableError(
+        f"f1db download paused after {backoff.failures} failed download{plural}; "
+        f"next attempt in {math.ceil(remaining)} s"
+    )
+
+
+def _fetch(version: str) -> None:
+    """Download ``version`` unless backing off, and record the result. Caller holds ``_sync_lock``."""
+    global _download_backoff
+
+    _refuse_while_backing_off()
+    try:
+        refresh_f1db(version)
+    except Exception:
+        failures = _download_backoff.failures + 1
+        window = min(F1DB_DOWNLOAD_BACKOFF_SECONDS * 2 ** (failures - 1), F1DB_DOWNLOAD_BACKOFF_MAX_SECONDS)
+        _download_backoff = DownloadBackoff(failures, time.monotonic() + window)
+        logger.warning("f1db.download.backoff", version=version, failures=failures, seconds=window)
+        raise
+    _download_backoff = NO_BACKOFF
+
+
 def _checked_recently() -> bool:
     """Whether a release check already ran inside the throttle window.
 
@@ -305,12 +389,16 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
     with no dataset at all on disk — there is nothing to degrade to, and the
     caller needs to know the server cannot answer data requests.
 
-    The lock serialises refreshes so two callers cannot download at once. It is
-    deliberately not held by ``connect()``/``ensure_db()``, so a refresh never
-    blocks request serving.
+    The lock serialises refreshes so two callers cannot download at once.
+    ``connect()``/``ensure_db()`` take it only when there is no dataset, so a
+    refresh never blocks serving a file that exists.
+
+    Inside a download backoff window no download starts. With no dataset that
+    raises ``F1dbUnavailableError`` before the release lookup, so it costs no
+    network; with one, the dataset on disk stays and the outcome says why.
 
     Every check that runs is recorded for :func:`last_sync_outcome`; throttled
-    calls are not.
+    and refused calls are not.
     """
     global _last_check_at, _last_outcome
 
@@ -319,6 +407,8 @@ def sync_to_latest(*, force: bool = False) -> SyncOutcome:
         # A server with no dataset is never throttled: it has nothing to serve.
         if current and not force and _checked_recently():
             return SyncOutcome(current, False, "checked recently")
+        if current is None:
+            _refuse_while_backing_off()
 
         _last_check_at = time.monotonic()
         published = _published_version() or None
@@ -340,7 +430,7 @@ def _keep(current: str, published: str | None) -> SyncOutcome:
 def _download(wanted: str, current: str | None, published: str | None) -> SyncOutcome:
     """Fetch ``wanted``; on failure keep ``current``, or raise if there is none."""
     try:
-        refresh_f1db(wanted)
+        _fetch(wanted)
     except Exception as exc:
         logger.exception("f1db.sync.failed", target=wanted, installed=current, error=str(exc))
         if current:
@@ -357,13 +447,22 @@ def _download(wanted: str, current: str | None, published: str | None) -> SyncOu
 def ensure_db() -> Path:
     """Return the path to the local f1db database, downloading it if missing.
 
-    Deliberately does no release check: this sits on the ``connect()`` hot path,
-    where a network round-trip would be paid by a request. Keeping the dataset
-    current is ``sync_to_latest()``'s job.
+    Deliberately does no release check when the file exists: this sits on the
+    ``connect()`` hot path, where a network round-trip would be paid by a
+    request. Keeping the dataset current is ``sync_to_latest()``'s job.
+
+    A missing file is fetched under ``_sync_lock``, so concurrent readers wait
+    for one download instead of each starting their own. Inside a backoff window
+    this raises ``F1dbUnavailableError`` at once, before any network.
     """
-    if not DB_PATH.exists():
-        logger.info("f1db.missing_downloading", path=str(DB_PATH))
-        refresh_f1db(target_version())
+    if DB_PATH.exists():
+        return DB_PATH
+    with _sync_lock:
+        # Another caller may have fetched it while this one waited for the lock.
+        if not DB_PATH.exists():
+            _refuse_while_backing_off()
+            logger.info("f1db.missing_downloading", path=str(DB_PATH))
+            _fetch(target_version())
     return DB_PATH
 
 

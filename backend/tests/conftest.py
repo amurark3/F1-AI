@@ -152,12 +152,16 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     An empty file fails every query with ``sqlite3.OperationalError``, which the
     emit points answer with the feed's own words. Tests that need data build an
     f1db and point ``DB_PATH`` at it, which overrides this.
+
+    The download backoff is process-wide too, so a test that fails a download
+    must not leave the next one inside its window.
     """
     from app.data import f1db_source, identity
 
     empty = tmp_path_factory.getbasetemp() / "f1db-empty.db"
     empty.touch()
     monkeypatch.setattr(f1db_source, "DB_PATH", empty)
+    monkeypatch.setattr(f1db_source, "_download_backoff", f1db_source.NO_BACKOFF)
     identity.clear_cache()
     yield
     identity.clear_cache()

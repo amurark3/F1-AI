@@ -11,6 +11,10 @@
  * stands out — the eye goes to the straights first.
  */
 
+import { placeCornerLabels, type MapPoint, type PlacedCornerLabel } from "@/app/ui/cornerLabels";
+
+import type { CornerMarker } from "./telemetryModel";
+
 /** Blue ramp, deep to pale (steps 550 → 100 of the reference sequential scale). */
 export const SPEED_RAMP = ["#1C5CAB", "#2A78D6", "#5598E7", "#86B6EF", "#CDE2FB"];
 
@@ -42,6 +46,39 @@ export function fitView(xs: number[], ys: number[], marginShare = 0.06): ViewBox
 
 export function viewBoxString(view: ViewBox): string {
   return `${view.minX} ${view.minY} ${view.width} ${view.height}`;
+}
+
+/** The line's width and the corner numbers' size, as shares of the lap's longer side. */
+const STROKE_SHARE = 1 / 140;
+const LABEL_SHARE = 1 / 45;
+
+export interface TrackLayout {
+  view: ViewBox;
+  stroke: number;
+  fontSize: number;
+  /** In SVG space, y already flipped. */
+  labels: PlacedCornerLabel[];
+}
+
+/**
+ * The lap's frame, line width and corner numbers. Sizes come from the lap
+ * alone; the frame then grows to take in the numbers, each placed clear of the
+ * line. A corner's apex and direction arrive y-up like the lap, so both are
+ * mirrored into SVG space here.
+ */
+export function trackLayout(xs: number[], ys: number[], corners: CornerMarker[]): TrackLayout {
+  const lap = fitView(xs, ys);
+  const scale = Math.max(lap.width, lap.height);
+  const stroke = scale * STROKE_SHARE;
+  const fontSize = scale * LABEL_SHARE;
+  const outline = xs.map((x, index): MapPoint => [x, -ys[index]]);
+  const apexes = corners.map((corner) => ({ label: corner.label, x: corner.x, y: -corner.y, angle: -corner.angle }));
+  const labels = placeCornerLabels(outline, apexes, { fontSize, trackHalfWidth: stroke / 2, gap: fontSize / 4 });
+  const view = fitView(
+    [...xs, ...labels.flatMap((label) => [label.box.left, label.box.right])],
+    [...ys, ...labels.flatMap((label) => [-label.box.top, -label.box.bottom])],
+  );
+  return { view, stroke, fontSize, labels };
 }
 
 function hexToRgb(hex: string): [number, number, number] {

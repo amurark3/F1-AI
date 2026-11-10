@@ -7,17 +7,26 @@ not cost the map once its circuit key has been found.
 
 from __future__ import annotations
 
+from dataclasses import replace
+import json
+import math
+from pathlib import Path
 import sqlite3
 
 import pytest
 
-from app.data.multiviewer import CircuitLayout, Corner
+from app.data.multiviewer import CircuitLayout, Corner, parse_circuit_layout
 from app.data.openf1.client import OpenF1UnavailableError
 from app.services.race_control import circuit as module
 from app.services.race_control.circuit import build_circuit_segment, drawable_map, resolve_circuit_key
 from tests.openf1_support import fresh_cache
 
 pytestmark = pytest.mark.unit
+
+# MultiViewer's answers for six 2026 circuits, captured 2026-11-10 (outline,
+# rotation and corners only). The frontend's `test/fixtures/circuit-maps.json`
+# is these, drawn by `drawable_map`.
+CAPTURES = sorted((Path(__file__).parent / "fixtures" / "multiviewer").glob("*.json"))
 
 PADDING = module.VIEWBOX_PADDING
 SQUARE = CircuitLayout(
@@ -47,13 +56,45 @@ def test_the_outline_fills_the_viewbox_with_north_up():
     ]
 
 
-def test_corners_are_placed_in_the_same_frame_with_their_labels_pushed_off_track():
+def test_corners_are_placed_in_the_same_frame_with_their_label_direction():
     corner = drawable_map(SQUARE)["corners"][0]
 
     scale = (module.VIEWBOX_SIZE - 2 * PADDING) / 100
-    assert corner["label"] == "1"
-    assert [corner["x"], corner["y"]] == [module.VIEWBOX_SIZE - PADDING, round(50 * scale + PADDING, 1)]
-    assert corner["label_x"] > corner["x"]
+    assert corner == {
+        "label": "1",
+        "x": module.VIEWBOX_SIZE - PADDING,
+        "y": round(50 * scale + PADDING, 1),
+        "angle": 0.0,
+    }
+
+
+def test_a_label_direction_is_flipped_with_the_svg_y_axis():
+    corners = (Corner(1, "", 100.0, 50.0, 90.0), Corner(2, "", 0.0, 50.0, 135.0), Corner(3, "", 0.0, 0.0, -90.0))
+    drawn = drawable_map(replace(SQUARE, corners=corners))
+
+    # MultiViewer's 90° points up the map (+y). SVG's y runs down, so up is 270°.
+    assert [corner["angle"] for corner in drawn["corners"]] == [270.0, 225.0, 90.0]
+
+
+@pytest.mark.parametrize("path", CAPTURES, ids=lambda path: path.stem)
+def test_every_captured_corner_points_where_multiviewer_pushes_its_label(path):
+    payload = json.loads(path.read_text())
+    layout = parse_circuit_layout(payload, 2026)
+    assert layout is not None
+    drawn = drawable_map(layout)
+
+    raw = sorted(payload["corners"], key=lambda row: row["number"])
+    assert [corner["label"] for corner in drawn["corners"]] == [str(row["number"]) for row in raw]
+    turn = math.radians(payload["rotation"])
+    for corner, row in zip(drawn["corners"], raw, strict=True):
+        # MultiViewer's direction, turned with the map, then y flipped for SVG.
+        heading = math.radians(row["angle"]) + turn
+        expected = (math.cos(heading), -math.sin(heading))
+        angle = math.radians(corner["angle"])
+        assert math.isclose(math.cos(angle), expected[0], abs_tol=1e-3)
+        assert math.isclose(math.sin(angle), expected[1], abs_tol=1e-3)
+        assert 0 <= corner["x"] <= drawn["width"]
+        assert 0 <= corner["y"] <= drawn["height"]
 
 
 def test_the_map_is_turned_by_the_circuits_rotation():

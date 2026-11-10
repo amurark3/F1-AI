@@ -108,7 +108,15 @@
  * `circuit_record.circuit_record` and the segment's lap-record step, after P2.3a
  * added f1db's `last_name` to every edition winner, pole sitter, active winner
  * and the lap-record holder; a script asserted every other value equal to the
- * first capture. The Interlagos `map` is the 07:50 capture.
+ * first capture. The Interlagos `map` is the 07:50 capture; on 10 Nov (P0b.5)
+ * each corner's `label_x` / `label_y` gave way to MultiViewer's `angle`, read
+ * from `circuit-maps.json` below (same outline, same apexes).
+ *
+ * `circuit-maps.json` (10 Nov, P0b.5): MultiViewer's answers for Interlagos,
+ * Monaco, Singapore, Suzuka, Baku and Las Vegas (`/circuits/{key}/2026`,
+ * captured that day, `backend/tests/fixtures/multiviewer/`), each drawn by the
+ * backend's own `circuit.drawable_map`, as the `…/circuit` segment serves the
+ * `map`. The corner-number placement is tested over them.
  *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
@@ -133,8 +141,10 @@ import type {
   SessionForecast,
   SessionWeather,
 } from "@/app/race-control/weekend/weekendTypes";
+import type { CircuitMapData } from "@/app/ui/outlinePath";
 
 import championStats from "./champions-stats.json";
+import circuitMaps from "./circuit-maps.json";
 import circuitRecords from "./circuit-records.json";
 import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
@@ -247,3 +257,6 @@ export const OVERVIEW_SEGMENTS_2026 = {
   weather: { ...overviewWeather2026, risk_register: strategyPanels2026.sao_paulo_risk_register },
   circuit: overviewCircuit2026,
 };
+
+/** MultiViewer layouts drawn as the circuit segment serves them, keyed by circuit. */
+export const CIRCUIT_MAPS_2026 = circuitMaps as Record<keyof typeof circuitMaps, CircuitMapData>;

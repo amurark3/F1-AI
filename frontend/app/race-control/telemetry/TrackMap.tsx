@@ -2,7 +2,9 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { fitView, nearestIndex, viewBoxString } from "./trackMapGeometry";
+import { LABEL_HALO_EM } from "@/app/ui/cornerLabels";
+
+import { nearestIndex, trackLayout, viewBoxString } from "./trackMapGeometry";
 
 import type { CornerMarker } from "./telemetryModel";
 import type { MouseEvent } from "react";
@@ -39,12 +41,7 @@ const SURFACE = "#0D111B";
 export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [], readout, ariaLabel }: TrackMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const view = useMemo(
-    () => fitView([...x, ...corners.map((c) => c.label_x)], [...y, ...corners.map((c) => c.label_y)]),
-    [x, y, corners],
-  );
-  const scale = Math.max(view.width, view.height);
-  const stroke = scale / 140;
+  const { view, stroke, fontSize, labels } = useMemo(() => trackLayout(x, y, corners), [x, y, corners]);
 
   const onMove = (event: MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -80,21 +77,18 @@ export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [],
             strokeDasharray={dashedAt?.(index) ? `${stroke * 1.2} ${stroke * 1.2}` : undefined}
           />
         ))}
-        {corners.map((corner) => (
+        {labels.map((corner) => (
           <g key={corner.label}>
-            <line
-              x1={corner.x}
-              y1={-corner.y}
-              x2={corner.label_x}
-              y2={-corner.label_y}
-              stroke="#3A4354"
-              strokeWidth={stroke / 4}
-            />
+            {corner.leader && <line {...corner.leader} stroke="#3A4354" strokeWidth={stroke / 4} />}
             <text
-              x={corner.label_x}
-              y={-corner.label_y}
-              fontSize={scale / 45}
+              x={corner.x}
+              y={corner.y}
+              fontSize={fontSize}
               fill="#A8AFBF"
+              stroke={SURFACE}
+              strokeWidth={fontSize * LABEL_HALO_EM}
+              strokeLinejoin="round"
+              paintOrder="stroke"
               textAnchor="middle"
               dominantBaseline="central"
               fontFamily="var(--font-geist-mono, monospace)"

@@ -84,13 +84,13 @@ export interface LapInfo {
   is_fastest: boolean;
 }
 
+/** A corner's apex and MultiViewer's direction for its number (degrees, in the lap's y-up frame). */
 export interface CornerMarker {
   number: number;
   label: string;
   x: number;
   y: number;
-  label_x: number;
-  label_y: number;
+  angle: number;
 }
 
 export interface BrakingZone {

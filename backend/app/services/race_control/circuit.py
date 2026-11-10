@@ -10,7 +10,8 @@ Three sources, each optional and each failing on its own:
   holder does not resolve, so the page prints the full name).
 
 The outline is turned to MultiViewer's map orientation and scaled into a square
-SVG viewbox here, so the page draws it without any geometry of its own.
+SVG viewbox here. Each corner comes with its apex and MultiViewer's label
+direction; the page places the numbers clear of the track (``app/ui/cornerLabels.ts``).
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from app.data.openf1.client import OpenF1UnavailableError, new_client as openf1_
 from app.data.openf1.sessions import find_meeting
 from app.data.profiles.circuit_record import circuit_record
 from app.services.analysis.trace_points import rotate
-from app.services.analysis.track_map import corner_markers
+from app.services.analysis.track_map import FULL_TURN, corner_markers
 
 logger = structlog.get_logger()
 
@@ -94,7 +95,8 @@ def drawable_map(layout: CircuitLayout) -> dict:
             {
                 "label": marker["label"],
                 **dict(zip(("x", "y"), frame.place(marker["x"], marker["y"]), strict=True)),
-                **dict(zip(("label_x", "label_y"), frame.place(marker["label_x"], marker["label_y"]), strict=True)),
+                # The y flip mirrors every direction: MultiViewer's "up the map" is SVG's 270°.
+                "angle": round(-marker["angle"] % FULL_TURN, 1),
             }
             for marker in markers
         ],

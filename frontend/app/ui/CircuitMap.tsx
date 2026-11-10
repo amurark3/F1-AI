@@ -1,11 +1,18 @@
 "use client";
 
 import { useReducedMotion } from "framer-motion";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 
 import { useIsHydrated } from "@/app/components/LocalTime";
 
-import { outlinePath, type CircuitMapData } from "./outlinePath";
+import { LABEL_HALO_EM } from "./cornerLabels";
+import {
+  CIRCUIT_TRACK,
+  circuitCornerLabels,
+  circuitLabelSizing,
+  outlinePath,
+  type CircuitMapData,
+} from "./outlinePath";
 import { f1, rc } from "./tokens";
 
 /** Seconds the marker takes to lap the outline. */
@@ -14,13 +21,17 @@ const LAP_SECONDS = 9;
 const TAIL = 0.06;
 /** Corner numbers appear once the outline has finished drawing. */
 const LABELS_AFTER_SECONDS = 1.6;
+/** A leader from an apex to a number set further out, in viewBox units. */
+const LEADER_WIDTH = 2;
 
 /**
  * The circuit, drawn: the outline traces itself in, a marker laps it, and the
  * corner numbers settle in once the line is complete.
  *
- * The geometry arrives ready to draw — turned and scaled by the backend — so
- * this is presentation only. The lapping marker is SMIL, which ignores CSS
+ * The outline arrives turned and scaled by the backend. Each corner number is
+ * placed clear of the track and of the other numbers (`circuitCornerLabels`),
+ * with a halo in the hero band's colour behind it and, when it had to move out
+ * from its apex, a thin leader back. The lapping marker is SMIL, which ignores CSS
  * media queries, so it is left out entirely for a reader who prefers reduced
  * motion — and added only after hydration, because the server cannot know the
  * reader's preference and the first client render must match its HTML. The
@@ -34,7 +45,8 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
   const trackId = `track-${uid}`;
   const glowId = `glow-${uid}`;
   const path = outlinePath(map);
-  const labelSize = Math.max(map.width, map.height) / 42;
+  const { fontSize } = circuitLabelSizing(map);
+  const labels = useMemo(() => circuitCornerLabels(map), [map]);
 
   return (
     <svg viewBox={`0 0 ${map.width} ${map.height}`} className="h-full w-full" role="img" aria-label={`${name} layout`}>
@@ -49,17 +61,17 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
         fill="none"
         stroke={f1.red}
         strokeOpacity={0.4}
-        strokeWidth={28}
+        strokeWidth={CIRCUIT_TRACK.halo}
         strokeLinejoin="round"
         filter={`url(#${glowId})`}
       />
-      <path d={path} fill="none" stroke="#1A2130" strokeWidth={22} strokeLinejoin="round" />
+      <path d={path} fill="none" stroke="#1A2130" strokeWidth={CIRCUIT_TRACK.band} strokeLinejoin="round" />
       <path
         id={trackId}
         d={path}
         fill="none"
         stroke="#F4F6FA"
-        strokeWidth={5}
+        strokeWidth={CIRCUIT_TRACK.line}
         strokeLinejoin="round"
         pathLength={1}
         strokeDasharray="1 1"
@@ -99,19 +111,29 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
         </g>
       )}
 
-      <g fontFamily="var(--font-geist-mono, monospace)" fontWeight={700} fontSize={labelSize} textAnchor="middle">
-        {map.corners.map((corner, index) => (
-          <text
+      <g fontFamily="var(--font-geist-mono, monospace)" fontWeight={700} fontSize={fontSize} textAnchor="middle">
+        {labels.map((corner, index) => (
+          <g
             key={corner.label}
-            x={corner.label_x}
-            y={corner.label_y}
-            dominantBaseline="central"
-            fill={rc.ink3}
             className="motion-safe:animate-fade-up"
             style={{ animationDelay: `${LABELS_AFTER_SECONDS + index * 0.05}s` }}
           >
-            {corner.label}
-          </text>
+            {corner.leader && (
+              <line {...corner.leader} stroke={rc.dim} strokeWidth={LEADER_WIDTH} strokeLinecap="round" />
+            )}
+            <text
+              x={corner.x}
+              y={corner.y}
+              dominantBaseline="central"
+              fill={rc.ink3}
+              stroke={rc.hero}
+              strokeWidth={fontSize * LABEL_HALO_EM}
+              strokeLinejoin="round"
+              paintOrder="stroke"
+            >
+              {corner.label}
+            </text>
+          </g>
         ))}
       </g>
     </svg>

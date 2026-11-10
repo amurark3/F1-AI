@@ -195,13 +195,20 @@ def test_build_weekend_defaults_to_now(monkeypatch):
 CIRCUIT = CircuitInfo(rotation=90.0, corners=(Corner(1, "", 100.0, 0.0, 0.0), Corner(2, "a", 700.0, 0.0, 90.0)))
 
 
-def test_corner_labels_sit_off_the_track_and_turn_with_the_map():
+def test_corner_markers_turn_the_apex_and_multiviewers_label_direction_with_the_map():
     first, second = corner_markers(CIRCUIT)
 
-    assert (first["label"], first["x"], first["y"]) == ("1", 0.0, 100.0)
-    assert (first["label_x"], first["label_y"]) == (0.0, 600.0)
-    assert (second["label"], second["label_x"], second["label_y"]) == ("2a", -500.0, 700.0)
+    # The page places each number (app/ui/cornerLabels.ts); it gets the apex and
+    # MultiViewer's direction, both turned a quarter with the map.
+    assert first == {"number": 1, "label": "1", "x": 0.0, "y": 100.0, "angle": 90.0}
+    assert (second["label"], second["x"], second["y"], second["angle"]) == ("2a", 0.0, 700.0, 180.0)
     assert corner_markers(None) == []
+
+
+def test_a_turned_label_direction_stays_within_one_turn():
+    wrapped = CircuitInfo(rotation=90.0, corners=(Corner(1, "", 0.0, 0.0, 300.0), Corner(2, "", 0.0, 0.0, -135.0)))
+
+    assert [marker["angle"] for marker in corner_markers(wrapped)] == [30.0, 315.0]
 
 
 def _loaded(lap_number: int = 4, *, deleted: bool = False, trace: LapTrace | None = None, driver=NOR) -> LoadedLap:

@@ -10,7 +10,7 @@ import type { ReactElement, ReactNode } from "react";
  * Each render gets its own SWR cache, so one test's responses never leak into
  * the next, and a failed request is not retried behind the test's back.
  */
-function TestProviders({ children }: { children: ReactNode }) {
+export function TestProviders({ children }: { children: ReactNode }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       {children}

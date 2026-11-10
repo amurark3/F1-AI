@@ -233,3 +233,16 @@ export const RISK_REGISTERS_2026 = {
   lasVegas: strategyPanels2026.las_vegas_risk_register as RiskCard[],
   noRace: strategyPanels2026.no_race_risk_register as RiskCard[],
 };
+
+/**
+ * The five Command Center segments for São Paulo 2026, keyed by their path
+ * under `/api/race-control/overview/{year}`, for e2e routes. The weather
+ * segment gets back the risk register captured beside it.
+ */
+export const OVERVIEW_SEGMENTS_2026 = {
+  shell: overviewShell2026,
+  strategy: overviewStrategy2026,
+  predictions: overviewPredictions2026,
+  weather: { ...overviewWeather2026, risk_register: strategyPanels2026.sao_paulo_risk_register },
+  circuit: overviewCircuit2026,
+};

@@ -1,9 +1,12 @@
 "use client";
 
 import { CloudRain, Crown, Target, Timer } from "lucide-react";
+import { useId } from "react";
 
 import { AnimatedNumber } from "@/app/ui/AnimatedNumber";
 import { driverLabel } from "@/app/ui/names/names";
+import { RetryButton, StaleMark } from "@/app/ui/section/Section";
+import type { SectionState } from "@/app/ui/section/sectionState";
 
 import { WeatherGlyph } from "./WeatherGlyph";
 import { formatPoints, rainColor } from "./weekendModel";
@@ -12,50 +15,72 @@ import type { CircuitRecord, SessionForecast, TableStakes } from "./weekendTypes
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-/** Where a tile's segment stands: still loading, failed, or ready. */
-export type TileState = "pending" | "failed" | "ready";
-
 interface TileProps {
   label: string;
   accent: string;
   icon: LucideIcon;
-  state: TileState;
+  /** The state of the segment the tile is read from (`useSection`). */
+  state: SectionState;
   value: ReactNode;
   sub: string;
   visual?: ReactNode;
   index: number;
 }
 
+/**
+ * A tile's figure and caption for its segment's state. Data stays on screen
+ * whenever there is some (ready or stale); "Unavailable" and the reason show
+ * only when the segment has none, and nothing is captioned before it loads.
+ */
+function shownFor(state: SectionState, value: ReactNode, sub: string): { figure: ReactNode; caption: string | null } {
+  if (state.status === "pending") return { figure: "…", caption: null };
+  if (state.status === "failed") {
+    return { figure: <span className="text-base text-rc-ink-3">Unavailable</span>, caption: state.reason };
+  }
+  return { figure: value, caption: sub };
+}
+
 function Tile({ label, accent, icon: Icon, state, value, sub, visual, index }: TileProps) {
-  let shown: ReactNode = value;
-  if (state === "pending") shown = "…";
-  if (state === "failed") shown = <span className="text-base text-[#7F8797]">Unavailable</span>;
+  const labelId = useId();
+  const { figure, caption } = shownFor(state, value, sub);
+  const hasData = state.status === "ready" || state.status === "stale";
   return (
     <div
+      role="group"
+      aria-labelledby={labelId}
       className="relative min-w-0 overflow-hidden rounded-md border border-[#1E2633] bg-[#0D111B] p-4 motion-safe:animate-fade-up"
       style={{ animationDelay: `${index * 0.07}s` }}
     >
       <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: accent }} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#7F8797]">
+          <p
+            id={labelId}
+            className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#7F8797]"
+          >
             <Icon className="h-3.5 w-3.5" style={{ color: accent }} aria-hidden="true" />
             {label}
           </p>
-          <p className="mt-2 font-mono text-3xl font-black leading-tight text-white">{shown}</p>
+          <p className="mt-2 font-mono text-3xl font-black leading-tight text-white">{figure}</p>
         </div>
-        {state === "ready" && visual}
+        {hasData && visual}
       </div>
-      <p className="mt-1 line-clamp-2 text-xs leading-snug text-[#6F7789]">{sub}</p>
+      <p className="mt-1 line-clamp-2 text-xs leading-snug text-[#6F7789]">{caption}</p>
+      {state.status === "stale" && <StaleMark state={state} className="mt-2" />}
+      {state.status === "failed" && (
+        <p className="mt-2">
+          <RetryButton state={state} />
+        </p>
+      )}
     </div>
   );
 }
 
 export interface KeyNumbersProps {
-  rain: { value: number | null; source: string; forecast: SessionForecast | null; state: TileState };
-  pit: { lossSeconds: number | null; detail: string; state: TileState };
-  title: { stakes: TableStakes | null | undefined; state: TileState };
-  history: { record: CircuitRecord | null | undefined; state: TileState };
+  rain: { value: number | null; source: string; forecast: SessionForecast | null; state: SectionState };
+  pit: { lossSeconds: number | null; detail: string; state: SectionState };
+  title: { stakes: TableStakes | null | undefined; state: SectionState };
+  history: { record: CircuitRecord | null | undefined; state: SectionState };
 }
 
 function titleTile(stakes: TableStakes | null | undefined): { value: ReactNode; sub: string } {

@@ -102,7 +102,7 @@ function circuitLabel(race: HeroRace, circuit: OverviewCircuit | undefined): { n
   return { name, place: place === name ? "" : place };
 }
 
-function HeroTitle({ race, totalRounds, circuit, forecast }: Omit<WeekendHeroProps, "circuitLoading">) {
+function HeroTitle({ race, totalRounds, circuit, forecast, forecastAsOf }: Omit<WeekendHeroProps, "circuitLoading">) {
   const status = STATUS[race.status] ?? { label: race.status, color: "#7F8797" };
   const starts = Object.values(race.sessions).sort((a, b) => a.localeCompare(b));
   const label = circuitLabel(race, circuit);
@@ -133,7 +133,7 @@ function HeroTitle({ race, totalRounds, circuit, forecast }: Omit<WeekendHeroPro
         </p>
       )}
       <div className="mt-5">
-        <SessionWeatherStrip rows={forecast} />
+        <SessionWeatherStrip rows={forecast} asOf={forecastAsOf} />
       </div>
     </div>
   );
@@ -146,9 +146,11 @@ interface WeekendHeroProps {
   circuitLoading: boolean;
   /** Each session's forecast, once the weather segment lands. */
   forecast: SessionWeatherRow[];
+  /** The stored forecast's "as of" label, when the live feed failed. */
+  forecastAsOf?: string | null;
 }
 
-export function WeekendHero({ race, totalRounds, circuit, circuitLoading, forecast }: WeekendHeroProps) {
+export function WeekendHero({ race, totalRounds, circuit, circuitLoading, forecast, forecastAsOf }: WeekendHeroProps) {
   return (
     <section className="relative mb-5 overflow-hidden rounded-md border border-[#1E2633] bg-[#0B0F18]">
       <div className="relative h-[3px] overflow-hidden bg-gradient-to-r from-[#E10600] via-[#FF4422] to-[#E10600]">
@@ -158,7 +160,13 @@ export function WeekendHero({ race, totalRounds, circuit, circuitLoading, foreca
 
       <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         <div className="flex min-w-0 flex-col justify-between gap-6">
-          <HeroTitle race={race} totalRounds={totalRounds} circuit={circuit} forecast={forecast} />
+          <HeroTitle
+            race={race}
+            totalRounds={totalRounds}
+            circuit={circuit}
+            forecast={forecast}
+            forecastAsOf={forecastAsOf}
+          />
           <NextSessionCountdown sessions={race.sessions} />
         </div>
         <MapSlot circuit={circuit} loading={circuitLoading} name={circuitLabel(race, circuit).name} />

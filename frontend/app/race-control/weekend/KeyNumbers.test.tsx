@@ -84,7 +84,7 @@ describe("KeyNumbers", () => {
       />,
     );
 
-    expect(tile("Race-day rain")).toEqual(["—", "External forecast feed not connected"]);
+    expect(tile("Race-day rain")).toEqual(["—", "The race-day forecast opens on 7 Nov."]);
     expect(tile("Pit lane loss")).toEqual(["No model", "Baseline model unavailable"]);
     expect(tile("Title gap")).toEqual(["—", "Standings unavailable"]);
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);

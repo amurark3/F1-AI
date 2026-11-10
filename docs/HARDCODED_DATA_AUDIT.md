@@ -46,6 +46,13 @@ resolves both.
 > hourly, 16 days out, keyless), and the OpenWeatherMap block is only a fallback, relabelled
 > `"Current conditions (OpenWeatherMap)"`. The same series powers the per-session forecast on
 > the Command Center.
+>
+> **Follow-up (2026-11-09, P0b.1a).** The OpenWeatherMap fallback is gone from the card: on
+> 6 Nov it showed 5% (the next three hours) while Open-Meteo forecast ~90% for the race window.
+> With no race-day forecast the card carries null numbers and the forecast's own note. A failed
+> Open-Meteo call is retried once (429/5xx/timeout) and then served from the venue's last good
+> series (`app/data/open_meteo_store.py`), labelled "as of HH:MM UTC". The chat weather tool
+> still uses OpenWeatherMap.
 
 ### [x] 1.1 — Invented weather lookup table in the frontend
 

@@ -3,7 +3,7 @@
 ``build_overview`` is the single payload the Race Control page renders, and it
 is assembled from feeds that fail independently: the schedule/standings
 dashboard, the cached race prediction, the circuit telemetry reference, the
-per-session forecast (with current conditions behind it), and the circuit map. The risk is a partial outage arriving as a confident page:
+per-session forecast (which alone feeds the race-day card), and the circuit map. The risk is a partial outage arriving as a confident page:
 a dead prediction service or an unraced circuit must degrade the blocks that
 depend on it (and say so through ``data_source.mode``, the workstream statuses
 and the risk register) without blanking or faking the rest.
@@ -18,7 +18,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.services.race_control import overview as module, session_weather, weather as weather_module
+from app.data import weather as owm
+from app.services.race_control import overview as module, session_weather
 
 _PREDICTIONS = {
     "predictions": [
@@ -42,19 +43,26 @@ _REFERENCE = {
 }
 
 
-# No session has a forecast, so the summary card falls back to current conditions.
+# No session has a forecast, so the summary card has no number, only the forecast's note.
 _NO_SESSION_FORECAST = {"status": "pending", "note": "later", "sessions": []}
-_RACE_DAY_FORECAST = {
-    "status": "ready",
-    "note": None,
-    "sessions": [
-        {
-            "name": "Race",
-            "phase": "upcoming",
-            "forecast": {"rain_probability_pct": 55, "track_temp_c": 31.0, "wind_kph": 14.0},
-        }
-    ],
-}
+_NO_FORECAST_CARD = {"rain_risk": None, "track_temp_c": None, "wind_kph": None, "confidence": "later"}
+
+
+def _race_day(rain: int) -> dict:
+    return {
+        "status": "ready",
+        "note": None,
+        "sessions": [
+            {
+                "name": "Race",
+                "phase": "upcoming",
+                "forecast": {"rain_probability_pct": rain, "track_temp_c": 31.0, "wind_kph": 14.0},
+            }
+        ],
+    }
+
+
+_RACE_DAY_FORECAST = _race_day(55)
 _CIRCUIT = {"record": {"circuit_id": "monaco"}, "lap_record": None, "map": None}
 
 
@@ -103,11 +111,6 @@ def _patch_feeds(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
         module, "build_session_weather", lambda _race: _serve(feeds.get("sessions", _NO_SESSION_FORECAST))
     )
     monkeypatch.setattr(module, "build_circuit_segment", lambda _year, _race: _serve(feeds.get("circuit", _CIRCUIT)))
-
-    async def _weather(_location):
-        return _serve(feeds.get("weather", {"error": "OpenWeatherMap API key not configured."}))
-
-    monkeypatch.setattr(weather_module, "get_weather_for_circuit", _weather)
 
 
 # ---------------------------------------------------------------------------
@@ -158,13 +161,13 @@ def test_overview_feeds_the_telemetry_reference_into_the_strategy_context(monkey
 
 
 @pytest.mark.unit
-def test_overview_derives_the_risk_register_from_the_live_weather_block(monkeypatch):
-    _patch_feeds(monkeypatch, weather={"current": {"rain_probability_pct": 70, "track_temp_c": 28}})
+def test_overview_derives_the_risk_register_from_the_race_day_forecast(monkeypatch):
+    _patch_feeds(monkeypatch, sessions=_race_day(70))
 
     payload = module.build_overview(2026)
 
     assert payload["weather"]["rain_risk"] == 70
-    assert payload["weather"]["confidence"] == weather_module.WEATHER_FEED_LIVE
+    assert payload["weather"]["confidence"] == session_weather.RACE_DAY_FORECAST
     register = {card["title"]: card for card in payload["risk_register"]}
     assert register["Elevated rain risk"]["level"] == "High"
     # A 10-point constructor gap is the closest-rival input, not a fixed card.
@@ -172,12 +175,8 @@ def test_overview_derives_the_risk_register_from_the_live_weather_block(monkeypa
 
 
 @pytest.mark.unit
-def test_the_race_day_forecast_outranks_current_conditions_on_the_summary_card(monkeypatch):
-    _patch_feeds(
-        monkeypatch,
-        sessions=_RACE_DAY_FORECAST,
-        weather={"current": {"rain_probability_pct": 5, "track_temp_c": 40}},
-    )
+def test_the_race_day_forecast_feeds_the_summary_card(monkeypatch):
+    _patch_feeds(monkeypatch, sessions=_RACE_DAY_FORECAST)
 
     payload = module.build_overview(2026)
 
@@ -240,12 +239,21 @@ def test_overview_marks_the_strategy_context_heuristic_when_no_edition_has_been_
 
 
 @pytest.mark.unit
-def test_overview_shows_an_offline_weather_card_rather_than_a_plausible_number(monkeypatch):
-    _patch_feeds(monkeypatch, weather={"error": "OpenWeatherMap API key not configured."})
+def test_overview_shows_the_forecasts_note_rather_than_current_conditions(monkeypatch):
+    """6 Nov 2026: with the forecast down, the card showed OpenWeatherMap's 5 % before a ~90 % race."""
+    _patch_feeds(monkeypatch)
+    asked: list[str] = []
+
+    async def current_conditions(location: str) -> dict:
+        asked.append(location)
+        return {"current": {"rain_probability_pct": 5, "track_temp_c": 29, "wind_speed_kph": 13}}
+
+    monkeypatch.setattr(owm, "get_weather_for_circuit", current_conditions)
 
     payload = module.build_overview(2026)
 
-    assert payload["weather"] == weather_module._offline_weather_block()
+    assert payload["weather"] == _NO_FORECAST_CARD
+    assert asked == []
     assert [card["title"] for card in payload["risk_register"]][:1] == ["Safety car exposure"]
     assert "Weather feed offline" in [card["title"] for card in payload["risk_register"]]
 
@@ -267,7 +275,7 @@ def test_overview_skips_both_lookups_when_the_season_has_no_selected_race(monkey
     payload = module.build_overview(2026)
 
     assert payload["predicted_podium"] == []
-    assert payload["weather"] == weather_module._offline_weather_block()
+    assert payload["weather"] == _NO_FORECAST_CARD
     assert payload["risk_register"] == [], "no event means nothing to grade a risk against"
     assert payload["live_status"] == {"connected": False, "label": "Standby", "session": None}
 
@@ -299,7 +307,7 @@ def test_overview_skips_the_telemetry_lookup_for_an_event_with_no_location(monke
     payload = module.build_overview(2026)
 
     assert payload["strategy_context"]["data_source"]["mode"] == "heuristic"
-    assert payload["weather"] == weather_module._offline_weather_block()
+    assert payload["weather"] == _NO_FORECAST_CARD
 
 
 @pytest.mark.unit

@@ -13,7 +13,7 @@ still contains everything the segments do.
 import pytest
 
 from app.services import race_control as rc
-from app.services.race_control import overview, strategy_context
+from app.services.race_control import overview, session_weather, strategy_context
 from tests.standings_support import standings_from_rows
 
 pytestmark = pytest.mark.unit
@@ -106,10 +106,8 @@ REFERENCE = {
     "pit_loss_seconds": 21.4,
 }
 
-WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": rc.WEATHER_FEED_LIVE}
-# Beyond the forecast horizon: no session has a forecast, so the summary card
-# falls back to current conditions.
-SESSIONS = {"status": "pending", "note": "Forecasts open later.", "sessions": [{"name": "Race", "forecast": None}]}
+WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": session_weather.RACE_DAY_FORECAST}
+SESSIONS = {"status": "ready", "note": None, "sessions": [{"name": "Race", "forecast": {"rain_probability_pct": 5}}]}
 CIRCUIT = {"record": {"circuit_id": "zandvoort"}, "lap_record": None, "map": None}
 
 
@@ -140,7 +138,8 @@ def calls(monkeypatch):
         recorder.telemetry += 1
         return REFERENCE
 
-    def weather(race):
+    def weather(sessions):
+        assert sessions == SESSIONS, "the card is read off the session forecast, nothing else"
         recorder.weather += 1
         return WEATHER
 

@@ -175,6 +175,7 @@ function HeroSlot({ shell, circuit, weather }: HeroSlotProps) {
       circuit={circuit.data}
       circuitLoading={pending(circuit)}
       forecast={weather.data?.session_weather?.sessions ?? []}
+      forecastAsOf={weather.data?.session_weather?.as_of_label}
     />
   );
 }
@@ -219,7 +220,7 @@ function WeekendNumbers({ shell, strategy, weather, circuit }: WeekendNumbersPro
 /** Where every number on the page comes from, and what the strategy model assumes. */
 function SourcesDisclosure({ assumptions }: { assumptions: string[] }) {
   const sources = [
-    "Weather: Open-Meteo hourly forecast (CC BY 4.0), read over each session's hours. Track temperature is estimated.",
+    "Weather: Open-Meteo hourly forecast (CC BY 4.0), read over each session's hours. Track temperature is estimated. When the feed is down, the last forecast received is shown with the time it was fetched.",
     "Circuit map and corner numbers: MultiViewer (unofficial). Layout facts and history: f1db.",
     "Standings and stakes: f1db's last published round plus each later round's points from OpenF1 results, provisional until f1db publishes them. Points left count every race and sprint the standings do not include yet, at a driver's best (25 a race, 8 a sprint) or a team's one-two (43 and 15).",
     "A title is decided once the leader's lead is more than the points left. A lead exactly equal to them decides it only if the leader would still win the count-back (most Grand Prix wins, then seconds, and so on) once the rival has taken the maximum in every session left.",

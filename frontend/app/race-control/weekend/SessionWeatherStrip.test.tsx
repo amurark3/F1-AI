@@ -24,6 +24,14 @@ describe("SessionWeatherStrip", () => {
     expect(screen.getByText("80%")).toHaveStyle({ color: "#4C8DFF" });
     expect(cells().at(-1)).toHaveClass("border-[#E10600]/50");
     expect(cells()[0]).toHaveClass("border-white/10");
+    expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
+  });
+
+  it("says when a stored forecast was fetched, under the sessions it fills", () => {
+    render(<SessionWeatherStrip rows={SAO_PAULO_2026.weather.sessions} asOf="as of 6 Nov 14:05 UTC" />);
+
+    expect(cells()).toHaveLength(5);
+    expect(screen.getByText("Forecast as of 6 Nov 14:05 UTC")).toHaveClass("text-rc-ink-3");
   });
 
   it("abbreviates sprint sessions", () => {

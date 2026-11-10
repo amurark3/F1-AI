@@ -18,7 +18,7 @@ from app.services.predictions import get_cached_race_prediction, get_or_compute_
 from app.services.race_control.circuit import build_circuit_segment
 from app.services.race_control.live import build_live_status
 from app.services.race_control.risk import build_risk_register
-from app.services.race_control.session_weather import build_session_weather, race_day_block
+from app.services.race_control.session_weather import build_session_weather
 from app.services.race_control.strategy_context import (
     build_competitor_rows,
     build_strategy_context,
@@ -77,11 +77,11 @@ def build_overview_shell(year: int) -> dict:
 def weather_blocks(race: dict | None) -> tuple[dict, dict]:
     """The summary weather card and the per-session forecast it is drawn from.
 
-    The card reads the race session's forecast when there is one; otherwise it
-    falls back to current conditions at the circuit, or an honest blank.
+    The card reads the race session's forecast and nothing else: with none it
+    shows no number, only the forecast's reason (never current conditions).
     """
     sessions = build_session_weather(race)
-    return race_day_block(sessions) or build_weather_block(race), sessions
+    return build_weather_block(sessions), sessions
 
 
 def build_overview_weather(year: int) -> dict:

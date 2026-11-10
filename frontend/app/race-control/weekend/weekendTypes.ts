@@ -46,6 +46,13 @@ export interface SessionWeather {
   source: string;
   attribution: string;
   sessions: SessionWeatherRow[];
+  /**
+   * Set only when the live feed failed and the venue's last good forecast is
+   * shown: when it was fetched (ISO, UTC) and the label to print beside it
+   * ("as of 14:05 UTC"). Optional so a payload from an older backend still reads.
+   */
+  as_of?: string | null;
+  as_of_label?: string | null;
 }
 
 export interface Headliner {

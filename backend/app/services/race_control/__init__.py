@@ -5,8 +5,8 @@ existing router contract stable while limiting each file to one block of the
 command center:
 
     live               whether a session is on track — the desk's only clock
-    session_weather    per-session forecast from Open-Meteo, and the race-day card
-    weather            current-conditions fallback card, or an honest blank one
+    session_weather    per-session forecast from Open-Meteo
+    weather            the race-day card: the race's forecast, or why there is none
     circuit            circuit map (MultiViewer) with its f1db record
     stakes             points left, contenders alive, and whether the title can end here
     risk               weather and championship-rival risk register
@@ -26,13 +26,10 @@ from app.services.race_control.overview import (
 )
 from app.services.race_control.risk import build_risk_register
 from app.services.race_control.strategy_context import DEFAULT_RACE_LAPS, build_strategy_context
-from app.services.race_control.weather import WEATHER_FEED_LIVE, WEATHER_FEED_OFFLINE
 from app.services.race_control.workstreams import focus_for_event
 
 __all__ = [
     "DEFAULT_RACE_LAPS",
-    "WEATHER_FEED_LIVE",
-    "WEATHER_FEED_OFFLINE",
     "build_live_status",
     "build_overview",
     "build_overview_circuit",

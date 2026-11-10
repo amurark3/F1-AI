@@ -17,7 +17,7 @@ from app.services import race_control as rc
 pytestmark = pytest.mark.unit
 
 SAFETY_CAR_RISK = "Safety car exposure"
-OFFLINE_WEATHER = {"rain_risk": None, "confidence": rc.WEATHER_FEED_OFFLINE}
+OFFLINE_WEATHER = {"rain_risk": None, "confidence": "The forecast feed is unavailable right now."}
 
 
 def _race_at(location: str) -> dict:

@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from app.data.open_meteo import HourlyReading
+from app.data.open_meteo import HourlyReading, HourlySeries
 from app.services.race_control import session_weather as module
 from app.services.race_control.session_weather import (
     build_session_weather,
@@ -63,9 +63,12 @@ def feed(monkeypatch):
     calls: list[tuple] = []
 
     def install(result):
+        # Bare readings stand for a live answer; a test about the stored copy passes a series.
+        series = HourlySeries(readings=result, fetched_at=NOW) if isinstance(result, tuple) else result
+
         def fetch(*args):
             calls.append(args)
-            return result
+            return series
 
         monkeypatch.setattr(module, "fetch_hourly", fetch)
         return calls
@@ -218,6 +221,7 @@ def test_every_session_gets_its_forecast_from_one_weekend_request(feed):
 
     assert payload["status"] == "ready"
     assert payload["note"] is None
+    assert (payload["as_of"], payload["as_of_label"]) == (None, None), "a live answer needs no 'as of'"
     assert payload["source"] == module.SESSION_WEATHER_SOURCE
     assert payload["attribution"] == module.OPEN_METEO_ATTRIBUTION
     assert [row["name"] for row in payload["sessions"]] == list(RACE["sessions"])
@@ -289,6 +293,52 @@ def test_a_feed_outage_lists_the_sessions_blank(feed):
     assert all(row["forecast"] is None for row in payload["sessions"])
 
 
+# -- the last good copy, when the live call fails -----------------------------------
+
+
+def stored(fetched_at: datetime, readings: tuple[HourlyReading, ...] | None = None) -> HourlySeries:
+    return HourlySeries(readings=readings or weekend_series(), fetched_at=fetched_at, stored=True)
+
+
+def test_a_stored_series_is_served_with_the_time_it_was_fetched(feed):
+    feed(stored(datetime(2026, 11, 1, 8, 0, 30, tzinfo=UTC)))
+
+    payload = build_session_weather(RACE, now=NOW)
+
+    assert payload["status"] == "ready"
+    assert all(row["forecast"] is not None for row in payload["sessions"])
+    assert payload["as_of"] == "2026-11-01T08:00:30Z"
+    assert payload["as_of_label"] == "as of 08:00 UTC"
+    assert payload["note"] == f"{module.NOTE_OFFLINE} Showing the forecast as of 08:00 UTC."
+
+
+def test_a_series_stored_on_an_earlier_day_names_the_day(feed):
+    feed(stored(datetime(2026, 10, 31, 22, 15, tzinfo=UTC)))
+
+    payload = build_session_weather(RACE, now=NOW)
+
+    assert payload["as_of_label"] == "as of 31 Oct 22:15 UTC"
+
+
+def test_the_race_day_card_carries_the_stored_series_as_of_label(feed):
+    feed(stored(datetime(2026, 11, 1, 8, 0, tzinfo=UTC)))
+
+    block = race_day_block(build_session_weather(RACE, now=NOW))
+
+    assert block is not None
+    assert block["rain_risk"] == 10
+    assert block["confidence"] == f"{module.RACE_DAY_FORECAST} · as of 08:00 UTC"
+
+
+def test_a_stored_series_that_misses_every_session_is_an_outage_with_no_as_of(feed):
+    feed(stored(datetime(2026, 11, 1, 8, 0, tzinfo=UTC), (hour("2026-11-06T00:00"),)))
+
+    payload = build_session_weather(RACE, now=NOW)
+
+    assert (payload["status"], payload["note"]) == ("unavailable", module.NOTE_OFFLINE)
+    assert (payload["as_of"], payload["as_of_label"]) == (None, None)
+
+
 def test_a_series_that_misses_every_session_is_an_outage_not_a_forecast(feed):
     feed((hour("2026-11-06T00:00"),))
 
@@ -304,6 +354,7 @@ def test_no_schedule_has_no_sessions(feed, race):
     payload = build_session_weather(race, now=NOW)
 
     assert (payload["status"], payload["note"], payload["sessions"]) == ("unavailable", module.NOTE_NO_SCHEDULE, [])
+    assert (payload["as_of"], payload["as_of_label"]) == (None, None)
     assert calls == []
 
 

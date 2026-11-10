@@ -67,6 +67,12 @@ describe("WeekendHero", () => {
     expect(screen.getByText("Lap record")).toBeInTheDocument();
   });
 
+  it("says when the session weather was fetched while it is the stored forecast", () => {
+    renderSaoPaulo({ forecastAsOf: "as of 14:05 UTC" });
+
+    expect(screen.getByText("Forecast as of 14:05 UTC")).toBeInTheDocument();
+  });
+
   it("counts down to the next session a second at a time", () => {
     renderSaoPaulo();
 

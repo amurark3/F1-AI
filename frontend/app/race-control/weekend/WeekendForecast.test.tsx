@@ -52,6 +52,25 @@ describe("WeekendForecast", () => {
     expect(screen.getAllByText("Forecast")).toHaveLength(5);
     expect(railFillWidth()).toBe("0%");
     expect(screen.getByText(/Weather data by Open-Meteo\.com\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
+  });
+
+  it("labels the stored forecast it shows while the live feed is down with when it was fetched", () => {
+    // `session_weather.build_session_weather` when the call fails and the venue's last good series is stored.
+    const stored: SessionWeather = {
+      ...SAO_PAULO,
+      note: "The forecast feed is unavailable right now. Showing the forecast as of 14:05 UTC.",
+      as_of: "2026-11-07T14:05:00Z",
+      as_of_label: "as of 14:05 UTC",
+    };
+    render(<WeekendForecast weather={stored} />);
+
+    expect(screen.getByText("as of 14:05 UTC")).toBeInTheDocument();
+    expect(
+      screen.getByText("The forecast feed is unavailable right now. Showing the forecast as of 14:05 UTC."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("article")).toHaveLength(5);
+    expect(chips()[0]).toBe("Race day: Overcast · 21% rain");
   });
 
   it("reads each session's hours: temperature, rain, wind from its compass point, track and humidity", () => {

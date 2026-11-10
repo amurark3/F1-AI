@@ -295,7 +295,10 @@ export function WeekendForecast({ weather }: { weather: SessionWeather | null | 
             Weather, session by session
           </h2>
         </div>
-        <StatusPill color="#4C8DFF">Open-Meteo · hourly</StatusPill>
+        <div className="flex flex-wrap gap-2">
+          {weather?.as_of_label && <StatusPill>{weather.as_of_label}</StatusPill>}
+          <StatusPill color="#4C8DFF">Open-Meteo · hourly</StatusPill>
+        </div>
       </div>
 
       {sessions.length === 0 ? (

@@ -22,8 +22,6 @@ from app.services import race_control
 # through the package.
 _DEFINING_MODULE = {
     "DEFAULT_RACE_LAPS": "app.services.race_control.strategy_context",
-    "WEATHER_FEED_LIVE": "app.services.race_control.weather",
-    "WEATHER_FEED_OFFLINE": "app.services.race_control.weather",
     "build_live_status": "app.services.race_control.live",
     "build_overview_circuit": "app.services.race_control.overview",
     "build_overview": "app.services.race_control.overview",

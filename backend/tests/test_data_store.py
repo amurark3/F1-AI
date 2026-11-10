@@ -404,6 +404,19 @@ def test_schema_is_created_once_and_not_repeated(pg_store):
 
 
 @pytest.mark.unit
+def test_ensure_schema_runs_the_app_documents_ddl_on_the_callers_connection():
+    """The public entry point scripts.ensure_schema calls: the same DDL, every time."""
+    conn = _FakeConnection()
+
+    store_module.ensure_schema(conn)
+    store_module.ensure_schema(conn)
+
+    assert [sql for sql, _ in conn.statements] == [store_module._SCHEMA_SQL] * 2
+    assert "CREATE TABLE IF NOT EXISTS app_documents" in conn.statements[0][0]
+    assert "ADD COLUMN IF NOT EXISTS version" in conn.statements[0][0]
+
+
+@pytest.mark.unit
 def test_schema_creation_is_skipped_when_another_thread_won_the_lock(pg_store):
     """The inner half of the double-checked lock: the winner already ran the DDL."""
 

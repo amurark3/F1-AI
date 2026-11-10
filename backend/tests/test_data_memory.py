@@ -145,6 +145,20 @@ def test_schema_is_created_once_per_process():
 
 
 @pytest.mark.unit
+def test_ensure_schema_runs_the_ddl_on_the_callers_connection_every_time():
+    """The public entry point scripts.ensure_schema calls: no once-per-process latch,
+    since each call may target another database."""
+    conn = _FakeConnection()
+
+    memory.ensure_schema(conn)
+    memory.ensure_schema(conn)
+
+    assert [statement for statement, _ in conn.statements] == [memory._SCHEMA_SQL] * 2
+    assert "CREATE TABLE IF NOT EXISTS user_profile" in conn.statements[0][0]
+    assert memory._schema_ready is False
+
+
+@pytest.mark.unit
 def test_schema_creation_short_circuits_inside_the_lock(monkeypatch):
     """The post-lock re-check: another thread created the schema while we waited."""
     real_lock = memory._schema_lock

@@ -79,6 +79,15 @@ def _connect() -> psycopg.Connection:
     return psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
 
 
+def ensure_schema(conn: psycopg.Connection) -> None:
+    """Create ``user_profile`` and ``chat_message`` on ``conn``'s database. Idempotent.
+
+    Runs every time it is called (``scripts.ensure_schema`` may aim it at another
+    database); the request path goes through ``_ensure_schema``, once per process.
+    """
+    conn.execute(_SCHEMA_SQL)
+
+
 def _ensure_schema(conn: psycopg.Connection) -> None:
     global _schema_ready
     if _schema_ready:
@@ -86,7 +95,7 @@ def _ensure_schema(conn: psycopg.Connection) -> None:
     with _schema_lock:
         if _schema_ready:
             return
-        conn.execute(_SCHEMA_SQL)
+        ensure_schema(conn)
         _schema_ready = True
 
 

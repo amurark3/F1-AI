@@ -13,6 +13,7 @@ from __future__ import annotations
 import psycopg
 import pytest
 
+from app.data import analysis_cache as analysis_cache_module
 from app.data.analysis_cache import AnalysisCache
 
 pytestmark = pytest.mark.unit
@@ -116,3 +117,25 @@ def test_a_failed_write_still_keeps_the_load_in_memory(connect):
     cache.put("circuit", "9:2026", 1, {"rotation": 0})
 
     assert cache.get("circuit", "9:2026", 1) == {"rotation": 0}
+
+
+def test_ensure_schema_runs_the_ddl_on_the_callers_connection():
+    """The public entry point scripts.ensure_schema calls, and the one the cache itself uses."""
+    connection = FakeConnection()
+
+    analysis_cache_module.ensure_schema(connection)
+
+    assert [sql for sql, _ in connection.statements] == [analysis_cache_module._SCHEMA_SQL]
+    assert "CREATE TABLE IF NOT EXISTS analysis_cache" in connection.statements[0][0]
+
+
+def test_the_cache_creates_its_table_once_through_ensure_schema(connect, monkeypatch):
+    calls: list[object] = []
+    monkeypatch.setattr(analysis_cache_module, "ensure_schema", calls.append)
+    connect(FakeConnection())
+    cache = AnalysisCache(DSN, 4)
+
+    cache.put("circuit", "9:2026", 1, {"rotation": 0})
+    cache.put("circuit", "10:2026", 1, {"rotation": 0})
+
+    assert len(calls) == 1

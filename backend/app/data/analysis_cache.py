@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS analysis_cache (
 ALTER TABLE analysis_cache ENABLE ROW LEVEL SECURITY;
 """
 
+
+def ensure_schema(conn: psycopg.Connection) -> None:
+    """Create ``analysis_cache`` on ``conn``'s database. Idempotent."""
+    conn.execute(_SCHEMA_SQL)
+
+
 CacheKey = tuple[str, str, int]
 
 
@@ -67,7 +73,7 @@ class AnalysisCache:
 
     def _ensure_schema(self, conn: psycopg.Connection) -> None:
         if not self._schema_ready:
-            conn.execute(_SCHEMA_SQL)
+            ensure_schema(conn)
             self._schema_ready = True
 
     def _remember(self, key: CacheKey, payload: dict) -> None:

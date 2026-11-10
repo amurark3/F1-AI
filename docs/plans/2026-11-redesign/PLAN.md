@@ -413,7 +413,7 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
 ### P0c.6 Supabase → VM data migration
 
 - **Do:**
-  - `deploy/oracle/migrate-from-supabase.sh SOURCE_URL TARGET_URL [--dry-run]`:
+  - `deploy/oracle/bin/migrate-from-supabase.sh [--dry-run] [--replace]`, run on the VM as `deploy`. As built (P0c.6, 2026-11-09): the source URL comes from the `SOURCE_DATABASE_URL` environment variable only (a URL argument would show in `ps`), the target is the stack's own Postgres, and `--replace` overwrites target tables that already hold rows.
     1. Requires the target schema to exist: the API has booted once, and the app creates the extension and its tables.
     2. Runs `pg_dump --data-only` of `app_documents`, `analysis_cache`, `chat_message`, `user_profile` and `rulebook_chunk` from the Supabase session pooler.
     3. Restores into the target in one transaction.
@@ -486,6 +486,15 @@ Added 2026-11-08. The user: "the cold start cannot continue … the cost has to 
     - `ALTER USER` when the Postgres password changes.
     - The first backup pulls the 1.36 GB OCI CLI image.
   - **What is only verifiable on the real VM** (the P0c.5 log lists it), as a first-boot checklist.
+- **From P0c.6, cutover step 6 must say:**
+  - **The command**, as `deploy` (`sudo -iu deploy`), with the URL typed into `read -rsp 'Supabase session pooler URL: ' SOURCE_DATABASE_URL; echo; export SOURCE_DATABASE_URL`, never pasted on a command line or into chat:
+    - `/srv/f1ai/app/deploy/oracle/bin/migrate-from-supabase.sh --dry-run`, then
+    - `/srv/f1ai/app/deploy/oracle/bin/migrate-from-supabase.sh --replace` (plain, without `--replace`, works only while the VM's five tables are empty; the dry run's last line says whether they are), then `unset SOURCE_DATABASE_URL`.
+  - **The URL** is Supabase's **session pooler** string (Render's current `DATABASE_URL`, or Supabase → Connect → Session pooler): `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`, the password percent-encoded, `?sslmode=require` appended. Not the transaction pooler (port 6543; the script refuses it) or the direct `db.<ref>.supabase.co` host (IPv6-only).
+  - **Run it only after step 5** (writes frozen). A mismatch table whose last line says "the source changed after it" means something still writes to Supabase.
+  - **Expected output:** `dry run passed; would copy:` with one row count per table; then for the real run `verified: row counts equal the source's`, `migrated:` with the counts, and `api: ready`; exit 0. Any other ending is a failure that says why, and a failed restore is rolled back whole.
+  - **Duration:** about 15 s for 35 MB (4,850 rulebook vectors) in the rehearsal, plus a few seconds for the API restart; allow 1–2 minutes on the VM. The API is stopped only for the restore and the check.
+  - **Then step 7:** the chat-embedding backfill, since Render saved chat turns without vectors.
 - **Accept:** every command in the guide matches the files from P0c.5–P0c.6; no secret values; no "Render" left in `DEPLOYMENT.md` except the rollback and history notes.
 - **Verify:** Prettier; grep for `onrender` and `Render` in the docs touched.
 

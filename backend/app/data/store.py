@@ -113,6 +113,11 @@ ALTER TABLE app_documents ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAU
 """
 
 
+def ensure_schema(conn: psycopg.Connection) -> None:
+    """Create ``app_documents`` on ``conn``'s database, or bring it up to date. Idempotent."""
+    conn.execute(_SCHEMA_SQL)
+
+
 def _json_default(value: object) -> str:
     """Fallback serializer for non-native types (datetimes, etc.)."""
     return str(value)
@@ -261,7 +266,7 @@ class PostgresDocumentStore:
         with self._lock:
             if self._schema_ready:
                 return
-            conn.execute(_SCHEMA_SQL)
+            ensure_schema(conn)
             self._schema_ready = True
 
     def _record_outcome(self, ok: bool, error: str | None = None) -> str | None:

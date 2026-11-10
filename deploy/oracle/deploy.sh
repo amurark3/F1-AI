@@ -28,31 +28,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/bin/lib.sh"
 
 READY_TIMEOUT=${F1AI_READY_TIMEOUT:-180}
 OFFLINE=${F1AI_OFFLINE:-0}
-POLL_SECONDS=5
-
-# Run inside the API container: exit 0 once warm-up is complete and the
-# database answers, 1 otherwise, printing why on one line. Warm-up that
-# finished with an error still counts as up (the error is printed): it means
-# an outside source failed, such as GitHub's release downloads, which the
-# previous image would hit just the same.
-READY_PROBE='
-import json, sys, urllib.error, urllib.request
-base = "http://127.0.0.1:8000/api"
-try:
-    state = json.load(urllib.request.urlopen(base + "/ready", timeout=5))
-except Exception as exc:
-    sys.exit(f"not answering: {exc}")
-stage, error = state.get("stage"), state.get("error")
-if not state.get("ready"):
-    sys.exit(f"warming up: {stage}")
-try:
-    urllib.request.urlopen(base + "/health/deep", timeout=15)
-except urllib.error.HTTPError as exc:
-    sys.exit(f"warmed up, but /api/health/deep answered {exc.code}")
-except Exception as exc:
-    sys.exit(f"warmed up, but /api/health/deep failed: {exc}")
-print("ready" + (f" (warm-up finished with an error: {error})" if error else ""))
-'
 
 usage() {
   echo "usage: deploy <40-hex commit sha> | ingest-rulebook" >&2
@@ -127,26 +102,6 @@ start_stack() {
   API_TAG=$tag compose up --detach --remove-orphans --quiet-pull
 }
 
-# Poll the API until it is ready or READY_TIMEOUT passes. Prints each new
-# status once, not every poll.
-wait_ready() {
-  local deadline=$((SECONDS + READY_TIMEOUT)) status last=""
-  while ((SECONDS < deadline)); do
-    if status=$(compose exec -T api python -c "$READY_PROBE" 2>&1); then
-      log "api: $status"
-      return 0
-    fi
-    status=${status##*$'\n'}
-    if [[ $status != "$last" ]]; then
-      log "api: ${status:0:200}"
-      last=$status
-    fi
-    sleep "$POLL_SECONDS"
-  done
-  log "api: not ready after ${READY_TIMEOUT}s"
-  return 1
-}
-
 # Keep the images of the live and previous deploys; remove the other tags of
 # this repository (each holds a copy of the code layers on the boot disk).
 prune_images() {
@@ -173,7 +128,7 @@ rollback() {
   if is_commit_sha "$previous"; then
     sync_files "$previous"
   fi
-  if start_stack "$previous" && wait_ready; then
+  if start_stack "$previous" && wait_ready "$READY_TIMEOUT"; then
     log "rolled back: $previous is serving"
   else
     log "rolled back to $previous, but it is not ready either; check: bin/compose.sh logs api"
@@ -187,7 +142,7 @@ deploy() {
   sync_files "$SHA"
   # A failed pull or start goes back like a failed health check: the deploy
   # files have already moved to the new commit.
-  if pull_image "$SHA" && start_stack "$SHA" && wait_ready; then
+  if pull_image "$SHA" && start_stack "$SHA" && wait_ready "$READY_TIMEOUT"; then
     if [[ -n $previous && $previous != "$SHA" ]]; then
       write_state "$F1AI_PREVIOUS_TAG_FILE" "$previous"
     fi

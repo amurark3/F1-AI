@@ -678,6 +678,7 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
   - **Then build it.** It fetches nothing, not even at build time, and `next build` lists `/` as static (○). The only API call on `/` is the readiness probe (P0c.7), which shows P3.5's restart lights only while the backend restarts.
 - **P3.4** Styled `not-found.tsx` and `global-error.tsx`; footer from `navConfig`.
 - **P3.5 Restart lights** (user, 2026-11-06; rewritten 2026-11-09 for the always-on backend, P0c.7, to the 2026-11-08 Loading decision):
+  - **Branch note (2026-11-09):** "Today" describes P0c.7's `ServerStatusNotice`, which lives on `feat/oracle-backend`. Before starting P3.5 on `dev`, merge `main` into `dev` if P0c has merged. If it hasn't, stop and ask the user: `dev` still has the old blocking `ServerWarmingGate`.
   - **Today (after P0c.7):**
     - `ServerStatusNotice` (`app/components/`, mounted beside the page in the root layout, never around it) shows a small card at the bottom of every route while `/api/ready` is not ready. It reads "Updating — back in a few seconds", with the backend's stage detail and a compact `StartLightGantry` lit by `litCountForStage(stage)` (`STAGE_ORDER` mirrors `WARMUP_STEPS`).
     - Nothing is `inert` and scroll is never locked. The card is a polite live region that stays mounted, empty, while the backend is up.

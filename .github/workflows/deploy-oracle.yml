@@ -1,0 +1,153 @@
+name: Deploy backend to the Oracle VM
+
+# Builds the API image on GitHub's free arm64 runner, pushes it to GHCR, and
+# deploys it on the always-on Oracle VM (docs/deploy/ORACLE.md; plan
+# docs/plans/2026-11-redesign/PLAN.md, phase P0c).
+#
+# The VM side is deploy/oracle/deploy.sh, the only command the deploy key can
+# run there. It pulls ghcr.io/amurark3/f1-ai-api:<sha>, restarts the stack on
+# it and waits for /api/ready; if the new image never gets there it puts the
+# previous one back and this job fails.
+#
+# Does nothing until the repository variable ORACLE_HOST is set, so it is safe
+# on main before the VM exists. Settings → Secrets and variables → Actions:
+#   vars.ORACLE_HOST         the VM's DuckDNS name (or IP) that SSH connects to
+#   vars.ORACLE_KNOWN_HOSTS  the VM's SSH host key line(s) for that same name;
+#                            the connection is refused if the key differs
+#   secrets.ORACLE_SSH_KEY   the deploy key's private half (bootstrap.sh
+#                            installs the public half, forced to deploy.sh)
+# The VM pulls without credentials, so the GHCR package must be public.
+#
+# Only pushes that change the backend or the deploy files deploy: a
+# frontend-only merge would otherwise restart the API for nothing.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/oracle/**"
+      - ".github/workflows/deploy-oracle.yml"
+  workflow_dispatch:
+    inputs:
+      ingest_rulebook:
+        description: "Also re-embed the regulation PDFs into pgvector"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-oracle
+  # Never cancel a deploy halfway; the next one waits its turn.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/amurark3/f1-ai-api
+
+jobs:
+  deploy:
+    if: vars.ORACLE_HOST != ''
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      # Replaces ingest-rulebook.yml's paths filter: re-embed when this push
+      # changed backend/data/raw/. When the range can't be read (a force push,
+      # a first push), re-embed anyway; it is idempotent.
+      - name: Check whether the regulation PDFs changed
+        id: rulebook
+        env:
+          BEFORE: ${{ github.event.before }}
+          INGEST_INPUT: ${{ inputs.ingest_rulebook }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            changed=$INGEST_INPUT
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No previous commit for this push; re-embedding to be safe."
+            changed=true
+          elif ! git fetch --quiet --no-tags --depth=1 origin "$BEFORE"; then
+            echo "::warning::Could not fetch $BEFORE (force push?); re-embedding to be safe."
+            changed=true
+          elif git diff --quiet "$BEFORE" "$GITHUB_SHA" -- backend/data/raw; then
+            changed=false
+          else
+            changed=true
+          fi
+          echo "Regulation PDFs changed: $changed"
+          echo "changed=$changed" >>"$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the API image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          build-args: GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          # Links the GHCR package to this repository.
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Prepare SSH (pinned host key)
+        env:
+          ORACLE_HOST: ${{ vars.ORACLE_HOST }}
+          ORACLE_KNOWN_HOSTS: ${{ vars.ORACLE_KNOWN_HOSTS }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          # The whole value, not line by line: it goes into an ssh config file.
+          if [[ ! $ORACLE_HOST =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::ORACLE_HOST must be a host name or IPv4 address."
+            exit 1
+          fi
+          if [ -z "$ORACLE_KNOWN_HOSTS" ]; then
+            echo "::error::Set the ORACLE_KNOWN_HOSTS variable to the VM's host key line(s) (docs/deploy/ORACLE.md)."
+            exit 1
+          fi
+          if [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::Set the ORACLE_SSH_KEY secret to the deploy key's private half."
+            exit 1
+          fi
+          dir="$RUNNER_TEMP/ssh"
+          install -m 700 -d "$dir"
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" >"$dir/known_hosts"
+          (umask 077 && printf '%s\n' "$ORACLE_SSH_KEY" >"$dir/deploy_key")
+          cat >"$dir/config" <<EOF
+          Host oracle
+            HostName $ORACLE_HOST
+            User deploy
+            IdentityFile $dir/deploy_key
+            IdentitiesOnly yes
+            UserKnownHostsFile $dir/known_hosts
+            StrictHostKeyChecking yes
+            BatchMode yes
+            ConnectTimeout 30
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          EOF
+
+      - name: Deploy on the VM
+        run: ssh -F "$RUNNER_TEMP/ssh/config" oracle "deploy $GITHUB_SHA"
+
+      - name: Re-embed the rulebook
+        if: steps.rulebook.outputs.changed == 'true'
+        run: ssh -F "$RUNNER_TEMP/ssh/config" oracle ingest-rulebook
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ssh"

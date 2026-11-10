@@ -1,0 +1,30 @@
+# Caddy in front of the API on the Oracle VM (compose.yaml).
+#
+# API_HOST is the DuckDNS name (<name>.duckdns.org). Caddy gets and renews its
+# Let's Encrypt certificate by itself, which needs ports 80 and 443 open, and
+# redirects HTTP to HTTPS. For API_HOST=localhost (the local rehearsal) it
+# issues the certificate from its own local CA instead.
+{$API_HOST} {
+	# JSON only. The chat answer streams as text/plain chunk by chunk, and an
+	# encoder in the path may hold chunks back to compress them.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type application/json*
+		}
+	}
+
+	# Nothing here touches CORS: the app sets those headers itself
+	# (ALLOWED_ORIGINS).
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	# WebSocket upgrades (the live timing socket, /api/live/{year}/{round})
+	# pass through reverse_proxy as they are. Caddy replaces any
+	# X-Forwarded-For a client sends, so the address uvicorn logs is real.
+	reverse_proxy api:8000
+}

@@ -1,0 +1,129 @@
+# The always-on backend on one Oracle Cloud VM (docs/deploy/ORACLE.md; plan
+# docs/plans/2026-11-redesign/PLAN.md, phase P0c).
+#
+# Run it through bin/compose.sh, never plain `docker compose`: the wrapper
+# passes the env file that fills the ${…} values below, and pins API_TAG to the
+# image deploy.sh last deployed, so a hand-run command never swaps the image.
+#
+#   /srv/f1ai/app/deploy/oracle/bin/compose.sh ps
+#   /srv/f1ai/app/deploy/oracle/bin/compose.sh logs -f api
+#   /srv/f1ai/app/deploy/oracle/bin/compose.sh --profile jobs run --rm jobs python -m <module>
+#
+# Containers are disposable; everything the stack keeps lives under F1AI_ROOT
+# (/srv/f1ai, the block volume). The variables with defaults exist for the
+# local rehearsal, which points them at a scratch directory and free ports.
+name: f1ai
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# The API and the one-shot jobs: one image, one env file, the same data.
+x-app: &app
+  image: ghcr.io/amurark3/f1-ai-api:${API_TAG:-latest}
+  env_file: ${F1AI_ENV_FILE:-/srv/f1ai/.env}
+  # The image sets FASTF1_CACHE_DIR, HF_HOME and F1DB_PATH to these three
+  # directories (backend/Dockerfile). Host side: owned by 10001:10001, the
+  # image's user.
+  volumes:
+    - ${F1AI_ROOT:-/srv/f1ai}/f1_cache:/var/lib/f1ai/f1_cache
+    - ${F1AI_ROOT:-/srv/f1ai}/huggingface:/var/lib/f1ai/huggingface
+    - ${F1AI_ROOT:-/srv/f1ai}/f1db:/var/lib/f1ai/f1db
+  depends_on:
+    postgres:
+      condition: service_healthy
+  logging: *logging
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: f1ai
+      POSTGRES_DB: f1ai
+      # Read once, when pgdata is first initialised. Changing it later needs
+      # ALTER USER as well (docs/deploy/ORACLE.md, operations).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the env file}
+    # Sized for the 6 GB VM, which Postgres shares with the API (about 0.65 GB
+    # with its models loaded), Caddy and the OS.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=768MB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+    # Parallel query workers share memory through /dev/shm; Docker's 64 MB
+    # default is too small for a hash join over the rulebook vectors.
+    shm_size: 256mb
+    volumes:
+      - ${F1AI_ROOT:-/srv/f1ai}/pgdata:/var/lib/postgresql/data
+    # Loopback only, for a psql shell over an SSH tunnel. The API reaches it as
+    # postgres:5432 on the Compose network.
+    ports:
+      - "${F1AI_PG_PORT:-127.0.0.1:5432}:5432"
+    healthcheck:
+      # Over TCP: during first-boot initialisation the entrypoint's temporary
+      # server listens on the Unix socket only, so a socket check would pass early.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U f1ai -d f1ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    # Room for a clean shutdown (a checkpoint) instead of Docker's 10 s SIGKILL.
+    stop_grace_period: 60s
+    restart: unless-stopped
+    logging: *logging
+
+  api:
+    <<: *app
+    # No ports, deliberately. uvicorn trusts X-Forwarded-* from any peer
+    # (backend/Dockerfile), which is safe only while Caddy is the one peer that
+    # can reach port 8000.
+    healthcheck:
+      # Liveness only (/api/health touches nothing). deploy.sh separately waits
+      # for /api/ready and /api/health/deep before it keeps a new image.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.11
+    environment:
+      API_HOST: ${API_HOST:?set API_HOST in the env file}
+    ports:
+      - "${F1AI_HTTP_PORT:-80}:80"
+      - "${F1AI_HTTPS_PORT:-443}:443"
+      - "${F1AI_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${F1AI_ROOT:-/srv/f1ai}/caddy/data:/data
+      - ${F1AI_ROOT:-/srv/f1ai}/caddy/config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+    logging: *logging
+
+  # One-shot commands with the API's image, env and data, for example:
+  #   bin/compose.sh --profile jobs run --rm jobs python -m scripts.ingest_power_units --require-database
+  jobs:
+    <<: *app
+    profiles: [jobs]
+    restart: "no"
+    # Never the image's own command: that would start a second API process.
+    command:
+      - python
+      - -c
+      - "print('Pass a command: bin/compose.sh --profile jobs run --rm jobs python -m <module>')"

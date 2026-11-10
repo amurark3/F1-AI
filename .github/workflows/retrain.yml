@@ -2,7 +2,9 @@ name: Retrain race predictor
 
 # Weekly after race weekends: pull the latest f1db release, rebuild the dataset,
 # and promote a freshly-trained model only if it beats the grid-order baseline.
-# A promoted model is committed back, which triggers a Render redeploy.
+# A promoted model lands on main through an auto-merged PR; once the merge has
+# landed, the job dispatches deploy-oracle.yml to ship it to the Oracle VM (a
+# merge made with GITHUB_TOKEN starts no workflow by itself).
 on:
   schedule:
     - cron: "0 6 * * 2" # Tuesdays 06:00 UTC (after a Sunday race + Monday f1db release)
@@ -11,6 +13,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Only to dispatch deploy-oracle.yml after a promoted model merges.
+  actions: write
 
 concurrency:
   group: retrain-race-predictor
@@ -41,6 +45,7 @@ jobs:
         run: python -m app.ml.promote
 
       - name: Open, approve, and auto-merge PR
+        id: pr
         if: steps.gate.outputs.promoted == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,6 +87,59 @@ jobs:
 
           # Prefer auto-merge (waits for branch-protection checks); fall back to
           # an immediate squash merge if auto-merge isn't enabled on the repo.
-          gh pr merge "$PR_URL" --squash --auto --delete-branch \
-            || gh pr merge "$PR_URL" --squash --delete-branch \
-            || echo "Could not auto-merge — the PR is open for manual merge."
+          # Only a merge this job asked for is handed to the deploy step: a PR
+          # left for a person to merge deploys through deploy-oracle.yml's push
+          # trigger like any other merge.
+          if gh pr merge "$PR_URL" --squash --auto --delete-branch \
+            || gh pr merge "$PR_URL" --squash --delete-branch; then
+            echo "url=$PR_URL" >>"$GITHUB_OUTPUT"
+            echo "merge_requested=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "Could not auto-merge — the PR is open for manual merge."
+          fi
+
+      # GitHub starts no workflow from a push made with GITHUB_TOKEN, so the
+      # merge above never reaches deploy-oracle.yml's push trigger (Render used
+      # to redeploy on any push). A workflow_dispatch is exempt from that rule.
+      # --auto usually lands the merge later (seconds to about two minutes on
+      # past retrain PRs), and a dispatch before it lands would deploy main
+      # without the new model, so wait until GitHub reports the PR merged; the
+      # dispatched run deploys main's HEAD, which then contains it. Skipped
+      # until the VM exists, like deploy-oracle.yml's job.
+      - name: Deploy the promoted model to the Oracle VM
+        if: steps.pr.outputs.merge_requested == 'true' && vars.ORACLE_HOST != ''
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          MERGE_WAIT_SECONDS: "900"
+          POLL_SECONDS: "20"
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + MERGE_WAIT_SECONDS))
+          while :; do
+            merge_sha=""
+            if pr=$(gh pr view "$PR_URL" --json state,mergeCommit \
+              --jq '.state + " " + (.mergeCommit.oid // "")'); then
+              read -r state merge_sha <<<"$pr"
+            else
+              state=UNKNOWN # a failed lookup is retried until the deadline
+            fi
+            case $state in
+              MERGED)
+                echo "Merged as $merge_sha; deploying main."
+                gh workflow run deploy-oracle.yml --ref main -f ingest_rulebook=false
+                exit 0
+                ;;
+              CLOSED)
+                echo "::warning::$PR_URL was closed without merging; nothing to deploy."
+                exit 0
+                ;;
+            esac
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::$PR_URL is still not merged after $((MERGE_WAIT_SECONDS / 60)) min (state: $state). Once it merges, run 'Deploy backend to the Oracle VM' by hand: the auto-merge belongs to GITHUB_TOKEN, so its push deploys nothing."
+              exit 1
+            fi
+            sleep "$POLL_SECONDS"
+          done

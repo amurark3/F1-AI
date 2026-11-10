@@ -18,8 +18,10 @@ F1-AI/
 ├── backend/    Python FastAPI + LangChain agent on AMD Token Lab, Gemini fallback
 ├── frontend/   Next.js 16 + React 19 (TypeScript) — "Race Control" workspace
 ├── ios/        SwiftUI iOS companion (legacy — lags the web feature set)
-└── render.yaml Reference copy of the Render config (NOT applied — the Render
-                dashboard is the source of truth; see DEPLOYMENT.md §4)
+├── deploy/oracle/  The always-on backend's VM: Compose stack, Caddy, deploy,
+│                   backup and migration scripts, systemd timers
+└── render.yaml Retired Render config, kept for rollback until the old host is
+                decommissioned (see DEPLOYMENT.md §12)
 ```
 
 ```
@@ -27,16 +29,21 @@ Web App (Next.js "Race Control", Vercel)  ─────┐
 iOS App (legacy)  ─────────────────────────────┤
 MCP clients (Claude Desktop / Cursor)  ────────┤
                                                ▼
-                                   FastAPI Backend (Render)
+                                 FastAPI Backend (Oracle VM)
                                                │
      ┌──────────────┬──────────────┬───────────┴──────┬────────────────┬───────────────┐
      │              │              │                  │                │               │
-  LLM engines   f1db SQLite    FastF1 / OpenF1    Supabase Postgres  Open-Meteo /   Tavily
+  LLM engines   f1db SQLite    FastF1 / OpenF1    Postgres (on VM)   Open-Meteo /   Tavily
   (Token Lab    (1950–present  (sessions,         + pgvector         OpenWeatherMap (web
    → Gemini)     history)       telemetry, live)   (store, memory,    (weather),     search)
                                                     rulebook vectors)  MultiViewer
                                                                        (circuit maps)
 ```
+
+In production the backend and its Postgres run on one always-on Oracle Cloud
+Always Free VM, behind Caddy at a DuckDNS name; the web app stays on Vercel.
+[DEPLOYMENT.md](DEPLOYMENT.md) describes the setup, and
+[docs/deploy/ORACLE.md](docs/deploy/ORACLE.md) holds the procedures.
 
 The chat backend runs an **agentic tool-use loop**: the model may call one or
 more of 16 F1 tools per turn (up to `MAX_AGENT_TURNS`), the backend executes
@@ -117,9 +124,9 @@ driver/team + free-form prefs) and every chat turn to Postgres, keyed by an
 anonymous id stored in the browser. Past conversation is embedded with the same
 sentence-transformers model as the rulebook and recalled semantically via
 **pgvector** cosine search, so briefings are tailored to the person on the pit
-wall. Semantic recall needs `ENABLE_LOCAL_MODELS=true` (see below); without it,
-messages are still stored but not recalled. Everything degrades to a no-op
-without a database.
+wall. Semantic recall needs `ENABLE_LOCAL_MODELS=true`, which production sets
+(see below); without it, messages are still stored but not recalled. Everything
+degrades to a no-op without a database.
 
 ---
 
@@ -165,13 +172,13 @@ ALLOWED_ORIGINS=http://localhost:3000              # CORS (comma-separated)
 - **GOOGLE_API_KEY** — Gemini free tier at [aistudio.google.com](https://aistudio.google.com).
   Create it in a project with no billing linked, or it is charged instead of free
 - **TAVILY_API_KEY** — [app.tavily.com](https://app.tavily.com)
-- **DATABASE_URL** — any Postgres with the `pgvector` extension (e.g. Supabase).
-  On Supabase use the **session pooler** host: the direct `db.<ref>` host is
-  IPv6-only and unreachable from Render and GitHub Actions
+- **DATABASE_URL** — any Postgres with the `pgvector` extension, such as a local
+  `pgvector/pgvector:pg17` container. Production uses the VM's own
+  (DEPLOYMENT.md §3)
 - **ENABLE_LOCAL_MODELS** — loads the torch embedder and reranker into the web
-  process. Turn it on locally; it is off on Render's 512 MB instance, where one
-  rulebook query once OOM-killed the server. With it off, rules search reports
-  that it is disabled and chat skips semantic recall
+  process (about 0.65 GB at peak). Production turns it on; the code's default is
+  off. With it off, rules search reports that it is unavailable and chat skips
+  semantic recall
 
 > **Which model?** Not an environment variable and not a secret — the engines,
 > their models and their order are code constants, `LLM_PROVIDERS` in
@@ -215,7 +222,9 @@ open ios/F1AI.xcodeproj
 
 > **Note:** the iOS app predates the Race Control / f1db / AI overhaul and does
 > not yet expose the newer backend features. In **DEBUG builds** it points to
-> `http://localhost:8000`; in **Release builds**, to `https://f1-ai.onrender.com`.
+> `http://localhost:8000`; in **Release builds**, to the retired Render host
+> `https://f1-ai.onrender.com`. The legacy app is no longer updated, so Release
+> builds don't reach the current backend.
 > On a physical device, update `APIClient.baseURL` to your Mac's LAN IP —
 > iOS cannot reach `localhost`.
 
@@ -324,8 +333,8 @@ python -m app.rag.ingest --force    # wipe and re-embed the whole corpus
 ```
 
 Rulebook search reranks results with a cross-encoder for relevance. On `main`,
-the `ingest-rulebook.yml` Action re-embeds automatically whenever a PDF under
-`backend/data/raw/` changes.
+the backend deploy (`deploy-oracle.yml`) re-embeds the corpus automatically
+whenever a push changes a PDF under `backend/data/raw/`.
 
 ### ML Prediction Model
 
@@ -349,7 +358,7 @@ python -m app.ml.promote     # promote only if it beats the baseline
 A GitHub Action (`.github/workflows/retrain.yml`) runs weekly after race
 weekends: it retrains on the current f1db release and promotes a new model
 **only if it beats the grid-order baseline**. A promoted model is opened as a
-PR and auto-merged, and the merge redeploys it.
+PR and auto-merged; the job then dispatches the backend deploy that ships it.
 
 The prediction blend is tunable via `ML_PREDICTION_BLEND_WEIGHT` (0 = pure
 heuristic, 1 = pure model; default 0.65) and `PREDICTION_ADAPTIVE_WEIGHT`
@@ -357,17 +366,28 @@ heuristic, 1 = pure model; default 0.65) and `PREDICTION_ADAPTIVE_WEIGHT`
 
 ---
 
-## Scheduled Jobs (GitHub Actions)
+## Scheduled Jobs
 
-| Workflow                 | Schedule                                 | What it does                                                                      |
-| ------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| `keep-warm.yml`          | every 13 min                             | Pings the Render backend so it doesn't spin down                                  |
-| `ingest-power-units.yml` | hourly on race weekends, daily otherwise | Reads FIA documents into the Power Unit Tracker (needs the `DATABASE_URL` secret) |
-| `retrain.yml`            | Tuesdays                                 | Retrains the race predictor; promotes only a better model                         |
-| `ingest-rulebook.yml`    | on PDF changes                           | Re-embeds the FIA regulations into pgvector                                       |
-| `dependency-audit.yml`   | Mondays + manifest changes               | pip-audit and npm audit-ci                                                        |
-| `codeql.yml`             | Mondays + PRs to `main`                  | CodeQL security scan                                                              |
-| `pr-auto-review.yml`     | PRs                                      | Frontend lint + build, backend Ruff + module-size check, tests at 100% coverage   |
+On the backend's VM (systemd timers, all times UTC; `deploy/oracle/systemd/`):
+
+| Timer                  | Schedule                          | What it does                                                         |
+| ---------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| `f1ai-pu-ingest`       | hourly at :17, Thursday to Monday | Reads new FIA documents into the Power Unit Tracker                  |
+| `f1ai-pu-ingest-daily` | 05:47                             | The same, re-reading every event page of the season                  |
+| `f1ai-backup`          | 03:30                             | `pg_dump` of the database, uploaded to OCI Object Storage (14 days)  |
+| `f1ai-restore-check`   | Wednesdays 04:30                  | Restores the newest dump into a scratch database and compares counts |
+| `f1ai-duckdns`         | every 5 min                       | Keeps the API's DuckDNS name on the VM's IP                          |
+
+GitHub Actions:
+
+| Workflow                                                         | When                                    | What it does                                                                                           |
+| ---------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `deploy-oracle.yml`                                              | pushes to `main` that touch the backend | Builds the arm64 image, pushes it to GHCR, deploys it to the VM; re-embeds the rulebook on PDF changes |
+| `retrain.yml`                                                    | Tuesdays                                | Retrains the race predictor; promotes only a better model, then deploys it                             |
+| `dependency-audit.yml`                                           | Mondays + manifest changes              | pip-audit and npm audit-ci                                                                             |
+| `codeql.yml`                                                     | Mondays + PRs to `main`                 | CodeQL security scan                                                                                   |
+| `pr-auto-review.yml`                                             | PRs                                     | Frontend lint + build, backend Ruff + module-size check, tests at 100% coverage                        |
+| `keep-warm.yml`, `ingest-power-units.yml`, `ingest-rulebook.yml` | disabled at cutover                     | Render-era jobs, replaced by the VM; kept for rollback until the old host is decommissioned            |
 
 ---
 
@@ -467,6 +487,16 @@ frontend/app/
 ├── hooks/                    useChat, useLocalChats, useLiveTiming, useServerStatus, useVoice
 └── lib/  utils/              server-side prefetch, server status store, fetcher, error tracking
 
+deploy/oracle/
+├── compose.yaml              caddy, api, postgres, and the one-shot `jobs` profile
+├── Caddyfile                 TLS on the DuckDNS name, reverse proxy, WebSocket
+├── bootstrap.sh              one-time VM setup (Docker, volume, firewall, users, timers)
+├── deploy.sh                 the deploy key's only command: deploy <sha> with rollback
+├── bin/                      compose wrapper, backup, restore check, DuckDNS, PU ingest,
+│                             Supabase migration
+├── systemd/                  the timers and their services
+└── env.example               every setting and secret the VM's .env holds
+
 ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Chat,
                               Compare, Live, Predictions, Settings)
 ```
@@ -486,10 +516,10 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | F1 data            | f1db (SQLite, 1950–present), FastF1, OpenF1 (telemetry + live), Ergast/Jolpica (fallback), FIA documents (power units)                            |
 | Weather & circuits | Open-Meteo (hourly forecast, [CC BY 4.0](https://open-meteo.com/en/license)), OpenWeatherMap (current conditions), MultiViewer (circuit outlines) |
 | Vector search      | Postgres pgvector + sentence-transformers + cross-encoder reranker                                                                                |
-| Storage            | Supabase Postgres (optional; JSON fallback)                                                                                                       |
+| Storage            | Postgres + pgvector on the VM (optional locally; JSON fallback)                                                                                   |
 | ML                 | scikit-learn Ridge regression + heuristic blend                                                                                                   |
 | Web search         | Tavily                                                                                                                                            |
 | MCP                | FastMCP                                                                                                                                           |
-| Hosting            | Render (backend), Vercel (frontend), Supabase (database)                                                                                          |
+| Hosting            | Oracle Cloud Always Free VM (backend, Postgres, jobs; Docker Compose + Caddy), Vercel (frontend)                                                  |
 | Observability      | Sentry (web + backend), Vercel Analytics, Vercel Speed Insights                                                                                   |
 | iOS (legacy)       | SwiftUI, Swift 5.9, Observation framework                                                                                                         |

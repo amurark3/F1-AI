@@ -522,11 +522,11 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
   - The card then falls back to `build_weather_block` (`backend/app/services/race_control/weather.py`): OpenWeatherMap **current conditions**, whose `rain_risk` is OWM's next three-hour step (`app/data/weather.py:241`). That is not race day.
   - On the same day, Open-Meteo called directly answered in 0.5 s with **88–92% rain for the race window**, while the site showed 5%.
 - **Do:**
-  - **Diagnose first.** Make `open_meteo._request` log the status code and exception type, then read the Render logs. Sentry doesn't receive these warnings. Suspects: 429s from Render's shared egress IPs, or the 8 s timeout. Write the cause in the log.
+  - **Diagnose first, on the VM** (since P0c the API runs on the Oracle VM with its own IP). Make `open_meteo._request` log the status code and exception type, deploy, then read the API's log there: `sudo -u deploy /srv/f1ai/app/deploy/oracle/bin/compose.sh logs api` (`docs/deploy/ORACLE.md` §4.2). Sentry doesn't receive these warnings. Suspects: 429s (Render's shared egress IPs were the likely trigger; the VM has its own IP) or the 8 s timeout. Write the cause in the log.
   - **Fix by cause:**
     - Retry once with backoff on 429, 5xx or timeout.
     - Persist the last good hourly series per venue in the store (`app/data/store.py`) with `fetched_at`. When the live call fails, serve it labelled "as of HH:MM UTC".
-    - If Render's IP is the cause, add a refresher GitHub Action (the PU ingest pattern with `--require-database`; hourly Thursday to Sunday, daily otherwise) that writes the forecast to the store. The backend then reads the store first.
+    - No refresher job: the GitHub Actions refresher considered here (2026-11-06) was for Render's shared IP. If the VM's calls still fail after the retry, record the evidence and propose the next step in the log.
   - Remove the OWM current-conditions fallback from the race-day card (`overview.weather_blocks`). With no forecast, the card shows the `session_weather` note instead of a number. The chat weather tool keeps OWM.
 - **Accept:**
   - Tests: a 429 then 200 succeeds on the retry; a failed call serves the stored series with its "as of" label; no OWM reading ever reaches the `weather` block.

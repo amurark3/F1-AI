@@ -30,10 +30,10 @@ WORKDIR /app
 # nvidia-*, cuda-* and triton packages, gigabytes no Oracle A1 core can use. The
 # +cpu build exists only on PyTorch's index.
 #
-# DEPLOYMENT.md §3 warns against this index, but that is about Render's build
-# command: pip then resolved torch's *dependencies* on PyTorch's flat index too,
-# and a stale pip choked on one of them. Here --no-deps takes only torch's own
-# wheel from that index; its dependencies come from PyPI in the next step.
+# DEPLOYMENT.md §12 tells how this index once broke Render's build: pip then
+# resolved torch's *dependencies* on PyTorch's flat index too, and a stale pip
+# choked on one of them. Here --no-deps takes only torch's own wheel from that
+# index; its dependencies come from PyPI in the next step.
 #
 # Bump TORCH_VERSION by hand: Dependabot and pip-audit only see the
 # requirements files.

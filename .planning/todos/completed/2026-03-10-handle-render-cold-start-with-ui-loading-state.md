@@ -1,3 +1,4 @@
+completed: 2026-11-10
 ---
 created: 2026-03-10T00:18:33.684Z
 title: Handle Render cold start with UI loading state
@@ -26,3 +27,7 @@ Additionally, ChromaDB vectors stored on ephemeral disk are lost on every restar
 - Option A: Re-index at startup automatically (free, ~30-60s extra cold start)
 - Option B: Render persistent disk $7/mo (eliminates re-index time)
 - Evaluate corpus size — if small, Option A is fine for now
+
+## Resolution
+
+Resolved by plan phase P0c (2026-11-09): the backend moved to an always-on Oracle Cloud VM, which never sleeps, and the warm-up UI became a non-blocking restart notice (P0c.7; quick task 1, e9265ab, had added the first warm-up state). See `docs/deploy/ORACLE.md`.

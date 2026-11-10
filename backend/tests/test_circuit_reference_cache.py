@@ -216,6 +216,30 @@ def test_document_from_an_unsupported_schema_is_ignored(store):
     assert CircuitReferenceCache().get(CITY, YEAR) is None
 
 
+def test_the_fastf1_era_sao_paulo_entry_is_never_served_and_the_next_write_replaces_it(store):
+    """P0b.4: schema 1 held São Paulo 2026's plan from FastF1's 2022 laps; schema 2 reads OpenF1 and Jolpica."""
+    store.payload = {
+        "schema_version": 1,
+        "entries": {
+            "são paulo:2026": {
+                "schema_version": 1,
+                "stored_at": datetime.now(UTC).isoformat(),
+                "source_year": 2022,
+                "reference": {"source_year": 2022, "sample_size": 20, "opening_compound": "Soft"},
+            }
+        },
+    }
+    cache = CircuitReferenceCache()
+
+    assert CACHE_SCHEMA_VERSION == 2
+    assert cache.get("São Paulo", 2026) is None
+
+    cache.set("São Paulo", 2026, {"source_year": 2025})
+
+    assert store.payload["schema_version"] == 2
+    assert {key: entry["source_year"] for key, entry in store.payload["entries"].items()} == {"são paulo:2026": 2025}
+
+
 def test_malformed_entries_are_skipped_on_load(store):
     store.payload = {"schema_version": CACHE_SCHEMA_VERSION, "entries": {"zandvoort:2026": "not-a-dict"}}
 

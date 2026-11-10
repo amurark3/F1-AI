@@ -1,0 +1,16 @@
+{
+ "edition": "2025 São Paulo Grand Prix (2025 round 21, Interlagos), race 9 Nov 2025",
+ "captured_at": "2026-11-10T21:41:22Z",
+ "captured_for": "P0b.4 baseline strategy (R20 2026 plans from this edition)",
+ "files": {
+  "openf1_sessions.json": "GET https://api.openf1.org/v1/sessions?meeting_key=1273 (race session_key 9869)",
+  "openf1_stints.json": "GET https://api.openf1.org/v1/stints?session_key=9869",
+  "openf1_drivers.json": "GET https://api.openf1.org/v1/drivers?session_key=9869",
+  "openf1_race_control.json": "GET https://api.openf1.org/v1/race_control?session_key=9869",
+  "openf1_pit.json": "GET https://api.openf1.org/v1/pit?session_key=9869",
+  "openf1_session_result.json": "GET https://api.openf1.org/v1/session_result?session_key=9869",
+  "jolpica_pitstops.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/pitstops.json?limit=100, MRData.RaceTable.Races[0]",
+  "jolpica_results.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/results.json?limit=100, MRData.RaceTable.Races[0]"
+ },
+ "notes": "Unedited apart from JSON indentation. No red flag (race control: SC laps 2-5, VSC laps 7-8). 20 starters, 17 classified finishers; HAM (lap 37), LEC (lap 5) and BOR (lap 0) retired."
+}

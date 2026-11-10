@@ -1,12 +1,19 @@
-"""Tests for the pre-race circuit strategy reference search.
+"""Tests for the baseline plan's edition search and its cache (app.data.strategy.reference).
 
-The behaviour under test: the search never tries to load an edition that has
-not been raced yet (loading the in-progress weekend cost seconds on every cold
-start before failing), and the result it does find is persisted so the next
-process reads it instead of re-loading the telemetry.
+The behaviour under test:
+
+* the planning season's own edition is read once its race has been run, else
+  the season before, back to 2023 (OpenF1's first season), never earlier: R20
+  2026 was planned from 2022 because the old search kept the first edition
+  FastF1 could load;
+* an edition that cannot be read now is retried, never passed over for good: an
+  older edition may answer meanwhile, labelled, but nothing is persisted;
+* a search that read every edition it reached is persisted, misses included.
 """
 
-from datetime import UTC, datetime
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -15,34 +22,43 @@ from app.data.circuit_reference_cache import (
     CachedReference,
     CircuitReferenceCacheUnavailableError,
 )
-from app.data.strategy import circuit_strategy_reference, reference as strategy_module
+from app.data.strategy import circuit_strategy_reference, reference as module
+from app.utils.ttl_cache import TtlCache
 
 pytestmark = pytest.mark.unit
 
-CITY = "Zandvoort"
-LOCATION = "Zandvoort, Netherlands"
+CITY = "São Paulo"
+LOCATION = "São Paulo, Brazil"
 PLANNING_YEAR = 2026
 
-# The clock every test runs against: the 2026 Dutch GP is still two days away.
-NOW = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+# The clock every test runs against: the 2026 São Paulo race is still two days away.
+NOW = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
+
+RACE_DAYS = {
+    2026: "2026-11-08 17:00:00",
+    2025: "2025-11-09 17:00:00",
+    2024: "2024-11-03 15:30:00",
+    2023: "2023-11-05 17:00:00",
+}
 
 
-def schedule_for(year: int, race_day: str) -> pd.DataFrame:
+def schedule_for(year: int, race_day: str, location: str = CITY) -> pd.DataFrame:
     """One-event season schedule shaped like FastF1's."""
+    race = pd.Timestamp(race_day)
     return pd.DataFrame(
         [
             {
-                "RoundNumber": 15,
-                "Location": CITY,
-                "Country": "Netherlands",
-                "EventName": "Dutch Grand Prix",
-                "EventDate": pd.Timestamp(race_day),
+                "RoundNumber": 21 if year == 2025 else 20,
+                "Location": location,
+                "Country": "Brazil",
+                "EventName": "São Paulo Grand Prix",
+                "EventDate": race,
                 "Session1": "Practice 1",
-                "Session1DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=2),
+                "Session1DateUtc": race - timedelta(days=2),
                 "Session2": "Qualifying",
-                "Session2DateUtc": pd.Timestamp(race_day) - pd.Timedelta(days=1),
+                "Session2DateUtc": race - timedelta(days=1),
                 "Session3": "Race",
-                "Session3DateUtc": pd.Timestamp(race_day),
+                "Session3DateUtc": race,
                 "Session4": None,
                 "Session4DateUtc": pd.NaT,
                 "Session5": None,
@@ -52,142 +68,223 @@ def schedule_for(year: int, race_day: str) -> pd.DataFrame:
     )
 
 
-RACE_DAYS = {
-    2026: "2026-08-23 13:00:00",
-    2025: "2025-08-31 13:00:00",
-}
-
-
 class FakeCache:
     """Stands in for the durable circuit reference cache."""
 
-    def __init__(self, hit: CachedReference | None = None, available: bool = True):
-        self.hit = hit
-        self.available = available
+    def __init__(self) -> None:
+        self.hit: CachedReference | None = None
+        self.available = True
         self.writes: list[tuple[str, int, dict | None]] = []
 
-    def get(self, city, year):
+    def get(self, city: str, year: int) -> CachedReference | None:
         return self.hit
 
-    def set(self, city, year, reference):
+    def set(self, city: str, year: int, reference: dict | None) -> None:
         if not self.available:
             raise CircuitReferenceCacheUnavailableError("store unreachable")
         self.writes.append((city, year, reference))
 
 
+class _Clock(datetime):
+    moment = NOW
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.moment.astimezone(tz) if tz else cls.moment
+
+
 @pytest.fixture
-def loaded(monkeypatch):
-    """Wire the search onto fake schedules, telemetry, and a frozen clock."""
-    calls: list[int] = []
+def world(monkeypatch):
+    """Schedules per season, an edition reader that answers per year, and a frozen clock."""
+    state: dict = {
+        "schedules": {year: schedule_for(year, day) for year, day in RACE_DAYS.items()},
+        "readable": {2025, 2024, 2023, 2026},
+        "asked": [],
+        "listed": [],
+        "now": 0.0,
+    }
 
-    def fake_schedule(year, include_testing=False):
-        if year not in RACE_DAYS:
-            raise ValueError(f"no schedule for {year}")
-        return schedule_for(year, RACE_DAYS[year])
+    def get_event_schedule(year, include_testing=False):
+        state["listed"].append(year)
+        schedule = state["schedules"].get(year)
+        if isinstance(schedule, BaseException):
+            raise schedule
+        return schedule if schedule is not None else pd.DataFrame(columns=["RoundNumber", "Location"])
 
-    def fake_load_race_data(year, round_num):
-        calls.append(year)
-        return {"laps": pd.DataFrame([{"LapNumber": 1}]), "year": year}
+    def edition_reference(edition):
+        state["asked"].append((edition.year, edition.round, edition.name))
+        return {"source_year": edition.year, "finishers": 17} if edition.year in state["readable"] else None
 
-    def fake_summary(race_data, edition_year):
-        return {"source_year": edition_year, "sample_size": 20}
-
-    class _Clock(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return NOW.astimezone(tz) if tz else NOW
-
-    monkeypatch.setattr(strategy_module.fastf1, "get_event_schedule", fake_schedule)
-    monkeypatch.setattr(strategy_module, "_load_race_data", fake_load_race_data)
-    monkeypatch.setattr(strategy_module, "_summarize_circuit_edition", fake_summary)
-    monkeypatch.setattr(strategy_module, "datetime", _Clock)
-    return calls
+    _Clock.moment = NOW
+    monkeypatch.setattr(module.fastf1, "get_event_schedule", get_event_schedule)
+    monkeypatch.setattr(module, "edition_reference", edition_reference)
+    monkeypatch.setattr(module, "datetime", _Clock)
+    monkeypatch.setattr(module, "_unread", TtlCache(clock=lambda: state["now"]))
+    return state
 
 
 @pytest.fixture
 def cache(monkeypatch):
     fake = FakeCache()
-    monkeypatch.setattr(strategy_module, "circuit_reference_cache", fake)
+    monkeypatch.setattr(module, "circuit_reference_cache", fake)
     return fake
 
 
-def test_an_unraced_edition_is_never_loaded(loaded, cache):
-    """The planning season's own race is still ahead — loading it would fail."""
+# --- which edition ------------------------------------------------------------------------
+
+
+def test_r20_2026_is_planned_from_the_2025_edition_not_the_unraced_2026_one(world, cache):
     reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
 
-    assert reference == {"source_year": 2025, "sample_size": 20}
-    assert loaded == [2025]
-    assert PLANNING_YEAR not in loaded
+    assert reference == {"source_year": 2025, "finishers": 17, "unread_years": []}
+    assert world["asked"] == [(2025, 21, "São Paulo Grand Prix")]
 
 
-def test_the_planning_season_edition_is_used_once_its_race_is_run(loaded, cache, monkeypatch):
-    class _Clock(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            moment = datetime(2026, 8, 24, 12, 0, tzinfo=UTC)
-            return moment.astimezone(tz) if tz else moment
+def test_the_planning_seasons_edition_is_read_once_its_race_is_run(world, cache):
+    _Clock.moment = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
 
-    monkeypatch.setattr(strategy_module, "datetime", _Clock)
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR)["source_year"] == 2026
+    assert [asked[0] for asked in world["asked"]] == [2026]
+
+
+def test_the_search_never_reaches_before_openf1s_first_season(world, cache):
+    world["readable"] = set()
+    world["schedules"] = {}
+
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) is None
+    assert world["listed"] == [2026, 2025, 2024, 2023]
+
+
+def test_a_season_the_circuit_is_absent_from_is_skipped(world, cache):
+    world["schedules"][2025] = schedule_for(2025, RACE_DAYS[2025], location="Las Vegas")
 
     reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
 
-    assert reference == {"source_year": 2026, "sample_size": 20}
-    assert loaded == [2026]
+    assert reference["source_year"] == 2024
+    assert reference["unread_years"] == []
+    assert cache.writes == [(CITY, PLANNING_YEAR, reference)]
 
 
-def test_the_result_is_persisted_for_the_next_process(loaded, cache):
-    circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+def test_a_renamed_location_is_matched_by_substring(world, cache):
+    world["schedules"][2025] = schedule_for(2025, RACE_DAYS[2025], location="São Paulo (Interlagos)")
 
-    assert cache.writes == [(CITY, PLANNING_YEAR, {"source_year": 2025, "sample_size": 20})]
-
-
-def test_a_cached_reference_skips_the_telemetry_load(loaded, cache):
-    cache.hit = CachedReference(reference={"source_year": 2024}, source_year=2024, stored_at=None)
-
-    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) == {"source_year": 2024}
-    assert loaded == []
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR)["source_year"] == 2025
 
 
-def test_a_remembered_miss_skips_the_search(loaded, cache):
+def test_a_location_without_a_city_is_not_searched(world, cache):
+    assert circuit_strategy_reference("", PLANNING_YEAR) is None
+    assert circuit_strategy_reference("  ,  ", PLANNING_YEAR) is None
+    assert world["listed"] == []
+
+
+# --- persisting ---------------------------------------------------------------------------
+
+
+def test_a_fully_read_search_is_persisted(world, cache):
+    reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+
+    assert cache.writes == [(CITY, PLANNING_YEAR, reference)]
+
+
+def test_a_cached_reference_skips_the_search(world, cache):
+    cache.hit = CachedReference(reference={"source_year": 2025}, source_year=2025, stored_at=None)
+
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) == {"source_year": 2025}
+    assert world["listed"] == []
+
+
+def test_a_remembered_miss_skips_the_search(world, cache):
     cache.hit = CachedReference(reference=None, source_year=None, stored_at=None)
 
     assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) is None
-    assert loaded == []
+    assert world["listed"] == []
 
 
-def test_a_miss_is_remembered_so_the_search_is_not_repeated(loaded, cache, monkeypatch):
-    monkeypatch.setattr(strategy_module, "_load_race_data", lambda year, round_num: None)
+def test_a_circuit_with_no_edition_is_remembered_as_a_miss(world, cache):
+    world["schedules"] = {}
 
-    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) is None
-    assert cache.writes == [(CITY, PLANNING_YEAR, None)]
+    assert circuit_strategy_reference("Madrid", PLANNING_YEAR) is None
+    assert cache.writes == [("Madrid", PLANNING_YEAR, None)]
 
 
-def test_an_unusable_store_still_returns_the_reference(loaded, cache):
+def test_an_unusable_store_still_returns_the_reference(world, cache):
     """Losing durability must not lose the answer this request already has."""
     cache.available = False
 
-    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) == {"source_year": 2025, "sample_size": 20}
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR)["source_year"] == 2025
 
 
-def test_a_location_without_a_city_is_not_searched(loaded, cache):
-    assert circuit_strategy_reference("", PLANNING_YEAR) is None
-    assert loaded == []
-    assert cache.writes == []
+# --- editions that cannot be read now -----------------------------------------------------
 
 
-def test_a_summary_failure_falls_through_to_an_older_edition(loaded, cache, monkeypatch):
-    def failing_summary(race_data, edition_year):
-        if edition_year == 2025:
-            raise ValueError("corrupt lap frame")
-        return {"source_year": edition_year, "sample_size": 20}
-
-    monkeypatch.setattr(strategy_module, "_summarize_circuit_edition", failing_summary)
-    monkeypatch.setattr(
-        strategy_module.fastf1,
-        "get_event_schedule",
-        lambda year, include_testing=False: schedule_for(year, f"{year}-08-23 13:00:00"),
-    )
+def test_an_unread_edition_lets_an_older_one_answer_labelled_and_unpersisted(world, cache):
+    world["readable"] = {2024}
 
     reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
 
-    assert reference == {"source_year": 2024, "sample_size": 20}
+    assert reference == {"source_year": 2024, "finishers": 17, "unread_years": [2025]}
+    assert cache.writes == []
+
+
+def test_with_no_edition_readable_the_years_are_named_and_nothing_is_persisted(world, cache):
+    world["readable"] = set()
+
+    assert circuit_strategy_reference(LOCATION, PLANNING_YEAR) == {
+        "source_year": None,
+        "unread_years": [2025, 2024, 2023],
+    }
+    assert cache.writes == []
+
+
+def test_a_season_whose_schedule_fails_to_load_is_unread(world, cache):
+    world["schedules"][2025] = RuntimeError("schedule backend down")
+
+    reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+
+    assert (reference["source_year"], reference["unread_years"]) == (2024, [2025])
+    assert cache.writes == []
+
+
+def test_an_unread_answer_is_held_for_a_while_then_the_sources_are_asked_again(world, cache):
+    world["readable"] = {2024}
+    circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+    asked = len(world["asked"])
+
+    circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+    assert len(world["asked"]) == asked
+
+    world["now"] = module.UNREAD_RETRY_SECONDS + 1
+    world["readable"] = {2025, 2024}
+    reference = circuit_strategy_reference(LOCATION, PLANNING_YEAR)
+
+    assert reference["source_year"] == 2025
+    assert cache.writes == [(CITY, PLANNING_YEAR, reference)]
+
+
+# --- has an edition been raced? -----------------------------------------------------------
+
+
+def test_the_scheduled_race_session_decides_whether_an_edition_has_run():
+    race_at = pd.Timestamp("2025-11-09 17:00:00")
+    event = pd.Series({"Session1": "Practice 1", "Session5": "Race", "Session5DateUtc": race_at})
+
+    assert module._edition_race_finished(event, race_at.to_pydatetime() + timedelta(hours=4)) is True
+    assert module._edition_race_finished(event, race_at.to_pydatetime() + timedelta(hours=1)) is False
+
+
+def test_the_event_date_stands_in_when_no_race_session_is_listed():
+    event = pd.Series({"Session1": "Practice 1", "EventDate": pd.Timestamp("2025-11-09")})
+
+    assert module._edition_race_finished(event, datetime(2025, 11, 10)) is True
+
+
+def test_an_edition_with_no_date_at_all_is_never_treated_as_raced():
+    event = pd.Series({"RoundNumber": 21, "Location": CITY, "EventDate": pd.NaT})
+
+    assert module._edition_race_finished(event, datetime(2030, 1, 1)) is False
+
+
+def test_an_event_without_a_name_is_read_with_an_empty_one():
+    event = pd.Series({"RoundNumber": 21, "Location": CITY, "EventName": None})
+
+    assert module._edition(event, 2025).name == ""

@@ -21,7 +21,6 @@ from app.services import race_control
 # builders; the rest are what the command-centre tests and callers reach for
 # through the package.
 _DEFINING_MODULE = {
-    "DEFAULT_RACE_LAPS": "app.services.race_control.strategy_context",
     "build_live_status": "app.services.race_control.live",
     "build_overview_circuit": "app.services.race_control.overview",
     "build_overview": "app.services.race_control.overview",

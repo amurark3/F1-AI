@@ -136,6 +136,8 @@ to make disclosure louder or actually compute them.
   data in `backend/app/data/strategy.py` and populate `ref["undercut_delta"]` / `ref["overcut_delta"]`.
   Non-trivial (needs fuel-burn normalization). Deliberately deferred — showing a wrong "real" number
   is worse than an honestly-flagged estimate. When done, the modeled flags flip to false automatically.
+- **Removed (P0b.4, 2026-11-10).** The formulas, the `undercut_*` / `overcut_*` fields and the tiles
+  are gone. Nothing measures either delta, so none is shown (`services/race_control/baseline_plan.py`).
 
 ### [x] 2.2 — `traffic_threshold` hardcoded to "medium"
 
@@ -148,6 +150,8 @@ to make disclosure louder or actually compute them.
   drove it, `True` when it fell back to circuit shape only (no completed edition). `pit_model` now
   carries `traffic_modeled`, and the UI shows the "modeled" badge on the Traffic tile only in that
   fallback case.
+- **Removed (P0b.4, 2026-11-10).** A first-stop spread is not a measurement of rejoin traffic, so
+  `derive_traffic_threshold`, the field and the tile are gone.
 
 ### [~] 2.3 — Pit-loss / tyre-window heuristic fallback
 
@@ -155,6 +159,9 @@ to make disclosure louder or actually compute them.
   `laps * 0.42`, etc.)
 - **Least problematic of the tier:** honestly flagged via `data_source.mode = "heuristic"`
   (`race_control.py:321`) and the "no completed edition" assumption. Leave unless upgrading.
+- **Removed (P0b.4, 2026-11-10).** With no edition the panel now says why there is no plan and shows
+  no number. With one, every figure is measured from the latest same-circuit edition (OpenF1 stints,
+  the Jolpica pit sheet, OpenF1 pit-lane times).
 
 ### [~] 2.4 — Competitor threat labels & thresholds
 
@@ -205,6 +212,8 @@ Not data-derived at all. Reasonable as scaffolding; flag only if you want everyt
   opening/finishing compounds and the derived alternate strategy (`alt_word`).
 - **2026-11-01:** the Call Sheet and Stint Plan panels that showed this prose were removed from the
   web Command Center; the fields are still in the `/strategy` payload.
+- **Removed (P0b.4, 2026-11-10):** `decision_gates` and `stint_plan` left the payload; their prose
+  quoted the undercut, traffic and pit-loss figures that are no longer computed.
 
 ### [keep] 3.4 — Prompt / question suggestion chips
 

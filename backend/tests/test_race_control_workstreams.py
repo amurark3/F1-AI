@@ -3,7 +3,7 @@
 Every card on this board used to carry a hardcoded status ("Build", "Monitor",
 "Standby") that never moved. The board is now derived, so what these tests
 guard is that each status actually *tracks* the thing it claims to track:
-session state for the brief and live control, telemetry availability for the
+session state for the brief and live control, baseline-plan availability for the
 race model, and a genuinely close rival for rival watch.
 
 The priorities (P1/P2) stay fixed on purpose — they are operational weightings,
@@ -105,24 +105,24 @@ def test_live_control_status_follows_the_session_state(event, expected):
 @pytest.mark.parametrize(
     ("predictions", "data_source", "expected"),
     [
-        (None, {"mode": "telemetry"}, "Waiting"),
-        ({}, {"mode": "telemetry"}, "Waiting"),
-        ({"predictions": []}, {"mode": "telemetry"}, "Waiting"),
-        ({"predictions": [{"code": "VER"}]}, {"mode": "telemetry"}, "Ready"),
-        ({"predictions": [{"code": "VER"}]}, {"mode": "heuristic"}, "Build"),
+        (None, {"mode": "edition"}, "Waiting"),
+        ({}, {"mode": "edition"}, "Waiting"),
+        ({"predictions": []}, {"mode": "edition"}, "Waiting"),
+        ({"predictions": [{"code": "VER"}]}, {"mode": "edition"}, "Ready"),
+        ({"predictions": [{"code": "VER"}]}, {"mode": "none"}, "Build"),
         ({"predictions": [{"code": "VER"}]}, {}, "Build"),
     ],
     ids=[
         "no-prediction",
         "empty-payload",
         "empty-prediction-list",
-        "telemetry-backed",
-        "heuristic-only",
+        "edition-backed",
+        "no-edition",
         "unknown-mode",
     ],
 )
-def test_race_model_status_distinguishes_telemetry_from_heuristic(predictions, data_source, expected):
-    """ "Ready" is reserved for a telemetry-backed model — a heuristic one is still "Build"."""
+def test_race_model_status_distinguishes_an_edition_backed_plan_from_none(predictions, data_source, expected):
+    """ "Ready" is reserved for a model with a measured baseline plan; with no edition it is still "Build"."""
     assert workstreams._race_model_status(predictions, data_source) == expected
 
 
@@ -179,12 +179,12 @@ def test_board_tolerates_a_null_strategy_context():
 
 
 @pytest.mark.unit
-def test_board_reflects_a_live_telemetry_backed_session_with_a_close_rival():
+def test_board_reflects_a_live_edition_backed_session_with_a_close_rival():
     board = workstreams.build_workstreams(
         _event("in_progress"),
         {"predictions": [{"code": "VER"}]},
         {
-            "data_source": {"mode": "telemetry"},
+            "data_source": {"mode": "edition"},
             "competitors": [{"rank": 1, "threat": "Primary"}, {"rank": 2, "threat": "High"}],
         },
     )

@@ -1,10 +1,10 @@
 """Durable cache for pre-race circuit strategy references.
 
-A circuit strategy reference summarises one *completed* race edition — pit
-loss, tyre windows, stint compounds — derived from that edition's lap
-telemetry.  Producing one costs a full FastF1 session load (~10s on a laptop,
-several times that on a small shared instance), and the answer never changes
-once the edition is in the books.
+A circuit strategy reference summarises one *completed* race edition — the
+compound sequences its finishers ran, their stops and first-stop laps, the
+pit-lane time — read from OpenF1 and Jolpica (:mod:`app.data.strategy.reference`).
+Producing one costs a dozen paced requests to feeds that refuse service during
+live sessions, and the answer never changes once the edition is in the books.
 
 Before this module those summaries lived in a process-local dict, so every
 deploy, restart, or cold start on an ephemeral host paid the load again on the
@@ -34,7 +34,10 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger()
 
-CACHE_SCHEMA_VERSION = 1
+# 2 since P0b.4 (Nov 2026): references read from OpenF1 stints and the pit sheet.
+# Schema 1 held FastF1-lap references, among them São Paulo 2026's plan from the
+# 2022 edition; a document from another version is ignored, never served.
+CACHE_SCHEMA_VERSION = 2
 
 # A reference derived from the planning season's own edition cannot be
 # superseded — no newer running of that circuit exists — so it never expires.

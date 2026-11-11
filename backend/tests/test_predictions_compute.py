@@ -33,6 +33,7 @@ from app.data.predictions import compute as module, sessions as sessions_module
 from app.data.predictions.driver_score import DriverScore
 from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
 from app.data.weekend_grid import GridRoster
+from app.services.race_control import weather_impact
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -108,6 +109,9 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
         "saved": [],
         "save_error": None,
         "scores": {},
+        # The race-day weather call, and the schedule row each compute asked about.
+        "weather_impact": "mixed",
+        "weather_rows": [],
     }
 
     def _resolve(key: str, *args):
@@ -173,8 +177,13 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
             raise state["save_error"]
         state["saved"].append((year, round_num, result))
 
+    def _weather(event_row):
+        state["weather_rows"].append(event_row)
+        return _resolve("weather_impact")
+
     monkeypatch.setattr(module, "score_driver", _score_driver)
     monkeypatch.setattr(module, "save_prediction", _save)
+    monkeypatch.setattr(module, "_race_weather_impact", _weather)
     return state
 
 
@@ -592,8 +601,8 @@ def test_a_healthy_weekend_predicts_the_full_grid_and_saves_it(pipeline):
     assert [row["driver_code"] for row in result["predictions"]] == ["VER", "NOR"]
     assert result["prediction_phase"] == "post_qualifying"
     assert result["risk_predictions"] == pipeline["risk_predictions"]
-    assert result["weather_impact"] == "dry"
-    assert result["wet_scenario"] is None
+    assert result["weather_impact"] == "mixed"
+    assert "wet_scenario" not in result
     assert result["warnings"] is None
     # The review is scored after the save, so it scores the call just stored.
     saved = {key: value for key, value in result.items() if key != "prediction_review"}
@@ -687,11 +696,41 @@ def test_an_empty_grid_returns_an_explicit_no_data_response(pipeline):
 
     assert result["predictions"] == []
     assert result["risk_predictions"] == []
-    assert result["weather_impact"] == "unknown"
+    assert result["weather_impact"] == "mixed"
+    assert "wet_scenario" not in result
     assert result["warnings"][-1] == "No driver data available for predictions"
     assert result["prediction_phase"] == "pre_qualifying"
     assert result["prediction_review"] == {"status": "ok", "phase": None}
     assert pipeline["saved"] == []
+
+
+@pytest.mark.unit
+def test_the_weather_call_is_the_race_day_forecasts_for_this_rounds_schedule_row(pipeline):
+    pipeline["weather_impact"] = "wet"
+
+    result = module.compute_race_predictions(2024, 5)
+
+    assert result["weather_impact"] == "wet"
+    [row] = pipeline["weather_rows"]
+    assert row["EventName"] == "Monaco Grand Prix"
+
+
+@pytest.mark.unit
+def test_a_rejected_lineup_never_asks_for_the_weather(pipeline):
+    pipeline["grid"] = _grid(("VER", "Red Bull"), ("PER", "Red Bull"), ("TSU", "Red Bull"))
+
+    module.compute_race_predictions(2024, 5)
+
+    assert pipeline["weather_rows"] == []
+
+
+@pytest.mark.unit
+def test_the_weather_call_comes_from_the_race_control_forecast(monkeypatch: pytest.MonkeyPatch):
+    asked: list[object] = []
+    monkeypatch.setattr(weather_impact, "race_weather_impact", lambda event_row: asked.append(event_row) or "wet")
+
+    assert module._race_weather_impact("row") == "wet"
+    assert asked == ["row"]
 
 
 @pytest.mark.unit

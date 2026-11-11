@@ -204,6 +204,22 @@ def test_results_rows_without_a_finishing_position_are_ignored():
     assert [attempt["target_driver"] for attempt in attempts] == ["NOR"]
 
 
+@pytest.mark.unit
+def test_a_results_row_fastf1_sent_without_a_code_is_no_rival():
+    """Its laps carry no code either, so there is nothing to compare; it must not become a rival named "nan"."""
+    results = pd.DataFrame(
+        [
+            {"Abbreviation": "VER", "Position": 1.0},
+            {"Abbreviation": float("nan"), "Position": 2.0},
+            {"Abbreviation": "NOR", "Position": 3.0},
+        ]
+    )
+
+    attempts = module._analyze_undercut_overcut(_two_car_race(), results, "VER")
+
+    assert [attempt["target_driver"] for attempt in attempts] == ["NOR"]
+
+
 # ---------------------------------------------------------------------------
 # _percentile
 # ---------------------------------------------------------------------------

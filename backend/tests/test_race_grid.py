@@ -15,8 +15,10 @@ import pytest
 from app.api.routers import race_control as race_control_router
 from app.api.routers.race_control import get_starting_grid
 from app.data import predictions
+from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.f1db_grid import GridSlot
 from app.data.predictions import sessions as prediction_sessions
+from app.data.predictions.sessions import _classified_order
 from app.services import race_grid
 from app.services.race_grid import (
     PROVISIONAL_WARNING,
@@ -25,6 +27,7 @@ from app.services.race_grid import (
     SOURCE_QUALIFYING,
     build_starting_grid,
 )
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying
 
 
 def slot(code, position, qualifying, **overrides):
@@ -129,6 +132,37 @@ def test_provisional_row_falls_back_to_the_driver_code_for_a_missing_name(source
 
     assert row["driver_name"] == "VER"
     assert row["team"] == ""
+
+
+@pytest.mark.integration
+def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_fastf1_sent_without_one(sources, identity_f1db):
+    add_camara_to_f1db(identity_f1db)
+    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+
+    grid = build_starting_grid(2026, 20)["grid"]
+
+    assert (grid[12]["position"], grid[12]["driver_code"], grid[12]["driver_name"]) == (13, "CAM", "Rafael Câmara")
+    assert not any(row[CODE_UNRESOLVED] for row in grid)
+    assert "nan" not in {row["driver_code"].lower() for row in grid}
+
+
+@pytest.mark.integration
+def test_the_r20_provisional_grid_keeps_and_labels_a_qualifier_no_source_can_code(sources, identity_f1db):
+    """Production's f1db on qualifying day (v2026.19.0) did not know Câmara yet."""
+    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+
+    grid = build_starting_grid(2026, 20)["grid"]
+
+    assert len(grid) == 22
+    assert (grid[12]["position"], grid[12]["driver_code"], grid[12]["driver_name"]) == (13, "", "Rafael Camara")
+    assert [row["position"] for row in grid if row[CODE_UNRESOLVED]] == [13]
+    assert "nan" not in {row["driver_code"].lower() for row in grid}
+
+
+def test_published_grid_rows_carry_the_same_label_unset(sources):
+    sources["official"] = (slot("GAS", 1, 1),)
+
+    assert build_starting_grid(2026, 13)["grid"][0][CODE_UNRESOLVED] is False
 
 
 def test_published_grid_wins_over_qualifying(sources):

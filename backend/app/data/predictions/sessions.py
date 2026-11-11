@@ -19,7 +19,15 @@ import fastf1
 import pandas as pd
 import structlog
 
-from app.data.canonical_names import driver_identity, feed_text, team_display_name
+from app.data.canonical_names import (
+    CODE_UNRESOLVED,
+    driver_identity,
+    fastf1_driver,
+    feed_code,
+    feed_number,
+    feed_text,
+    team_display_name,
+)
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 logger = structlog.get_logger()
@@ -41,9 +49,35 @@ _sprint_cache: dict[tuple[int, int], list[dict]] = {}
 def _fastf1_names(row: pd.Series, code: str, year: int) -> dict[str, str]:
     """A FastF1 row's driver and team as printed: f1db's names, else FastF1's words, else the code."""
     feed_name = " ".join(part for part in (feed_text(row.get("FirstName")), feed_text(row.get("LastName"))) if part)
-    # The row's own cell, not ``code``: a missing abbreviation is NaN, which ``str()`` would turn into "nan".
+    # The row's own cell, not ``code``: a missing abbreviation is NaN, which the resolver reads as no code.
     driver = driver_identity(year, code=row.get("Abbreviation", code), number=row.get("DriverNumber"), name=feed_name)
     return {"driver_name": driver.name or code, "team": team_display_name(year, row.get("TeamName"))}
+
+
+def _classified_row(row: pd.Series, position: int, year: int) -> dict:
+    """One classified driver, under FastF1's code, else f1db's.
+
+    FastF1 sends some debutants and stand-ins with no abbreviation: Câmara, P13
+    in São Paulo qualifying (2026 R20), came through as NaN, which ``str()``
+    turned into the code ``nan``. The grid then dropped him as not entered and
+    put him at the back. f1db names such a driver by car number or name once it has
+    published a round they drove. Until then no source has the code, so the row
+    keeps its place with an empty code, its car number and
+    :data:`CODE_UNRESOLVED`, and the grid matches the car on the entry list.
+    """
+    driver = fastf1_driver(year, row)
+    code = feed_code(row.get("Abbreviation")) or driver.code
+    entry = {
+        "driver_code": code or "",
+        "driver_name": driver.name or code or "",
+        "team": team_display_name(year, row.get("TeamName")),
+        "position": position,
+    }
+    if code:
+        return entry
+    number = feed_number(row.get("DriverNumber"))
+    logger.warning("predictions.driver_code_unresolved", year=year, number=number, name=driver.name, position=position)
+    return {**entry, CODE_UNRESOLVED: True, "driver_number": number}
 
 
 def _classified_order(results: pd.DataFrame | None, year: int) -> list[dict]:
@@ -51,19 +85,18 @@ def _classified_order(results: pd.DataFrame | None, year: int) -> list[dict]:
 
     A driver without a position (no time set, retired, or a session FastF1 has
     not classified yet) is left out rather than coerced to P0, which would put
-    them first.
+    them first. A driver without a code keeps their position (see
+    :func:`_classified_row`).
     """
     if results is None or results.empty:
         return []
 
-    drivers = []
-    for _, row in results.sort_values("Position").iterrows():
-        pos = row.get("Position")
-        if pd.isna(pos):  # covers None and the NaN pandas uses for a missing position
-            continue
-        code = str(row.get("Abbreviation", ""))
-        drivers.append({"driver_code": code, **_fastf1_names(row, code, year), "position": int(pos)})
-    return drivers
+    return [
+        _classified_row(row, int(row["Position"]), year)
+        for _, row in results.sort_values("Position").iterrows()
+        # covers None and the NaN pandas uses for a missing position
+        if not pd.isna(row.get("Position"))
+    ]
 
 
 def _load_qualifying(year: int, round_num: int) -> list[dict] | None:

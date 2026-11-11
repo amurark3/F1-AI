@@ -8,6 +8,8 @@ from statistics import median
 import pandas as pd
 import structlog
 
+from app.data.canonical_names import feed_code
+
 logger = structlog.get_logger()
 
 
@@ -69,12 +71,13 @@ def _analyze_undercut_overcut(laps: pd.DataFrame, results: pd.DataFrame, driver_
     if results is None or results.empty:
         return []
 
-    # Get finishing order to find cars ahead/behind
+    # Get finishing order to find cars ahead/behind. A row FastF1 sent without a
+    # code has laps without one too, so there is nothing to compare it on.
     sorted_results = results.sort_values("Position")
     driver_positions = {
-        str(row.get("Abbreviation", "")): int(row["Position"])
+        code: int(row["Position"])
         for _, row in sorted_results.iterrows()
-        if pd.notna(row.get("Position"))
+        if pd.notna(row.get("Position")) and (code := feed_code(row.get("Abbreviation")))
     }
 
     if driver_code not in driver_positions:

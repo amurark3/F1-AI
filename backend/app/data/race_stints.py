@@ -59,6 +59,7 @@ import fastf1
 import structlog
 
 from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
+from app.data.canonical_names import fastf1_code, feed_number
 from app.data.openf1.sessions import weekend_schedule
 from app.data.openf1_stints import openf1_race_stints
 from app.data.race_stints_store import stint_store
@@ -168,22 +169,25 @@ def _store(key: tuple[int, int | str], stints: tuple[Stint, ...]) -> None:
             _empty_until[key] = time.monotonic() + EMPTY_RETRY_SECONDS
 
 
-def _driver_codes(results: pd.DataFrame | None) -> dict[str, str]:
+def _driver_codes(results: pd.DataFrame | None, year: int) -> dict[str, str]:
     """FastF1's driver identifier mapped onto the three-letter code.
 
     FastF1 keys laps by the number for some seasons and the abbreviation for
     others; the results frame maps either onto the code every other surface
-    here uses.
+    here uses. A car FastF1 sent without an abbreviation takes f1db's code
+    (:func:`app.data.canonical_names.fastf1_code`); a row with neither maps nothing.
     """
     codes: dict[str, str] = {}
     if results is None or results.empty:
         return codes
     for _, row in results.iterrows():
-        abbreviation = str(row.get("Abbreviation", "") or "").strip().upper()
-        if not abbreviation:
+        code = fastf1_code(year, row)
+        if not code:
             continue
-        codes[str(row.get("DriverNumber", "") or "").strip()] = abbreviation
-        codes[abbreviation] = abbreviation
+        number = feed_number(row.get("DriverNumber"))
+        if number is not None:
+            codes[str(number)] = code
+        codes[code] = code
     return codes
 
 
@@ -208,7 +212,7 @@ def _fastf1_stints(year: int, round_num: int) -> tuple[Stint, ...]:
     if laps is None or laps.empty:
         logger.info("race_stints.no_laps", year=year, round=round_num)
         return ()
-    return _stints_from_laps(laps, _driver_codes(session.results))
+    return _stints_from_laps(laps, _driver_codes(session.results, year))
 
 
 def _race_not_over(year: int, round_num: int) -> bool:

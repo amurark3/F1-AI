@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 import fastf1
 import pandas as pd
 
-from app.data.canonical_names import driver_identity, feed_text, team_display_name
+from app.data.canonical_names import fastf1_driver, feed_code, team_display_name
 from app.services.race_control_common import safe_float, safe_int
 
 
@@ -274,13 +274,16 @@ def load_race_classification(year: int, round_num: int) -> dict:
 
 
 def _classification_row(row: pd.Series, year: int) -> dict:
-    """One FastF1 result row, its driver and team under f1db's names (FastF1's own words if f1db can't say)."""
-    feed_name = " ".join(part for part in (feed_text(row.get("FirstName")), feed_text(row.get("LastName"))) if part)
-    driver = driver_identity(year, code=row.get("Abbreviation"), number=row.get("DriverNumber"), name=feed_name)
+    """One FastF1 result row, its driver and team under f1db's names (FastF1's own words if f1db can't say).
+
+    The code is FastF1's, else f1db's, else "" — never the NaN cell FastF1 sends
+    for a driver it has no abbreviation for.
+    """
+    driver = fastf1_driver(year, row)
     grid = row.get("GridPosition")
     return {
         "position": safe_int(row.get("Position"), None),
-        "driver": row.get("Abbreviation", ""),
+        "driver": feed_code(row.get("Abbreviation")) or driver.code or "",
         "full_name": driver.name,
         "team": team_display_name(year, row.get("TeamName")) or "Unknown",
         "grid": safe_int(grid, None) if pd.notna(grid) and grid > 0 else None,

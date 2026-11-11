@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import fastf1
 import structlog
 
+from app.data.canonical_names import feed_code
 from app.data.strategy.session import (
     _extract_stint_data,
     _fastf1_lock,
@@ -60,8 +61,9 @@ def _winner_strategy(laps: pd.DataFrame, results: pd.DataFrame | None) -> str:
     if results is None or results.empty:
         return "Unknown"
 
-    winner = results.sort_values("Position").iloc[0]
-    stints = _extract_stint_data(laps, str(winner.get("Abbreviation", "")))
+    # A winner FastF1 sent without a code has laps without one too.
+    code = feed_code(results.sort_values("Position").iloc[0].get("Abbreviation"))
+    stints = _extract_stint_data(laps, code) if code else []
     if not stints:
         return "Unknown"
 

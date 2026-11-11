@@ -9,11 +9,13 @@ from the session was back-filled onto it.
 
 import pytest
 
+from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.driver_availability import (
     STATUS_OUT,
     DriverAdjustment,
     WeekendAvailability,
 )
+from app.data.predictions.sessions import _classified_order
 from app.data.season_seats import SeasonSeat
 from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
 from app.data.weekend_grid import (
@@ -26,6 +28,7 @@ from app.data.weekend_grid import (
     resolve_grid,
     roster_violation,
 )
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying, r20_qualifying_entry_list
 
 CHAMPIONSHIP = [
     {"code": "ANT", "name": "Kimi Antonelli", "team": "Mercedes", "position": 1},
@@ -226,6 +229,64 @@ class TestOnceASessionHasRun:
 
         assert "HAD" not in codes(grid)
         assert any("not in the entry list and were excluded" in w for w in grid.warnings)
+
+
+class TestAQualifierFastF1SentWithoutACode:
+    """R20: FastF1 sent Câmara (Q P13, car 51) with no code; the grid dropped him and back-filled him at P23."""
+
+    @staticmethod
+    def _r20_grid():
+        timed = _classified_order(r20_fastf1_qualifying(), 2026)
+        return resolve_grid(timed, [], EntryLists(r20_qualifying_entry_list()), WeekendAvailability())
+
+    @staticmethod
+    def _assert_timed_at_p13(grid):
+        camara = next(driver for driver in grid.drivers if driver["driver_code"] == "CAM")
+        assert camara["position"] == 13
+        assert "no_qualifying_time" not in camara
+        assert CODE_UNRESOLVED not in camara
+        assert [driver["position"] for driver in grid.drivers] == list(range(1, 23))
+        assert not any(driver.get("no_qualifying_time") for driver in grid.drivers)
+        assert not any("excluded" in warning or "no session time" in warning for warning in grid.warnings)
+        assert "nan" not in {driver["driver_code"].lower() for driver in grid.drivers}
+
+    @pytest.mark.integration
+    def test_f1dbs_code_keeps_him_timed_at_p13(self, identity_f1db):
+        add_camara_to_f1db(identity_f1db)
+
+        self._assert_timed_at_p13(self._r20_grid())
+
+    @pytest.mark.integration
+    def test_a_code_no_source_knows_is_matched_by_car_number_on_the_entry_list(self, identity_f1db):
+        """f1db v2026.19.0 cannot name him; OpenF1's entry list has car 51 as CAM."""
+        self._assert_timed_at_p13(self._r20_grid())
+
+    def test_a_codeless_row_whose_car_is_not_entered_is_excluded_and_reported(self):
+        timed = [
+            {"driver_code": "ANT", "driver_name": "Kimi Antonelli", "team": "Mercedes", "position": 1},
+            {
+                "driver_code": "",
+                "driver_name": "Rafael Camara",
+                "position": 2,
+                CODE_UNRESOLVED: True,
+                "driver_number": 51,
+            },
+        ]
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entry_list("ANT", "HAM")), WeekendAvailability())
+
+        assert codes(grid) == ["ANT", "HAM"]
+        assert any("not in the entry list and were excluded" in warning for warning in grid.warnings)
+
+    def test_a_coded_row_is_never_matched_by_car_number(self):
+        """A withdrawn driver's time must not pass to whoever took the car."""
+        entries = WeekendEntryList(
+            entries=(EntryListDriver(code="LIN", name="Arvid Lindblad", team="Racing Bulls", number=41),), session="Q"
+        )
+        timed = [{"driver_code": "TSU", "driver_name": "Yuki Tsunoda", "position": 1, "driver_number": 41}]
+
+        grid = resolve_grid(timed, CHAMPIONSHIP, EntryLists(entries), WeekendAvailability())
+
+        assert [(driver["driver_code"], driver.get("no_qualifying_time")) for driver in grid.drivers] == [("LIN", True)]
 
 
 class TestNoRosterAtAll:

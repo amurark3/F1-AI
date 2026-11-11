@@ -824,21 +824,13 @@ def test_the_classification_prints_f1dbs_driver_and_team_names(identity_f1db, mo
 
 @pytest.mark.integration
 def test_the_classification_keeps_fastf1s_codes_and_every_key(identity_f1db, monkeypatch: pytest.MonkeyPatch):
-    """Hirakawa's car resolves by its number; his missing abbreviation is not filled in."""
+    """Hirakawa's car resolves by its number, and f1db's code fills his missing abbreviation (never NaN)."""
     _stub_mexico(monkeypatch)
 
     rows = module.load_race_classification(2026, 19)["race_results"]
 
     assert all(set(row) == CLASSIFICATION_ROW_KEYS for row in rows)
-    assert [row["driver"] for row in rows if isinstance(row["driver"], str)] == [
-        "VER",
-        "ANT",
-        "LAW",
-        "SAI",
-        "HUL",
-        "PER",
-    ]
-    assert pd.isna(rows[3]["driver"])
+    assert [row["driver"] for row in rows] == ["VER", "ANT", "LAW", "HIR", "SAI", "HUL", "PER"]
 
 
 @pytest.mark.integration

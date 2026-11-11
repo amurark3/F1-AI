@@ -41,6 +41,7 @@ from app.data.predictions.form import (
     _load_recent_sprint_form,
     _season_race_positions,
 )
+from tests.identity_support import mexico_fastf1_results
 
 # In the seeded database every round finishes VER P1, LEC P2, NOR P3 (retired
 # but classified), across 2025 rounds 1-2 and 2026 rounds 1-2.
@@ -299,7 +300,20 @@ def test_finish_positions_drop_rows_that_cannot_identify_a_driver_or_a_place():
 
     # Every dropped row is missing data, not a failure: the rest of the race
     # still contributes to this driver's circuit history.
-    assert _finish_positions(frame) == {"VER": 1, "LEC": 2}
+    assert _finish_positions(frame, 2024) == {"VER": 1, "LEC": 2}
+
+
+@pytest.mark.integration
+def test_a_finisher_fastf1_sent_without_a_code_counts_under_f1dbs_code(identity_f1db):
+    """Hirakawa raced car 50 at Mexico City (2026 R19) with no FastF1 abbreviation."""
+    frame = pd.DataFrame(mexico_fastf1_results())
+
+    positions = _finish_positions(frame, 2026)
+    deltas = _grid_to_finish_deltas(frame, 2026)
+
+    assert positions["HIR"] == 13
+    assert deltas["HIR"] == 18 - 13  # started 18th, finished 13th
+    assert "nan" not in {code.lower() for code in (*positions, *deltas)}
 
 
 @pytest.mark.unit
@@ -311,7 +325,7 @@ def test_grid_delta_is_positive_when_a_driver_gains_places():
         ]
     )
 
-    assert _grid_to_finish_deltas(frame) == {"VER": 4, "LEC": -4}
+    assert _grid_to_finish_deltas(frame, 2024) == {"VER": 4, "LEC": -4}
 
 
 @pytest.mark.unit
@@ -325,7 +339,7 @@ def test_a_pit_lane_start_is_excluded_from_the_overtaking_average():
 
     # A pit-lane start scored against grid 0 would look like a 3-place *loss*
     # and drag the circuit's whole overtaking average with it.
-    assert _grid_to_finish_deltas(frame) == {"LEC": 2}
+    assert _grid_to_finish_deltas(frame, 2024) == {"LEC": 2}
 
 
 @pytest.mark.unit
@@ -339,7 +353,7 @@ def test_grid_deltas_drop_rows_missing_either_end_of_the_comparison():
         ]
     )
 
-    assert _grid_to_finish_deltas(frame) == {}
+    assert _grid_to_finish_deltas(frame, 2024) == {}
 
 
 # ---------------------------------------------------------------------------

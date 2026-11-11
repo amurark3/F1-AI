@@ -23,7 +23,7 @@ import structlog
 from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
 from app.config import FASTF1_TIMEOUT_SECONDS
-from app.data.canonical_names import driver_identity, team_display_name
+from app.data.canonical_names import driver_identity, feed_code, team_display_name
 from app.utils.f1_values import utc_isoformat
 from app.utils.fastf1_lock import FASTF1_LOCK
 
@@ -82,12 +82,18 @@ def _full_name(entry: pd.Series) -> str:
     return f"{entry.get('FirstName', '')} {entry.get('LastName', '')}".strip()
 
 
-def _driver_names(entry: pd.Series, year: int) -> tuple[str, str]:
-    """The row's driver and team as printed: f1db's names, else FastF1's own words."""
+def _driver_cells(entry: pd.Series, year: int) -> tuple[str, str, str]:
+    """The row's code, driver and team as printed.
+
+    The code is FastF1's, else f1db's (FastF1 sends some debutants and stand-ins
+    without one), else "" — never the NaN cell. Names are f1db's, else FastF1's
+    own words.
+    """
     driver = driver_identity(
         year, code=entry.get("Abbreviation"), number=entry.get("DriverNumber"), name=_full_name(entry)
     )
-    return driver.name, team_display_name(year, entry.get("TeamName")) or "Unknown"
+    code = feed_code(entry.get("Abbreviation")) or driver.code or ""
+    return code, driver.name, team_display_name(year, entry.get("TeamName")) or "Unknown"
 
 
 def _event_date(row: pd.Series) -> str:
@@ -159,11 +165,11 @@ def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], 
     for _, entry in results.iterrows():
         status = entry["Status"]
         grid = entry["GridPosition"]
-        full_name, team = _driver_names(entry, year)
+        code, full_name, team = _driver_cells(entry, year)
         rows.append(
             {
                 "position": int(entry["Position"]) if pd.notna(entry["Position"]) else None,
-                "driver": entry.get("Abbreviation", ""),
+                "driver": code,
                 "full_name": full_name,
                 "team": team,
                 "grid": int(grid) if pd.notna(grid) and grid > 0 else None,
@@ -177,10 +183,10 @@ def _classification_rows(results: pd.DataFrame, format_time: Callable[[object], 
 
 def _qualifying_row(position: int, entry: pd.Series, phase: str, year: int) -> dict:
     """One driver's place and lap in a qualifying phase."""
-    full_name, team = _driver_names(entry, year)
+    code, full_name, team = _driver_cells(entry, year)
     return {
         "position": position,
-        "driver": entry["Abbreviation"],
+        "driver": code,
         "full_name": full_name,
         "team": team,
         "time": _fmt_td(entry[phase]),

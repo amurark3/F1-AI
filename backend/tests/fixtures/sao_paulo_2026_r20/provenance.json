@@ -1,0 +1,11 @@
+{
+ "edition": "2026 São Paulo Grand Prix (2026 round 20, Interlagos), qualifying 7 Nov 2026 (OpenF1 session_key 11408)",
+ "captured_at": "2026-11-10T22:40:00Z",
+ "captured_for": "P0b.6 a qualifier FastF1 sends without a code keeps their slot (Rafael Câmara, Q P13, car 51 in Ocon's Haas)",
+ "files": {
+  "jolpica_qualifying.json": "GET https://api.jolpi.ca/ergast/f1/2026/20/qualifying.json?limit=100, MRData.RaceTable.Races[0]",
+  "openf1_drivers_qualifying.json": "GET https://api.openf1.org/v1/drivers?session_key=11408",
+  "f1db_v2026_20_camara.json": "f1db v2026.20.0 SQLite release (https://github.com/f1db/f1db/releases/download/v2026.20.0/f1db-sqlite.zip): driver, race_data and season_entrant_driver rows for rafael-camara; its own 'source' says how"
+ },
+ "notes": "Unedited apart from JSON indentation. Jolpica now codes Câmara CAM, but the FastF1 results production loaded for R20 qualifying had no Abbreviation for him (STATUS.md log, 2026-11-08), so the tests blank that one cell to NaN the way pandas hands it over. openf1_sessions.json and openf1_drivers_practice1.json predate this file (captured 2 Nov 2026; see tests/roster_support.py)."
+}

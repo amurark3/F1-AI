@@ -661,6 +661,54 @@ Added 2026-11-06 from the user's review of the live Command Center during the S�
 - **Verify:** `npm run lint`, `typecheck`, `build`, `test:coverage`.
 - **PR:** `fix: race-day weather, risk register, strategy baseline, map labels and grid deltas from current data`.
 
+### P0b.8–P0b.10 (added 2026-11-11, after PR #101 merged; they run before P3.2 and ship in the next PR from `dev`)
+
+Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-11-11).
+
+#### P0b.8 `weather_impact` from the race-day forecast (user, 2026-11-11)
+
+- **Bug.**
+  - `compute.py:502` hard-codes `"weather_impact": "dry"` ("Weather module (Plan 02) will populate this"). The other path (`:458`) says `"unknown"`, and `wet_scenario` is always `None`.
+  - Every stored prediction therefore says "dry". That includes R20 São Paulo, which ran under an 88–92% race-window forecast.
+- **Do:**
+  - Derive `weather_impact` from the race-day forecast block that P0b.1a/P0b.2 built (`race_day_block`, using the risk register's `RAIN_RISK_*` thresholds):
+    - `"wet"` at or above `RAIN_RISK_HIGH`;
+    - `"mixed"` in the medium band;
+    - `"dry"` below it, **only with a real Open-Meteo reading**;
+    - `"unknown"` without one.
+  - Keep it point-in-time: a call for a past race uses only a forecast it could have had, else `"unknown"`.
+  - Don't invent a `wet_scenario`. If nothing produces one, remove the field and its readers (check the API, chat tools and frontend first).
+- **Accept:** an R20 fixture gives `"wet"`; no forecast gives `"unknown"`; `"dry"` never appears without a reading; the literal `"dry"` placeholder is gone.
+- **Verify:** pytest (100%), ruff, format, size.
+
+#### P0b.9 Grading reads the post-qualifying call; a refused call is never recorded (user, 2026-11-11)
+
+- **Bug.**
+  - `save_prediction` (`history.py`) replaces a race's graded `predicted_positions` with whichever call was computed last, of either phase.
+  - `compute_race_predictions` calls it (`compute.py:509`) **before** `compute_and_store_race_prediction`'s phase guard, so even a call the endpoint refuses gets recorded.
+  - R20 is the evidence: a pre-qualifying call 16 s after the post-qualifying one (2026-11-08 00:45:59) became the graded call. R20's rolling accuracy has since scored VER P2 (the pre-qualifying call) instead of the VER P8 the site showed. On 2026-11-11 a refused post-qualifying recompute and production's warm-up recorded more pre-qualifying calls the same way (production backups in the session scratchpad, `prodfix/`).
+- **Do:**
+  1. Record a call to history only once it has been stored as a snapshot, so a refused call never lands.
+  2. A race's graded call is its latest post-qualifying snapshot when one exists, else its latest pre-qualifying snapshot. Every reader of `predicted_positions` uses that one choice: `accuracy.py`, `model.py`'s adaptive corrections, `self_improvement.py`, `review.py`.
+  3. Write a one-off repair script that resets each race's graded positions from its stored snapshots. It is a dry run by default, writes backups first, and lists every race it would change. The user runs it against production (auto mode blocks production access from the coordinator).
+- **Accept:**
+  - The R20 shape (post-qualifying, then pre-qualifying 16 s later) grades the post-qualifying call.
+  - A refused call leaves history untouched.
+  - The repair dry run on a copy of the 2026-11-11 history backup lists R20 and any other affected race.
+- **Verify:** pytest (100%), ruff, format, size.
+
+#### P0b.10 R20's post-qualifying call can be computed again (user, 2026-11-11)
+
+- **Bug.**
+  - On 2026-11-11 (after PR #101 deployed), `POST /api/predictions/2026/20/compute?phase=post_qualifying` fell back to a pre-qualifying call because no qualifying classification was available, so nothing was stored. The same call for R19 worked.
+  - The R20 post-qualifying prediction on the site is still the 2026-11-08 one, with Câmara scored from P23 (the bug P0b.6 fixed).
+- **Do:**
+  - Reproduce it locally with no production access: work out why R20's qualifying classification can't be built (F1's live-timing login, the Jolpica fallback, P0b.6's code path, or the `should_use_qualifying` timing).
+  - Fix the cause and pin it with a test.
+  - Then the user recomputes R20 post-qualifying (API or the recompute button). The coordinator checks the result through the public snapshot endpoint.
+- **Accept:** a local compute of `(2026, 20, post_qualifying)` returns a post-qualifying call with Câmara starting P13, and a test pins the cause.
+- **Verify:** pytest (100%), ruff, format, size.
+
 ## Phase P3 — Global chrome and homepage
 
 - **P3.1 `app/ui/shell/`:**

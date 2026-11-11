@@ -33,6 +33,11 @@ export interface GridSlot {
    * "held position".
    */
   places_lost: number | null;
+  /**
+   * True when no source could give this qualifier a driver code: the slot
+   * keeps its place with `driver_code` empty. Nothing may be matched to it.
+   */
+  code_unresolved?: boolean;
 }
 
 export interface StartingGridResponse {

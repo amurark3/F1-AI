@@ -108,20 +108,6 @@ export function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-export function parseGridPosition(prediction: DriverPrediction): number | null {
-  const factors = (prediction.factors ?? []).join(" ");
-  if (/pole position/i.test(factors)) return 1;
-  const match =
-    /(?:qualifying|practice|front row start).*?P(\d+)/i.exec(factors) ?? /P(\d+)\s*(?:in sessions)?/i.exec(factors);
-  return match ? Number(match[1]) : null;
-}
-
-export function deltaVsGrid(prediction: DriverPrediction): number | null {
-  const grid = parseGridPosition(prediction);
-  if (!grid) return null;
-  return grid - prediction.position;
-}
-
 export function buildRiskLookup(rows: RiskPrediction[]): Record<string, RiskPrediction> {
   return Object.fromEntries(rows.map((row) => [row.driver_code.toUpperCase(), row]));
 }
@@ -138,15 +124,15 @@ export function isLiveRace(status: string): boolean {
   return status === "in_progress" || status === "live";
 }
 
-/** Grid-delta cell colour: gained, lost, held, or unknown. */
+/** Places-moved colour, from tokens: gained, lost, held, or unknown. */
 export function deltaColor(delta: number | null): string {
-  if (delta == null) return "text-[#3F4756]";
-  if (delta > 0) return "text-[#00FF78]";
-  if (delta < 0) return "text-[#FF4655]";
-  return "text-[#D7DBE7]";
+  if (delta == null) return "text-rc-ink-3";
+  if (delta > 0) return "text-rc-gain";
+  if (delta < 0) return "text-rc-red-text";
+  return "text-rc-ink-2";
 }
 
-/** Grid-delta cell text, signed. */
+/** Places moved, signed. */
 export function deltaLabel(delta: number | null): string {
   if (delta == null) return "-";
   return delta > 0 ? `+${delta}` : String(delta);

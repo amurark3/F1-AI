@@ -118,11 +118,37 @@
  * backend's own `circuit.drawable_map`, as the `…/circuit` segment serves the
  * `map`. The corner-number placement is tested over them.
  *
+ * The "vs grid" column (P0b.7, 10 Nov) reads these:
+ *
+ * - `starting-grids-2026.json`: `race_grid.build_starting_grid`, as
+ *   `GET /api/race-control/grid/{year}/{round}` serves it, run on 10 Nov over
+ *   captured inputs:
+ *   - `sao_paulo_qualifying_day`: round 20 with f1db v2026.19.0 (what
+ *     production read on qualifying day, no grid sheet for the round) and
+ *     FastF1's qualifying results (`backend/tests/fixtures/sao_paulo_2026_r20/`,
+ *     Câmara's code blank as FastF1 sent it): the provisional grid, Câmara's
+ *     P13 slot `code_unresolved`. Row for row it is production's answer of
+ *     8 Nov, except that cell, which production printed `nan` before P0b.6.
+ *   - `sao_paulo_f1db_v2026_20`: the same with f1db v2026.20.0's Câmara rows
+ *     added (`add_camara_to_f1db`): he is CAM.
+ *   - `mexico_city_official`: round 19 from f1db v2026.19.0's grid sheet:
+ *     Verstappen −1 place, Bottas −50, Lawson from the pit lane.
+ *   - `las_vegas_none`: round 21 with neither source answering: no grid yet.
+ * - `prediction-orders-2026.json`: production's stored prediction snapshots
+ *   (`GET /api/predictions/2026/{round}/snapshot?phase=…`), captured on 8 Nov
+ *   for the 2026-11-08 audit (`STATUS.md` log), each row kept to `position`,
+ *   `driver_code`, `driver_name` and `team`: São Paulo after qualifying
+ *   (stored 8 Nov 00:45 UTC, Câmara scored from "P23") and before it
+ *   (00:46 UTC), and Mexico City after qualifying (stored 1 Nov 01:45 UTC,
+ *   Hirakawa coded `NAN`).
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
 import type { StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
+import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
+import type { DriverPrediction } from "@/app/race-control/grand-prix/predictionModel";
 import type {
   DriverProfile,
   DriverProfileResponse,
@@ -152,12 +178,14 @@ import overviewPredictions2026 from "./overview-predictions-2026.json";
 import overviewShell2026 from "./overview-shell-2026.json";
 import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
+import predictionOrders2026 from "./prediction-orders-2026.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
 import ready from "./ready.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
+import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
 
@@ -260,3 +288,24 @@ export const OVERVIEW_SEGMENTS_2026 = {
 
 /** MultiViewer layouts drawn as the circuit segment serves them, keyed by circuit. */
 export const CIRCUIT_MAPS_2026 = circuitMaps as Record<keyof typeof circuitMaps, CircuitMapData>;
+
+/** Starting grids for 2026 weekends: provisional (two f1db releases), official, and none yet. */
+export const GRIDS_2026 = {
+  saoPauloQualifyingDay: startingGrids2026.sao_paulo_qualifying_day as StartingGridResponse,
+  saoPauloF1dbV202620: startingGrids2026.sao_paulo_f1db_v2026_20 as StartingGridResponse,
+  mexicoCityOfficial: startingGrids2026.mexico_city_official as StartingGridResponse,
+  lasVegasNone: startingGrids2026.las_vegas_none as StartingGridResponse,
+};
+
+/** One stored prediction's finishing order, kept to the fields the "vs grid" column reads. */
+export type PredictionOrderRow = Pick<DriverPrediction, "position" | "driver_code" | "driver_name" | "team">;
+
+/** Production's stored prediction orders for 2026 weekends. */
+export const PREDICTION_ORDERS_2026: Record<
+  "saoPauloPostQualifying" | "saoPauloPreQualifying" | "mexicoCityPostQualifying",
+  PredictionOrderRow[]
+> = {
+  saoPauloPostQualifying: predictionOrders2026.sao_paulo_post_qualifying.predictions,
+  saoPauloPreQualifying: predictionOrders2026.sao_paulo_pre_qualifying.predictions,
+  mexicoCityPostQualifying: predictionOrders2026.mexico_city_post_qualifying.predictions,
+};

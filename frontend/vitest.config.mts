@@ -19,6 +19,9 @@ const COVERAGE_INCLUDE = [
   "app/race-control/components/RaceControlPrimitives.tsx",
   "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
+  // P0b.7: the "vs grid" helper only. FullGridTable stays off (P4.3b rebuilds
+  // the Predictions tab).
+  "app/race-control/grand-prix/gridDelta.ts",
   // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
   // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
   "app/race-control/profiles/EntityLinks.tsx",

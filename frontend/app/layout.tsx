@@ -2,8 +2,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 
-import NavShell from "./components/NavShell";
 import ServerWarmingGate from "./components/ServerWarmingGate";
+import { AppShell } from "./ui/shell/AppShell";
 
 import type { Metadata } from "next";
 import "./globals.css";
@@ -40,7 +40,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${barlowCondensed.variable}`}>
       <body className="antialiased">
         <ServerWarmingGate>
-          <NavShell>{children}</NavShell>
+          <AppShell>{children}</AppShell>
         </ServerWarmingGate>
         <Analytics />
         <SpeedInsights />

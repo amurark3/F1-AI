@@ -88,7 +88,7 @@ export function MoreMenu({ pathname }: { pathname: string }) {
                   className="group block px-4 py-2.5 focus-visible:-outline-offset-2"
                 >
                   <span
-                    className={`block font-mono text-[11px] font-medium uppercase leading-none tracking-[0.18em] ${navTone(here !== undefined)} group-hover:text-rc-ink`}
+                    className={`block font-mono text-[11px] font-medium uppercase leading-none tracking-[0.18em] ${here ? "text-rc-ink" : "text-rc-ink-2 group-hover:text-rc-ink"}`}
                   >
                     {link.label}
                   </span>

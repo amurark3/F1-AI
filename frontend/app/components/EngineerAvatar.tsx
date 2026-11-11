@@ -1,7 +1,7 @@
 import { Bot } from "lucide-react";
 
-// The engineer's identity tile — the same red tile the Race Control sidebar
-// uses for its logo and AI Engineer link, so the chat reads as part of it.
+// The engineer's identity tile: a red-tinted tile, like the chat's New chat
+// button, so the conversation reads as one surface.
 const SIZES = {
   sm: { box: "h-8 w-8", icon: "h-4 w-4" },
   md: { box: "h-10 w-10", icon: "h-5 w-5" },

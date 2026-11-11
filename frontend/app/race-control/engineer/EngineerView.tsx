@@ -51,9 +51,9 @@ export function EngineerView() {
   const hasMessages = messages.length > 0;
 
   return (
-    // Fills the shell's content area edge to edge (a full-bleed route): the
-    // history rail sits flush against the Race Control sidebar as a second
-    // column of the same chrome, not as a framed window inside the page.
+    // Fills the viewport under the top bar edge to edge (the shell's
+    // `workspace` layout): the history rail is a column of the same chrome,
+    // not a framed window inside the page.
     <div className="flex min-h-0 w-full flex-1 overflow-hidden bg-[#07090D]">
       <ChatSidebar
         chats={chats}

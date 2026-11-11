@@ -1,11 +1,12 @@
 """Tests for the segmented Race Control overview.
 
 The command centre used to arrive in one response, so the page waited on a
-cold FastF1 telemetry load before it could show the race name. It is now built
+cold FastF1 telemetry load before it could show the race name (the strategy
+reference has since moved to OpenF1 and Jolpica). It is now built
 from five segments the UI fetches in parallel.
 
-The behaviour under test: the shell answers without touching telemetry or the
-race model, each remaining segment carries its own slice, the strategy segment
+The behaviour under test: the shell answers without reading the circuit's last
+edition or the race model, each remaining segment carries its own slice, the strategy segment
 reads a stored prediction rather than computing one, and the composite payload
 still contains everything the segments do.
 """
@@ -13,7 +14,8 @@ still contains everything the segments do.
 import pytest
 
 from app.services import race_control as rc
-from app.services.race_control import overview, strategy_context
+from app.services.race_control import overview, session_weather, strategy_context
+from tests import sao_paulo_2025_support as r21
 from tests.standings_support import standings_from_rows
 
 pytestmark = pytest.mark.unit
@@ -94,22 +96,21 @@ PREDICTIONS = {
     "data_sources": ["trained_ml_model"],
 }
 
-REFERENCE = {
-    "source_year": 2025,
-    "sample_size": 20,
-    "median_first_stop": 27,
-    "first_stop_p25": 24,
-    "first_stop_p75": 31,
-    "most_common_stops": 1,
-    "opening_compound": "Medium",
-    "finishing_compound": "Hard",
-    "pit_loss_seconds": 21.4,
-}
+# The 2025 São Paulo Grand Prix as the edition search returns it (captured 10 Nov 2026).
+REFERENCE = r21.reference()
 
-WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": rc.WEATHER_FEED_LIVE}
-# Beyond the forecast horizon: no session has a forecast, so the summary card
-# falls back to current conditions.
-SESSIONS = {"status": "pending", "note": "Forecasts open later.", "sessions": [{"name": "Race", "forecast": None}]}
+WEATHER = {"rain_risk": 5, "track_temp_c": 35.8, "wind_kph": 30.6, "confidence": session_weather.RACE_DAY_FORECAST}
+SESSIONS = {
+    "status": "ready",
+    "note": None,
+    "sessions": [
+        {
+            "name": "Race",
+            "phase": "upcoming",
+            "forecast": {"rain_probability_pct": 5, "track_temp_c": 35.8, "wind_kph": 30.6},
+        }
+    ],
+}
 CIRCUIT = {"record": {"circuit_id": "zandvoort"}, "lap_record": None, "map": None}
 
 
@@ -119,7 +120,7 @@ class Calls:
     def __init__(self) -> None:
         self.computed_predictions = 0
         self.read_predictions = 0
-        self.telemetry = 0
+        self.edition = 0
         self.weather = 0
         self.circuit = 0
 
@@ -137,10 +138,11 @@ def calls(monkeypatch):
         return PREDICTIONS
 
     def reference(location, year):
-        recorder.telemetry += 1
+        recorder.edition += 1
         return REFERENCE
 
-    def weather(race):
+    def weather(sessions):
+        assert sessions == SESSIONS, "the card is read off the session forecast, nothing else"
         recorder.weather += 1
         return WEATHER
 
@@ -170,7 +172,7 @@ def test_shell_answers_without_telemetry_or_the_race_model(calls):
     assert shell["championship"]["constructors"] == CONSTRUCTORS
     assert shell["live_status"]["connected"] is False
     # The whole point of the split: none of the slow inputs are touched.
-    assert (calls.computed_predictions, calls.read_predictions, calls.telemetry, calls.weather, calls.circuit) == (
+    assert (calls.computed_predictions, calls.read_predictions, calls.edition, calls.weather, calls.circuit) == (
         0,
         0,
         0,
@@ -197,7 +199,7 @@ def test_weather_segment_carries_the_forecast_and_its_risk_register(calls):
 def test_weather_segment_grades_rival_risk_without_building_strategy_context(calls):
     rc.build_overview_weather(YEAR)
 
-    assert calls.telemetry == 0
+    assert calls.edition == 0
     assert calls.computed_predictions == 0
 
 
@@ -209,7 +211,7 @@ def test_circuit_segment_carries_the_map_and_record_without_telemetry_or_the_mod
 
     assert segment == {"year": YEAR, **CIRCUIT}
     assert calls.circuit == 1
-    assert (calls.telemetry, calls.computed_predictions, calls.weather) == (0, 0, 0)
+    assert (calls.edition, calls.computed_predictions, calls.weather) == (0, 0, 0)
 
 
 # -- predictions ------------------------------------------------------------
@@ -240,11 +242,8 @@ def test_strategy_segment_reads_the_stored_prediction_rather_than_computing_one(
 
     assert calls.read_predictions == 1
     assert calls.computed_predictions == 0
-    assert segment["strategy_context"]["data_source"] == {
-        "mode": "telemetry",
-        "edition_year": 2025,
-        "sample_size": 20,
-    }
+    source = segment["strategy_context"]["data_source"]
+    assert (source["mode"], source["edition_year"], source["sample_size"]) == ("edition", 2025, 17)
 
 
 def test_strategy_segment_carries_the_workstream_board(calls):
@@ -266,21 +265,22 @@ def test_live_control_links_to_the_command_center(calls):
     assert hrefs["live-control"] == "/race-control"
 
 
-def test_strategy_segment_falls_back_to_heuristics_when_telemetry_fails(calls, monkeypatch):
+def test_strategy_segment_says_the_edition_was_not_read_when_the_read_fails(calls, monkeypatch):
     def boom(location, year):
-        raise RuntimeError("session load failed")
+        raise RuntimeError("openf1 unreachable")
 
     _stub(monkeypatch, "circuit_strategy_reference", boom)
 
     context = rc.build_overview_strategy(YEAR)["strategy_context"]
-    assert context["data_source"]["mode"] == "heuristic"
+    assert context["data_source"]["mode"] == "none"
+    assert context["primary_call"]["summary"].startswith("No baseline plan right now")
 
 
 def test_strategy_segment_survives_a_venue_with_no_circuit_metadata(calls, monkeypatch):
     """An unmapped venue arrives as ``"circuit": None`` — present, not missing.
 
     The 2026 Bahrain Grand Prix moved to Sepang before the circuit table knew
-    Kuala Lumpur, and the segment crashed instead of planning on heuristics.
+    Kuala Lumpur, and the segment crashed instead of answering.
     """
     unmapped = {**RACE, "location": "Nowhere, Atlantis", "circuit": None}
     _stub(monkeypatch, "season_events", lambda year: [unmapped])
@@ -288,8 +288,8 @@ def test_strategy_segment_survives_a_venue_with_no_circuit_metadata(calls, monke
 
     context = rc.build_overview_strategy(YEAR)["strategy_context"]
 
-    assert context["data_source"]["mode"] == "heuristic"
-    assert context["stint_windows"]["total_laps"] == rc.DEFAULT_RACE_LAPS
+    assert context["data_source"]["mode"] == "none"
+    assert context["plan"] is None
 
 
 # -- composite --------------------------------------------------------------

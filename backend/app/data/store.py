@@ -55,6 +55,8 @@ DOCUMENT_POWER_UNIT_ALLOWANCES = "power_unit_allowances"
 DOCUMENT_POWER_UNIT_STATUS = "power_unit_ingest_status"
 # Each finished race's tyre stints, once a source has resolved them.
 DOCUMENT_RACE_STINTS = "race_stints"
+# The last good Open-Meteo hourly series per venue, served "as of" when the feed fails.
+DOCUMENT_OPEN_METEO_FORECASTS = "open_meteo_forecasts"
 
 _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_PREDICTION_CACHE: PREDICTION_CACHE_PATH,
@@ -66,6 +68,7 @@ _FALLBACK_FILES: dict[str, str] = {
     DOCUMENT_POWER_UNIT_ALLOWANCES: "data/power_unit_allowances.json",
     DOCUMENT_POWER_UNIT_STATUS: "data/power_unit_ingest_status.json",
     DOCUMENT_RACE_STINTS: "data/race_stints.json",
+    DOCUMENT_OPEN_METEO_FORECASTS: "data/open_meteo_forecasts.json",
 }
 
 BACKEND_POSTGRES = "postgres"

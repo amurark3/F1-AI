@@ -2,8 +2,8 @@
 
 ``build_overview`` is the single payload the Race Control page renders, and it
 is assembled from feeds that fail independently: the schedule/standings
-dashboard, the cached race prediction, the circuit telemetry reference, the
-per-session forecast (with current conditions behind it), and the circuit map. The risk is a partial outage arriving as a confident page:
+dashboard, the cached race prediction, the circuit's last edition (its measured
+plan), the per-session forecast (which alone feeds the race-day card), and the circuit map. The risk is a partial outage arriving as a confident page:
 a dead prediction service or an unraced circuit must degrade the blocks that
 depend on it (and say so through ``data_source.mode``, the workstream statuses
 and the risk register) without blanking or faking the rest.
@@ -18,7 +18,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.services.race_control import overview as module, session_weather, weather as weather_module
+from app.data import weather as owm
+from app.services.race_control import overview as module, session_weather
+from tests import sao_paulo_2025_support as r21
 
 _PREDICTIONS = {
     "predictions": [
@@ -29,32 +31,30 @@ _PREDICTIONS = {
     ]
 }
 
-_REFERENCE = {
-    "pit_loss_seconds": 20.5,
-    "median_first_stop": 21,
-    "first_stop_p25": 17,
-    "first_stop_p75": 26,
-    "opening_compound": "Medium",
-    "finishing_compound": "Hard",
-    "most_common_stops": 1,
-    "source_year": 2025,
-    "sample_size": 19,
-}
+# The 2025 São Paulo Grand Prix as the edition search returns it (captured 10 Nov 2026).
+_REFERENCE = r21.reference()
 
 
-# No session has a forecast, so the summary card falls back to current conditions.
+# No session has a forecast, so the summary card has no number, only the forecast's note.
 _NO_SESSION_FORECAST = {"status": "pending", "note": "later", "sessions": []}
-_RACE_DAY_FORECAST = {
-    "status": "ready",
-    "note": None,
-    "sessions": [
-        {
-            "name": "Race",
-            "phase": "upcoming",
-            "forecast": {"rain_probability_pct": 55, "track_temp_c": 31.0, "wind_kph": 14.0},
-        }
-    ],
-}
+_NO_FORECAST_CARD = {"rain_risk": None, "track_temp_c": None, "wind_kph": None, "confidence": "later"}
+
+
+def _race_day(rain: int) -> dict:
+    return {
+        "status": "ready",
+        "note": None,
+        "sessions": [
+            {
+                "name": "Race",
+                "phase": "upcoming",
+                "forecast": {"rain_probability_pct": rain, "track_temp_c": 31.0, "wind_kph": 14.0},
+            }
+        ],
+    }
+
+
+_RACE_DAY_FORECAST = _race_day(55)
 _CIRCUIT = {"record": {"circuit_id": "monaco"}, "lap_record": None, "map": None}
 
 
@@ -104,11 +104,6 @@ def _patch_feeds(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
     )
     monkeypatch.setattr(module, "build_circuit_segment", lambda _year, _race: _serve(feeds.get("circuit", _CIRCUIT)))
 
-    async def _weather(_location):
-        return _serve(feeds.get("weather", {"error": "OpenWeatherMap API key not configured."}))
-
-    monkeypatch.setattr(weather_module, "get_weather_for_circuit", _weather)
-
 
 # ---------------------------------------------------------------------------
 # composition
@@ -146,25 +141,50 @@ def test_overview_publishes_only_the_top_three_of_the_predicted_order(monkeypatc
 
 
 @pytest.mark.unit
-def test_overview_feeds_the_telemetry_reference_into_the_strategy_context(monkeypatch):
+def test_overview_feeds_the_edition_reference_into_the_strategy_context(monkeypatch):
     _patch_feeds(monkeypatch, predictions=_PREDICTIONS, reference=_REFERENCE)
 
     context = module.build_overview(2026)["strategy_context"]
 
-    assert context["data_source"] == {"mode": "telemetry", "edition_year": 2025, "sample_size": 19}
-    assert context["pit_model"]["pit_loss_seconds"] == 20.5
+    assert context["data_source"]["mode"] == "edition"
+    assert (context["data_source"]["edition_year"], context["data_source"]["sample_size"]) == (2025, 17)
+    assert context["plan"]["compounds"] == ["Medium", "Soft", "Medium"]
+    assert context["pit_model"] == {"pit_lane_seconds": 23.5, "pit_lane_stops": 34}
     # Constructors reach the competitor table through the dashboard block.
     assert [row["team"] for row in context["competitors"]] == ["McLaren", "Ferrari"]
 
 
 @pytest.mark.unit
-def test_overview_derives_the_risk_register_from_the_live_weather_block(monkeypatch):
-    _patch_feeds(monkeypatch, weather={"current": {"rain_probability_pct": 70, "track_temp_c": 28}})
+def test_overview_flags_the_dry_plan_secondary_from_the_race_day_forecast(monkeypatch):
+    _patch_feeds(monkeypatch, reference=_REFERENCE, sessions=_race_day(88))
+
+    branch = module.build_overview(2026)["strategy_context"]["rain_branch"]
+
+    assert branch["rain_pct"] == 88
+    assert branch["note"].startswith(f"{session_weather.RACE_DAY_FORECAST}: 88% peak rain probability")
+
+
+@pytest.mark.unit
+def test_overview_strategy_segment_reads_the_race_day_forecast_for_the_rain_branch(monkeypatch):
+    _patch_feeds(monkeypatch, reference=_REFERENCE, sessions=_race_day(88))
+    monkeypatch.setattr(module, "_selected_race", lambda _year: _dashboard()["race"])
+    monkeypatch.setattr(module, "_top_constructors", lambda _year: [])
+    monkeypatch.setattr(module, "get_cached_race_prediction", lambda *_a: None)
+
+    context = module.build_overview_strategy(2026)["strategy_context"]
+
+    assert context["rain_branch"]["rain_pct"] == 88
+    assert context["plan"]["stints"][0] == {"compound": "Medium", "start_lap": 1, "end_lap": 34}
+
+
+@pytest.mark.unit
+def test_overview_derives_the_risk_register_from_the_race_day_forecast(monkeypatch):
+    _patch_feeds(monkeypatch, sessions=_race_day(70))
 
     payload = module.build_overview(2026)
 
     assert payload["weather"]["rain_risk"] == 70
-    assert payload["weather"]["confidence"] == weather_module.WEATHER_FEED_LIVE
+    assert payload["weather"]["confidence"] == session_weather.RACE_DAY_FORECAST
     register = {card["title"]: card for card in payload["risk_register"]}
     assert register["Elevated rain risk"]["level"] == "High"
     # A 10-point constructor gap is the closest-rival input, not a fixed card.
@@ -172,12 +192,8 @@ def test_overview_derives_the_risk_register_from_the_live_weather_block(monkeypa
 
 
 @pytest.mark.unit
-def test_the_race_day_forecast_outranks_current_conditions_on_the_summary_card(monkeypatch):
-    _patch_feeds(
-        monkeypatch,
-        sessions=_RACE_DAY_FORECAST,
-        weather={"current": {"rain_probability_pct": 5, "track_temp_c": 40}},
-    )
+def test_the_race_day_forecast_feeds_the_summary_card(monkeypatch):
+    _patch_feeds(monkeypatch, sessions=_RACE_DAY_FORECAST)
 
     payload = module.build_overview(2026)
 
@@ -189,11 +205,13 @@ def test_the_race_day_forecast_outranks_current_conditions_on_the_summary_card(m
     }
     assert payload["session_weather"] == _RACE_DAY_FORECAST
     register = {card["title"]: card for card in payload["risk_register"]}
-    assert "55%" in register["Elevated rain risk"]["detail"]
+    assert register["Elevated rain risk"]["detail"].startswith(
+        f"{session_weather.RACE_DAY_FORECAST}: 55% peak rain probability in the race window"
+    )
 
 
 @pytest.mark.unit
-def test_overview_workstreams_report_the_model_as_telemetry_backed(monkeypatch):
+def test_overview_workstreams_report_the_model_ready_with_an_edition_behind_the_plan(monkeypatch):
     _patch_feeds(monkeypatch, predictions=_PREDICTIONS, reference=_REFERENCE)
 
     statuses = {stream["id"]: stream["status"] for stream in module.build_overview(2026)["workstreams"]}
@@ -215,39 +233,59 @@ def test_overview_survives_a_failing_prediction_service(monkeypatch, capsys):
 
     assert payload["predicted_podium"] == []
     assert "race_control.predictions.failed" in capsys.readouterr().out
-    # The rest of the desk still renders off the telemetry reference.
-    assert payload["strategy_context"]["data_source"]["mode"] == "telemetry"
+    # The rest of the desk still renders off the edition reference.
+    assert payload["strategy_context"]["data_source"]["mode"] == "edition"
     assert [stream["status"] for stream in payload["workstreams"] if stream["id"] == "race-model"] == ["Waiting"]
 
 
 @pytest.mark.unit
-def test_overview_survives_a_failing_telemetry_reference(monkeypatch, capsys):
-    _patch_feeds(monkeypatch, predictions=_PREDICTIONS, reference=ConnectionError("fastf1 cache corrupt"))
+def test_overview_survives_a_failing_edition_reference_and_says_it_was_not_read(monkeypatch, capsys):
+    _patch_feeds(monkeypatch, predictions=_PREDICTIONS, reference=ConnectionError("openf1 unreachable"))
 
     payload = module.build_overview(2026)
 
     assert "race_control.strategy_reference.failed" in capsys.readouterr().out
-    assert payload["strategy_context"]["data_source"]["mode"] == "heuristic"
-    assert payload["strategy_context"]["stint_windows"]["modeled"] is True
+    context = payload["strategy_context"]
+    assert context["data_source"]["mode"] == "none"
+    # A failed read is not "this circuit has no edition".
+    assert context["primary_call"]["summary"].startswith("No baseline plan right now")
+    assert context["plan"] is None
 
 
 @pytest.mark.unit
-def test_overview_marks_the_strategy_context_heuristic_when_no_edition_has_been_run(monkeypatch):
+def test_overview_has_no_plan_when_the_circuit_has_no_edition(monkeypatch):
     """A brand-new circuit returns no reference at all rather than raising."""
     _patch_feeds(monkeypatch, predictions=_PREDICTIONS, reference=None)
 
-    assert module.build_overview(2026)["strategy_context"]["data_source"]["mode"] == "heuristic"
+    context = module.build_overview(2026)["strategy_context"]
+
+    assert context["data_source"]["mode"] == "none"
+    assert context["primary_call"]["summary"].startswith("No baseline plan: this circuit has no completed race")
 
 
 @pytest.mark.unit
-def test_overview_shows_an_offline_weather_card_rather_than_a_plausible_number(monkeypatch):
-    _patch_feeds(monkeypatch, weather={"error": "OpenWeatherMap API key not configured."})
+def test_overview_shows_the_forecasts_note_rather_than_current_conditions(monkeypatch):
+    """6 Nov 2026: with the forecast down, the card showed OpenWeatherMap's 5 % before a ~90 % race."""
+    _patch_feeds(monkeypatch)
+    asked: list[str] = []
+
+    async def current_conditions(location: str) -> dict:
+        asked.append(location)
+        return {"current": {"rain_probability_pct": 5, "track_temp_c": 29, "wind_speed_kph": 13}}
+
+    monkeypatch.setattr(owm, "get_weather_for_circuit", current_conditions)
 
     payload = module.build_overview(2026)
 
-    assert payload["weather"] == weather_module._offline_weather_block()
-    assert [card["title"] for card in payload["risk_register"]][:1] == ["Safety car exposure"]
-    assert "Weather feed offline" in [card["title"] for card in payload["risk_register"]]
+    assert payload["weather"] == _NO_FORECAST_CARD
+    assert asked == []
+    register = {card["title"]: card for card in payload["risk_register"]}
+    assert next(iter(register)) == "Safety car exposure"
+    assert "Dry conditions expected" not in register
+    unavailable = register["Race-day forecast unavailable"]
+    assert unavailable["level"] == "Medium"
+    assert unavailable["detail"].startswith("later ")
+    assert "%" not in unavailable["detail"]
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +305,7 @@ def test_overview_skips_both_lookups_when_the_season_has_no_selected_race(monkey
     payload = module.build_overview(2026)
 
     assert payload["predicted_podium"] == []
-    assert payload["weather"] == weather_module._offline_weather_block()
+    assert payload["weather"] == _NO_FORECAST_CARD
     assert payload["risk_register"] == [], "no event means nothing to grade a risk against"
     assert payload["live_status"] == {"connected": False, "label": "Standby", "session": None}
 
@@ -284,11 +322,11 @@ def test_overview_skips_the_prediction_for_an_event_with_no_round_number(monkeyp
     payload = module.build_overview(2026)
 
     assert payload["predicted_podium"] == []
-    assert payload["strategy_context"]["data_source"]["mode"] == "telemetry"
+    assert payload["strategy_context"]["data_source"]["mode"] == "edition"
 
 
 @pytest.mark.unit
-def test_overview_skips_the_telemetry_lookup_for_an_event_with_no_location(monkeypatch):
+def test_overview_skips_the_edition_lookup_for_an_event_with_no_location(monkeypatch):
     _patch_feeds(
         monkeypatch,
         dashboard=_dashboard(race={**_dashboard()["race"], "location": None}),
@@ -298,8 +336,8 @@ def test_overview_skips_the_telemetry_lookup_for_an_event_with_no_location(monke
 
     payload = module.build_overview(2026)
 
-    assert payload["strategy_context"]["data_source"]["mode"] == "heuristic"
-    assert payload["weather"] == weather_module._offline_weather_block()
+    assert payload["strategy_context"]["data_source"]["mode"] == "none"
+    assert payload["weather"] == _NO_FORECAST_CARD
 
 
 @pytest.mark.unit

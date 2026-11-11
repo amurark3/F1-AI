@@ -170,6 +170,14 @@ def test_a_race_without_results_has_an_unknown_winner_strategy():
 
 
 @pytest.mark.unit
+def test_a_winner_fastf1_sent_without_a_code_has_an_unknown_strategy():
+    laps = _two_stop_field()
+    results = pd.DataFrame([{"Abbreviation": float("nan"), "Position": 1.0}])
+
+    assert module._winner_strategy(laps, results) == "Unknown"
+
+
+@pytest.mark.unit
 def test_a_winner_with_no_stint_data_is_unknown():
     laps = laps_frame(stint_rows("VER", [("MEDIUM", 1, 50)]))
 

@@ -1,10 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useReducedMotion } from "framer-motion";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CIRCUIT_RECORDS, SAO_PAULO_2026, SESSION_WEATHER_2026, STAKES_2026 } from "@/test/fixtures";
+import type { SectionState, SectionStatus } from "@/app/ui/section/sectionState";
+import { CIRCUIT_RECORDS, SAO_PAULO_2026, SESSION_WEATHER_2026, STAKES_2026, STRATEGY_2026 } from "@/test/fixtures";
 
-import { KeyNumbers, type KeyNumbersProps, type TileState } from "./KeyNumbers";
+import { KeyNumbers, type KeyNumbersProps } from "./KeyNumbers";
+import { pitLaneFigure } from "./pitLaneFigure";
 
 import type * as FramerMotion from "framer-motion";
 
@@ -13,10 +16,17 @@ vi.mock("framer-motion", async (importOriginal) => ({
   useReducedMotion: vi.fn(),
 }));
 
-const { weatherCard, weather, pitModel, stakes, circuit } = SAO_PAULO_2026;
+const { weatherCard, weather, strategy, stakes, circuit } = SAO_PAULO_2026;
+
+/** A segment's state as `useSection` reports it. */
+function section(status: SectionStatus = "ready", reason: string | null = null): SectionState {
+  return { status, reason, refreshing: false, retry: vi.fn() };
+}
+
+const READY = section();
 
 /** São Paulo's four numbers, mapped from the segments as the Command Center maps them. */
-function saoPaulo(state: TileState = "ready"): KeyNumbersProps {
+function saoPaulo(state: SectionState = READY): KeyNumbersProps {
   return {
     rain: {
       value: weatherCard.rain_risk,
@@ -24,11 +34,7 @@ function saoPaulo(state: TileState = "ready"): KeyNumbersProps {
       forecast: weather.sessions.find((row) => row.name === "Race")?.forecast ?? null,
       state,
     },
-    pit: {
-      lossSeconds: pitModel.pit_loss_seconds,
-      detail: `Undercut ${pitModel.undercut_delta}s · overcut ${pitModel.overcut_delta}s · modeled`,
-      state,
-    },
+    pit: { ...pitLaneFigure(strategy), state },
     title: { stakes: stakes.drivers, state },
     history: { record: circuit.record, state },
   };
@@ -36,8 +42,8 @@ function saoPaulo(state: TileState = "ready"): KeyNumbersProps {
 
 /** A tile as [figure, caption], found by its label. */
 function tile(label: string): [string | null | undefined, string | null | undefined] {
-  const root = screen.getByText(label).closest(".relative");
-  return [root?.querySelector("p.mt-2")?.textContent, root?.lastElementChild?.textContent];
+  const root = screen.getByRole("group", { name: label });
+  return [root.querySelector("p.mt-2")?.textContent, root.querySelector("p.line-clamp-2")?.textContent];
 }
 
 describe("KeyNumbers", () => {
@@ -45,11 +51,11 @@ describe("KeyNumbers", () => {
     vi.mocked(useReducedMotion).mockReturnValue(true);
   });
 
-  it("reads São Paulo's race-day rain, pit loss, decided title and pole record", () => {
+  it("reads São Paulo's race-day rain, pit-lane time, decided title and pole record", () => {
     const { container } = render(<KeyNumbers {...saoPaulo()} />);
 
     expect(tile("Race-day rain")).toEqual(["21%", "Race-day forecast (Open-Meteo)"]);
-    expect(tile("Pit lane loss")).toEqual(["21.9s", "Undercut 1.4s · overcut 0.9s · modeled"]);
+    expect(tile("Pit lane time")).toEqual(["23.5s", "Median of 34 stops · 2025 São Paulo Grand Prix"]);
     expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
     expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
     // The rain tile takes its accent from the rain band, and draws the race's sky.
@@ -58,7 +64,7 @@ describe("KeyNumbers", () => {
   });
 
   it("gives the title gap to the closest rival while the title is open", () => {
-    render(<KeyNumbers {...saoPaulo()} title={{ stakes: STAKES_2026.afterRound18.drivers, state: "ready" }} />);
+    render(<KeyNumbers {...saoPaulo()} title={{ stakes: STAKES_2026.afterRound18.drivers, state: READY }} />);
 
     expect(tile("Title gap")).toEqual(["123pts", "Kimi Antonelli leads George Russell · 125 still on offer"]);
   });
@@ -68,7 +74,7 @@ describe("KeyNumbers", () => {
     const drivers = STAKES_2026.afterRound1.drivers;
     if (!drivers) throw new Error("no drivers' table");
     const lone = { ...drivers, contenders: [drivers.leader], rivals_alive: 0, clinch: null };
-    render(<KeyNumbers {...saoPaulo()} title={{ stakes: lone, state: "ready" }} />);
+    render(<KeyNumbers {...saoPaulo()} title={{ stakes: lone, state: READY }} />);
 
     expect(tile("Title gap")).toEqual(["—", "George Russell leads unopposed"]);
   });
@@ -77,15 +83,15 @@ describe("KeyNumbers", () => {
     const lasVegas = SESSION_WEATHER_2026.lasVegasCard;
     const { container } = render(
       <KeyNumbers
-        rain={{ value: lasVegas.rain_risk, source: lasVegas.confidence, forecast: null, state: "ready" }}
-        pit={{ lossSeconds: null, detail: "Baseline model unavailable", state: "ready" }}
-        title={{ stakes: STAKES_2026.preseason.drivers, state: "ready" }}
-        history={{ record: CIRCUIT_RECORDS.madring2026.record, state: "ready" }}
+        rain={{ value: lasVegas.rain_risk, source: lasVegas.confidence, forecast: null, state: READY }}
+        pit={{ ...pitLaneFigure(STRATEGY_2026.madringNoEdition), state: READY }}
+        title={{ stakes: STAKES_2026.preseason.drivers, state: READY }}
+        history={{ record: CIRCUIT_RECORDS.madring2026.record, state: READY }}
       />,
     );
 
-    expect(tile("Race-day rain")).toEqual(["—", "External forecast feed not connected"]);
-    expect(tile("Pit lane loss")).toEqual(["No model", "Baseline model unavailable"]);
+    expect(tile("Race-day rain")).toEqual(["—", "The race-day forecast opens on 7 Nov."]);
+    expect(tile("Pit lane time")).toEqual(["—", "No edition of this circuit measured"]);
     expect(tile("Title gap")).toEqual(["—", "Standings unavailable"]);
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);
     expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
@@ -93,22 +99,67 @@ describe("KeyNumbers", () => {
   });
 
   it("reads a missing circuit record as no earlier race", () => {
-    render(<KeyNumbers {...saoPaulo()} history={{ record: undefined, state: "ready" }} />);
+    render(<KeyNumbers {...saoPaulo()} history={{ record: undefined, state: READY }} />);
 
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);
   });
 
-  it("holds each tile at an ellipsis while its segment loads, without the rain glyph", () => {
-    const { container } = render(<KeyNumbers {...saoPaulo("pending")} />);
+  it("holds each tile at an ellipsis while its segment loads, with no caption and no rain glyph", () => {
+    const { container } = render(<KeyNumbers {...saoPaulo(section("pending"))} />);
 
     expect(screen.getAllByText("…")).toHaveLength(4);
+    // Nothing has loaded, so no caption may claim "No earlier race" or "Standings unavailable".
+    expect(tile("Pole → win here")).toEqual(["…", ""]);
+    expect(tile("Title gap")).toEqual(["…", ""]);
     expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("says a tile's segment failed rather than showing a stale figure", () => {
-    render(<KeyNumbers {...saoPaulo("failed")} />);
+  it("keeps every figure when a refresh fails, marked stale with a retry", async () => {
+    // 2026-11-06: all four tiles read "Unavailable" over real data after a failed revalidation.
+    const stale = section("stale", "Request failed: 500 Internal Server Error");
+    const { container } = render(<KeyNumbers {...saoPaulo(stale)} />);
+
+    expect(tile("Race-day rain")).toEqual(["21%", "Race-day forecast (Open-Meteo)"]);
+    expect(tile("Pit lane time")).toEqual(["23.5s", "Median of 34 stops · 2025 São Paulo Grand Prix"]);
+    expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
+    expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Couldn't refresh")).toHaveLength(4);
+    expect(container.querySelectorAll("svg[viewBox='0 0 64 64']")).toHaveLength(1);
+
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Title gap" })).getByRole("button", { name: "Retry" }),
+    );
+    expect(stale.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks only the tile whose segment failed to refresh", () => {
+    render(
+      <KeyNumbers
+        {...saoPaulo()}
+        rain={{ ...saoPaulo().rain, state: section("stale", "Could not reach the server.") }}
+      />,
+    );
+
+    expect(
+      within(screen.getByRole("group", { name: "Race-day rain" })).getByText("Couldn't refresh"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Couldn't refresh")).toHaveLength(1);
+  });
+
+  it("says Unavailable, and why, only when a tile's segment has no data", async () => {
+    const failed = section("failed", "Could not reach the server.");
+    const { container } = render(<KeyNumbers {...saoPaulo(failed)} />);
 
     expect(screen.getAllByText("Unavailable")).toHaveLength(4);
-    expect(tile("Race-day rain")[1]).toBe("Race-day forecast (Open-Meteo)");
+    expect(tile("Race-day rain")).toEqual(["Unavailable", "Could not reach the server."]);
+    expect(tile("Pole → win here")).toEqual(["Unavailable", "Could not reach the server."]);
+    expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Pole → win here" })).getByRole("button", { name: "Retry" }),
+    );
+    expect(failed.retry).toHaveBeenCalledTimes(1);
   });
 });

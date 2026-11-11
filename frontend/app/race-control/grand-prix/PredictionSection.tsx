@@ -12,6 +12,7 @@ import { PredictionBar } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
 
 import type { GrandPrixBoardProps } from "./GrandPrixBoard";
+import type { StartingGridResponse } from "./gridModel";
 import type {
   DriverLookup,
   DriverPrediction,
@@ -127,6 +128,9 @@ interface PredictionViewContentProps {
   podium: DriverPrediction[];
   driverLookup: DriverLookup;
   data?: PredictionsResponse;
+  /** The round's starting grid, which the order's "vs grid" column reads. */
+  grid?: StartingGridResponse;
+  gridLoading: boolean;
 }
 
 function PredictionViewContent({
@@ -136,11 +140,19 @@ function PredictionViewContent({
   podium,
   driverLookup,
   data,
+  grid,
+  gridLoading,
 }: PredictionViewContentProps) {
   return (
     <>
       {view === "order" && (
-        <FullGridTable predictions={predictions} riskPredictions={riskPredictions} driverLookup={driverLookup} />
+        <FullGridTable
+          predictions={predictions}
+          riskPredictions={riskPredictions}
+          driverLookup={driverLookup}
+          grid={grid}
+          gridLoading={gridLoading}
+        />
       )}
       {view === "podium" && <PodiumPanel podium={podium} driverLookup={driverLookup} data={data} />}
       {view === "risk" && <RiskTable rows={riskPredictions} />}
@@ -224,6 +236,8 @@ export function PredictionSection(props: GrandPrixBoardProps & { driverLookup: D
               podium={props.podium}
               driverLookup={props.driverLookup}
               data={props.data}
+              grid={props.grid}
+              gridLoading={props.gridLoading}
             />
           </TabPanel>
         </>

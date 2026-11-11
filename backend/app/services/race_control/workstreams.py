@@ -30,10 +30,10 @@ def _weekend_brief_status(event: dict | None) -> str:
 
 
 def _race_model_status(predictions: dict | None, data_source: dict) -> str:
-    """Reflect whether the race model is telemetry-backed, still building, or missing."""
+    """Ready once the model has run and the baseline plan has an edition to read; else building or missing."""
     if not (predictions or {}).get("predictions"):
         return "Waiting"
-    return "Ready" if data_source.get("mode") == "telemetry" else "Build"
+    return "Ready" if data_source.get("mode") == "edition" else "Build"
 
 
 def _rival_watch_status(competitors: list[dict]) -> str:
@@ -63,7 +63,7 @@ def build_workstreams(
 
     Priorities are fixed operational weightings (a config attribute of each
     stream), but every status reflects real progress: session state, whether the
-    race model is telemetry-backed, and whether a close rival is in play.
+    baseline plan has an edition behind it, and whether a close rival is in play.
     """
     data_source = (strategy_context or {}).get("data_source", {})
     competitors = (strategy_context or {}).get("competitors", [])

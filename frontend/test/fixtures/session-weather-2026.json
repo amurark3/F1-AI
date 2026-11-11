@@ -220,7 +220,7 @@
       "rain_risk": null,
       "track_temp_c": null,
       "wind_kph": null,
-      "confidence": "External forecast feed not connected"
+      "confidence": "The race-day forecast opens on 7 Nov."
     },
     "session_weather": {
       "status": "pending",

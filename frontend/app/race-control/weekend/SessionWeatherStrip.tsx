@@ -17,9 +17,21 @@ const SHORT_NAMES: Record<string, string> = {
   Race: "Race",
 };
 
-/** The weekend's weather in one line: a glyph, temperature and rain chance per session. */
-export function SessionWeatherStrip({ rows }: { rows: SessionWeatherRow[] }) {
+/**
+ * The weekend's weather in one line: a glyph, temperature and rain chance per session.
+ * `asOf` is the stored forecast's label ("as of 14:05 UTC") when the live feed failed.
+ */
+export function SessionWeatherStrip({ rows, asOf }: { rows: SessionWeatherRow[]; asOf?: string | null }) {
   if (rows.length === 0) return null;
+  return (
+    <>
+      <SessionCells rows={rows} />
+      {asOf && <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-rc-ink-3">Forecast {asOf}</p>}
+    </>
+  );
+}
+
+function SessionCells({ rows }: { rows: SessionWeatherRow[] }) {
   return (
     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Weather by session">
       {rows.map((row, index) => {

@@ -14,12 +14,10 @@ import { ModelAttributionBars, type AttributionEntry } from "../components/Chart
 import { InfoRow, Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
+import { gridColumnNote, gridDelta, gridDeltaCell } from "./gridDelta";
 import {
   buildRiskLookup,
   circuitLengthLabel,
-  deltaColor,
-  deltaLabel,
-  deltaVsGrid,
   driverDisplayName,
   estimatePodiumPct,
   estimateWinPct,
@@ -29,16 +27,25 @@ import {
 } from "./predictionHelpers";
 import { WeekendGlance } from "./WeekendGlance";
 
+import type { StartingGridResponse } from "./gridModel";
 import type { DriverLookup, DriverPrediction, PredictionsResponse, RaceEvent, RiskPrediction } from "./predictionModel";
 
+/**
+ * The predicted finishing order. "vs grid" is the predicted finish against the
+ * round's starting grid, the same grid the Grid tab draws, on both phase tabs.
+ */
 export function FullGridTable({
   predictions,
   riskPredictions,
   driverLookup,
+  grid,
+  gridLoading,
 }: {
   predictions: DriverPrediction[];
   riskPredictions: RiskPrediction[];
   driverLookup: DriverLookup;
+  grid?: StartingGridResponse;
+  gridLoading: boolean;
 }) {
   const riskLookup = useMemo(() => buildRiskLookup(riskPredictions), [riskPredictions]);
 
@@ -48,7 +55,7 @@ export function FullGridTable({
         eyebrow="Race finish - full grid"
         aside={
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-            P1-P22 / pts / win / podium / vs grid
+            P1-P22 / pts / win / podium / {gridColumnNote(grid, gridLoading)}
           </span>
         }
         inset
@@ -72,7 +79,7 @@ export function FullGridTable({
             {predictions.map((prediction) => {
               const color = getTeamColor(prediction.team);
               const name = driverDisplayName(prediction, driverLookup);
-              const delta = deltaVsGrid(prediction);
+              const vsGrid = gridDeltaCell(gridDelta(prediction, grid));
               const risk = riskLookup[prediction.driver_code.toUpperCase()];
               return (
                 <tr
@@ -112,8 +119,9 @@ export function FullGridTable({
                   <td className="px-4 py-3 text-right font-mono font-bold text-white">
                     {formatPct(estimatePodiumPct(prediction))}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono font-bold ${deltaColor(delta)}`}>
-                    {deltaLabel(delta)}
+                  <td className={`px-4 py-3 text-right font-mono font-bold ${vsGrid.className}`} title={vsGrid.note}>
+                    {vsGrid.text}
+                    <span className="sr-only"> ({vsGrid.note})</span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-[#7F8797]">
                     {risk ? `${risk.crash_risk_pct}%` : "-"}

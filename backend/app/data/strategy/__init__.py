@@ -18,7 +18,9 @@ Layout
     history     patterns from previous editions of the circuit
     analysis    undercut/overcut, pit windows, compound mix
     pit         the per-race entry point
-    reference   planning numbers for a race that has not run yet
+    reference   which edition plans a race that has not run yet (OpenF1 + Jolpica, not FastF1)
+    edition_sources  that edition's stints, classification, pit sheet and pit-lane times
+    edition_plan     the edition reduced to the sequences, stops and pit-lane time its finishers ran
 """
 
 from app.data.strategy.pit import analyze_pit_strategy

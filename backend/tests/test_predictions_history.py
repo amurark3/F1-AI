@@ -37,6 +37,7 @@ from app.data.predictions.history import (
     save_prediction,
 )
 from app.data.store_types import ReadResult, WriteResult
+from tests.identity_support import mexico_fastf1_results
 
 YEAR = 2026
 ROUND = 4
@@ -296,7 +297,8 @@ def test_classification_splits_a_result_into_positions_statuses_and_flags():
                 {"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"},
                 {"Abbreviation": "NOR", "Position": 15.0, "Status": "Accident"},
             ]
-        )
+        ),
+        YEAR,
     )
 
     assert positions == {"VER": 1, "NOR": 15}
@@ -316,12 +318,21 @@ def test_classification_splits_a_result_into_positions_statuses_and_flags():
 )
 def test_a_row_that_cannot_be_placed_contributes_to_none_of_the_three_maps(row):
     positions, statuses, incidents = _classify_results(
-        _results_frame([{"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"}, row])
+        _results_frame([{"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"}, row]), YEAR
     )
 
     # A status without its position would leave the maps disagreeing about who
     # was classified, which the review table renders directly.
     assert set(positions) == set(statuses) == set(incidents) == {"VER"}
+
+
+@pytest.mark.integration
+def test_a_finisher_fastf1_sent_without_a_code_is_graded_under_f1dbs_code(identity_f1db):
+    """Hirakawa (car 50, Mexico City 2026) had no FastF1 abbreviation; his prediction is keyed HIR."""
+    positions, statuses, incidents = _classify_results(pd.DataFrame(mexico_fastf1_results()), 2026)
+
+    assert (positions["HIR"], statuses["HIR"], incidents["HIR"]["dnf"]) == (13, "Finished", False)
+    assert "nan" not in {code.lower() for code in positions}
 
 
 # ---------------------------------------------------------------------------

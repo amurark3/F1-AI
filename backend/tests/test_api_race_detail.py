@@ -668,19 +668,11 @@ def test_race_rows_print_f1dbs_driver_and_team_names(identity_f1db):
 
 @pytest.mark.integration
 def test_race_rows_keep_fastf1s_codes_and_every_key(identity_f1db):
-    """Hirakawa's car resolves by its number; his missing abbreviation is not filled in."""
+    """Hirakawa's car resolves by its number, and f1db's code fills his missing abbreviation (never NaN)."""
     rows = _classification_rows(_mexico_frame(), _race_gap, 2026)
 
     assert all(set(row) == RACE_ROW_KEYS for row in rows)
-    assert [row["driver"] for row in rows if isinstance(row["driver"], str)] == [
-        "VER",
-        "ANT",
-        "LAW",
-        "SAI",
-        "HUL",
-        "PER",
-    ]
-    assert pd.isna(rows[3]["driver"])
+    assert [row["driver"] for row in rows] == ["VER", "ANT", "LAW", "HIR", "SAI", "HUL", "PER"]
 
 
 @pytest.mark.integration
@@ -694,6 +686,25 @@ def test_a_qualifying_row_prints_f1dbs_names_under_the_same_keys(identity_f1db):
         "team": "Mercedes",
         "time": "-",
     }
+
+
+@pytest.mark.integration
+def test_a_qualifying_row_fastf1_sent_without_a_code_prints_f1dbs_code(identity_f1db):
+    entry = _mexico_frame().assign(Q1=pd.NaT).iloc[3]
+    assert pd.isna(entry["Abbreviation"])  # Hirakawa, car 50
+
+    assert _qualifying_row(4, entry, "Q1", 2026)["driver"] == "HIR"
+
+
+@pytest.mark.unit
+def test_a_row_no_source_can_code_prints_an_empty_code_not_nan():
+    """Câmara's R20 row before f1db knew him: no abbreviation, and nobody to resolve car 51 to."""
+    entry = pd.Series(
+        {"Abbreviation": float("nan"), "DriverNumber": "51", "FirstName": "Rafael", "LastName": "Camara", "Q1": pd.NaT},
+        dtype=object,
+    )
+
+    assert _qualifying_row(13, entry, "Q1", 2026)["driver"] == ""
 
 
 @pytest.mark.integration

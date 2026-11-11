@@ -3,12 +3,12 @@
 Measured: the lap and sector times, the speed traps, and every sample's speed,
 throttle, brake, gear and position. Modelled, and listed under ``modeled``: the
 distance along the lap, the braking and high-speed zones built from those
-samples, and the corner labels (MultiViewer's positions, not this app's).
+samples, and the corners (MultiViewer's positions and label directions, not
+this app's; the page places each number clear of the track).
 """
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,29 +22,29 @@ from app.services.analysis.zones import braking_zones, high_speed_zones, lap_sta
 if TYPE_CHECKING:
     from app.data.multiviewer import CircuitInfo
 
-# How far a corner's number sits off the track, in OpenF1 units (decimetres).
-CORNER_LABEL_OFFSET = 500.0
 DELETED_LAP_WARNING = "Race control deleted this lap's time; it does not count."
+FULL_TURN = 360.0
 
 
 def corner_markers(circuit: CircuitInfo | None) -> list[dict]:
-    """Each corner's position and label position, turned with the map."""
+    """Each corner's apex and MultiViewer's label direction, turned with the map.
+
+    ``angle`` is in degrees from +x toward +y, in the same frame as ``x``/``y``.
+    It is where MultiViewer pushes the number; the page tries it first and moves
+    the number until it clears the rest of the track (``app/ui/cornerLabels.ts``).
+    """
     if circuit is None:
         return []
     markers = []
     for corner in circuit.corners:
-        angle = math.radians(corner.angle)
-        label_x = corner.x + CORNER_LABEL_OFFSET * math.cos(angle)
-        label_y = corner.y + CORNER_LABEL_OFFSET * math.sin(angle)
-        xs, ys = rotate(np.array([corner.x, label_x]), np.array([corner.y, label_y]), circuit.rotation)
+        xs, ys = rotate(np.array([corner.x]), np.array([corner.y]), circuit.rotation)
         markers.append(
             {
                 "number": corner.number,
                 "label": f"{corner.number}{corner.letter}",
                 "x": round(float(xs[0]), 1),
                 "y": round(float(ys[0]), 1),
-                "label_x": round(float(xs[1]), 1),
-                "label_y": round(float(ys[1]), 1),
+                "angle": round((corner.angle + circuit.rotation) % FULL_TURN, 1),
             }
         )
     return markers

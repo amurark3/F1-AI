@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import structlog
 
+from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.f1db_grid import GridSlot, starting_grid
 from app.data.predictions import load_qualifying
 
@@ -63,6 +64,7 @@ def _official_row(slot: GridSlot) -> dict:
         "pit_lane": slot.pit_lane,
         "penalised": slot.penalised,
         "places_lost": slot.places_lost,
+        CODE_UNRESOLVED: False,
     }
 
 
@@ -70,7 +72,9 @@ def _provisional_row(driver: dict) -> dict:
     """A qualifying row shaped like a grid row, with every penalty field empty.
 
     The penalty fields are absent rather than zero: nothing here has been
-    checked against a grid sheet, and a zero would read as "no penalty".
+    checked against a grid sheet, and a zero would read as "no penalty". A
+    driver no source could code keeps their slot with an empty code and
+    ``code_unresolved`` set (:func:`app.data.predictions.sessions._classified_row`).
     """
     position = driver.get("position")
     return {
@@ -84,6 +88,7 @@ def _provisional_row(driver: dict) -> dict:
         "pit_lane": False,
         "penalised": False,
         "places_lost": None,
+        CODE_UNRESOLVED: bool(driver.get(CODE_UNRESOLVED)),
     }
 
 

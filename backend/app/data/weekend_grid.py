@@ -27,7 +27,10 @@ The previous behaviour used (4) unconditionally and back-filled *every*
 championship entrant missing from the session, which re-inserted a withdrawn
 driver at the back of the grid even after the real entry list said otherwise.
 Timed drivers are now filtered against the resolved roster and back-fill is
-limited to it, so an entry list that shrinks actually shrinks the grid.
+limited to it, so an entry list that shrinks actually shrinks the grid. A timed
+row no source could code (FastF1 sent Câmara's R20 qualifying row without one,
+before f1db knew him) is matched to the roster by car number instead, so it
+keeps its slot rather than being dropped and back-filled.
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.season_seats import CARS_PER_TEAM, SeasonSeat, current_holders, stand_ins, team_key
 from app.data.session_entries import UNAVAILABLE, WeekendEntryList
 
@@ -71,6 +75,8 @@ class RosterDriver:
     championship_position: int = UNRANKED_POSITION
     # Why the driver's seat is unconfirmed; ``None`` when it is not in doubt.
     seat_tbc_reason: str | None = None
+    # The car number an entry list gives; ``None`` for a championship or curated driver.
+    number: int | None = None
 
 
 @dataclass(frozen=True)
@@ -136,6 +142,7 @@ def _roster_from_entry_list(entry_list: WeekendEntryList, championship: list[dic
             name=known.get(entry.code, {}).get("name") or entry.name,
             team=entry.team or known.get(entry.code, {}).get("team") or "",
             championship_position=int(known.get(entry.code, {}).get("position") or UNRANKED_POSITION),
+            number=entry.number,
         )
         for entry in entry_list.entries
     )
@@ -249,16 +256,33 @@ def _seat_status(driver: RosterDriver) -> dict:
     return {"seat_tbc": driver.seat_tbc_reason is not None, "seat_tbc_reason": driver.seat_tbc_reason}
 
 
-def _timed_entry(driver: dict, roster_by_code: dict[str, RosterDriver]) -> dict:
-    """A driver with a session position, with entry-list name/team preferred.
+def _roster_match(
+    driver: dict, by_code: Mapping[str, RosterDriver], by_number: Mapping[int, RosterDriver]
+) -> RosterDriver | None:
+    """The roster driver a timed row is: by code, or by car number for a row no source could code.
+
+    A coded row is never matched by number: a driver withdrawn after setting a
+    time would hand that time to whoever took the car.
+    """
+    if not driver.get(CODE_UNRESOLVED):
+        return by_code.get(driver["driver_code"])
+    known = by_number.get(driver.get("driver_number"))
+    if known is not None:
+        logger.info("weekend_grid.code_from_entry_list", number=known.number, code=known.code)
+    return known
+
+
+def _timed_entry(driver: dict, known: RosterDriver) -> dict:
+    """A driver with a session position, under the roster's code, with entry-list name/team preferred.
 
     The entry list carries the seat a driver is in *this* weekend, which the
     championship join can get wrong after a mid-season move. Only called for
     drivers already in the roster — the caller drops the rest and says so.
     """
-    known = roster_by_code[driver["driver_code"]]
+    timed = {key: value for key, value in driver.items() if key != CODE_UNRESOLVED}
     return {
-        **driver,
+        **timed,
+        "driver_code": known.code,
         "driver_name": known.name or driver.get("driver_name", ""),
         "team": known.team or driver.get("team", ""),
         **_seat_status(known),
@@ -312,8 +336,11 @@ def resolve_grid(
         )
 
     roster_by_code = {driver.code: driver for driver in roster}
+    roster_by_number = {driver.number: driver for driver in roster if driver.number is not None}
     kept_timed = [
-        _timed_entry(driver, roster_by_code) for driver in timed_drivers if driver["driver_code"] in roster_by_code
+        _timed_entry(driver, known)
+        for driver in timed_drivers
+        if (known := _roster_match(driver, roster_by_code, roster_by_number)) is not None
     ]
     dropped = len(timed_drivers) - len(kept_timed)
     if dropped:

@@ -6,8 +6,10 @@ probability and wind take the worst hour, temperatures the average, and the
 condition the most severe WMO code in the window.
 
 What the payload will not do is invent a reading. A session past the forecast
-horizon says when its forecast opens; an outage or an unknown venue leaves every
-session blank with a note naming why.
+horizon says when its forecast opens; an unknown venue, or an outage with no
+earlier forecast stored, leaves every session blank with a note naming why. An
+outage with one stored serves it with ``as_of``: when it was fetched, and the
+"as of HH:MM UTC" label every surface that shows it prints beside it.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from app.utils.f1_values import utc_isoformat
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
-    from app.data.open_meteo import HourlyReading
+    from app.data.open_meteo import HourlyReading, HourlySeries
 
 SESSION_WEATHER_SOURCE = "Open-Meteo hourly forecast"
 RACE_SESSION = "Race"
@@ -210,30 +212,42 @@ def _session_row(slot: SessionSlot, readings: Sequence[HourlyReading], now: date
     }
 
 
-def _weekend_readings(
+def _weekend_series(
     race: dict, slots: Sequence[SessionSlot], now: datetime
-) -> tuple[tuple[HourlyReading, ...], str, str | None]:
+) -> tuple[HourlySeries | None, str, str | None]:
     """The hourly series for the weekend, or the status and note explaining its absence."""
     coords = get_circuit_gps(race.get("location") or "")
     if coords is None:
-        return (), STATUS_UNAVAILABLE, NOTE_NO_VENUE
+        return None, STATUS_UNAVAILABLE, NOTE_NO_VENUE
     first = slots[0].start.date()
     window = forecast_window(first, max(slot.end for slot in slots).date(), now.date())
     if window is None:
-        return (), *((STATUS_PENDING, NOTE_PENDING) if first > now.date() else (STATUS_UNAVAILABLE, NOTE_ARCHIVED))
-    readings = fetch_hourly(*coords, *window)
-    if readings is None:
-        return (), STATUS_UNAVAILABLE, NOTE_OFFLINE
-    return readings, STATUS_READY, None
+        return None, *((STATUS_PENDING, NOTE_PENDING) if first > now.date() else (STATUS_UNAVAILABLE, NOTE_ARCHIVED))
+    series = fetch_hourly(*coords, *window)
+    if series is None:
+        return None, STATUS_UNAVAILABLE, NOTE_OFFLINE
+    return series, STATUS_READY, None
 
 
-def _payload(status: str, note: str | None, sessions: list[dict]) -> dict:
+def as_of_label(fetched_at: datetime, now: datetime) -> str:
+    """When a stored forecast was fetched: the time alone today (UTC), the day too before that."""
+    moment = fetched_at.astimezone(UTC)
+    if moment.date() == now.astimezone(UTC).date():
+        return f"as of {moment:%H:%M} UTC"
+    return f"as of {moment.day} {moment:%b %H:%M} UTC"
+
+
+def _payload(status: str, note: str | None, sessions: list[dict], as_of: tuple[str, str] | None = None) -> dict:
+    stamp, label = as_of or (None, None)
     return {
         "status": status,
         "note": note,
         "source": SESSION_WEATHER_SOURCE,
         "attribution": OPEN_METEO_ATTRIBUTION,
         "sessions": sessions,
+        # Set only when the live call failed and the venue's stored series is shown.
+        "as_of": stamp,
+        "as_of_label": label,
     }
 
 
@@ -243,22 +257,33 @@ def build_session_weather(race: dict | None, now: datetime | None = None) -> dic
     slots = session_slots(race)
     if not race or not slots:
         return _payload(STATUS_UNAVAILABLE, NOTE_NO_SCHEDULE, [])
-    readings, status, note = _weekend_readings(race, slots, moment)
-    sessions = [_session_row(slot, readings, moment) for slot in slots]
+    series, status, note = _weekend_series(race, slots, moment)
+    sessions = [_session_row(slot, series.readings if series else (), moment) for slot in slots]
     if status == STATUS_READY and not any(row["forecast"] for row in sessions):
-        status, note = STATUS_UNAVAILABLE, NOTE_OFFLINE
-    return _payload(status, note, sessions)
+        return _payload(STATUS_UNAVAILABLE, NOTE_OFFLINE, sessions)
+    if series is None or not series.stored:
+        return _payload(status, note, sessions)
+    label = as_of_label(series.fetched_at, moment)
+    note = f"{NOTE_OFFLINE} Showing the forecast {label}."
+    return _payload(status, note, sessions, (utc_isoformat(series.fetched_at), label))
+
+
+def race_row(session_weather: dict) -> dict | None:
+    """The Race session's row of the weekend payload, if the schedule has one."""
+    return next((row for row in session_weather.get("sessions", []) if row["name"] == RACE_SESSION), None)
 
 
 def race_day_block(session_weather: dict) -> dict | None:
     """The summary card's numbers from the Race session; None without a race-day rain reading."""
-    race = next((row for row in session_weather.get("sessions", []) if row["name"] == RACE_SESSION), None)
+    race = race_row(session_weather)
     forecast = race["forecast"] if race else None
     if not forecast or forecast.get("rain_probability_pct") is None:
         return None
+    source = RACE_DAY_RECORD if race["phase"] == "done" else RACE_DAY_FORECAST
+    label = session_weather.get("as_of_label")
     return {
         "rain_risk": forecast["rain_probability_pct"],
         "track_temp_c": forecast["track_temp_c"],
         "wind_kph": forecast["wind_kph"],
-        "confidence": RACE_DAY_RECORD if race["phase"] == "done" else RACE_DAY_FORECAST,
+        "confidence": f"{source} · {label}" if label else source,
     }

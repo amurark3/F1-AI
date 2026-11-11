@@ -62,6 +62,8 @@ backend/data/power_unit_sources.json
 backend/data/power_unit_allowances.json
 backend/data/power_unit_ingest_status.json
 backend/data/race_stints.json
+# Local fallback for the last good Open-Meteo series per venue (Postgres in production).
+backend/data/open_meteo_forecasts.json
 
 # Downloaded / generated ML + reference datasets (recreated on demand)
 backend/data/f1db.db

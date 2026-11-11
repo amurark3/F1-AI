@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
+from app.data.canonical_names import fastf1_code
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
@@ -151,16 +152,17 @@ def _find_round_for_location(year: int, location: str) -> int | None:
     return None
 
 
-def _finish_positions(results: pd.DataFrame) -> dict[str, int]:
-    """Driver code -> finishing position for one race, skipping unusable rows.
+def _finish_positions(results: pd.DataFrame, year: int) -> dict[str, int]:
+    """Driver code -> finishing position for one race of ``year``, skipping unusable rows.
 
-    A row without a code, or with a position that will not coerce to an int, is
+    The code is FastF1's, else f1db's (:func:`app.data.canonical_names.fastf1_code`).
+    A row with neither, or with a position that will not coerce to an int, is
     missing data rather than a failure: it is dropped so the rest of the race
     still contributes history.
     """
     positions: dict[str, int] = {}
     for _, row in results.iterrows():
-        code = str(row.get("Abbreviation", ""))
+        code = fastf1_code(year, row)
         position = row.get("Position")
         if not code or position is None:
             continue
@@ -171,15 +173,15 @@ def _finish_positions(results: pd.DataFrame) -> dict[str, int]:
     return positions
 
 
-def _grid_to_finish_deltas(results: pd.DataFrame) -> dict[str, int]:
-    """Driver code -> places gained for one race; positive means places gained.
+def _grid_to_finish_deltas(results: pd.DataFrame, year: int) -> dict[str, int]:
+    """Driver code -> places gained for one race of ``year``; positive means places gained.
 
-    Pit-lane starts (grid 0) are excluded — the notional gain from last on the
-    grid would swamp the average.
+    Codes are read as in :func:`_finish_positions`. Pit-lane starts (grid 0) are
+    excluded — the notional gain from last on the grid would swamp the average.
     """
     deltas: dict[str, int] = {}
     for _, row in results.iterrows():
-        code = str(row.get("Abbreviation", ""))
+        code = fastf1_code(year, row)
         grid = row.get("GridPosition")
         finish = row.get("Position")
         if not code or grid is None or finish is None:
@@ -226,7 +228,7 @@ def _load_circuit_history(year: int, _round_num: int, circuit_key: str) -> dict[
             if results is None or results.empty:
                 continue
 
-            for code, position in _finish_positions(results).items():
+            for code, position in _finish_positions(results, past_year).items():
                 history.setdefault(code, []).append(position)
 
         except Exception as exc:
@@ -272,7 +274,7 @@ def _load_grid_to_finish_delta(year: int, _round_num: int, circuit_key: str) -> 
             if results is None or results.empty:
                 continue
 
-            for code, delta in _grid_to_finish_deltas(results).items():
+            for code, delta in _grid_to_finish_deltas(results, past_year).items():
                 deltas.setdefault(code, []).append(delta)
 
         except Exception as exc:

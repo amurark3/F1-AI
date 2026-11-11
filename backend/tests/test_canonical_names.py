@@ -23,7 +23,14 @@ import pytest
 import structlog
 
 from app.data import f1db_source
-from app.data.canonical_names import driver_identity, feed_number, feed_text, team_display_name
+from app.data.canonical_names import (
+    driver_identity,
+    fastf1_code,
+    feed_code,
+    feed_number,
+    feed_text,
+    team_display_name,
+)
 from app.data.identity import CanonicalDriver
 
 pytestmark = pytest.mark.integration
@@ -80,6 +87,35 @@ def test_text_cells_pass_through_and_blanks_are_none(value, expected):
 @pytest.mark.parametrize("value", [None, NAN, 50, np.float64("nan")])
 def test_a_cell_that_is_not_text_is_no_text(value):
     assert feed_text(value) is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"), [("VER", "VER"), (" hir ", "HIR"), ("", None), (NAN, None), (None, None)]
+)
+def test_a_code_cell_is_capitals_or_none_never_nan(value, expected):
+    assert feed_code(value) == expected
+
+
+def test_a_fastf1_row_keeps_its_own_code_without_reading_f1db(monkeypatch):
+    _break_f1db(monkeypatch)
+
+    with structlog.testing.capture_logs() as logs:
+        assert fastf1_code(2026, {"Abbreviation": "LAW", "DriverNumber": "30"}) == "LAW"
+    assert logs == []
+
+
+def test_a_fastf1_row_without_an_abbreviation_takes_f1dbs_code(identity_f1db):
+    """Hirakawa at Mexico City: no abbreviation, car 50, "Ryo" + "Hirakawa"."""
+    row = {"Abbreviation": NAN, "DriverNumber": "50", "FirstName": "Ryo", "LastName": "Hirakawa"}
+
+    assert fastf1_code(2026, row) == "HIR"
+
+
+def test_a_fastf1_row_no_source_can_code_has_no_code(identity_f1db):
+    """Câmara at São Paulo, before f1db v2026.20.0 knew him."""
+    row = {"Abbreviation": NAN, "DriverNumber": "51", "FirstName": "Rafael", "LastName": "Camara"}
+
+    assert fastf1_code(2026, row) is None
 
 
 def test_an_unresolved_driver_keeps_the_feeds_words_display_cased(identity_f1db):

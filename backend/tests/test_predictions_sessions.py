@@ -35,6 +35,7 @@ import pytest
 import structlog
 
 from app.data import f1db_source
+from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.predictions import sessions as sessions_module
 from app.data.predictions.sessions import (
     _classified_order,
@@ -45,6 +46,7 @@ from app.data.predictions.sessions import (
     _weekend_has_started,
 )
 from tests.identity_support import mexico_fastf1_results
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying
 
 YEAR = 2026
 ROUND = 4
@@ -536,14 +538,8 @@ def test_a_classification_prints_f1dbs_driver_and_team_names(identity_f1db):
         ("Sergio Pérez", "Cadillac"),
     ]
     assert all(set(row) == {"driver_code", "driver_name", "team", "position"} for row in order)
-    assert [row["driver_code"] for row in order if row["driver_code"].isupper()] == [
-        "VER",
-        "ANT",
-        "LAW",
-        "SAI",
-        "HUL",
-        "PER",
-    ]
+    # FastF1 sent Hirakawa with no abbreviation; f1db names his code by car 50.
+    assert [row["driver_code"] for row in order] == ["VER", "ANT", "LAW", "HIR", "SAI", "HUL", "PER"]
 
 
 @pytest.mark.integration
@@ -574,7 +570,9 @@ def test_an_unreadable_f1db_leaves_fastf1s_own_names_and_logs_why(monkeypatch):
         order = _classified_order(_mexico_results(), 2026)
 
     assert (order[1]["driver_name"], order[2]["team"]) == ("Andrea Kimi Antonelli", "RB F1 Team")
-    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}
+    # Hirakawa has no FastF1 abbreviation and f1db cannot say his: he keeps P13, labelled.
+    assert (order[3]["position"], order[3]["driver_code"], order[3][CODE_UNRESOLVED]) == (13, "", True)
+    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable", "predictions.driver_code_unresolved"}
 
 
 @pytest.mark.unit
@@ -585,3 +583,64 @@ def test_a_missing_cell_is_left_out_not_printed_as_nan():
     assert _classified_order(pd.DataFrame([row]), 2026) == [
         {"driver_code": "HIR", "driver_name": "Hirakawa", "team": "", "position": 1}
     ]
+
+
+# ---------------------------------------------------------------------------
+# A qualifier FastF1 sends without a code (R20: Câmara, Q P13, car 51)
+# ---------------------------------------------------------------------------
+
+
+def _camara(order: list[dict]) -> dict:
+    return next(row for row in order if row["position"] == 13)
+
+
+@pytest.mark.integration
+def test_a_qualifier_fastf1_sends_without_a_code_keeps_their_slot_under_f1dbs_code(identity_f1db):
+    """f1db v2026.20.0 knows him: car 51 and his name resolve, and f1db's code is printed."""
+    add_camara_to_f1db(identity_f1db)
+
+    order = _classified_order(r20_fastf1_qualifying(), 2026)
+
+    assert len(order) == 22
+    assert [row["position"] for row in order] == list(range(1, 23))
+    assert _camara(order) == {"driver_code": "CAM", "driver_name": "Rafael Câmara", "team": "Haas", "position": 13}
+    assert all(row["driver_code"].isalpha() and row["driver_code"].isupper() for row in order)
+
+
+@pytest.mark.integration
+def test_a_qualifier_no_source_can_code_is_kept_in_their_slot_and_labelled(identity_f1db):
+    """f1db v2026.19.0, production's release on qualifying day, has never heard of him."""
+    with structlog.testing.capture_logs() as logs:
+        order = _classified_order(r20_fastf1_qualifying(), 2026)
+
+    assert len(order) == 22
+    assert _camara(order) == {
+        "driver_code": "",
+        "driver_name": "Rafael Camara",
+        "team": "Haas",
+        "position": 13,
+        CODE_UNRESOLVED: True,
+        "driver_number": 51,
+    }
+    assert "nan" not in {row["driver_code"].lower() for row in order}
+    assert [log for log in logs if log["event"] == "predictions.driver_code_unresolved"] == [
+        {
+            "event": "predictions.driver_code_unresolved",
+            "log_level": "warning",
+            "year": 2026,
+            "number": 51,
+            "name": "Rafael Camara",
+            "position": 13,
+        }
+    ]
+
+
+@pytest.mark.integration
+def test_the_r20_qualifying_cache_holds_no_nan_code(identity_f1db, fastf1_sessions):
+    fastf1_sessions["Q"] = _FakeSession(results=r20_fastf1_qualifying())
+
+    result = _load_qualifying(2026, 20)
+
+    assert result is not None
+    assert "nan" not in {row["driver_code"].lower() for row in result}
+    assert _camara(result)["position"] == 13

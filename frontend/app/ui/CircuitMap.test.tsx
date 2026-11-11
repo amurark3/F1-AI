@@ -3,8 +3,11 @@ import { useReducedMotion } from "framer-motion";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { SAO_PAULO_2026 } from "@/test/fixtures";
+
 import { CircuitMap } from "./CircuitMap";
-import { outlinePath, type CircuitMapData } from "./outlinePath";
+import { LABEL_HALO_EM } from "./cornerLabels";
+import { circuitCornerLabels, outlinePath, type CircuitMapData } from "./outlinePath";
 import { f1, rc } from "./tokens";
 
 import type * as FramerMotion from "framer-motion";
@@ -26,8 +29,8 @@ const MAP: CircuitMapData = {
     [40, 380],
   ],
   corners: [
-    { label: "1", x: 800, y: 40, label_x: 820, label_y: 30 },
-    { label: "2", x: 800, y: 380, label_x: 820, label_y: 395 },
+    { label: "1", x: 800, y: 40, angle: 315 },
+    { label: "2", x: 800, y: 380, angle: 45 },
   ],
 };
 
@@ -51,11 +54,35 @@ describe("CircuitMap", () => {
     const labels = screen.getAllByText(/^\d$/);
     expect(labels.map((label) => label.textContent)).toEqual(["1", "2"]);
     expect(labels[0]).toHaveAttribute("fill", rc.ink3);
-    expect(labels[1]).toHaveAttribute("x", "820");
+    // Each number sits where the placement put it, on a halo of the hero band.
+    const placed = circuitCornerLabels(MAP);
+    expect(labels.map((label) => [label.getAttribute("x"), label.getAttribute("y")])).toEqual(
+      placed.map((corner) => [String(corner.x), String(corner.y)]),
+    );
+    expect(labels[0]).toHaveAttribute("stroke", rc.hero);
+    expect(labels[0]).toHaveAttribute("paint-order", "stroke");
+    expect(labels[0]).toHaveAttribute("stroke-width", String((840 / 42) * LABEL_HALO_EM));
     // Each number settles in 50 ms after the one before, once the line has drawn.
-    expect(labels[0]).toHaveStyle({ animationDelay: "1.6s" });
-    expect(labels[1].getAttribute("style")).toMatch(/animation-delay: 1\.65\d*s/);
-    expect(labels[0].parentElement).toHaveAttribute("font-size", String(840 / 42));
+    expect(labels[0].parentElement).toHaveStyle({ animationDelay: "1.6s" });
+    expect(labels[1].parentElement?.getAttribute("style")).toMatch(/animation-delay: 1\.65\d*s/);
+    expect(labels[0].parentElement?.parentElement).toHaveAttribute("font-size", String(840 / 42));
+    // Both clear the track beside their apex, so neither needs a leader.
+    expect(container.querySelectorAll("line")).toHaveLength(0);
+  });
+
+  it("draws a leader to a number that had to move out from its apex", () => {
+    vi.mocked(useReducedMotion).mockReturnValue(true);
+    const map = SAO_PAULO_2026.circuit.map;
+    if (map === null) throw new Error("the São Paulo fixture has a map");
+    const { container } = render(<CircuitMap map={map} name="Interlagos" />);
+
+    const withLeader = circuitCornerLabels(map).filter((corner) => corner.leader !== null);
+    expect(withLeader.map((corner) => corner.label)).toEqual(["10"]);
+    const lines = [...container.querySelectorAll("line")];
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toHaveAttribute("stroke", rc.dim);
+    expect(lines[0]).toHaveAttribute("x1", String(withLeader[0].leader?.x1));
+    expect(lines[0].parentElement).toHaveTextContent("10");
   });
 
   it("laps a marker round the outline once hydrated, for a reader who allows motion", () => {

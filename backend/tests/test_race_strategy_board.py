@@ -23,6 +23,7 @@ from app.data.race_classification import NO_CLASSIFICATION
 from app.data.race_stints import Stint, race_stints
 from app.services import race_strategy_board
 from app.services.race_strategy_board import build_race_strategy
+from tests.identity_support import mexico_fastf1_results
 
 pytestmark = pytest.mark.unit
 
@@ -273,6 +274,17 @@ def test_a_results_row_without_an_abbreviation_is_skipped(fake_fastf1):
     )
 
     assert race_stints(2024, 6)[0].driver_code == "LEC"
+
+
+@pytest.mark.integration
+def test_a_car_fastf1_sent_without_an_abbreviation_is_coded_by_f1db_not_nan(fake_fastf1, identity_f1db):
+    """Hirakawa raced car 50 at Mexico City (2026 R19); FastF1 had no abbreviation for him."""
+    fake_fastf1["session"] = FakeSession(
+        lap_frame([("50", 1, 1.0, "HARD", 1, True, "Haas F1 Team", "1")]),
+        pd.DataFrame(mexico_fastf1_results()),
+    )
+
+    assert race_stints(2026, 19)[0].driver_code == "HIR"
 
 
 def test_laps_without_a_stint_number_are_ignored(fake_fastf1):

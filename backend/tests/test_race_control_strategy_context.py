@@ -1,14 +1,9 @@
 """Tests for app.services.race_control.strategy_context — the command-center
 shell and the strategy numbers printed inside it.
 
-The risk this module carries is the one the hardcoded-data audit is about: pit
-loss, first-stop laps, undercut/overcut deltas and rejoin traffic are shown as
-pit-wall numbers, but only *some* of them are measured. When
-``circuit_strategy_reference`` returns telemetry from a completed edition the
-values are real; otherwise circuit-shape formulas fill the same fields with the
-same shape. So each fallback is tested for the flag that distinguishes it
-(``data_source.mode``, ``*_modeled``) as well as for its value — a number that
-loses its "modeled" marker is indistinguishable from a measurement.
+The baseline plan itself is built and tested in ``baseline_plan``
+(``test_race_control_baseline_plan.py``); the context only places it beside the
+session phase and the rival rows.
 
 The dashboard half carries a different risk: session status ("in_progress")
 drives the workstream board and the risk register, and it is derived purely
@@ -324,69 +319,10 @@ def test_dashboard_truncates_both_championship_tables_to_five_rows(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# derive_traffic_threshold
+# build_strategy_context — the baseline plan beside the rivals
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("window", "expected"),
-    [(0, "high"), (4, "high"), (5, "medium"), (9, "medium"), (10, "low"), (30, "low")],
-    ids=["identical-laps", "at-high-cutoff", "just-over", "at-medium-cutoff", "just-over-medium", "spread-out"],
-)
-def test_traffic_threshold_reads_the_real_first_stop_spread(window, expected):
-    """A narrow first-stop window means the field pits together, so rejoins are busy."""
-    label, modeled = module.derive_traffic_threshold({"first_stop_p25": 20, "first_stop_p75": 20 + window}, False)
-
-    assert (label, modeled) == (expected, False)
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("window", "expected"),
-    [(0, "high"), (5, "high"), (10, "medium")],
-    ids=["already-high", "bumped-to-high", "bumped-to-medium"],
-)
-def test_traffic_threshold_bumps_street_circuits_one_level_and_caps_at_high(window, expected):
-    label, modeled = module.derive_traffic_threshold({"first_stop_p25": 20, "first_stop_p75": 20 + window}, True)
-
-    assert (label, modeled) == (expected, False)
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("reference", "street", "expected"),
-    [
-        ({}, False, "medium"),
-        ({}, True, "high"),
-        ({"first_stop_p25": 20}, False, "medium"),
-        ({"first_stop_p75": 28}, True, "high"),
-        ({"first_stop_p25": None, "first_stop_p75": None}, False, "medium"),
-    ],
-    ids=["no-telemetry", "no-telemetry-street", "half-a-window", "half-a-window-street", "null-percentiles"],
-)
-def test_traffic_threshold_flags_itself_modeled_without_a_full_window(reference, street, expected):
-    """Circuit shape alone is a guess, and the caller has to be able to tell."""
-    label, modeled = module.derive_traffic_threshold(reference, street)
-
-    assert (label, modeled) == (expected, True)
-
-
-# ---------------------------------------------------------------------------
-# build_strategy_context — telemetry vs heuristic
-# ---------------------------------------------------------------------------
-
-_TELEMETRY = {
-    "pit_loss_seconds": 19.4,
-    "median_first_stop": 22,
-    "first_stop_p25": 18,
-    "first_stop_p75": 27,
-    "opening_compound": "Soft",
-    "finishing_compound": "Medium",
-    "most_common_stops": 2,
-    "source_year": 2025,
-    "sample_size": 18,
-}
+_BASELINE = {"primary_call": {"title": "Base race plan"}, "data_source": {"mode": "edition"}, "plan": None}
 
 
 def _race(**fields) -> dict:
@@ -395,192 +331,13 @@ def _race(**fields) -> dict:
 
 
 @pytest.mark.unit
-def test_context_sources_the_pit_model_from_telemetry_and_says_so():
-    context = module.build_strategy_context(_race(), [], None, _TELEMETRY)
+def test_context_carries_the_baseline_plan_as_given():
+    context = module.build_strategy_context(_race(), [], _BASELINE)
 
-    assert context["data_source"] == {"mode": "telemetry", "edition_year": 2025, "sample_size": 18}
-    assert context["pit_model"]["pit_loss_seconds"] == 19.4
-    assert context["stint_windows"]["modeled"] is False
-    assert context["stint_windows"]["primary_lap"] == 22
-    assert context["stint_windows"]["offset_lap"] == 18
-    # Late window is the measured p75 plus a permanent-circuit buffer, capped
-    # so the last stop cannot land inside the final eight laps.
-    assert context["stint_windows"]["late_lap"] == 37
-
-
-@pytest.mark.unit
-def test_context_quotes_the_measured_edition_in_the_base_plan():
-    context = module.build_strategy_context(_race(), [], None, _TELEMETRY)
-
-    summary = context["primary_call"]["summary"]
-    assert "Soft-to-Medium two-stop here in 2025" in summary
-    assert "median first stop L22, 18-car sample" in summary
-    # With a real two-stop baseline the branch to keep alive is the one-stop.
-    assert "keep a one-stop branch open" in summary
-    assert context["primary_call"]["confidence"] == "medium"
-
-
-@pytest.mark.unit
-def test_context_marks_the_heuristic_plan_as_heuristic_everywhere_it_shows():
-    context = module.build_strategy_context(_race(), [], None, None)
-
-    assert context["data_source"] == {"mode": "heuristic", "edition_year": None, "sample_size": None}
-    assert context["stint_windows"]["modeled"] is True
-    assert "no completed edition of this circuit was available for telemetry" in context["assumptions"][2]
-    assert context["primary_call"]["confidence"] == "low"
-    assert "Model a medium-to-hard one-stop" in context["primary_call"]["summary"]
-
-
-@pytest.mark.unit
-def test_context_still_calls_undercut_and_overcut_modeled_under_full_telemetry():
-    """Audit item 2.1: the telemetry reference never carries these two deltas."""
-    context = module.build_strategy_context(_race(), [], None, _TELEMETRY)
-
-    assert context["pit_model"]["undercut_modeled"] is True
-    assert context["pit_model"]["overcut_modeled"] is True
-    assert context["pit_model"]["traffic_modeled"] is False
-    assert "Undercut and overcut deltas remain modeled estimates" in context["assumptions"][1]
-
-
-@pytest.mark.unit
-def test_context_uses_measured_deltas_when_the_reference_ever_provides_them():
-    context = module.build_strategy_context(
-        _race(), [], None, {**_TELEMETRY, "undercut_delta": 0.9, "overcut_delta": 0.3}
-    )
-
-    assert context["pit_model"]["undercut_delta"] == 0.9
-    assert context["pit_model"]["overcut_delta"] == 0.3
-    assert context["pit_model"]["undercut_modeled"] is False
-    assert context["pit_model"]["overcut_modeled"] is False
-
-
-# ---------------------------------------------------------------------------
-# build_strategy_context — circuit-shape fallbacks
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("circuit_type", "pit_loss", "undercut"),
-    [("Street circuit", 24, 1.6), ("Semi-street circuit", 21, 1.4), ("Purpose-built", 21, 1.4)],
-    ids=["street", "semi-street", "permanent"],
-)
-def test_context_derives_the_fallback_pit_model_from_circuit_shape(circuit_type, pit_loss, undercut):
-    context = module.build_strategy_context(_race(circuit={"laps": 57, "circuit_type": circuit_type}), [], None)
-
-    assert context["pit_model"]["pit_loss_seconds"] == pit_loss
-    assert context["pit_model"]["undercut_delta"] == undercut
-
-
-@pytest.mark.unit
-def test_context_plans_a_real_street_circuit_on_street_heuristics():
-    """Was a pinned bug: the check compared against ``"street"`` while
-    ``CIRCUIT_DATA`` only ever says ``"Street circuit"``, so Monaco got Monza's
-    pit loss, tyre windows and rejoin-traffic floor. Now classified by
-    ``is_street_circuit``, the same rule the risk register uses."""
-    monaco = module.build_strategy_context(_race(circuit={"laps": 78, "circuit_type": "Street circuit"}), [], None)
-    monza = module.build_strategy_context(_race(circuit={"laps": 78, "circuit_type": "Purpose-built"}), [], None)
-
-    assert monaco["pit_model"] != monza["pit_model"]
-    assert monaco["stint_windows"] != monza["stint_windows"]
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("is_sprint", "overcut"), [(True, 1.0), (False, 0.9)], ids=["sprint-weekend", "normal-weekend"]
-)
-def test_context_widens_the_fallback_overcut_on_a_sprint_weekend(is_sprint, overcut):
-    context = module.build_strategy_context(_race(is_sprint=is_sprint), [], None)
-
-    assert context["pit_model"]["overcut_delta"] == overcut
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("laps", "primary", "offset", "late"),
-    [(57, 24, 20, 34), (66, 28, 24, 38), (44, 18, 14, 28), (30, 16, 12, 22)],
-    ids=["bahrain-length", "long-race", "short-race", "very-short-race"],
-)
-def test_context_places_the_fallback_stop_windows_inside_the_race_distance(laps, primary, offset, late):
-    """The stop must sit clear of both the start and the last eight laps."""
-    context = module.build_strategy_context(_race(circuit={"laps": laps}), [], None)
-
-    windows = context["stint_windows"]
-    assert (windows["primary_lap"], windows["offset_lap"], windows["late_lap"]) == (primary, offset, late)
-    assert windows["total_laps"] == laps
-
-
-@pytest.mark.unit
-def test_context_assumes_a_58_lap_race_when_the_circuit_carries_no_lap_count():
-    context = module.build_strategy_context({"circuit": {"circuit_type": "Street"}}, [], None)
-
-    assert context["stint_windows"]["total_laps"] == 58
-
-
-@pytest.mark.unit
-def test_context_defaults_to_medium_hard_compounds_without_telemetry():
-    context = module.build_strategy_context(_race(), [], None)
-
-    assert [stint["compound"] for stint in context["stint_plan"]] == ["Medium", "Hard"]
-    assert context["stint_windows"]["opening_compound"] == "Medium"
-    assert context["stint_windows"]["finishing_compound"] == "Hard"
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("stops", "stop_word", "alt_word"),
-    [
-        (1, "one-stop", "two-stop"),
-        (2, "two-stop", "one-stop"),
-        (3, "three-stop", "one-stop"),
-        (None, "one-stop", "two-stop"),
-    ],
-    ids=["one-stopper", "two-stopper", "three-stopper", "unknown"],
-)
-def test_context_pairs_each_measured_stop_count_with_the_opposite_branch(stops, stop_word, alt_word):
-    """The desk always keeps the other strategy alive, whichever one is base."""
-    context = module.build_strategy_context(_race(), [], None, {**_TELEMETRY, "most_common_stops": stops})
-
-    assert stop_word in context["primary_call"]["summary"]
-    assert f"keep a {alt_word} branch open" in context["primary_call"]["summary"]
-    assert f"switch to a {alt_word}" in context["stint_plan"][1]["target"]
-
-
-# ---------------------------------------------------------------------------
-# build_strategy_context — prose driven by the numbers
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_context_raises_confidence_when_a_predicted_winner_exists():
-    podium = {"predictions": [{"driver": "VER"}, {"driver": "NOR"}, {"driver": "LEC"}, {"driver": "RUS"}]}
-
-    with_prediction = module.build_strategy_context(_race(), [], podium)
-    without = module.build_strategy_context(_race(), [], {"predictions": []})
-
-    assert (with_prediction["primary_call"]["confidence"], without["primary_call"]["confidence"]) == ("medium", "low")
-    assert module.build_strategy_context(_race(), [], podium, _TELEMETRY)["primary_call"]["confidence"] == "high"
-
-
-@pytest.mark.unit
-def test_context_decision_gates_quote_the_numbers_they_were_built_from():
-    context = module.build_strategy_context(_race(), [], None, _TELEMETRY)
-
-    gates = {gate["gate"]: gate for gate in context["decision_gates"]}
-    assert gates["First stop call"]["trigger"] == "L18-L22"
-    assert "~1.4s" in gates["First stop call"]["decision"]
-    assert "rejoin traffic stays medium or lower" in gates["First stop call"]["decision"]
-    assert gates["Safety-car branch"]["trigger"] == "L22-L37"
-    assert "~19.4s pit loss" in gates["Safety-car branch"]["decision"]
-    assert gates["Parc ferme lock"]["owner"] == "Performance"
-
-
-@pytest.mark.unit
-def test_context_stint_plan_spans_the_full_race_distance():
-    context = module.build_strategy_context(_race(), [], None, _TELEMETRY)
-
-    assert [stint["window"] for stint in context["stint_plan"]] == ["L1-L22", "L23-L57"]
-    assert "Hold Soft surface temperatures" in context["stint_plan"][0]["target"]
+    assert context["primary_call"] == {"title": "Base race plan"}
+    assert context["data_source"] == {"mode": "edition"}
+    assert context["plan"] is None
+    assert set(context) == {"phase", "primary_call", "data_source", "plan", "competitors"}
 
 
 def _sessions_starting(offset: timedelta) -> dict[str, str]:
@@ -603,16 +360,12 @@ def _sessions_starting(offset: timedelta) -> dict[str, str]:
 def test_context_phase_switches_to_the_race_desk_only_during_a_session(status, sessions, phase):
     race = _race(status=status, sessions=sessions)
 
-    assert module.build_strategy_context(race, [], None)["phase"] == phase
+    assert module.build_strategy_context(race, [], _BASELINE)["phase"] == phase
 
 
 @pytest.mark.unit
 def test_context_phase_is_pre_race_without_any_event():
-    context = module.build_strategy_context(None, [], None)
-
-    assert context["phase"] == "Pre-race build"
-    assert context["stint_windows"]["total_laps"] == 58
-    assert context["pit_model"]["pit_loss_seconds"] == 21, "no event means no street-circuit uplift"
+    assert module.build_strategy_context(None, [], _BASELINE)["phase"] == "Pre-race build"
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +382,7 @@ def test_context_grades_each_constructor_by_its_real_gap_to_the_leader():
         {"team": "Mercedes", "points": 300.0},
     ]
 
-    rows = module.build_strategy_context(_race(), constructors, None)["competitors"]
+    rows = module.build_strategy_context(_race(), constructors, _BASELINE)["competitors"]
 
     assert [(row["rank"], row["gap_to_leader"], row["threat"]) for row in rows] == [
         (1, 0, "Primary"),
@@ -647,7 +400,7 @@ def test_context_grades_each_constructor_by_its_real_gap_to_the_leader():
 def test_context_never_reports_a_negative_gap_for_a_mis_sorted_table():
     constructors = [{"team": "Ferrari", "points": 100.0}, {"team": "McLaren", "points": 180.0}]
 
-    rows = module.build_strategy_context(_race(), constructors, None)["competitors"]
+    rows = module.build_strategy_context(_race(), constructors, _BASELINE)["competitors"]
 
     assert [row["gap_to_leader"] for row in rows] == [0, 0]
 
@@ -656,30 +409,19 @@ def test_context_never_reports_a_negative_gap_for_a_mis_sorted_table():
 def test_context_lists_at_most_five_competitors():
     constructors = [{"team": f"Team {rank}", "points": 100.0 - rank} for rank in range(8)]
 
-    assert len(module.build_strategy_context(_race(), constructors, None)["competitors"]) == 5
+    assert len(module.build_strategy_context(_race(), constructors, _BASELINE)["competitors"]) == 5
 
 
 @pytest.mark.unit
 def test_context_returns_no_competitor_rows_without_a_standings_feed():
-    context = module.build_strategy_context(_race(), [], None)
-
-    assert context["competitors"] == []
-    assert context["assumptions"][0].startswith("Race context is derived from the season schedule")
-
-
-# ---------------------------------------------------------------------------
-# unmapped venues
-# ---------------------------------------------------------------------------
+    assert module.build_strategy_context(_race(), [], _BASELINE)["competitors"] == []
 
 
 @pytest.mark.unit
-def test_context_plans_an_unmapped_venue_on_heuristics():
+def test_context_reads_an_unmapped_venue_without_failing():
     """Was a pinned bug: ``build_strategy_dashboard`` sets ``circuit`` to None
-    for any venue missing from ``CIRCUIT_DATA``, and the lap-count read
-    dereferenced it without a guard — so the whole command center 500'd on an
-    unmapped calendar entry. It now falls back on the value, not the key."""
-    context = module.build_strategy_context({"circuit": None, "status": "upcoming"}, [], None)
+    for any venue missing from ``CIRCUIT_DATA``, and the context dereferenced
+    it. The context now reads nothing from the circuit at all."""
+    context = module.build_strategy_context({"circuit": None, "status": "upcoming"}, [], _BASELINE)
 
-    assert context["data_source"]["mode"] == "heuristic"
-    assert context["stint_windows"]["total_laps"] == module.DEFAULT_RACE_LAPS
-    assert context["pit_model"]["pit_loss_seconds"] == 21, "an unknown venue is not assumed to be a street circuit"
+    assert context["phase"] == "Pre-race build"

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import fastf1
 import structlog
 
+from app.data.canonical_names import fastf1_code
 from app.data.predictions.incidents import _classify_status
 from app.data.predictions.phases import trim_snapshots
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
@@ -154,10 +155,12 @@ def _should_attempt_actual_load(year: int, round_num: int) -> bool:
         return True
 
 
-def _classify_results(results: pd.DataFrame) -> tuple[dict[str, int], dict[str, str], dict[str, dict]]:
-    """Split a race classification into positions, statuses and incident flags.
+def _classify_results(results: pd.DataFrame, year: int) -> tuple[dict[str, int], dict[str, str], dict[str, dict]]:
+    """Split a race classification of ``year`` into positions, statuses and incident flags.
 
-    A row whose position will not coerce to an int contributes nothing at all —
+    Each driver is keyed by FastF1's code, else f1db's, so a driver FastF1 sent
+    without one is still graded against their prediction. A row with no code,
+    or whose position will not coerce to an int, contributes nothing at all —
     recording a status without the position it belongs to would leave the three
     maps disagreeing about which drivers were classified.
     """
@@ -166,7 +169,7 @@ def _classify_results(results: pd.DataFrame) -> tuple[dict[str, int], dict[str, 
     incidents: dict[str, dict] = {}
 
     for _, row in results.iterrows():
-        code = str(row.get("Abbreviation", ""))
+        code = fastf1_code(year, row)
         position = row.get("Position")
         if not code or position is None:
             continue
@@ -211,7 +214,7 @@ def record_actual_result(year: int, round_num: int) -> None:
 
         results = session.results
         if results is not None and not results.empty:
-            actual_positions, actual_statuses, actual_incidents = _classify_results(results)
+            actual_positions, actual_statuses, actual_incidents = _classify_results(results, year)
     except Exception as exc:
         logger.warning(
             "predictions.actual_result_load_error",

@@ -353,3 +353,20 @@ def test_the_latest_snapshot_is_the_one_scored(stored_history):
     }
 
     assert _adaptive_position_corrections(*PREDICTING)["VER"]["correction"] == 3.0
+
+
+@pytest.mark.unit
+def test_the_post_qualifying_call_is_learned_from_even_when_a_pre_qualifying_one_came_later(stored_history):
+    # R20 São Paulo: a pre-qualifying recompute (VER P2) 16 s after the
+    # post-qualifying call (VER P8). VER finished P5; the race teaches -3 from
+    # the graded call, not +3 from the call that happened to be written last.
+    stored_history["(2026,20)"] = {
+        "snapshots": [
+            {"prediction_phase": "post_qualifying", "predicted_positions": {"VER": 8}},
+            {"prediction_phase": "pre_qualifying", "predicted_positions": {"VER": 2}},
+        ],
+        "predicted_positions": {"VER": 2},
+        "actual_positions": {"VER": 5},
+    }
+
+    assert _adaptive_position_corrections(*PREDICTING)["VER"]["correction"] == -3.0

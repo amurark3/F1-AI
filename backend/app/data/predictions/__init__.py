@@ -24,6 +24,7 @@ module only ever imports from those above it, so the dependency graph is a
 line rather than a web:
 
     version, phases        logic version, prediction phases, snapshot trimming
+    graded                 the stored call each race is graded on
     sessions               qualifying / practice / sprint results, weekend timing
     form                   recent form, circuit history, grid-to-finish delta
     standings              championship positions
@@ -45,6 +46,7 @@ from app.data.predictions.compute import (
     ML_BLEND_WEIGHT,
     compute_race_predictions,
 )
+from app.data.predictions.graded import graded_call
 from app.data.predictions.history import (
     ACTUAL_RESULT_RETRY_SECONDS,
     _load_prediction_history,
@@ -61,11 +63,7 @@ from app.data.predictions.phases import (
     normalise_phase,
     trim_snapshots,
 )
-from app.data.predictions.review import (
-    _latest_prediction_snapshot,
-    build_prediction_review,
-    get_prediction_review,
-)
+from app.data.predictions.review import build_prediction_review, get_prediction_review
 from app.data.predictions.scoring import safe_number
 from app.data.predictions.sessions import load_qualifying, should_use_qualifying
 from app.data.predictions.version import PREDICTION_LOGIC_VERSION
@@ -81,13 +79,13 @@ __all__ = [
     "PREDICTION_PHASES",
     "SNAPSHOT_HISTORY_LIMIT",
     # Underscore-prefixed but re-exported: app.services.self_improvement reads
-    # raw history and snapshots, which no public helper exposes.
-    "_latest_prediction_snapshot",
+    # raw history, which no public helper exposes.
     "_load_prediction_history",
     "build_prediction_review",
     "compute_race_predictions",
     "get_accuracy_stats",
     "get_prediction_review",
+    "graded_call",
     "history_snapshot_phase",
     "load_qualifying",
     "normalise_phase",

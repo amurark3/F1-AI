@@ -14,6 +14,9 @@ failure mode that matters is *flattering arithmetic*:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from app.data.predictions import accuracy as module
@@ -176,6 +179,17 @@ def test_a_snapshot_without_its_own_timestamp_falls_back_to_the_entrys():
     assert module._evaluated_entries(history)[0]["generated_at"] == "2024-05-01T09:00:00+00:00"
 
 
+@pytest.mark.unit
+def test_r20_is_scored_on_its_post_qualifying_call():
+    fixture = Path(__file__).parent / "fixtures" / "sao_paulo_2026_r20" / "prediction_history_entry.json"
+    entry = json.loads(fixture.read_text(encoding="utf-8"))["entry"]
+
+    [race] = module._evaluated_entries({"(2026,20)": entry})
+
+    assert race["predicted"]["VER"] == 8
+    assert race["generated_at"] == "2026-11-08T00:45:43.688379+00:00"
+
+
 # ---------------------------------------------------------------------------
 # _backfill_actuals
 # ---------------------------------------------------------------------------
@@ -195,6 +209,18 @@ def test_backfill_requests_results_only_for_predictions_still_missing_them(
     module._backfill_actuals(history)
 
     assert recorded == [(2024, 1)]
+
+
+@pytest.mark.unit
+def test_backfill_reads_the_graded_call_not_only_the_top_level_fields(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    recorded = _stub_history(monkeypatch, {})
+    history = {"(2024,5)": {"snapshots": [{"prediction_phase": "post_qualifying", "predicted_positions": {"VER": 1}}]}}
+
+    module._backfill_actuals(history)
+
+    assert recorded == [(2024, 5)]
 
 
 @pytest.mark.unit

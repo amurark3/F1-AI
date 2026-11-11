@@ -33,7 +33,7 @@ from app.data.predictions.form import (
     _load_grid_to_finish_delta,
     _load_recent_sprint_form,
 )
-from app.data.predictions.history import save_prediction
+from app.data.predictions.history import prediction_call
 from app.data.predictions.model import _adaptive_position_corrections
 from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
 from app.data.predictions.review import get_prediction_review
@@ -519,14 +519,11 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
         },
     )
 
-    try:
-        save_prediction(year, round_num, result)
-    except Exception as exc:
-        logger.warning("predictions.save_failed", error=str(exc))
-
-    # Scored after the save so a completed race reviews the call just made,
-    # not the previous snapshot of this phase.
-    result = {**result, "prediction_review": get_prediction_review(year, round_num, phase=resolved_phase)}
+    # Nothing is recorded here: a call reaches prediction history only once the
+    # service has stored it as a snapshot, so a call the endpoint refuses never
+    # does. The review therefore scores this call itself, not history's last one.
+    review = get_prediction_review(year, round_num, phase=resolved_phase, call=prediction_call(result))
+    result = {**result, "prediction_review": review}
 
     logger.info(
         "predictions.computed",

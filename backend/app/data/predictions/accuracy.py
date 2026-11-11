@@ -7,8 +7,8 @@ import statistics
 
 import structlog
 
+from app.data.predictions.graded import graded_call
 from app.data.predictions.history import _load_prediction_history, record_actual_result
-from app.data.predictions.review import _accuracy_snapshot
 from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
 
 logger = structlog.get_logger()
@@ -53,10 +53,15 @@ class RaceTally:
 
 
 def _evaluated_entries(history: dict) -> list[dict]:
-    """History entries that carry both a prediction and a recorded result."""
+    """History entries that carry both a graded call and a recorded result.
+
+    The graded call is the post-qualifying one whenever both phases exist, so
+    rolling accuracy never drops because the pre-qualifying tab was recomputed
+    last.
+    """
     evaluated = []
     for entry in history.values():
-        snapshot = _accuracy_snapshot(entry)
+        snapshot = graded_call(entry)
         predicted = snapshot.get("predicted_positions")
         actual = entry.get("actual_positions")
         if predicted and actual:
@@ -75,7 +80,7 @@ def _evaluated_entries(history: dict) -> list[dict]:
 def _backfill_actuals(history: dict) -> None:
     """Lazily load results for predictions that have none recorded yet."""
     for key, entry in history.items():
-        if not entry.get("predicted_positions") or entry.get("actual_positions"):
+        if not graded_call(entry).get("predicted_positions") or entry.get("actual_positions"):
             continue
         try:
             # Keys are stored as "(year,round)".

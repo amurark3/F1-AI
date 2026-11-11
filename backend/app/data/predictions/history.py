@@ -16,6 +16,7 @@ import fastf1
 import structlog
 
 from app.data.canonical_names import fastf1_code
+from app.data.predictions.graded import with_graded_fields
 from app.data.predictions.incidents import _classify_status
 from app.data.predictions.phases import trim_snapshots
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
@@ -75,15 +76,12 @@ def _save_prediction_history(data: dict) -> None:
         logger.error("prediction_history.write_failed", error=result.error)
 
 
-def save_prediction(year: int, round_num: int, predictions: dict) -> None:
-    """Save a prediction to the history file for later accuracy comparison.
+def prediction_call(predictions: dict) -> dict | None:
+    """The call a compute made, in the shape prediction history stores it.
 
-    Stores predicted positions keyed by ``"(year,round)"`` along with
-    metadata.  Thread-safe via ``_history_file_lock``.
+    ``None`` when the compute produced no finishing order: there is nothing to
+    grade.
     """
-    key = f"({year},{round_num})"
-
-    # Extract predicted positions: driver_code -> predicted position
     predicted_positions = {}
     for entry in predictions.get("predictions", []):
         code = entry.get("driver_code", "")
@@ -92,7 +90,7 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
             predicted_positions[code] = pos
 
     if not predicted_positions:
-        return
+        return None
 
     risk_predictions = {
         entry.get("driver_code", ""): {
@@ -104,13 +102,29 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
         for entry in predictions.get("risk_predictions", [])
         if entry.get("driver_code")
     }
-    snapshot = {
+    return {
         "generated_at": predictions.get("generated_at", datetime.now(UTC).isoformat()),
         "prediction_phase": predictions.get("prediction_phase"),
         "data_sources": predictions.get("data_sources") or [],
         "predicted_positions": predicted_positions,
         "risk_predictions": risk_predictions,
     }
+
+
+def save_prediction(year: int, round_num: int, predictions: dict) -> None:
+    """Record a stored call in the race's history, for later accuracy comparison.
+
+    Call this only once the call has been stored as a snapshot
+    (``app.services.predictions``): a call the endpoint refused must never be
+    graded. The call is appended to the race's ``snapshots``, and the entry's
+    top-level fields are set to the race's graded call (``graded``), which a
+    later pre-qualifying call does not replace. Thread-safe via
+    ``_history_file_lock``.
+    """
+    key = f"({year},{round_num})"
+    call = prediction_call(predictions)
+    if call is None:
+        return
 
     with _history_file_lock:
         history, readable = _read_prediction_history()
@@ -121,22 +135,19 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
             return
         existing = history.get(key, {})
         snapshots = list(existing.get("snapshots") or [])
-        snapshots.append(snapshot)
-        history[key] = {
-            **existing,
-            "predicted_positions": predicted_positions,
-            "risk_predictions": risk_predictions,
-            "generated_at": snapshot["generated_at"],
-            "prediction_phase": snapshot["prediction_phase"],
-            "data_sources": snapshot["data_sources"],
-            "actual_positions": existing.get("actual_positions"),
-            "actual_statuses": existing.get("actual_statuses"),
-            "actual_incidents": existing.get("actual_incidents"),
-            "snapshots": trim_snapshots(snapshots),
-        }
+        snapshots.append(call)
+        history[key] = with_graded_fields(
+            {
+                **existing,
+                "actual_positions": existing.get("actual_positions"),
+                "actual_statuses": existing.get("actual_statuses"),
+                "actual_incidents": existing.get("actual_incidents"),
+                "snapshots": trim_snapshots(snapshots),
+            }
+        )
         _save_prediction_history(history)
 
-    logger.info("predictions.saved", key=key, drivers=len(predicted_positions))
+    logger.info("predictions.saved", key=key, drivers=len(call["predicted_positions"]))
 
 
 def _should_attempt_actual_load(year: int, round_num: int) -> bool:

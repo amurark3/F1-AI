@@ -22,9 +22,9 @@ from datetime import UTC
 import structlog
 
 from app.data.predictions import (
-    _latest_prediction_snapshot,
     _load_prediction_history,
     get_prediction_review,
+    graded_call,
     record_actual_result,
 )
 from app.data.store import DOCUMENT_PREDICTION_POSTMORTEMS, document_store
@@ -128,13 +128,14 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
     if not force and get_postmortem(year, round_num):
         return get_postmortem(year, round_num)
 
-    review = get_prediction_review(year, round_num)  # also records actuals
+    # Names no phase, so it reviews the graded call; also records actuals.
+    review = get_prediction_review(year, round_num)
     if not review.get("evaluated"):
         return None
 
     history = _load_prediction_history()
     entry = history.get(key) or {}
-    predicted = _latest_prediction_snapshot(entry).get("predicted_positions") or {}
+    predicted = graded_call(entry).get("predicted_positions") or {}
     actual = entry.get("actual_positions") or {}
     misses = _biggest_misses(predicted, actual)
 
@@ -179,7 +180,7 @@ def run_self_improvement_pass(year: int) -> dict:
         if not parsed or parsed[0] != year:
             continue
         y, r = parsed
-        if entry.get("predicted_positions") and not entry.get("actual_positions"):
+        if graded_call(entry).get("predicted_positions") and not entry.get("actual_positions"):
             record_actual_result(y, r)
             recorded += 1
         if not get_postmortem(y, r) and generate_miss_postmortem(y, r):

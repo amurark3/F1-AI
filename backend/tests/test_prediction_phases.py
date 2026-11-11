@@ -170,10 +170,13 @@ def test_a_missing_pre_qualifying_call_names_its_own_phase(monkeypatch):
     assert review["reason"] == "No stored pre-qualifying prediction for this race."
 
 
-def test_asking_for_no_phase_scores_the_most_recent_call(both_phases_stored):
+def test_asking_for_no_phase_scores_the_graded_call_not_the_most_recent_one(both_phases_stored):
+    # The pre-qualifying call was written last (the R20 shape); a review that
+    # names no phase grades the race, so it scores the post-qualifying call.
     review = build_prediction_review(YEAR, ROUND)
 
-    assert review["predicted_winner"] == "VER"
+    assert review["prediction_phase"] == PHASE_POST_QUALIFYING
+    assert review["predicted_winner"] == "NOR"
 
 
 def test_a_legacy_entry_without_a_snapshot_list_is_still_scored_by_phase(monkeypatch):

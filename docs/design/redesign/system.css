@@ -706,3 +706,28 @@ section.block {
     display: none;
   }
 }
+
+/* Phones (P4.3a): tab strips scroll inside themselves, tables drop low-priority
+   columns, and the page itself never scrolls sideways. */
+.tbl .phone-only {
+  display: none;
+}
+@media (max-width: 600px) {
+  .tabs {
+    overflow-x: auto;
+    gap: 20px;
+    scrollbar-width: none;
+  }
+  .tabs a {
+    flex: none;
+  }
+  .tabs a[aria-selected="true"]::after {
+    bottom: 0;
+  }
+  .tbl .phone-hide {
+    display: none;
+  }
+  .tbl .phone-only {
+    display: table-cell;
+  }
+}

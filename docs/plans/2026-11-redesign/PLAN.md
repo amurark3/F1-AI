@@ -705,7 +705,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - Keep older unmatched calls, which may have been shown and later trimmed.
   - The dry run lists every call it drops and every unmatched call it keeps, each with its reason.
 - **Do:** extend `scripts/repair_graded_predictions.py`. It reads the cache document read-only and drops matching calls from history's `snapshots`. Graded fields stay as P0b.9 sets them. The script keeps the dry run by default, backups first, `--apply`, and `DATABASE_URL` from the environment only. Rehearse it on copies of the 2026-11-11 backups (`prodfix/` in the session scratchpad).
-- **Accept:** the rehearsal drops R17's four and R20's two calls, keeps R1's three and R19's one with reasons, and changes no graded call; tests cover the rule's edges.
+- **Accept** (corrected 2026-11-14, user approved; the first version expected R1's three and R19's one kept, but R1 never filled its 8 snapshot slots and R19's call is newer than a kept snapshot): the production dry run drops the ten calls the "Why" lists (R1 ×3, R17 ×4, R19 ×1, R20 ×2), keeps any older unmatched call with its reason, and changes no graded call beyond P0b.9's reset; tests cover the rule's edges.
 - **Verify:** pytest (100%), ruff, format, size.
 
 #### P0b.10 R20's post-qualifying call can be computed again (user, 2026-11-11)

@@ -15,6 +15,7 @@ from app.services.race_control import (
     build_overview_shell,
     build_overview_strategy,
     build_overview_weather,
+    build_round_circuit,
 )
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
@@ -75,6 +76,22 @@ async def get_overview_circuit(year: int) -> dict:
             "lap_record": None,
             "map": None,
             **client_error("api.race_control_overview_circuit.error", exc, year=year),
+        }
+
+
+@router.get("/circuit/{year}/{round_num}")
+async def get_round_circuit(year: int, round_num: int) -> dict:
+    """The given round's circuit map, f1db record and lap record."""
+    try:
+        return await asyncio.to_thread(build_round_circuit, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "record": None,
+            "lap_record": None,
+            "map": None,
+            **client_error("api.race_control_circuit.error", exc, year=year, round=round_num),
         }
 
 

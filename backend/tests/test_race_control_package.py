@@ -29,6 +29,7 @@ _DEFINING_MODULE = {
     "build_overview_strategy": "app.services.race_control.overview",
     "build_overview_weather": "app.services.race_control.overview",
     "build_risk_register": "app.services.race_control.risk",
+    "build_round_circuit": "app.services.race_control.overview",
     "build_strategy_context": "app.services.race_control.strategy_context",
     "focus_for_event": "app.services.race_control.workstreams",
 }

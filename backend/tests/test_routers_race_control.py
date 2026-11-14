@@ -307,6 +307,11 @@ _SEGMENTS = [
     ("/race-control/overview/2026/predictions", "build_overview_predictions", {"year": 2026, "predicted_podium": []}),
     ("/race-control/overview/2026/strategy", "build_overview_strategy", {"year": 2026, "workstreams": []}),
     (
+        "/race-control/circuit/2026/14",
+        "build_round_circuit",
+        {"year": 2026, "round": 14, "record": None, "lap_record": None, "map": None},
+    ),
+    (
         "/race-control/sessions/2026/14",
         "build_weekend_sessions",
         {"year": 2026, "round": 14, "available": False, "is_sprint": False, "sessions": []},

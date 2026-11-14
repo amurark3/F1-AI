@@ -214,6 +214,21 @@ def test_circuit_segment_carries_the_map_and_record_without_telemetry_or_the_mod
     assert (calls.edition, calls.computed_predictions, calls.weather) == (0, 0, 0)
 
 
+def test_a_rounds_circuit_resolves_that_round_not_the_selected_one(calls):
+    segment = rc.build_round_circuit(YEAR, 15)
+
+    assert segment == {"year": YEAR, "round": 15, **CIRCUIT}
+
+
+def test_a_round_the_season_does_not_have_reports_every_part_unavailable(monkeypatch, calls):
+    seen = []
+    _stub(monkeypatch, "build_circuit_segment", lambda year, race: seen.append(race) or CIRCUIT)
+
+    rc.build_round_circuit(YEAR, 99)
+
+    assert seen == [None]
+
+
 # -- predictions ------------------------------------------------------------
 
 

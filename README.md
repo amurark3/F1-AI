@@ -263,6 +263,7 @@ All endpoints are mounted under `/api`.
 | `GET`  | `/api/race-control/overview/{year}/shell`             | Schedule, standings, session state and championship stakes (no telemetry)                        |
 | `GET`  | `/api/race-control/overview/{year}/weather`           | Forecast for every session of the weekend, the race-day summary, and the risk register it grades |
 | `GET`  | `/api/race-control/overview/{year}/circuit`           | Circuit map (MultiViewer), layout facts, lap record and history at the circuit                   |
+| `GET`  | `/api/race-control/circuit/{year}/{round_num}`        | That round's circuit map, f1db record and lap record (empty parts for a round the season lacks)  |
 | `GET`  | `/api/race-control/overview/{year}/predictions`       | Projected podium from the stored model snapshot                                                  |
 | `GET`  | `/api/race-control/overview/{year}/strategy`          | Baseline strategy context and workstreams                                                        |
 | `GET`  | `/api/race-control/teams/{year}`                      | All teams for a season                                                                           |

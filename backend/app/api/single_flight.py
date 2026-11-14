@@ -1,10 +1,9 @@
 """One run of a slow job per key, however many requests ask for it.
 
-The pattern of ``race_detail_builds`` in :mod:`app.api.race_detail`, made
-reusable. A job runs on a worker thread as a task of its own, not as part of
-the request that started it. A request waits for it only so long; the job then
-carries on, and the next request for the same key joins it instead of starting
-a second one beside it. A worker thread cannot be stopped, so a bare
+A job runs on a worker thread as a task of its own, not as part of the request
+that started it. A request waits for it only so long; the job then carries on,
+and the next request for the same key joins it instead of starting a second one
+beside it. A worker thread cannot be stopped, so a bare
 ``wait_for(to_thread(...))`` would leave the first run going and start another
 on every retry.
 """

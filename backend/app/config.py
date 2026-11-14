@@ -71,18 +71,12 @@ SESSION_LOOKUP_INTERVAL = int(os.getenv("SESSION_LOOKUP_INTERVAL", "300"))
 MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "3"))
 
 # ---------------------------------------------------------------------------
-# Background prefetch settings
+# Background self-improvement loop (main.py); the names predate it.
 # ---------------------------------------------------------------------------
-# Delay after server start before beginning race detail prefetch (seconds)
+# Delay after server start before the first pass (seconds)
 PREFETCH_STARTUP_DELAY = int(os.getenv("PREFETCH_STARTUP_DELAY", "30"))
 
-# Timeout for a single race detail prefetch (seconds)
-PREFETCH_RACE_TIMEOUT_SECONDS = int(os.getenv("PREFETCH_RACE_TIMEOUT_SECONDS", "60"))
-
-# Pause between loading individual races during prefetch (seconds)
-PREFETCH_INTER_RACE_DELAY = int(os.getenv("PREFETCH_INTER_RACE_DELAY", "5"))
-
-# How often the prefetch loop runs (seconds) — default 30 minutes
+# How often the loop runs (seconds) — default 30 minutes
 PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
 
 # ---------------------------------------------------------------------------

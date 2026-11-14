@@ -232,7 +232,6 @@ All endpoints are mounted under `/api`.
 | `GET`  | `/api/schedule/{year}`                    | Season calendar with UTC session times                       |
 | `GET`  | `/api/standings/drivers/{year}`           | WDC standings (f1db, Ergast fallback)                        |
 | `GET`  | `/api/standings/constructors/{year}`      | WCC standings                                                |
-| `GET`  | `/api/race/{year}/{round_num}`            | Enriched race + qualifying + sprint detail                   |
 | `GET`  | `/api/compare/{year}/{driver1}/{driver2}` | Season head-to-head comparison                               |
 | `WS`   | `/api/live/{year}/{round_num}`            | Real-time timing WebSocket                                   |
 | `GET`  | `/api/health`                             | Liveness probe                                               |
@@ -405,7 +404,7 @@ cd backend && source .venv/bin/activate && python mcp_server.py
 
 ```
 backend/
-├── main.py                   FastAPI entry point + CORS + warm-up + background prefetch
+├── main.py                   FastAPI entry point + CORS + warm-up + self-improvement loop
 ├── mcp_server.py             MCP server for Claude Desktop / Cursor
 ├── requirements*.txt         runtime, ingest, dev (tests/lint), train
 ├── app/
@@ -418,7 +417,6 @@ backend/
 │   │   │                     analysis, power_units, profiles, memory, readiness
 │   │   ├── tools/            16 LangChain tools + SQL result tallies
 │   │   ├── live/             live-timing WebSocket + connection manager
-│   │   ├── race_detail.py    race + qualifying + sprint detail
 │   │   ├── compare.py        season head-to-head
 │   │   ├── llm.py            chat engines, failover classification, rest periods
 │   │   ├── claim_check.py    checks driver↔team claims against tool results

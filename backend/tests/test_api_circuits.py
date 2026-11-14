@@ -103,7 +103,7 @@ def test_every_circuit_has_plausible_coordinates():
 
 
 @pytest.mark.unit
-def test_every_circuit_has_the_fields_the_race_detail_response_reads():
+def test_every_circuit_has_the_fields_the_schedule_response_reads():
     required = {"circuit_name", "track_length_km", "laps", "lap_record", "first_gp", "circuit_type"}
 
     for name, data in CIRCUIT_DATA.items():

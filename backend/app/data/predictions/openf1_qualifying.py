@@ -11,8 +11,8 @@ timing for laps), and that is how production lost R20's post-qualifying call on
 * Since F1's live-timing archive went behind a login (2026-10-15), every FastF1
   session load sends about a dozen requests to it and its mirror that fail.
   Failures are never cached, so the next load sends them again.
-* After a boot, the prefetch sweep over the season's races spends about 360 of
-  the 500 in a few minutes, and each prediction compute about 60 more. R19's
+* After a boot, the race-detail prefetch sweep (removed in D1.2) spent about
+  360 of the 500 in a few minutes, and each prediction compute about 60 more. R19's
   qualifying load still fit; R20's, eleven seconds later, was refused. The call
   fell back to pre-qualifying, and the compute endpoint rightly refused to file
   it under the post-qualifying tab.

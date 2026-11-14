@@ -1,18 +1,15 @@
 "use client";
 
 import { Activity, Gauge, Timer } from "lucide-react";
-import useSWR from "swr";
 
-import { API_BASE } from "@/app/constants/api";
-import { seededWith } from "@/app/lib/swrFallback";
-import { fetcher } from "@/app/utils/fetcher";
+import { RacePicker } from "@/app/ui/race-picker/RacePicker";
+import { useSchedule } from "@/app/ui/race-picker/useSchedule";
 
 import { InlineNotice, PageStack, SectionHeader } from "../components/RaceControlPrimitives";
 import { resolveDefaultRace } from "../grand-prix/predictionHelpers";
-import { SeasonRoundStrip } from "../grand-prix/SeasonRoundStrip";
 
 import { AnalysisGate } from "./AnalysisNotice";
-import { SessionPicker, YearPicker } from "./AnalysisPickers";
+import { SessionPicker } from "./AnalysisPickers";
 import { HeadToHeadPanel } from "./HeadToHeadPanel";
 import { FIRST_SEASON, TABS, type TabKey, type WeekendSession } from "./telemetryModel";
 import { TrackMapPanel } from "./TrackMapPanel";
@@ -51,15 +48,6 @@ function seasons(current: number): number[] {
   return Array.from({ length: current - FIRST_SEASON + 1 }, (_, index) => current - index);
 }
 
-function useSchedule(year: number, seed: TelemetrySeed): RaceEvent[] {
-  const response = useSWR<RaceEvent[] | { error: string }, Error>(`${API_BASE}/api/schedule/${year}`, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 600000,
-    ...seededWith(year === seed.year ? seed.schedule : null),
-  });
-  return Array.isArray(response.data) ? response.data : [];
-}
-
 function TabBar({ tab, onChange }: { tab: TabKey; onChange: (tab: TabKey) => void }) {
   return (
     <div className="flex flex-wrap gap-1 border-b border-[#1E2633]" role="group" aria-label="Analysis">
@@ -89,7 +77,7 @@ function TabBar({ tab, onChange }: { tab: TabKey; onChange: (tab: TabKey) => voi
 
 export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
   const { params, update } = useTelemetryParams(seed.year);
-  const races = useSchedule(params.year, seed);
+  const races = useSchedule(params.year, params.year === seed.year ? seed.schedule : null).races;
   const round = params.round ?? resolveDefaultRace(races)?.round ?? null;
   const weekend = useWeekend(params.year, round);
   const sessions = weekend.data?.sessions ?? [];
@@ -102,19 +90,18 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
         title="Speed, lines and tyre wear, lap by lap"
         description="Car telemetry and lap timing from OpenF1 for every session since 2023: a lap drawn round the circuit by speed, two drivers' laps side by side, and how fast each compound wore through a race."
       />
-      <YearPicker
-        years={seasons(seed.year)}
-        value={params.year}
-        onChange={(year) => {
-          update({ year, round: null, session: null, a: null, b: null, lap: null });
-        }}
-      />
-      <SeasonRoundStrip
-        schedule={races}
+      <RacePicker
         year={params.year}
+        races={races}
         selectedRound={round}
         onSelectRound={(next) => {
           update({ round: next, session: null, a: null, b: null, lap: null });
+        }}
+        seasons={{
+          years: seasons(seed.year),
+          onSelect: (year) => {
+            update({ year, round: null, session: null, a: null, b: null, lap: null });
+          },
         }}
       />
       <TabBar

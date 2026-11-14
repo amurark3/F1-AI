@@ -11,35 +11,6 @@ import type { LapListDriver, WeekendSession } from "./telemetryModel";
 const LABEL = "font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#7F8797]";
 const SELECT = "min-w-0 rounded border border-[#1E2633] bg-[#0A0E16] px-2 py-1.5 font-mono text-xs text-white";
 
-export function YearPicker({
-  years,
-  value,
-  onChange,
-}: {
-  years: number[];
-  value: number;
-  onChange: (year: number) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2">
-      <span className={LABEL}>Season</span>
-      <select
-        className={SELECT}
-        value={value}
-        onChange={(event) => {
-          onChange(Number(event.target.value));
-        }}
-      >
-        {years.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 /** One button per session the round runs; sessions not yet started are disabled. */
 export function SessionPicker({
   sessions,

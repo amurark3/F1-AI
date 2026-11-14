@@ -5,6 +5,7 @@ import useSWR, { type KeyedMutator } from "swr";
 
 import { API_BASE } from "@/app/constants/api";
 import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
+import { useSchedule } from "@/app/ui/race-picker/useSchedule";
 import { fetcher } from "@/app/utils/fetcher";
 
 import { PageLoader } from "../components/RaceControlPrimitives";
@@ -52,11 +53,6 @@ async function postPredictionCompute(url: string) {
     throw new Error(`Prediction request failed with ${response.status}`);
   }
   return response.json() as Promise<PredictionsResponse>;
-}
-
-/** True when the schedule endpoint returned an `{ error }` payload rather than an array. */
-function hasScheduleErrorPayload(response: RaceEvent[] | { error: string } | undefined): boolean {
-  return !Array.isArray(response) && Boolean(response?.error);
 }
 
 type ComputeReason = "manual_compute" | "qualifying_recompute";
@@ -258,16 +254,7 @@ function buildPhaseStates(
 function useSeasonContext(seed: GrandPrixSeed) {
   const { year } = seed;
 
-  const {
-    data: scheduleResponse,
-    error: scheduleError,
-    isLoading: scheduleLoading,
-    mutate: reloadSchedule,
-  } = useSWR<RaceEvent[] | { error: string }, Error>(`${API_BASE}/api/schedule/${year}`, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000,
-    ...seededWith(seed.schedule),
-  });
+  const calendar = useSchedule(year, seed.schedule);
 
   const {
     data: driversData,
@@ -280,17 +267,13 @@ function useSeasonContext(seed: GrandPrixSeed) {
     ...seededWith(seed.drivers),
   });
 
-  const schedule = useMemo(() => (Array.isArray(scheduleResponse) ? scheduleResponse : []), [scheduleResponse]);
   const drivers = driversData?.drivers ?? [];
 
   return {
-    schedule,
-    scheduleResponse,
-    // Background revalidation must not re-open the loading chrome over content
-    // the server already rendered.
-    awaitingSchedule: awaitingFirstData(scheduleLoading, schedule.length > 0),
-    scheduleFailed: Boolean(scheduleError) || hasScheduleErrorPayload(scheduleResponse),
-    reloadSchedule,
+    schedule: calendar.races,
+    awaitingSchedule: calendar.pending,
+    scheduleFailed: calendar.failed,
+    reloadSchedule: calendar.retry,
     drivers,
     driversFailed: Boolean(driversError || driversData?.error),
     awaitingDrivers: awaitingFirstData(driversLoading, drivers.length > 0),
@@ -421,7 +404,7 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl) {
     },
     onRun: runActivePhase,
     onRetry: () => void active.mutate(),
-    onReloadSchedule: () => void season.reloadSchedule(),
+    onReloadSchedule: season.reloadSchedule,
     onReloadDrivers: () => void season.reloadDrivers(),
   };
 

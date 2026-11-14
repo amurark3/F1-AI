@@ -142,13 +142,25 @@
  *   (00:46 UTC), and Mexico City after qualifying (stored 1 Nov 01:45 UTC,
  *   Hirakawa coded `NAN`).
  *
+ * The race picker (P4.1, 14 Nov) reads `season-calendar-2026.json`, captured
+ * at 19:13 UTC on 14 Nov through the backend's own route functions (f1db
+ * v2026.20.0, which publishes round 20):
+ *
+ * - `schedule`: `GET /api/schedule/2026`, as served: 23 rounds, São Paulo
+ *   (round 20) the last completed, Las Vegas (round 21) the next.
+ * - `champions`: `GET /api/champions/2026`, kept to `season` and
+ *   `race_winners` (a winner, with its team, for rounds 1 to 20).
+ * - `champions_through_round_19`: the same function on a copy of that f1db
+ *   whose 2026 race results stop after round 19: the Monday after São Paulo,
+ *   before f1db published it, when round 20 is completed with no winner yet.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
-import type { StatsResponse } from "@/app/lib/server/champions";
+import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
-import type { DriverPrediction } from "@/app/race-control/grand-prix/predictionModel";
+import type { DriverPrediction, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import type {
   DriverProfile,
   DriverProfileResponse,
@@ -183,6 +195,7 @@ import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
 import ready from "./ready.json";
+import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
 import startingGrids2026 from "./starting-grids-2026.json";
@@ -308,4 +321,19 @@ export const PREDICTION_ORDERS_2026: Record<
   saoPauloPostQualifying: predictionOrders2026.sao_paulo_post_qualifying.predictions,
   saoPauloPreQualifying: predictionOrders2026.sao_paulo_pre_qualifying.predictions,
   mexicoCityPostQualifying: predictionOrders2026.mexico_city_post_qualifying.predictions,
+};
+
+/** What `GET /api/champions/{year}` answers that the race picker reads. */
+export interface SeasonWinners {
+  season: number;
+  race_winners: RaceWinner[];
+}
+
+/** The 2026 calendar and race winners, as served at 19:13 UTC on 14 Nov. */
+export const SEASON_2026 = {
+  // JSON typing reads each weekend's missing session keys as `undefined`, which `Record<string, string>` refuses.
+  schedule: seasonCalendar2026.schedule as unknown as RaceEvent[],
+  winners: seasonCalendar2026.champions as SeasonWinners,
+  /** Before f1db published round 20: São Paulo completed, no winner yet. */
+  winnersThroughRound19: seasonCalendar2026.champions_through_round_19 as SeasonWinners,
 };

@@ -17,7 +17,7 @@ const CORS_HEADERS = { "access-control-allow-origin": "*" };
 
 const NOT_FOUND = 404;
 
-function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
+export function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
   return route.fulfill({ status, json: body, headers: CORS_HEADERS });
 }
 

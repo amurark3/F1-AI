@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { LocalCountdown, LocalTime } from "@/app/components/LocalTime";
+import { RacePicker } from "@/app/ui/race-picker/RacePicker";
 
 import { InlineNotice, SectionLoader, rcFont } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
@@ -14,7 +15,6 @@ import { GridPenalties } from "./GridPenalties";
 import { HUB_TABS, type HubTab, type PredictionView } from "./hubNavigation";
 import { buildDriverLookup, raceSessionTime } from "./predictionHelpers";
 import { PredictionSection } from "./PredictionSection";
-import { SeasonRoundStrip } from "./SeasonRoundStrip";
 import { StartingGrid } from "./StartingGrid";
 import { StintChart } from "./StintChart";
 import { WeekendSessions } from "./WeekendSessions";
@@ -42,7 +42,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * The event this screen is reporting on, in one line. The round strip above
+ * The event this screen is reporting on, in one line. The race picker above
  * is the one control that changes it; the countdown shows only while there is
  * still a race to count down to.
  */
@@ -227,11 +227,11 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
 
   return (
     <div className="space-y-4">
-      <SeasonRoundStrip
-        schedule={props.schedule}
+      <RacePicker
+        year={props.year}
+        races={props.schedule}
         selectedRound={props.selectedRound}
         onSelectRound={props.onSelectRound}
-        year={props.year}
       />
 
       <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />

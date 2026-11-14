@@ -697,6 +697,17 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - The repair dry run on a copy of the 2026-11-11 history backup lists R20 and any other affected race.
 - **Verify:** pytest (100%), ruff, format, size.
 
+#### P0b.9c The repair also drops calls that were never stored (user, 2026-11-11)
+
+- **Why.** Production's history holds calls that never reached the snapshot cache: refused or abandoned computes on R1 (three, 07-21), R17 (four, 10-10), R19 (one, 10-30) and R20 (two). None of them is a graded call, but R17's pre-qualifying review scores one whose positions differ from the call the tab shows.
+- **Rule** (the cache trims old snapshots, so absence alone proves nothing):
+  - Drop a history call only when it is **newer than that race's oldest kept snapshot** and matches no stored snapshot (by `generated_at`).
+  - Keep older unmatched calls, which may have been shown and later trimmed.
+  - The dry run lists every call it drops and every unmatched call it keeps, each with its reason.
+- **Do:** extend `scripts/repair_graded_predictions.py`. It reads the cache document read-only and drops matching calls from history's `snapshots`. Graded fields stay as P0b.9 sets them. The script keeps the dry run by default, backups first, `--apply`, and `DATABASE_URL` from the environment only. Rehearse it on copies of the 2026-11-11 backups (`prodfix/` in the session scratchpad).
+- **Accept:** the rehearsal drops R17's four and R20's two calls, keeps R1's three and R19's one with reasons, and changes no graded call; tests cover the rule's edges.
+- **Verify:** pytest (100%), ruff, format, size.
+
 #### P0b.10 R20's post-qualifying call can be computed again (user, 2026-11-11)
 
 - **Bug.**

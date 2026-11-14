@@ -26,7 +26,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.identity import resolve_team_name
@@ -143,9 +142,8 @@ def later_rounds(year: int, after_round: int) -> tuple[RoundPoints, ...]:
                 found.append(points)
     except UnusableRoundError as exc:
         logger.warning("standings.round_unusable", year=year, round=after_round + len(found) + 1, error=str(exc))
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season, OSError for a network failure and
-    # RateLimitExceededError once FastF1's per-process request cap is spent.
-    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
+    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("standings.openf1_unavailable", year=year, error=str(exc))
     return tuple(found)

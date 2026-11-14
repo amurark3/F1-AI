@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import fastf1
 import pandas as pd
 import structlog
 
 from app.api.circuits import get_circuit_info
 from app.data.current_standings import current_standings
+from app.data.f1db_calendar import season_schedule
 from app.services.race_control.live import live_session
 from app.services.race_control.risk import RIVAL_GAP_MODERATE
 from app.services.race_control.stakes import build_championship_stakes
@@ -23,7 +23,7 @@ logger = structlog.get_logger()
 def season_events(year: int) -> list[dict]:
     """Build the season's event list from the schedule, with derived status."""
 
-    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+    schedule = season_schedule(year)
     now_utc = datetime.now(UTC).replace(tzinfo=None)
 
     events = []

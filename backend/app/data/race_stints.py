@@ -56,7 +56,6 @@ import time
 from typing import TYPE_CHECKING
 
 import fastf1
-from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
@@ -226,10 +225,9 @@ def _race_not_over(year: int, round_num: int) -> bool:
     """
     try:
         start = next((session.start for session in weekend_schedule(year, round_num) if session.code == "R"), None)
-    # FastF1's schedule backend raises ValueError/KeyError for a bad season,
-    # OSError for a network failure and RateLimitExceededError once FastF1's
-    # per-process request cap is spent.
-    except (RateLimitExceededError, ValueError, KeyError, OSError) as exc:
+    # f1db raises CalendarUnavailableError (a ValueError) for a season it does
+    # not hold, and OSError when a missing file cannot be fetched.
+    except (ValueError, KeyError, OSError) as exc:
         logger.warning("race_stints.calendar_unavailable", year=year, round=round_num, error=str(exc))
         return False
     if start is None:

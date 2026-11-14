@@ -1,7 +1,8 @@
 """
 Circuit Metadata
 ================
-Static lookup table of F1 circuit information keyed by FastF1 Location field.
+Static lookup table of F1 circuit information keyed by the calendar's Location
+field: FastF1's spellings, plus f1db's where they differ.
 
 Updated for the 2025 season calendar.  Lap records reflect the fastest race
 lap set at each venue (not qualifying).
@@ -343,6 +344,10 @@ CIRCUIT_DATA: dict[str, dict] = {
         "lon": -3.6163,
     },
 }
+
+# f1db's place names, the calendar's Location since D1.3, where they differ from FastF1's.
+F1DB_PLACES = {"Montreal": "Montréal", "Montmeló": "Barcelona", "Spa": "Spa-Francorchamps", "Sepang": "Kuala Lumpur"}
+CIRCUIT_DATA = {**CIRCUIT_DATA, **{place: CIRCUIT_DATA[key] for place, key in F1DB_PLACES.items()}}
 
 
 def get_circuit_info(location: str) -> dict | None:

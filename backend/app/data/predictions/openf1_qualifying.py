@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.canonical_names import CODE_UNRESOLVED, driver_identity, feed_number, team_display_name
@@ -41,10 +40,9 @@ logger = structlog.get_logger()
 
 OPENF1_SOURCE = "openf1"
 
-# The calendar lookup behind ``find_session`` is FastF1's schedule: ValueError or
-# KeyError for a season it cannot read, OSError for the network, and FastF1's
-# own request cap, which is how this order came to be needed.
-_LOOKUP_ERRORS = (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError)
+# The calendar lookup behind ``find_session`` reads f1db: CalendarUnavailableError
+# (a ValueError) for a season it does not hold.
+_LOOKUP_ERRORS = (OpenF1UnavailableError, ValueError, KeyError, OSError)
 
 
 def _classified_position(row: dict) -> int | None:

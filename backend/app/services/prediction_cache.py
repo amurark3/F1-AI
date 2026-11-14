@@ -12,8 +12,6 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
-import fastf1
-import pandas as pd
 import structlog
 
 from app.data.predictions import (
@@ -55,52 +53,6 @@ def _utc_now() -> datetime:
 
 def _iso(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat() if value else None
-
-
-def _coerce_utc(value: Any) -> datetime | None:
-    if value is None or pd.isna(value):
-        return None
-    if hasattr(value, "to_pydatetime"):
-        value = value.to_pydatetime()
-    if not isinstance(value, datetime):
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
-def _race_datetime(row: Any) -> datetime | None:
-    for index in range(1, 6):
-        if str(row.get(f"Session{index}", "")).lower() == "race":
-            race_date = _coerce_utc(row.get(f"Session{index}DateUtc"))
-            if race_date:
-                return race_date
-
-    for index in range(5, 0, -1):
-        session_date = _coerce_utc(row.get(f"Session{index}DateUtc"))
-        if session_date:
-            return session_date
-
-    return _coerce_utc(row.get("EventDate"))
-
-
-def next_race_start(year: int) -> datetime | None:
-    """Return the next race start for the season, if the calendar is available."""
-
-    try:
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-    except Exception as exc:
-        logger.warning("prediction_cache.schedule_unavailable", year=year, error=str(exc))
-        return None
-
-    now = _utc_now()
-    upcoming: list[datetime] = []
-    for _, row in schedule.iterrows():
-        race_date = _race_datetime(row)
-        if race_date and race_date > now:
-            upcoming.append(race_date)
-
-    return min(upcoming) if upcoming else None
 
 
 class PredictionSnapshotCache:

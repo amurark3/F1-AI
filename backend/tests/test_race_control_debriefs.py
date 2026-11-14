@@ -17,7 +17,7 @@ just the shapes. The risks worth guarding:
   Antonelli" and "Racing Bulls" under the same keys, and FastF1's own words
   when f1db cannot be read.
 
-FastF1 is mocked at the ``get_event_schedule`` / ``get_session`` boundary; the
+f1db's calendar (``season_schedule``) and FastF1's ``get_session`` are mocked; the
 frames themselves are real pandas so the coercion paths are exercised.
 """
 
@@ -99,8 +99,8 @@ def _stub_fastf1(
     """Serve a fixed schedule and race session; returns recorded session calls."""
     requested: list[tuple] = []
 
-    def _get_event_schedule(year: int, include_testing: bool) -> pd.DataFrame:
-        requested.append(("schedule", year, include_testing))
+    def _season_schedule(year: int) -> pd.DataFrame:
+        requested.append(("schedule", year))
         return schedule
 
     def _get_session(year: int, round_num: int, identifier: str) -> _FakeSession:
@@ -108,7 +108,7 @@ def _stub_fastf1(
         assert session is not None, "session load was not expected"
         return session
 
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", _get_event_schedule)
+    monkeypatch.setattr(module, "season_schedule", _season_schedule)
     monkeypatch.setattr(module.fastf1, "get_session", _get_session)
     return requested
 

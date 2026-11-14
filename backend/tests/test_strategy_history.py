@@ -51,7 +51,7 @@ def _stub_seasons(
             raise value
         return value
 
-    def _get_event_schedule(year: int, include_testing: bool):
+    def _season_schedule(year: int):
         seen["schedules"].append(year)
         return _resolve(schedules, year, pd.DataFrame(columns=["RoundNumber", "Location"]))
 
@@ -63,7 +63,7 @@ def _stub_seasons(
         seen["sessions"].append((year, round_num, identifier))
         return _resolve(sessions, year)
 
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", _get_event_schedule)
+    monkeypatch.setattr(module, "season_schedule", _season_schedule)
     monkeypatch.setattr(module.fastf1, "get_session", _get_session)
     monkeypatch.setattr(module, "_load_race_data", _load_race_data)
     return seen

@@ -26,12 +26,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import sqlite3
 
-from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pytest
 import structlog
 
 from app.data import f1db_source, session_entries as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.session_entries import (
     UNAVAILABLE,
     EntryListDriver,
@@ -164,7 +164,9 @@ class TestUnavailable:
         assert load_weekend_entry_list(2026, 19) is UNAVAILABLE
 
     @pytest.mark.parametrize(
-        "error", [ValueError("no such season"), RateLimitExceededError("any API: 500 calls/h")], ids=["bad", "capped"]
+        "error",
+        [CalendarUnavailableError("f1db has no calendar for 2026 yet"), OSError("f1db download failed")],
+        ids=["not-in-f1db", "unreadable"],
     )
     def test_a_calendar_that_will_not_load_is_unavailable(self, openf1, error):
         openf1["sessions"] = error

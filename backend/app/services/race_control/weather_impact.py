@@ -42,7 +42,7 @@ WEATHER_MIXED = "mixed"
 WEATHER_DRY = "dry"
 WEATHER_UNKNOWN = "unknown"
 
-# FastF1's schedule row names its sessions in slots Session1..Session5.
+# The calendar row names its sessions in slots Session1..Session5.
 SCHEDULE_SLOTS = range(1, 6)
 
 REASON_NO_RACE = "the schedule has no race session"
@@ -53,7 +53,7 @@ REASON_FETCHED_LATE = "the stored forecast was fetched after the race started"
 def race_weekend(event_row: Any) -> dict | None:
     """The weekend as ``build_session_weather`` reads it: venue and every session's start.
 
-    Built from the FastF1 schedule row the way ``season_events`` builds the
+    Built from the calendar row the way ``season_events`` builds the
     Command Center's race, so both ask Open-Meteo for the same window and share
     its cached answer.
     """

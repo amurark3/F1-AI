@@ -6,11 +6,11 @@ from datetime import UTC, datetime
 import math
 from typing import TYPE_CHECKING, Any
 
-import fastf1
 import pandas as pd
 import structlog
 
 from app.data.current_standings import current_standings
+from app.data.f1db_calendar import season_schedule
 from app.data.identity import NEUTRAL_TEAM_COLOR, TEAM_COLORS as IDENTITY_TEAM_COLORS
 
 if TYPE_CHECKING:
@@ -121,7 +121,7 @@ def find_driver(drivers: list[dict], query: str) -> dict | None:
 
 def completed_race_rounds(year: int) -> tuple[list[int], int]:
     try:
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+        schedule = season_schedule(year)
     except Exception as exc:
         logger.warning("race_control.completed_rounds.failed", year=year, error=str(exc))
         return [], 0

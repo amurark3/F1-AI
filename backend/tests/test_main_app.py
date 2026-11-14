@@ -368,7 +368,7 @@ def test_the_schedule_endpoint_serialises_its_list_through_the_assembled_app(cli
     """
     from app.api.routers import season as season_router
 
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", lambda year, include_testing: pd.DataFrame())
+    monkeypatch.setattr(season_router, "season_schedule", lambda _year: pd.DataFrame())
 
     response = client.get("/api/schedule/2024")
 

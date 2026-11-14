@@ -12,11 +12,11 @@ published before its timing data is cached, and vice versa.
 from datetime import UTC, datetime, timedelta
 import sqlite3
 
-from fastf1.exceptions import RateLimitExceededError
 import pandas as pd
 import pytest
 
 from app.data import f1db_pitstops, race_stints as stints_module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.f1db_pitstops import race_pit_stops
 from app.data.openf1.sessions import ScheduledSession
 from app.data.pit_sheet import PitSheet
@@ -472,9 +472,9 @@ def test_a_race_still_ahead_is_not_asked_about_again_within_the_retry_window(fak
     [
         (None, None),
         (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable")),
-        (datetime(2024, 5, 26, 13, tzinfo=UTC), RateLimitExceededError("any API: 500 calls/h")),
+        (datetime(2024, 5, 26, 13, tzinfo=UTC), CalendarUnavailableError("f1db has no calendar for 2026 yet")),
     ],
-    ids=["no start time", "calendar unreachable", "calendar capped"],
+    ids=["no start time", "calendar unreachable", "season not in f1db"],
 )
 def test_an_unknown_race_start_does_not_hide_a_stored_race(fake_fastf1, race_start, calendar_error):
     fake_fastf1["race_start"] = race_start

@@ -45,6 +45,7 @@ from app.api.routers.season import (
     build_zero_point_driver_standings,
 )
 from app.data import f1db_source
+from app.data.f1db_calendar import CalendarUnavailableError
 
 JOLPICA = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "jolpica_ergast_responses.json"
 
@@ -199,12 +200,13 @@ def test_status_tracks_the_weekend_timeline(monkeypatch, now, expected):
 
 
 @pytest.mark.unit
-def test_an_event_with_no_session_times_is_upcoming(monkeypatch):
-    _freeze_now(monkeypatch, datetime(2030, 1, 1))
+@pytest.mark.parametrize(("now", "expected"), [(datetime(2026, 3, 7), "upcoming"), (datetime(2030, 1, 1), "completed")])
+def test_an_event_with_no_session_times_is_dated_by_race_day(monkeypatch, now, expected):
+    _freeze_now(monkeypatch, now)
 
     row = _event_row(**{f"Session{i}": None for i in range(1, 6)})
 
-    assert build_schedule_event(row)["status"] == "upcoming"
+    assert build_schedule_event(row)["status"] == expected
 
 
 @pytest.mark.unit
@@ -232,7 +234,7 @@ def test_an_already_offset_event_date_is_left_alone(monkeypatch):
 async def test_schedule_returns_one_entry_per_round(monkeypatch):
     _freeze_now(monkeypatch, datetime(2026, 1, 1))
     frame = pd.DataFrame([_event_row(), _event_row(RoundNumber=2, EventName="Monaco Grand Prix")])
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", lambda year, include_testing: frame)
+    monkeypatch.setattr(season_router, "season_schedule", lambda _year: frame)
 
     body = await season_router.get_schedule(2026)
 
@@ -240,28 +242,48 @@ async def test_schedule_returns_one_entry_per_round(monkeypatch):
 
 
 @pytest.mark.unit
-async def test_schedule_excludes_pre_season_testing(monkeypatch):
-    """Testing events have no round number and would corrupt the calendar."""
-    _freeze_now(monkeypatch, datetime(2026, 1, 1))
-    seen: dict = {}
+async def test_schedule_reads_f1dbs_sprint_and_conventional_weekends(calendar_f1db, monkeypatch):
+    _freeze_now(monkeypatch, datetime(2026, 11, 14))
 
-    def capture(year, include_testing):
-        seen.update({"year": year, "include_testing": include_testing})
-        return pd.DataFrame([_event_row()])
+    body = {event["round"]: event for event in await season_router.get_schedule(2026)}
 
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", capture)
+    singapore, mexico = body[17], body[19]
+    assert (singapore["is_sprint"], list(singapore["sessions"])) == (
+        True,
+        ["Practice 1", "Sprint Qualifying", "Sprint", "Qualifying", "Race"],
+    )
+    assert (mexico["name"], mexico["location"], mexico["date"]) == (
+        "Mexican Grand Prix",
+        "Mexico City, Mexico",
+        "2026-11-01T00:00:00Z",
+    )
+    assert (mexico["is_sprint"], mexico["sessions"]["Race"], mexico["status"]) == (
+        False,
+        "2026-11-01T20:00:00Z",
+        "completed",
+    )
+    assert mexico["circuit"]["circuit_name"] == "Autódromo Hermanos Rodríguez"
+    assert (body[21]["status"], len(body)) == ("upcoming", 23)
 
-    await season_router.get_schedule(2026)
 
-    assert seen == {"year": 2026, "include_testing": False}
+@pytest.mark.unit
+async def test_a_season_f1db_has_no_session_times_for_is_dated_by_race_day(calendar_f1db, monkeypatch):
+    """f1db sets no session times before 2024: a 2023 round has run once its race day has."""
+    _freeze_now(monkeypatch, datetime(2026, 11, 14))
+
+    body = await season_router.get_schedule(2023)
+
+    assert len(body) == 22
+    assert {event["status"] for event in body} == {"completed"}
+    assert {len(event["sessions"]) for event in body} == {0}
 
 
 @pytest.mark.unit
 async def test_schedule_failure_returns_a_client_safe_error(monkeypatch):
-    def explode(**_kwargs):
+    def explode(_year):
         raise ConnectionError("https://api.jolpi.ca/ergast returned 429")
 
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", explode)
+    monkeypatch.setattr(season_router, "season_schedule", explode)
 
     body = await season_router.get_schedule(2026)
 
@@ -553,9 +575,7 @@ def test_list_returning_handlers_answer_200_over_http(client, monkeypatch, path)
     covers the serialisation boundary they pass through.
     """
     _freeze_now(monkeypatch, datetime(2026, 1, 1))
-    monkeypatch.setattr(
-        season_router.fastf1, "get_event_schedule", lambda year, include_testing: pd.DataFrame([_event_row()])
-    )
+    monkeypatch.setattr(season_router, "season_schedule", lambda _year: pd.DataFrame([_event_row()]))
     monkeypatch.setattr(
         season_router,
         "driver_standings_detailed",
@@ -583,10 +603,10 @@ def test_the_schedule_error_payload_survives_its_response_model(client, monkeypa
     failure path, where it would be far harder to notice.
     """
 
-    def explode(year, include_testing):
-        raise RuntimeError("FastF1 is down")
+    def explode(_year):
+        raise CalendarUnavailableError("f1db has no calendar for 2026 yet")
 
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", explode)
+    monkeypatch.setattr(season_router, "season_schedule", explode)
 
     response = client.get("/schedule/2026")
 

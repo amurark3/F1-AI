@@ -1,9 +1,8 @@
 """Which OpenF1 session a round's qualifying, sprint or race is.
 
-A round is found the way the Stints tab has always found it: FastF1's calendar
-(which still loads) gives the circuit location and date, and the OpenF1 meeting
-is matched on those, never on its position in the season. A session is then
-picked **by name**. ``session_type`` reads "Race" for a sprint and "Qualifying"
+A round is found from f1db's calendar (:mod:`app.data.f1db_calendar`): the OpenF1
+meeting is the one starting nearest its race day, never the one at its position
+in the season. A session is then picked **by name**. ``session_type`` reads "Race" for a sprint and "Qualifying"
 for sprint qualifying, so it cannot tell them apart.
 
 The names are OpenF1's own, which are not FastF1's: OpenF1 calls 2023's sprint
@@ -22,11 +21,11 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-import fastf1
 import pandas as pd
 
 from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
 from app.data.canonical_names import driver_identity, team_display_name
+from app.data.f1db_calendar import season_schedule
 from app.data.openf1.client import get_json
 from app.services.live_timing import match_meeting, parse_iso
 
@@ -92,7 +91,7 @@ def session_code(name: object) -> str | None:
 
 
 def _event_row(year: int, round_num: int) -> pd.Series | None:
-    schedule = fastf1.get_event_schedule(year, include_testing=False)
+    schedule = season_schedule(year)
     matches = schedule[schedule["RoundNumber"] == round_num]
     return None if matches.empty else matches.iloc[0]
 
@@ -103,16 +102,14 @@ def _utc(value: object) -> datetime | None:
     return value.to_pydatetime().replace(tzinfo=UTC)
 
 
-def event_identity(year: int, round_num: int) -> tuple[str, datetime] | None:
-    """The round's circuit location and date, from FastF1's calendar."""
+def event_date(year: int, round_num: int) -> datetime | None:
+    """The round's race day, from f1db's calendar."""
     row = _event_row(year, round_num)
-    if row is None:
-        return None
-    return str(row["Location"]), row["EventDate"].to_pydatetime().replace(tzinfo=UTC)
+    return None if row is None else row["EventDate"].to_pydatetime().replace(tzinfo=UTC)
 
 
 def weekend_schedule(year: int, round_num: int) -> tuple[ScheduledSession, ...]:
-    """The round's sessions from FastF1's calendar, which loads while OpenF1 is closed for a live session."""
+    """The round's sessions from f1db's calendar, which loads while OpenF1 is closed for a live session."""
     row = _event_row(year, round_num)
     if row is None:
         return ()
@@ -126,11 +123,10 @@ def weekend_schedule(year: int, round_num: int) -> tuple[ScheduledSession, ...]:
 
 
 def find_meeting(client: httpx.Client, year: int, round_num: int) -> dict | None:
-    identity = event_identity(year, round_num)
-    if identity is None:
+    race_day = event_date(year, round_num)
+    if race_day is None:
         return None
-    location, event_date = identity
-    return match_meeting(get_json(client, "meetings", {"year": year}), location, event_date)
+    return match_meeting(get_json(client, "meetings", {"year": year}), race_day)
 
 
 def _session(row: dict) -> OpenF1Session | None:

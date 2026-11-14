@@ -13,6 +13,7 @@ import fastf1
 import structlog
 
 from app.data.canonical_names import fastf1_code
+from app.data.f1db_calendar import season_schedule
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 if TYPE_CHECKING:
@@ -137,13 +138,13 @@ def _load_recent_sprint_form(year: int, current_round: int) -> dict[str, list[in
 def _find_round_for_location(year: int, location: str) -> int | None:
     """Return the round number where ``location`` was held in ``year``.
 
-    Uses the FastF1 event schedule so the lookup is correct even when the
+    Uses f1db's calendar so the lookup is correct even when the
     calendar order changes between seasons (e.g. Miami added in 2022, Las
     Vegas in 2023, China returning in 2024).  Returns None if the location
     was not on the calendar that year.
     """
     try:
-        schedule = fastf1.get_event_schedule(year, include_testing=False)
+        schedule = season_schedule(year)
         match = schedule[schedule["Location"].str.lower() == location.lower()]
         if not match.empty:
             return int(match.iloc[0]["RoundNumber"])

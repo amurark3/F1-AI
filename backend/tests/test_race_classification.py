@@ -22,6 +22,7 @@ import pandas as pd
 import pytest
 
 from app.data import race_classification as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.race_classification import (
     ClassifiedDriver,
     RaceClassification,
@@ -297,11 +298,11 @@ def test_a_race_openf1_cannot_find_falls_back(sources):
     assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
 
 
-def test_a_calendar_lookup_past_fastf1s_request_cap_falls_back(sources, monkeypatch):
-    def capped(*_args):
-        raise RateLimitExceededError("any API: 500 calls/h")
+def test_a_season_f1db_does_not_hold_falls_back(sources, monkeypatch):
+    def not_in_f1db(*_args):
+        raise CalendarUnavailableError("f1db has no calendar for 2026 yet")
 
-    monkeypatch.setattr(module, "find_session", capped)
+    monkeypatch.setattr(module, "find_session", not_in_f1db)
 
     assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
 

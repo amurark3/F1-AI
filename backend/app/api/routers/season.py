@@ -10,7 +10,6 @@ words stay when f1db cannot say. See :mod:`app.data.canonical_names`.
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
-import fastf1
 from fastf1.ergast import Ergast
 import pandas as pd
 import structlog
@@ -18,6 +17,7 @@ import structlog
 from app.api.circuits import get_circuit_info
 from app.api.errors import client_error
 from app.data.canonical_names import driver_identity, team_display_name
+from app.data.f1db_calendar import season_schedule
 from app.data.f1db_standings import (
     constructor_standings_detailed,
     driver_standings_detailed,
@@ -30,10 +30,10 @@ router = APIRouter(tags=["season"])
 
 @router.get("/schedule/{year}")
 async def get_schedule(year: int) -> list[dict] | dict:
-    """Returns the full season schedule for `year` with UTC timestamps."""
+    """Returns the full season schedule for `year` with UTC timestamps, from f1db's calendar."""
 
     try:
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+        schedule = season_schedule(year)
         return [build_schedule_event(row) for _, row in schedule.iterrows()]
     except Exception as exc:
         return client_error("api.schedule.error", exc, year=year)
@@ -71,6 +71,8 @@ def build_schedule_event(row: pd.Series) -> dict:
         last_session_date = timestamp if last_session_date is None else max(last_session_date, timestamp)
 
     event["is_sprint"] = "Sprint" in event["sessions"]
+    # f1db sets no session times before 2024; such a weekend is dated by race day.
+    last_session_date = last_session_date or row["EventDate"].to_pydatetime()
     now_utc = datetime.now(UTC).replace(tzinfo=None)
     if last_session_date and now_utc > last_session_date + pd.Timedelta(hours=3):
         event["status"] = "completed"

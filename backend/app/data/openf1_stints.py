@@ -40,7 +40,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
@@ -182,10 +181,9 @@ def openf1_race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
         with new_client() as client:
             session_key = _race_session_key(client, year, round_num)
             stints = () if session_key is None else _session_stints(client, session_key)
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season, OSError for a network failure and
-    # RateLimitExceededError once FastF1's per-process request cap is spent.
-    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
+    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("openf1_stints.unavailable", year=year, round=round_num, error=str(exc))
         return ()
     logger.info("openf1_stints.loaded", year=year, round=round_num, stints=len(stints))

@@ -8,6 +8,7 @@ import fastf1
 import pandas as pd
 import structlog
 
+from app.data.f1db_calendar import season_schedule
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 logger = structlog.get_logger()
@@ -30,6 +31,13 @@ def _fmt_laptime(td: pd.Timedelta | None) -> str:
     if minutes > 0:
         return f"{minutes}:{seconds:06.3f}"
     return f"{seconds:.3f}"
+
+
+def _calendar_location(year: int, round_num: int) -> str:
+    """The round's Location on f1db's calendar, the one the history matches past seasons on."""
+    schedule = season_schedule(year)
+    event = schedule[schedule["RoundNumber"] == round_num]
+    return "" if event.empty else str(event.iloc[0]["Location"])
 
 
 def _load_race_data(year: int, round_num: int) -> dict[str, Any] | None:
@@ -59,7 +67,7 @@ def _load_race_data(year: int, round_num: int) -> dict[str, Any] | None:
             "laps": laps,
             "results": results,
             "event_name": str(session.event.get("EventName", f"Round {round_num}")),
-            "location": str(session.event.get("Location", "")),
+            "location": _calendar_location(year, round_num),
         }
 
         _race_data_cache[cache_key] = data

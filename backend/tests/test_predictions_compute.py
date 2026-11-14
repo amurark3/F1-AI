@@ -127,7 +127,7 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
         # By default every timed driver makes the grid, with nothing to report.
         return GridRoster(drivers=tuple(kwargs["timed_drivers"]), warnings=(), data_sources=())
 
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", lambda year, include_testing: _resolve("schedule"))
+    monkeypatch.setattr(module, "season_schedule", lambda _year: _resolve("schedule"))
     # ``should_use_qualifying`` is a decision, not a loader, so it runs for real
     # and consults the session clock where it resolves it.
     monkeypatch.setattr(sessions_module, "_qualifying_has_occurred", lambda row: _resolve("qualifying_has_occurred"))

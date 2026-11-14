@@ -9,6 +9,7 @@ import fastf1
 import structlog
 
 from app.data.canonical_names import feed_code
+from app.data.f1db_calendar import season_schedule
 from app.data.strategy.session import (
     _extract_stint_data,
     _fastf1_lock,
@@ -114,7 +115,7 @@ def _get_historical_strategies(location: str, current_year: int) -> dict:
     # Try last 3 years
     for past_year in range(current_year - 1, max(current_year - 4, 2018), -1):
         try:
-            schedule = fastf1.get_event_schedule(past_year, include_testing=False)
+            schedule = season_schedule(past_year)
             round_num = _round_for_location(schedule, location)
             if round_num is None:
                 continue
@@ -183,7 +184,7 @@ def _calculate_safety_car_probability(location: str, current_year: int) -> tuple
 
     for past_year in years_range:
         try:
-            schedule = fastf1.get_event_schedule(past_year, include_testing=False)
+            schedule = season_schedule(past_year)
             matching = schedule[schedule["Location"] == location]
 
             if matching.empty:

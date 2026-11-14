@@ -24,6 +24,7 @@ import pandas as pd
 import pytest
 
 from app.data import pit_sheet as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.f1db_pitstops import PitStop
 from app.data.pit_sheet import (
     NO_SHEET,
@@ -279,11 +280,11 @@ def test_f1db_answers_once_fastf1s_request_cap_is_spent(sources):
     assert module.race_pit_sheet(2026, 19) == PitSheet(source=module.F1DB_SOURCE, entries=sources["f1db"])
 
 
-def test_a_calendar_lookup_past_fastf1s_request_cap_keeps_the_sheet_untimed(sources, monkeypatch):
-    def capped(*_args):
-        raise RateLimitExceededError("any API: 500 calls/h")
+def test_a_season_f1db_does_not_hold_keeps_the_sheet_untimed(sources, monkeypatch):
+    def not_in_f1db(*_args):
+        raise CalendarUnavailableError("f1db has no calendar for 2026 yet")
 
-    monkeypatch.setattr(module, "find_session", capped)
+    monkeypatch.setattr(module, "find_session", not_in_f1db)
 
     sheet = module.race_pit_sheet(2026, 19)
     assert (sheet.source, len(sheet.entries)) == (module.JOLPICA_SOURCE, 58)

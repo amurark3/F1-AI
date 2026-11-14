@@ -225,10 +225,9 @@ def _openf1_stationary(year: int, round_num: int) -> dict[tuple[str, int], int]:
             if not rows:
                 return {}
             entries = entry_list(client, race.session_key)
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season, OSError for a network failure and
-    # RateLimitExceededError once FastF1's per-process request cap is spent.
-    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
+    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("pit_sheet.openf1_unavailable", year=year, round=round_num, error=str(exc))
         return {}
     return {

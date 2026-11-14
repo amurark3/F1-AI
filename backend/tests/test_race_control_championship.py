@@ -506,7 +506,7 @@ def test_recent_constructor_form_counts_a_team_fastf1_spells_its_own_way(
         ]
     )
     monkeypatch.setattr(module, "load_race_classification", race_control_debriefs.load_race_classification)
-    monkeypatch.setattr(race_control_debriefs.fastf1, "get_event_schedule", lambda year, include_testing: schedule)
+    monkeypatch.setattr(race_control_debriefs, "season_schedule", lambda _year: schedule)
     monkeypatch.setattr(race_control_debriefs.fastf1, "get_session", lambda *_args: _MexicoRace())
 
     constructors = _by_key(module.build_championship_forecast(2026)["constructors"])

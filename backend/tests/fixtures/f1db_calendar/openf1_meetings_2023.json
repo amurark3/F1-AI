@@ -1,0 +1,218 @@
+[
+ {
+  "meeting_key": 1140,
+  "meeting_name": "Pre-Season Testing",
+  "location": "Sakhir",
+  "circuit_key": 63,
+  "date_start": "2023-02-23T07:00:00+00:00",
+  "date_end": "2023-02-25T16:30:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1141,
+  "meeting_name": "Bahrain Grand Prix",
+  "location": "Sakhir",
+  "circuit_key": 63,
+  "date_start": "2023-03-03T11:30:00+00:00",
+  "date_end": "2023-03-05T17:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1142,
+  "meeting_name": "Saudi Arabian Grand Prix",
+  "location": "Jeddah",
+  "circuit_key": 149,
+  "date_start": "2023-03-17T13:30:00+00:00",
+  "date_end": "2023-03-19T19:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1143,
+  "meeting_name": "Australian Grand Prix",
+  "location": "Melbourne",
+  "circuit_key": 10,
+  "date_start": "2023-03-31T02:30:00+00:00",
+  "date_end": "2023-04-02T07:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1207,
+  "meeting_name": "Azerbaijan Grand Prix",
+  "location": "Baku",
+  "circuit_key": 144,
+  "date_start": "2023-04-28T09:30:00+00:00",
+  "date_end": "2023-04-30T13:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1208,
+  "meeting_name": "Miami Grand Prix",
+  "location": "Miami",
+  "circuit_key": 151,
+  "date_start": "2023-05-05T18:00:00+00:00",
+  "date_end": "2023-05-07T21:30:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1209,
+  "meeting_name": "Emilia Romagna Grand Prix",
+  "location": "Imola",
+  "circuit_key": 6,
+  "date_start": "2023-05-19T11:30:00+00:00",
+  "date_end": "2023-05-21T15:00:00+00:00",
+  "is_cancelled": true
+ },
+ {
+  "meeting_key": 1210,
+  "meeting_name": "Monaco Grand Prix",
+  "location": "Monaco",
+  "circuit_key": 22,
+  "date_start": "2023-05-26T11:30:00+00:00",
+  "date_end": "2023-05-28T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1211,
+  "meeting_name": "Spanish Grand Prix",
+  "location": "Barcelona",
+  "circuit_key": 15,
+  "date_start": "2023-06-02T11:30:00+00:00",
+  "date_end": "2023-06-04T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1212,
+  "meeting_name": "Canadian Grand Prix",
+  "location": "Montréal",
+  "circuit_key": 23,
+  "date_start": "2023-06-16T17:30:00+00:00",
+  "date_end": "2023-06-18T20:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1213,
+  "meeting_name": "Austrian Grand Prix",
+  "location": "Spielberg",
+  "circuit_key": 19,
+  "date_start": "2023-06-30T11:30:00+00:00",
+  "date_end": "2023-07-02T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1214,
+  "meeting_name": "British Grand Prix",
+  "location": "Silverstone",
+  "circuit_key": 2,
+  "date_start": "2023-07-07T11:30:00+00:00",
+  "date_end": "2023-07-09T16:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1215,
+  "meeting_name": "Hungarian Grand Prix",
+  "location": "Budapest",
+  "circuit_key": 4,
+  "date_start": "2023-07-21T11:30:00+00:00",
+  "date_end": "2023-07-23T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1216,
+  "meeting_name": "Belgian Grand Prix",
+  "location": "Spa-Francorchamps",
+  "circuit_key": 7,
+  "date_start": "2023-07-28T11:30:00+00:00",
+  "date_end": "2023-07-30T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1217,
+  "meeting_name": "Dutch Grand Prix",
+  "location": "Zandvoort",
+  "circuit_key": 55,
+  "date_start": "2023-08-25T10:30:00+00:00",
+  "date_end": "2023-08-27T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1218,
+  "meeting_name": "Italian Grand Prix",
+  "location": "Monza",
+  "circuit_key": 39,
+  "date_start": "2023-09-01T11:30:00+00:00",
+  "date_end": "2023-09-03T15:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1219,
+  "meeting_name": "Singapore Grand Prix",
+  "location": "Marina Bay",
+  "circuit_key": 61,
+  "date_start": "2023-09-15T09:30:00+00:00",
+  "date_end": "2023-09-17T14:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1220,
+  "meeting_name": "Japanese Grand Prix",
+  "location": "Suzuka",
+  "circuit_key": 46,
+  "date_start": "2023-09-22T02:30:00+00:00",
+  "date_end": "2023-09-24T07:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1221,
+  "meeting_name": "Qatar Grand Prix",
+  "location": "Lusail",
+  "circuit_key": 150,
+  "date_start": "2023-10-06T13:30:00+00:00",
+  "date_end": "2023-10-08T19:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1222,
+  "meeting_name": "United States Grand Prix",
+  "location": "Austin",
+  "circuit_key": 9,
+  "date_start": "2023-10-20T17:30:00+00:00",
+  "date_end": "2023-10-22T21:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1223,
+  "meeting_name": "Mexico City Grand Prix",
+  "location": "Mexico City",
+  "circuit_key": 65,
+  "date_start": "2023-10-27T18:30:00+00:00",
+  "date_end": "2023-10-29T22:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1224,
+  "meeting_name": "São Paulo Grand Prix",
+  "location": "São Paulo",
+  "circuit_key": 14,
+  "date_start": "2023-11-03T14:30:00+00:00",
+  "date_end": "2023-11-05T19:00:00+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1225,
+  "meeting_name": "Las Vegas Grand Prix",
+  "location": "Las Vegas",
+  "circuit_key": 152,
+  "date_start": "2023-11-17T04:30:00+00:00",
+  "date_end": "2023-11-19T07:59:59+00:00",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1226,
+  "meeting_name": "Abu Dhabi Grand Prix",
+  "location": "Yas Island",
+  "circuit_key": 70,
+  "date_start": "2023-11-24T09:30:00+00:00",
+  "date_end": "2023-11-26T15:00:00+00:00",
+  "is_cancelled": false
+ }
+]

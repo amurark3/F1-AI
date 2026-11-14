@@ -21,7 +21,7 @@ What the assertions guard:
   dominate a circuit's overtaking average.
 
 f1db is a real seeded SQLite file here so the results SQL runs; FastF1 is mocked
-at ``get_session``/``get_event_schedule`` because those are network loads.
+at ``get_session``/``season_schedule`` because those are network loads.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ import pytest
 
 from app.data import f1db_results
 from app.data.predictions import form as form_module
+from app.data.predictions.compute import _load_event_context
 from app.data.predictions.form import (
     _find_round_for_location,
     _finish_positions,
@@ -86,7 +87,7 @@ def fastf1_calendar(monkeypatch):
     races: dict[tuple[int, int], object] = {}
     loaded: list[tuple[int, int]] = []
 
-    def _get_event_schedule(year: int, include_testing: bool = True):
+    def _season_schedule(year: int):
         value = schedules.get(year)
         if value is None:
             raise ValueError(f"no schedule for {year}")
@@ -101,7 +102,7 @@ def fastf1_calendar(monkeypatch):
             raise value
         return value if value is not None else _FakeSession(results=None)
 
-    monkeypatch.setattr(form_module.fastf1, "get_event_schedule", _get_event_schedule)
+    monkeypatch.setattr(form_module, "season_schedule", _season_schedule)
     monkeypatch.setattr(form_module.fastf1, "get_session", _get_session)
     return {"schedules": schedules, "races": races, "loaded": loaded}
 
@@ -263,6 +264,17 @@ def test_a_venue_is_found_by_location_whatever_round_it_was_held_at(fastf1_calen
     fastf1_calendar["schedules"][2024] = _schedule(bahrain=1, miami=6, monza=16)
 
     assert _find_round_for_location(2024, "Monza") == 16
+
+
+@pytest.mark.unit
+def test_the_computes_circuit_key_finds_past_editions_on_f1dbs_calendar(calendar_f1db):
+    """The compute keys a circuit by f1db's Location, so its past editions are found on f1db's calendar too."""
+    context = _load_event_context(2026, 19)
+
+    assert (context.gp_name, context.circuit_key) == ("Mexican Grand Prix", "Mexico City")
+    assert _find_round_for_location(2023, context.circuit_key) == 19
+    # The 2026 Bahrain Grand Prix ran at Sepang, where 2023 raced no edition.
+    assert _find_round_for_location(2023, _load_event_context(2026, 16).circuit_key) is None
 
 
 @pytest.mark.unit

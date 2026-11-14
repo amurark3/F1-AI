@@ -284,7 +284,7 @@ def _load_sprint_result(year: int, round_num: int) -> list[dict]:
 
 
 def _to_utc(value: object) -> datetime | None:
-    """Coerce a FastF1 schedule timestamp to an aware UTC datetime, or None."""
+    """Coerce a calendar timestamp (naive UTC) to an aware UTC datetime, or None."""
     if value is None or pd.isna(value):
         return None
     dt = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value

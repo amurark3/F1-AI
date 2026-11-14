@@ -12,7 +12,6 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
-import fastf1
 import structlog
 
 from app.config import (
@@ -25,6 +24,7 @@ from app.config import (
     TEAM_STRENGTH_WEIGHT,
 )
 from app.data.driver_availability import load_weekend_availability
+from app.data.f1db_calendar import season_schedule
 from app.data.f1db_standings import driver_standings_detailed
 from app.data.predictions.accuracy import get_accuracy_stats
 from app.data.predictions.driver_score import RaceSignals, score_driver
@@ -133,7 +133,7 @@ def _load_event_context(year: int, round_num: int) -> EventContext:
     circuit_key = f"round_{round_num}"
     gp_name = f"Round {round_num}"
     try:
-        schedule = fastf1.get_event_schedule(year, include_testing=False)
+        schedule = season_schedule(year)
         event = schedule[schedule["RoundNumber"] == round_num]
         if not event.empty:
             event_row = event.iloc[0]

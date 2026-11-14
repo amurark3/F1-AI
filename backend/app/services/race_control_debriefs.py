@@ -16,6 +16,7 @@ import fastf1
 import pandas as pd
 
 from app.data.canonical_names import fastf1_driver, feed_code, team_display_name
+from app.data.f1db_calendar import season_schedule
 from app.services.race_control_common import safe_float, safe_int
 
 
@@ -237,7 +238,7 @@ def build_race_control_notes(results: list[dict], sections: DebriefSections) -> 
 
 
 def load_race_classification(year: int, round_num: int) -> dict:
-    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+    schedule = season_schedule(year)
     event_row = schedule[schedule["RoundNumber"] == round_num]
     if event_row.empty:
         return {"error": f"Round {round_num} not found for {year}", "race_results": [], "podium": []}

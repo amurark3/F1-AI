@@ -9,6 +9,9 @@ risks are the ones that would quietly poison everything downstream:
   presented as tyre wear, so short stints must report 0.0.
 * **A failed session load masquerading as an empty race.** It has to return
   None so callers degrade rather than reporting a race with no strategy.
+* **A location the history cannot find.** The history matches past seasons on
+  f1db's calendar, so the race's location is f1db's ("Montreal"), not FastF1's
+  ("Montréal").
 """
 
 from __future__ import annotations
@@ -18,6 +21,11 @@ import pytest
 
 from app.data.strategy import session as module
 from tests.strategy_fixture import FakeSession, laps_frame, stint_rows
+
+
+@pytest.fixture(autouse=True)
+def _calendar(calendar_f1db):
+    """f1db's real 2026 calendar: R5 is Canada, R6 Monaco, R7 Barcelona."""
 
 
 @pytest.fixture(autouse=True)
@@ -79,17 +87,17 @@ def test_a_loaded_race_exposes_its_laps_results_and_event_identity(
     session = FakeSession(
         laps=laps,
         results=pd.DataFrame([{"Abbreviation": "VER", "Position": 1.0}]),
-        event={"EventName": "Monaco Grand Prix", "Location": "Monte Carlo"},
+        event={"EventName": "Canadian Grand Prix", "Location": "Montréal"},
     )
     requested = _stub_session(monkeypatch, session)
 
-    data = module._load_race_data(2024, 5)
+    data = module._load_race_data(2026, 5)
 
     assert data is not None
-    assert data["event_name"] == "Monaco Grand Prix"
-    assert data["location"] == "Monte Carlo"
+    assert data["event_name"] == "Canadian Grand Prix"
+    assert data["location"] == "Montreal"
     assert data["laps"] is laps
-    assert requested == [(2024, 5, "R")]
+    assert requested == [(2026, 5, "R")]
     # Telemetry and weather are the expensive loads and are not needed here.
     assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False}
 
@@ -99,10 +107,17 @@ def test_an_event_without_a_name_falls_back_to_its_round(monkeypatch: pytest.Mon
     session = FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={})
     _stub_session(monkeypatch, session)
 
-    data = module._load_race_data(2024, 7)
+    data = module._load_race_data(2026, 7)
 
     assert data["event_name"] == "Round 7"
-    assert data["location"] == ""
+    assert data["location"] == "Montmeló"
+
+
+@pytest.mark.unit
+def test_a_round_off_f1dbs_calendar_has_no_location(monkeypatch: pytest.MonkeyPatch):
+    _stub_session(monkeypatch, FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={}))
+
+    assert module._load_race_data(2026, 30)["location"] == ""
 
 
 @pytest.mark.unit
@@ -112,8 +127,8 @@ def test_a_second_request_for_the_same_race_is_served_from_cache(
     session = FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={})
     requested = _stub_session(monkeypatch, session)
 
-    first = module._load_race_data(2024, 5)
-    second = module._load_race_data(2024, 5)
+    first = module._load_race_data(2026, 5)
+    second = module._load_race_data(2026, 5)
 
     assert first is second
     assert len(requested) == 1
@@ -124,7 +139,7 @@ def test_a_second_request_for_the_same_race_is_served_from_cache(
 def test_a_race_with_no_laps_returns_nothing_and_is_not_cached(monkeypatch: pytest.MonkeyPatch, laps):
     _stub_session(monkeypatch, FakeSession(laps=laps, event={}))
 
-    assert module._load_race_data(2024, 5) is None
+    assert module._load_race_data(2026, 5) is None
     assert module._race_data_cache == {}
 
 
@@ -132,7 +147,7 @@ def test_a_race_with_no_laps_returns_nothing_and_is_not_cached(monkeypatch: pyte
 def test_a_failing_session_load_degrades_to_nothing(monkeypatch: pytest.MonkeyPatch):
     _stub_session(monkeypatch, None, error=RuntimeError("FastF1 cache miss"))
 
-    assert module._load_race_data(2024, 5) is None
+    assert module._load_race_data(2026, 5) is None
 
 
 # ---------------------------------------------------------------------------

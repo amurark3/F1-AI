@@ -7,7 +7,8 @@ qualifying-based and practice-based scoring paths.
 
 Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
 Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
-FastF1's. See :mod:`app.data.canonical_names`.
+the feed's. See :mod:`app.data.canonical_names`. The qualifying order is read
+from OpenF1 before FastF1 (:mod:`app.data.predictions.openf1_qualifying`).
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from app.data.canonical_names import (
     feed_text,
     team_display_name,
 )
+from app.data.predictions.openf1_qualifying import OPENF1_SOURCE, load_openf1_qualifying
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 logger = structlog.get_logger()
@@ -99,40 +101,58 @@ def _classified_order(results: pd.DataFrame | None, year: int) -> list[dict]:
     ]
 
 
+def _fastf1_qualifying(year: int, round_num: int) -> list[dict] | None:
+    """The qualifying order FastF1 can build: Jolpica's classification, else one derived from laps.
+
+    Laps and race control messages are loaded because the Ergast mirror
+    publishes a session's classification hours (sometimes days) after it ends.
+    Until then FastF1 has only the driver list, and derives positions from lap
+    times — striking off laps race control deleted — which it can only do with
+    both loaded.
+    """
+    try:
+        with _fastf1_lock:
+            session = fastf1.get_session(year, round_num, "Q")
+            session.load(telemetry=False, laps=True, weather=False, messages=True)
+    except Exception as exc:
+        # Includes FastF1's own hourly request cap ("any API: 500 calls/h").
+        logger.warning("predictions.qualifying_unavailable", year=year, round=round_num, error=str(exc))
+        return None
+
+    drivers = _classified_order(session.results, year)
+    if not drivers:
+        logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
+        return None
+    return drivers
+
+
 def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
     """Load qualifying results for a specific round.
 
     Returns a list of dicts with keys: driver_code, driver_name, team,
     position.  Returns None if qualifying data is unavailable.
 
-    Laps and race control messages are loaded because the Ergast mirror
-    publishes a session's classification hours (sometimes days) after it ends.
-    Until then FastF1 has only the driver list, and derives positions from lap
-    times — striking off laps race control deleted — which it can only do with
-    both loaded. An order that is still unclassified is not cached, so the next
-    compute retries instead of pinning the race to the practice proxy.
+    OpenF1's ``session_result`` is read first (``docs/DATA_SOURCES.md``: the
+    classification's first source once the session has run), then FastF1. OpenF1
+    is outside FastF1's hourly request cap, which a booting production process
+    spends within minutes; with FastF1 alone, R20's post-qualifying recompute of
+    2026-11-11 had no order and was refused (:mod:`.openf1_qualifying`). An order
+    neither source has yet is not cached, so the next compute retries instead of
+    pinning the race to the practice proxy.
     """
     cache_key = (year, round_num)
     if cache_key in _qualifying_cache:
         return _qualifying_cache[cache_key]
 
-    try:
-        with _fastf1_lock:
-            session = fastf1.get_session(year, round_num, "Q")
-            session.load(telemetry=False, laps=True, weather=False, messages=True)
-
-        drivers = _classified_order(session.results, year)
-        if not drivers:
-            logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
-            return None
-
-        _qualifying_cache[cache_key] = drivers
-        logger.info("predictions.qualifying_loaded", year=year, round=round_num, drivers=len(drivers))
-        return drivers
-
-    except Exception as exc:
-        logger.warning("predictions.qualifying_unavailable", year=year, round=round_num, error=str(exc))
+    drivers, source = load_openf1_qualifying(year, round_num), OPENF1_SOURCE
+    if not drivers:
+        drivers, source = _fastf1_qualifying(year, round_num), "fastf1"
+    if not drivers:
         return None
+
+    _qualifying_cache[cache_key] = drivers
+    logger.info("predictions.qualifying_loaded", year=year, round=round_num, drivers=len(drivers), source=source)
+    return drivers
 
 
 def load_qualifying(year: int, round_num: int) -> list[dict] | None:
@@ -141,8 +161,8 @@ def load_qualifying(year: int, round_num: int) -> list[dict] | None:
     Exposed for :mod:`app.services.race_grid`, which needs the qualifying order
     as a *provisional* stand-in during the window after a session has run and
     before f1db publishes that round's official grid sheet. Sharing this
-    module's cache keeps the grid panel from triggering a second FastF1 session
-    load for data a prediction has usually already fetched.
+    module's cache keeps the grid panel from reading OpenF1 or FastF1 again for
+    data a prediction has usually already fetched.
     """
     return _load_qualifying(year, round_num)
 

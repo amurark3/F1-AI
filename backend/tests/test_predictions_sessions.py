@@ -30,13 +30,14 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 import sqlite3
 
+from fastf1.exceptions import RateLimitExceededError
 import pandas as pd
 import pytest
 import structlog
 
 from app.data import f1db_source
 from app.data.canonical_names import CODE_UNRESOLVED
-from app.data.predictions import sessions as sessions_module
+from app.data.predictions import openf1_qualifying, sessions as sessions_module
 from app.data.predictions.sessions import (
     _classified_order,
     _load_practice,
@@ -46,6 +47,8 @@ from app.data.predictions.sessions import (
     _weekend_has_started,
 )
 from tests.identity_support import mexico_fastf1_results
+from tests.openf1_support import serve
+from tests.roster_support import SAO_PAULO, load, weekend
 from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying
 
 YEAR = 2026
@@ -78,6 +81,19 @@ def _clear_caches():
     yield
     for cache in (sessions_module._qualifying_cache, sessions_module._practice_cache, sessions_module._sprint_cache):
         cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def openf1_order(monkeypatch):
+    """OpenF1 has no qualifying classification unless a test serves one; the FastF1 path is then the one tested."""
+    served: dict[str, object] = {"order": [], "asked": []}
+
+    def _load(year: int, round_num: int) -> list[dict]:
+        served["asked"].append((year, round_num))  # type: ignore[union-attr]
+        return list(served["order"])  # type: ignore[call-overload]
+
+    monkeypatch.setattr(sessions_module, "load_openf1_qualifying", _load)
+    return served
 
 
 @pytest.fixture
@@ -644,3 +660,89 @@ def test_the_r20_qualifying_cache_holds_no_nan_code(identity_f1db, fastf1_sessio
     assert result is not None
     assert "nan" not in {row["driver_code"].lower() for row in result}
     assert _camara(result)["position"] == 13
+
+
+# ---------------------------------------------------------------------------
+# Where the qualifying order comes from (P0b.10)
+# ---------------------------------------------------------------------------
+
+# What FastF1 raised for São Paulo 2026 qualifying in a local replay of
+# production's 2026-11-11 boot (prefetch sweep, R20 pre-qualifying, R19
+# post-qualifying, then R20 post-qualifying): its per-process hourly cap.
+FASTF1_CAPPED = RateLimitExceededError("any API: 500 calls/h")
+
+
+class _CappedSession(_FakeSession):
+    """A FastF1 session whose load FastF1 refuses: the process has spent its hourly request budget."""
+
+    def load(self, **kwargs: object) -> None:
+        super().load(**kwargs)
+        raise FASTF1_CAPPED
+
+
+@pytest.mark.integration
+def test_r20_qualifying_is_built_while_fastf1_refuses_every_request(identity_f1db, fastf1_sessions, monkeypatch):
+    """The 2026-11-11 refusal: FastF1 was capped, so R20 had no qualifying order and the call fell back.
+
+    OpenF1's ``session_result`` (captured, with the session's entry list) is read
+    first and is outside FastF1's budget, so the order is built and FastF1 is
+    never asked.
+    """
+    monkeypatch.setattr(sessions_module, "load_openf1_qualifying", openf1_qualifying.load_openf1_qualifying)
+    monkeypatch.setattr(
+        openf1_qualifying,
+        "find_session",
+        lambda client, year, round_num, code: next(s for s in weekend(SAO_PAULO) if s.code == code),
+    )
+    serve(
+        monkeypatch,
+        openf1_qualifying,
+        {
+            "session_result": load(SAO_PAULO / "openf1_session_result_qualifying.json"),
+            "drivers": load(SAO_PAULO / "openf1_drivers_qualifying.json"),
+        },
+    )
+    fastf1_sessions["Q"] = _CappedSession(results=r20_fastf1_qualifying())
+
+    order = _load_qualifying(2026, 20)
+
+    assert order is not None
+    assert [row["position"] for row in order] == list(range(1, 23))
+    assert _camara(order) == {"driver_code": "CAM", "driver_name": "Rafael Camara", "team": "Haas", "position": 13}
+    assert _requested(fastf1_sessions) == []
+
+
+@pytest.mark.unit
+def test_a_capped_fastf1_with_no_openf1_order_is_no_qualifying_and_says_why(fastf1_sessions, openf1_order):
+    fastf1_sessions["Q"] = _CappedSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    with structlog.testing.capture_logs() as logs:
+        assert _load_qualifying(YEAR, ROUND) is None
+
+    assert openf1_order["asked"] == [(YEAR, ROUND)]
+    assert [(log["event"], log.get("error")) for log in logs] == [
+        ("predictions.qualifying_unavailable", "any API: 500 calls/h")
+    ]
+
+
+@pytest.mark.unit
+def test_fastf1_answers_only_when_openf1_has_no_order(fastf1_sessions, openf1_order):
+    fastf1_sessions["Q"] = _FakeSession(results=pd.DataFrame(QUALIFYING_ROWS))
+
+    assert [row["driver_code"] for row in _load_qualifying(YEAR, ROUND)] == ["VER", "LEC", "NOR"]
+    assert openf1_order["asked"] == [(YEAR, ROUND)]
+    assert _requested(fastf1_sessions) == [(YEAR, ROUND, "Q")]
+
+
+@pytest.mark.unit
+def test_an_openf1_order_is_kept_for_the_process_and_names_its_source(fastf1_sessions, openf1_order):
+    openf1_order["order"] = [{"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "position": 1}]
+
+    with structlog.testing.capture_logs() as logs:
+        first = _load_qualifying(YEAR, ROUND)
+    second = _load_qualifying(YEAR, ROUND)
+
+    assert first == second == openf1_order["order"]
+    assert openf1_order["asked"] == [(YEAR, ROUND)]
+    assert _requested(fastf1_sessions) == []
+    assert [(log["event"], log["source"]) for log in logs] == [("predictions.qualifying_loaded", "openf1")]

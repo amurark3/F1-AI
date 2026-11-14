@@ -780,21 +780,54 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - Coverage for `ui/shell`, `home`, `layout`, `page` and the restart-lights components.
   - **PR.**
 
-## Phase D1 — OpenF1 ingest and store (data platform, part 1)
+## Phase D1 — FastF1 off the request path: OpenF1 store, f1db reads (data platform, part 1; rewritten 2026-11-14)
 
-- **D1.1 Postgres tables** keyed by `(year, round, session_key)`, each row with provenance (`source`, `fetched_at`, `provisional`):
-  - `sessions`, `entries`, `classifications`, `pit_stops`, `stints`;
-  - `race_control_messages`, `overtakes`, `positions`, `intervals`;
-  - `weather_observations`, `team_radio` (URL only), `standings_snapshots`.
-  - Follow the `app/data/store.py` / `analysis_cache` patterns.
-- **D1.2 Ingest job.** Pull every endpoint for a session once it ends, and again an hour later. Use `scripts/` plus a GitHub Action, following the PU ingest pattern (`--require-database`).
-- **D1.3 Source resolver services** per fact, following the matrix in `docs/DATA_SOURCES.md`. Payloads carry `sources` for `SourceBadge`.
-- **D1.4 Quirk handling, with tests for each:**
-  - lap rows missing `date_start` (carry the leader over);
-  - `starting_grid` 404s for 2026;
-  - `pit.stop_duration` can be empty;
-  - 401 during live sessions means "live data unavailable".
-- **Accept:** the R18 and R19 ingest is idempotent, and the resolver tests cover each fallback. **PR.**
+- **Why (user, 2026-11-13).** FastF1 caps 500 requests per process per hour across every API it calls, Jolpica included. Since F1's live-timing login every session load wastes failed live-timing requests, so the cap runs out minutes after boot and predictions, Stints, standings and race detail lose data. The fix is moving reads to OpenF1 and f1db, not a FastF1 workaround.
+- **Input:** [`fastf1-inventory.md`](fastf1-inventory.md) (38 read sites, row IDs A1–A23 and B1–B15, costs, replacements). Re-check a row's `path:line` before relying on it.
+- **Decisions (user, 2026-11-14, "go with your recommendations"):**
+  1. Delete `GET /api/race/{year}/{round}` and its boot prefetch (no frontend caller), after checking nothing else (chat tools, scripts) needs it.
+  2. Jolpica stays a fallback only (pit sheet, standings cross-check, as `DATA_SOURCES.md` says), called directly with our own pacer, never through `fastf1.ergast`.
+  3. Drop pre-2023 lap reads (safety-car odds, older strategy editions): use 2023 onward from OpenF1. A new VM's cold FastF1 cache can't load them anyway.
+  4. The newest round's starting grid, before f1db has it, comes from Jolpica directly, labelled provisional with its source, until D2's FIA documents take over (OpenF1 `starting_grid` 404s for 2026).
+  5. A past-race recompute may read f1db or OpenF1 rows for sessions that ended before the call's cutoff; nothing after it.
+- **Rules for every D1 task:**
+  - A migrated read never caches a failed or capped fetch as an empty answer; it retries later.
+  - Every fact keeps its provenance (source, provisional), shown through `sources` where the payload already has them.
+  - Tests use real captured rows (OpenF1, f1db, Jolpica) under `tests/fixtures/`, as P0–P2 did.
+  - Don't touch `app/data/store.py` / `store_queue.py` while P0c is unmerged (P0c.4 rewrote them on `feat/oracle-backend`).
+- **D1.1 The cap error can't escape** (bug; rows A14–A16). `race_classification._jolpica_classification`, `pit_sheet._jolpica_entries` and `standings_cross_check` don't catch `RateLimitExceededError` (a `RuntimeError` in fastf1 3.8.3), so a capped process raises instead of falling back: the Stints tab fails, and `current_standings()` raises while f1db is behind.
+  - **Do:** catch it at the three sites and fall back as for any other feed error (interim; D1.5 replaces the Jolpica calls).
+  - **Accept:** one test per site with the real exception class: the Stints tab falls back to f1db; `current_standings()` serves the computed table without the cross-check, marked as such; race classification falls back.
+- **D1.2 Boot stops loading FastF1** (rows A1, B1, B2; ≈358 requests per start, ≈72 % of the cap).
+  - **Do:** delete the race-detail prefetch sweep and, per decision 1, `GET /api/race/{year}/{round}` with `build_race_detail` and anything only they use. The prefetch loop's other work (grading, the self-improvement pass) keeps running.
+  - **Accept:** a test proves a fresh boot plus one prefetch cycle makes no FastF1 session load; nothing in `frontend/`, `backend/app`, `backend/scripts` references the removed endpoint; `docs/` updated where it's listed.
+- **D1.3 Calendar from f1db** (rows B3, B6–B14; B7 first).
+  - **Do:** an f1db-backed season schedule (`race` table: rounds, sessions, UTC start times, `circuit_id`) replaces `fastf1.get_event_schedule` for every OpenF1 reader, the prediction compute and the other schedule calls. OpenF1 meetings are matched by date. Delete B14.
+  - **Accept:** no `get_event_schedule` call left in `backend/app` (grep); tests on real f1db rows for 2026 (sprint and non-sprint weekends) and a past season; the OpenF1 readers find the same sessions as before for R19 and R20.
+- **D1.4 Read-through OpenF1 store** (replaces the GitHub Actions ingest; GitHub cron is throttled to ~70-minute gaps).
+  - **Do:** new Postgres tables keyed by `(year, round, session_key)`, each row with `source`, `fetched_at`, `provisional`: `sessions`, `entries`, `classifications`, `laps`, `pit_stops`, `stints`, `race_control_messages`, `weather_observations`, `team_radio` (URL only). A finished session is fetched from OpenF1 the first time it's needed, then served from Postgres; a session still running or under OpenF1's live 401 is never stored. Paced to OpenF1's burst limit (429 after ~20 requests). File fallback when `DATABASE_URL` is empty, like the other stores.
+  - **Hold back** `positions`, `intervals` and `overtakes` until the Oracle VM (Supabase free tier caps at 500 MB). A VM timer can pre-warm the store after the cutover (not this task).
+  - **Quirks, a test each:** lap rows missing `date_start` (carry the leader over); `starting_grid` 404s for 2026; `pit.stop_duration` can be empty; a 401 during a live session means "live data unavailable"; stints split on pit-lane passes; a deleted lap's "LAP n" is one high.
+  - **Accept:** fetching R19 and R20 twice stores each row once (idempotent); a second read makes no OpenF1 request; each quirk's test passes; a partial fetch is not stored as complete.
+- **D1.5 Jolpica direct, paced, fallback only** (rows A14–A16, A9, A22, A23; decision 2).
+  - **Do:** a small Jolpica client with its own pacer (no `fastf1.ergast`) for the pit sheet and the standings cross-check; ask f1db `pit_stop` before Jolpica for released rounds. The Ergast standings fallbacks move to f1db. Decision 4's provisional grid goes through it.
+  - **Accept:** no `fastf1.ergast` import left (grep); tests on the existing real Jolpica captures; the pacer's limit is tested.
+- **D1.6 Prediction inputs from the store and f1db** (rows A3, A4, A5; ≈52–56 requests per compute).
+  - **Do:** practice pace, the sprint result and the qualifying fallback read the D1.4 store (f1db for released rounds), within decision 5's cutoff.
+  - **Accept:** a pre-qualifying and a post-qualifying compute for R20 make no FastF1 request and produce the same inputs as today's FastF1 path on the same session (fixture comparison).
+- **D1.7 Circuit history and grid change from f1db** (rows A6, A7, B4; needs D1.3's `circuit_id`).
+  - **Accept:** the R20 and R21 calls' circuit history and grid deltas come from f1db rows (three past editions), with no FastF1 request; an edition with no f1db row is reported missing, not empty.
+- **D1.8 Grading from the final classification** (row A8).
+  - **Do:** first confirm with a test on a real penalised race whether today's actuals follow Jolpica's pre-penalty order. Then grade from `race_classification()` (FIA-authority order, labelled provisional until confirmed).
+  - **Accept:** a race with a post-race penalty is graded on the post-penalty order; regrading an already graded call follows P0b.9's rules.
+- **D1.9 Debrief, forecast, chat result tools, standings fallbacks** (rows A2, A17–A21, B10).
+  - **Accept:** each reads f1db or the D1.4 store with no FastF1 request, a test each on real rows.
+- **D1.10 Pit-strategy tool** (rows A10–A12, B5; decision 3).
+  - **Do:** move it to `race_stints`, the store's laps and OpenF1 `race_control`; safety-car odds from 2023 onward.
+  - **Accept:** a cold call makes no FastF1 request; the SC sample size is stated in the answer.
+- **Stays on FastF1 for now:** the `race_stints` FastF1 fallback while OpenF1 returns 401 during a live session (warm cache only). Nothing high-frequency: the Telemetry Lab already reads OpenF1.
+- **Accept (phase):** a fresh process that boots, computes a pre-qualifying and a post-qualifying call and serves a Stints request makes zero FastF1 requests (counted at FastF1's limiter in a test), and no cap error reaches a response. `docs/DATA_SOURCES.md` updated. **PR.**
+- **Verify (every task):** pytest (100 %), `ruff check`, `ruff format --check`, `tools.check_module_size`.
 
 ## Phase P4 — Race picker, Grand Prix hub, Telemetry
 
@@ -963,6 +996,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
 
 - P0c was added on 2026-11-08 as P0 (user) and runs first: P0b.1's Open-Meteo diagnosis belongs on the new host.
 - P0b was added on 2026-11-06 and runs before P3 (bugs first). P3.6 depends on P0b.3's section kit.
+- D1 runs before P3.2 (user, 2026-11-13). D1.6 needs D1.4; D1.7 needs D1.3. D1.1 and D1.2 touch different files and may run in parallel worktrees.
 - P4 can start before D1 finishes; the Grid tab's FIA reasons wait for D2.
 - P6.1's penalty timeline uses race control first and gains FIA decisions after D2.
 - P9 can be chipped at any time but finishes last.

@@ -6,8 +6,8 @@ import ChatInput from "@/app/components/ChatInput";
 import ChatMessages from "@/app/components/ChatMessages";
 import ChatSidebar from "@/app/components/ChatSidebar";
 import EngineerAvatar from "@/app/components/EngineerAvatar";
-import { F1DisclaimerLine } from "@/app/components/SiteFooter";
 import { useChat } from "@/app/hooks/useChat";
+import { F1DisclaimerLine } from "@/app/ui/shell/SiteFooter";
 
 import { rcFont } from "../components/RaceControlPrimitives";
 

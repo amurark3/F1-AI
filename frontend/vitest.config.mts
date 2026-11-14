@@ -11,6 +11,11 @@ import { defineConfig } from "vitest/config";
  * code is either tested or deleted.
  */
 const COVERAGE_INCLUDE = [
+  // P3.4: the root layout, its faces, the 404 and the last-resort error page.
+  "app/fonts.ts",
+  "app/global-error.tsx",
+  "app/layout.tsx",
+  "app/not-found.tsx",
   "app/lib/standingsFreshness.ts",
   "app/ui/**",
   "app/race-control/components/BaselineStrategyPanel.tsx",

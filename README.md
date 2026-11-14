@@ -462,8 +462,8 @@ frontend/app/
 │                             (standings), constructors + drivers + profiles (Teams &
 │                             Drivers), power-units, champions, debriefs, rulebook
 ├── calendar/  standings/  champions/  predictions/  consumer/   → redirects
-├── ui/                       UI kit; ui/shell/ is the top bar, More menu, mobile menu, status chip
-├── components/               chat, LiveTimingTower, ServerWarmingGate, SiteFooter, …
+├── ui/                       UI kit; ui/shell/ is the top bar, More menu, mobile menu, status chip, footer
+├── components/               chat, LiveTimingTower, ServerWarmingGate, …
 ├── hooks/                    useChat, useLocalChats, useLiveTiming, useServerStatus, useVoice
 └── lib/  utils/              server-side prefetch, server status store, fetcher, error tracking
 

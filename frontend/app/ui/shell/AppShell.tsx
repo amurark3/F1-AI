@@ -2,9 +2,8 @@
 
 import { usePathname } from "next/navigation";
 
-import SiteFooter from "@/app/components/SiteFooter";
-
 import { layoutFor, type ShellLayout } from "./navConfig";
+import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
 import { WRAP } from "./wrap";
 
@@ -43,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main id="main" className={frame.main}>
         {children}
       </main>
-      {layout === "workspace" ? null : <SiteFooter compact={layout === "page"} />}
+      {layout === "workspace" ? null : <SiteFooter />}
     </div>
   );
 }

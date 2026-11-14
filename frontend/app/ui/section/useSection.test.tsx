@@ -127,8 +127,8 @@ describe("useSection", () => {
   });
 
   it("reads an error payload another hook cached under the same key as a failure", async () => {
-    // The Race Control sidebar fetches the shell with the plain fetcher, which
-    // stores a handled failure as data. The section must not show it as data.
+    // A plain `useSWR(url, fetcher)` on the same key (as the Race Control sidebar
+    // had, until P3.1) stores a handled failure as data. The section must not show it as data.
     answer(HANDLED_FAILURE);
     const { result } = renderHook(
       () => {

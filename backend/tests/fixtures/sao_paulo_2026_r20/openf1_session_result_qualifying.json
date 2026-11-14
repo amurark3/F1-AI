@@ -1,0 +1,442 @@
+[
+ {
+  "position": 1,
+  "driver_number": 1,
+  "number_of_laps": 24,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   90.939,
+   89.207,
+   87.47
+  ],
+  "gap_to_leader": [
+   0.0,
+   2.462,
+   0.0
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 2,
+  "driver_number": 63,
+  "number_of_laps": 23,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   91.206,
+   86.745,
+   87.674
+  ],
+  "gap_to_leader": [
+   0.267,
+   0.0,
+   0.204
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 3,
+  "driver_number": 12,
+  "number_of_laps": 23,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.229,
+   89.302,
+   88.095
+  ],
+  "gap_to_leader": [
+   1.29,
+   2.557,
+   0.625
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 4,
+  "driver_number": 16,
+  "number_of_laps": 22,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.121,
+   88.082,
+   88.289
+  ],
+  "gap_to_leader": [
+   1.182,
+   1.337,
+   0.819
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 5,
+  "driver_number": 30,
+  "number_of_laps": 24,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.085,
+   87.049,
+   88.321
+  ],
+  "gap_to_leader": [
+   1.146,
+   0.304,
+   0.851
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 6,
+  "driver_number": 27,
+  "number_of_laps": 23,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   91.693,
+   88.361,
+   88.668
+  ],
+  "gap_to_leader": [
+   0.754,
+   1.616,
+   1.198
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 7,
+  "driver_number": 6,
+  "number_of_laps": 24,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.059,
+   87.218,
+   88.763
+  ],
+  "gap_to_leader": [
+   1.12,
+   0.473,
+   1.293
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 8,
+  "driver_number": 87,
+  "number_of_laps": 22,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.03,
+   89.13,
+   89.831
+  ],
+  "gap_to_leader": [
+   2.091,
+   2.385,
+   2.361
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 9,
+  "driver_number": 14,
+  "number_of_laps": 23,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.092,
+   89.072,
+   90.311
+  ],
+  "gap_to_leader": [
+   1.153,
+   2.327,
+   2.841
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 10,
+  "driver_number": 23,
+  "number_of_laps": 24,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.15,
+   88.918,
+   90.456
+  ],
+  "gap_to_leader": [
+   2.211,
+   2.173,
+   2.986
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 11,
+  "driver_number": 44,
+  "number_of_laps": 13,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   91.666,
+   90.001,
+   null
+  ],
+  "gap_to_leader": [
+   0.727,
+   3.256,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 12,
+  "driver_number": 81,
+  "number_of_laps": 20,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.251,
+   90.369,
+   null
+  ],
+  "gap_to_leader": [
+   1.312,
+   3.624,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 13,
+  "driver_number": 51,
+  "number_of_laps": 18,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.809,
+   91.515,
+   null
+  ],
+  "gap_to_leader": [
+   1.87,
+   4.77,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 14,
+  "driver_number": 41,
+  "number_of_laps": 16,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.306,
+   91.687,
+   null
+  ],
+  "gap_to_leader": [
+   1.367,
+   4.942,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 15,
+  "driver_number": 55,
+  "number_of_laps": 19,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   92.959,
+   91.785,
+   null
+  ],
+  "gap_to_leader": [
+   2.02,
+   5.04,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 16,
+  "driver_number": 3,
+  "number_of_laps": 9,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   91.238,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   0.299,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 17,
+  "driver_number": 43,
+  "number_of_laps": 12,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.327,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   2.388,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 18,
+  "driver_number": 10,
+  "number_of_laps": 12,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.449,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   2.51,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 19,
+  "driver_number": 18,
+  "number_of_laps": 11,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.653,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   2.714,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 20,
+  "driver_number": 77,
+  "number_of_laps": 12,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   93.774,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   2.835,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 21,
+  "driver_number": 11,
+  "number_of_laps": 12,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   94.509,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   3.57,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ },
+ {
+  "position": 22,
+  "driver_number": 5,
+  "number_of_laps": 5,
+  "dnf": false,
+  "dns": false,
+  "dsq": false,
+  "duration": [
+   101.564,
+   null,
+   null
+  ],
+  "gap_to_leader": [
+   10.625,
+   null,
+   null
+  ],
+  "meeting_key": 1299,
+  "session_key": 11408
+ }
+]

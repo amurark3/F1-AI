@@ -10,6 +10,7 @@ command center:
     circuit            circuit map (MultiViewer) with its f1db record
     stakes             points left, contenders alive, and whether the title can end here
     risk               weather and championship-rival risk register
+    weather_impact     the prediction's race-day call (wet/mixed/dry/unknown), on the register's cut-offs
     workstreams        per-workstream status cards
     strategy_context   season calendar, strategy dashboard and the numbers behind it
     baseline_plan      the latest same-circuit edition's measured plan, in words

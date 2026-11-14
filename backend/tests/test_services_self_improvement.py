@@ -226,7 +226,7 @@ def test_force_regenerates_over_a_stored_postmortem(store, monkeypatch):
     store.payload = {"(2026,2)": {"summary": "stale"}}
     monkeypatch.setattr(si, "get_prediction_review", lambda *_: {"evaluated": True, "winner_correct": True})
     monkeypatch.setattr(si, "_load_prediction_history", dict)
-    monkeypatch.setattr(si, "_latest_prediction_snapshot", lambda entry: {})
+    monkeypatch.setattr(si, "graded_call", lambda entry: {})
     _install_llm(monkeypatch, _FakeLLM("fresh analysis"))
 
     payload = si.generate_miss_postmortem(2026, 2, force=True)
@@ -239,7 +239,7 @@ def test_force_regenerates_over_a_stored_postmortem(store, monkeypatch):
 def test_an_llm_outage_yields_no_postmortem_rather_than_an_empty_one(store, monkeypatch):
     monkeypatch.setattr(si, "get_prediction_review", lambda *_: {"evaluated": True})
     monkeypatch.setattr(si, "_load_prediction_history", dict)
-    monkeypatch.setattr(si, "_latest_prediction_snapshot", lambda entry: {})
+    monkeypatch.setattr(si, "graded_call", lambda entry: {})
 
     from app.api import llm as llm_module
 
@@ -276,6 +276,51 @@ def test_a_generated_postmortem_records_the_misses_and_headline_accuracy(store, 
     assert payload["generated_at"].endswith("+00:00")
     assert store.payload["(2026,2)"] == payload
     assert "NOR" in llm.prompts[0]
+
+
+@pytest.mark.unit
+def test_a_postmortem_explains_the_graded_call_not_the_one_written_last(store, monkeypatch):
+    # R20 São Paulo: a pre-qualifying call (VER P2) was written 16 s after the
+    # post-qualifying one (VER P8). The post-mortem explains the graded call.
+    reviewed: list[tuple] = []
+    monkeypatch.setattr(si, "get_prediction_review", lambda *args: reviewed.append(args) or {"evaluated": True})
+    monkeypatch.setattr(
+        si,
+        "_load_prediction_history",
+        lambda: {
+            "(2026,20)": {
+                "snapshots": [
+                    {"prediction_phase": "post_qualifying", "predicted_positions": {"VER": 8}},
+                    {"prediction_phase": "pre_qualifying", "predicted_positions": {"VER": 2}},
+                ],
+                "predicted_positions": {"VER": 2},
+                "actual_positions": {"VER": 14},
+            }
+        },
+    )
+    _install_llm(monkeypatch, _FakeLLM())
+
+    payload = si.generate_miss_postmortem(2026, 20)
+
+    assert reviewed == [(2026, 20)], "a review naming no phase is the graded call's"
+    assert payload["misses"] == [{"driver": "VER", "predicted": 8, "actual": 14, "delta": 6}]
+
+
+@pytest.mark.unit
+def test_a_pass_records_actuals_for_a_race_whose_call_is_only_in_its_snapshots(store, monkeypatch):
+    monkeypatch.setattr(
+        si,
+        "_load_prediction_history",
+        lambda: {
+            "(2026,3)": {"snapshots": [{"prediction_phase": "pre_qualifying", "predicted_positions": {"VER": 1}}]}
+        },
+    )
+    recorded: list[tuple[int, int]] = []
+    monkeypatch.setattr(si, "record_actual_result", lambda y, r: recorded.append((y, r)))
+    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r: None)
+
+    assert si.run_self_improvement_pass(2026)["actuals_recorded"] == 1
+    assert recorded == [(2026, 3)]
 
 
 @pytest.mark.unit

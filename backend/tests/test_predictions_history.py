@@ -33,6 +33,7 @@ from app.data.predictions.history import (
     _read_prediction_history,
     _save_prediction_history,
     _should_attempt_actual_load,
+    prediction_call,
     record_actual_result,
     save_prediction,
 )
@@ -213,8 +214,60 @@ def test_a_second_prediction_for_the_same_race_appends_a_snapshot(store):
     entry = store.document[KEY]
     phases = [snapshot["prediction_phase"] for snapshot in entry["snapshots"]]
     assert phases == ["pre_qualifying", "post_qualifying"]
-    # The top-level fields track the newest snapshot, which is what gets served.
+    # The top-level fields hold the graded call: the post-qualifying one.
     assert entry["prediction_phase"] == "post_qualifying"
+
+
+@pytest.mark.unit
+def test_a_pre_qualifying_call_after_the_post_qualifying_one_does_not_become_the_graded_call(store):
+    # R20 São Paulo: a pre-qualifying recompute 16 s after the post-qualifying
+    # call took over the top-level fields, so the race was graded on VER P2.
+    post = _predictions(generated_at="2026-11-08T00:45:43+00:00", prediction_phase="post_qualifying")
+    pre = _predictions(
+        generated_at="2026-11-08T00:45:59+00:00",
+        prediction_phase="pre_qualifying",
+        predictions=[{"driver_code": "VER", "position": 2}, {"driver_code": "NOR", "position": 1}],
+    )
+    save_prediction(YEAR, ROUND, post)
+    save_prediction(YEAR, ROUND, pre)
+
+    entry = store.document[KEY]
+    assert [snapshot["prediction_phase"] for snapshot in entry["snapshots"]] == ["post_qualifying", "pre_qualifying"]
+    assert entry["prediction_phase"] == "post_qualifying"
+    assert entry["generated_at"] == "2026-11-08T00:45:43+00:00"
+    assert entry["predicted_positions"] == {"VER": 1, "NOR": 2}
+    assert entry["risk_predictions"]["NOR"]["dnf_risk_pct"] == 22
+
+
+@pytest.mark.unit
+def test_a_call_with_no_phase_is_graded_when_it_is_the_only_one(store):
+    save_prediction(YEAR, ROUND, _predictions(prediction_phase=None))
+
+    entry = store.document[KEY]
+    assert entry["prediction_phase"] is None
+    assert entry["predicted_positions"] == {"VER": 1, "NOR": 2}
+
+
+@pytest.mark.unit
+def test_the_call_extracted_from_a_compute_is_what_history_stores(store):
+    call = prediction_call(_predictions())
+
+    assert call == {
+        "generated_at": "2026-05-24T10:00:00+00:00",
+        "prediction_phase": "post_qualifying",
+        "data_sources": ["qualifying"],
+        "predicted_positions": {"VER": 1, "NOR": 2},
+        "risk_predictions": {
+            "NOR": {"dnf_risk_pct": 22, "crash_risk_pct": 11, "mechanical_risk_pct": 14, "risk_level": "high"}
+        },
+    }
+    save_prediction(YEAR, ROUND, _predictions())
+    assert store.document[KEY]["snapshots"] == [call]
+
+
+@pytest.mark.unit
+def test_a_compute_with_no_finishing_order_has_no_call():
+    assert prediction_call(_predictions(predictions=[])) is None
 
 
 @pytest.mark.unit

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>F1 AI — Home (redesign direction)</title>
+    <title>F1 AI — Home (redesign direction, static: no live or baked-in data)</title>
     <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="system.css" />
     <style>
@@ -38,7 +38,7 @@
       .hero .wrap {
         width: 100%;
         padding-top: 72px;
-        padding-bottom: 148px;
+        padding-bottom: 112px;
       }
       .hero h1 {
         font-size: clamp(54px, 11vw, 176px);
@@ -65,73 +65,6 @@
         gap: 14px;
         margin-top: 36px;
         flex-wrap: wrap;
-      }
-
-      /* ---------- Next-up strip: overlaps the hero edge ---------- */
-      .nextup {
-        position: relative;
-        margin-top: -92px;
-        z-index: 2;
-      }
-      .nextup .panel {
-        display: grid;
-        grid-template-columns: 1.15fr 1.5fr 1.2fr auto;
-        background: rgb(13 17 27 / 0.96);
-      }
-      .nextup .cell {
-        padding: 22px 26px;
-        border-right: 1px solid var(--line);
-        min-width: 0;
-      }
-      .nextup .cell:last-child {
-        border-right: 0;
-      }
-      .race-name {
-        font: 800 30px/1 var(--display);
-        text-transform: uppercase;
-        margin: 10px 0 6px;
-      }
-      .clock {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .clock div {
-        min-width: 66px;
-        text-align: center;
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 8px 6px 7px;
-        background: var(--page);
-      }
-      .clock b {
-        display: block;
-        font: 800 38px/1 var(--display);
-      }
-      .clock span {
-        font: 600 9px/1 var(--mono);
-        letter-spacing: 0.2em;
-        color: var(--ink-3);
-        text-transform: uppercase;
-      }
-      .gap-num {
-        font: 800 46px/1 var(--display);
-        margin: 10px 0 6px;
-        color: var(--gold);
-      }
-      .go {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 30px;
-        font: 800 18px/1.1 var(--display);
-        text-transform: uppercase;
-        color: var(--ink);
-        gap: 10px;
-        transition: background-color 0.15s;
-      }
-      .go:hover {
-        background: var(--raised);
       }
 
       /* ---------- Sections ---------- */
@@ -197,35 +130,25 @@
         width: 100%;
         height: auto;
       }
+      /* Example questions only: no sample answer, nothing that can go stale */
       .chat {
         margin-top: auto;
         padding-top: 22px;
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .bubble {
-        padding: 12px 14px;
+        justify-self: end;
+        max-width: 85%;
+        padding: 10px 14px;
         border-radius: 6px;
         font-size: 13px;
         line-height: 1.5;
-      }
-      .bubble.q {
-        justify-self: end;
         background: var(--raised);
         color: var(--ink);
-        max-width: 85%;
-      }
-      .bubble.a {
-        border: 1px solid var(--line);
-        color: var(--ink-2);
-        max-width: 92%;
-      }
-      .bubble.a b {
-        color: var(--ink);
-        font-weight: 600;
       }
 
-      /* 02 — tools: 3 + 2, each with its own data motif */
+      /* 02 — tools: 3 + 2, each with a data-free motif (shapes only: no names, numbers or team colours) */
       .tools {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
@@ -256,51 +179,39 @@
         opacity: 0.55;
         border-radius: 1px;
       }
-      .rail i.run {
-        opacity: 0.25;
-      }
-      .rail i.next {
-        background: var(--gold);
-        opacity: 1;
-        height: 40px;
-      }
-      .rail i.later {
-        background: var(--line);
-        opacity: 1;
-      }
       .bars {
         width: 100%;
         display: grid;
-        gap: 7px;
+        gap: 9px;
       }
-      .bars div {
-        display: grid;
-        grid-template-columns: 34px 1fr 30px;
-        gap: 8px;
-        align-items: center;
-        font: 500 10px/1 var(--mono);
-        color: var(--ink-3);
-      }
-      .bars span.b {
+      .bars i {
+        display: block;
         height: 6px;
         border-radius: 3px;
+        background: var(--ink-2);
+        opacity: 0.55;
       }
-      .stripes {
+      .pairs {
         display: flex;
-        gap: 4px;
+        gap: 6px;
         width: 100%;
         height: 40px;
       }
-      .stripes i {
+      .pairs span {
         flex: 1;
+        display: grid;
+        gap: 3px;
+      }
+      .pairs i {
         border-radius: 2px;
+        background: var(--ink-2);
+        opacity: 0.55;
       }
       .pips {
+        width: 100%;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(54px, auto));
         gap: 6px 18px;
-        font: 500 10px/1 var(--mono);
-        color: var(--ink-3);
       }
       .pips div {
         display: flex;
@@ -367,16 +278,6 @@
       }
 
       @media (max-width: 1100px) {
-        .nextup .panel {
-          grid-template-columns: 1fr;
-        }
-        .nextup .cell {
-          border-right: 0;
-          border-bottom: 1px solid var(--line);
-        }
-        .go {
-          padding: 18px;
-        }
         .feature,
         .cc {
           grid-template-columns: 1fr;
@@ -396,7 +297,7 @@
           grid-column: 2 / 3;
         }
         .hero .wrap {
-          padding-bottom: 120px;
+          padding-bottom: 88px;
         }
         .hero img {
           object-position: 62% 50%;
@@ -429,7 +330,7 @@
           <a href="#">AI Engineer</a>
           <a href="#">More ▾</a>
         </nav>
-        <div class="status"><span class="dot"></span>R20 · Pre-race</div>
+        <!-- No status chip: "/" is static, so the slot stays empty (PLAN P3.1). -->
         <button class="menu-btn" type="button">MENU</button>
       </div>
       <div class="streak" aria-hidden="true"></div>
@@ -454,74 +355,6 @@
       </div>
     </section>
 
-    <div class="wrap nextup rise" style="animation-delay: 0.45s">
-      <div class="panel">
-        <div class="cell">
-          <p class="eyebrow">Next up · Round 20 / 23</p>
-          <p class="race-name">São Paulo GP</p>
-          <p class="muted">Interlagos · 6–8 Nov</p>
-        </div>
-        <div class="cell">
-          <p class="eyebrow">Lights out in</p>
-          <div class="clock">
-            <div><b>06</b><span>days</span></div>
-            <div><b>13</b><span>hrs</span></div>
-            <div><b>15</b><span>min</span></div>
-          </div>
-        </div>
-        <div class="cell">
-          <p class="eyebrow" style="color:var(--gold)">2026 champion</p>
-          <p class="gap-num" style="font-size:34px;margin-top:14px">Kimi Antonelli</p>
-          <p class="muted">Clinched in Mexico City · 380 pts · four races to spare</p>
-        </div>
-        <a class="go" href="#">Command<br />Center →</a>
-      </div>
-    </div>
-
-    <div class="wrap" style="margin-top:56px">
-      <div class="panel" style="padding:22px 26px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap">
-          <p class="eyebrow">2026 so far · 19 of 23 rounds · tick colour = winning team</p>
-          <p class="mono" style="font-size:12px;color:var(--ink-2)"><span style="color:#27f4d2">■</span> Mercedes 12 &nbsp; <span style="color:#3671c6">■</span> Red Bull 3 &nbsp; <span style="color:#e8002d">■</span> Ferrari 2 &nbsp; <span style="color:#ff8000">■</span> McLaren 2</p>
-        </div>
-        <div style="display:flex;margin-top:6px"><div class="season" role="listbox" aria-label="2026 season rounds"><div class="base"></div>
-<span class="tick" style="left:2.45%;background:#27f4d2"></span>
-<span class="tick" style="left:4.90%;background:#27f4d2"></span>
-<span class="tick" style="left:9.79%;background:#27f4d2"></span>
-<span class="tick" style="left:22.03%;background:#27f4d2"></span>
-<span class="tick" style="left:29.37%;background:#27f4d2"></span>
-<span class="tick" style="left:34.27%;background:#27f4d2"></span>
-<span class="tick" style="left:36.71%;background:#e8002d"></span>
-<span class="tick" style="left:41.61%;background:#27f4d2"></span>
-<span class="tick" style="left:44.06%;background:#e8002d"></span>
-<span class="tick" style="left:48.95%;background:#27f4d2"></span>
-<span class="tick" style="left:51.40%;background:#ff8000"></span>
-<span class="tick" style="left:61.19%;background:#ff8000"></span>
-<span class="tick" style="left:66.08%;background:#27f4d2"></span>
-<span class="tick" style="left:68.53%;background:#27f4d2"></span>
-<span class="tick" style="left:73.08%;background:#27f4d2"></span>
-<span class="tick" style="left:75.87%;background:#3671c6"></span>
-<span class="tick" style="left:78.32%;background:#3671c6"></span>
-<span class="tick" style="left:83.22%;background:#27f4d2"></span>
-<span class="tick" style="left:85.66%;background:#3671c6"></span>
-<span class="tick sel" style="left:88.11%"></span><span class="sel-label" style="left:88.11%">R20</span>
-<span class="tick future" style="left:93.01%"></span>
-<span class="tick future" style="left:95.45%"></span>
-<span class="tick future" style="left:97.90%"></span>
-<span class="month" style="left:0.00%">MAR</span>
-<span class="month" style="left:10.84%">APR</span>
-<span class="month" style="left:21.33%">MAY</span>
-<span class="month" style="left:32.17%">JUN</span>
-<span class="month" style="left:42.66%">JUL</span>
-<span class="month" style="left:53.50%">AUG</span>
-<span class="month" style="left:64.34%">SEP</span>
-<span class="month" style="left:74.83%">OCT</span>
-<span class="month" style="left:85.66%">NOV</span>
-<span class="month" style="left:96.15%">DEC</span>
-</div></div>
-      </div>
-    </div>
-
     <main>
       <div class="wrap">
         <section>
@@ -538,10 +371,11 @@
                   <h3>This weekend, on one screen</h3>
                   <p>Session-by-session forecast, what the title fight hinges on, the strategy baseline and the model's podium.</p>
                 </div>
-                <svg viewBox="-20 -20 640 440" role="img" aria-label="Interlagos circuit outline">
-                  <path d="M208.4 2.2 L185.7 3.1 L165.1 4.2 L151.0 4.9 L135.7 5.7 L124.8 6.3 L118.2 6.6 L96.2 7.9 L83.5 8.8 L72.8 9.6 L67.8 10.2 L54.4 11.9 L45.8 13.7 L36.7 16.3 L33.9 17.4 L27.3 20.5 L22.7 23.8 L18.2 28.8 L16.3 32.6 L15.2 35.8 L14.8 40.2 L15.7 46.2 L15.9 47.2 L17.2 50.5 L20.2 56.5 L22.5 60.3 L25.6 66.0 L28.5 71.8 L30.3 76.7 L31.3 81.6 L31.4 84.6 L28.6 94.3 L25.7 99.2 L21.3 105.5 L19.3 108.2 L14.2 116.0 L10.0 123.0 L5.4 133.1 L1.9 144.9 L0.3 157.1 L0.0 163.7 L1.5 177.2 L3.0 184.2 L7.5 197.0 L13.5 208.5 L17.1 214.0 L26.7 225.6 L32.9 231.6 L40.2 237.5 L51.7 245.2 L59.9 249.7 L75.0 257.3 L89.8 264.5 L99.0 269.0 L107.4 273.1 L117.7 278.1 L133.2 285.5 L142.0 289.6 L161.4 298.9 L173.3 304.7 L190.3 313.1 L210.3 323.0 L218.5 327.1 L229.5 332.6 L236.8 336.3 L256.2 346.1 L265.8 350.9 L277.0 356.6 L289.2 362.7 L297.6 367.1 L307.0 371.8 L320.9 379.1 L330.7 384.3 L338.0 388.1 L348.6 393.3 L361.4 397.8 L367.3 398.9 L373.2 399.5 L380.7 399.3 L386.2 398.2 L391.8 396.0 L397.2 392.2 L403.3 386.2 L406.9 381.3 L409.6 376.7 L414.1 367.2 L417.1 360.1 L419.7 351.8 L421.2 345.7 L422.4 340.2 L423.7 333.0 L424.7 322.5 L424.7 315.7 L424.0 308.8 L422.6 301.8 L420.4 294.2 L416.0 283.7 L409.4 271.3 L397.3 255.0 L393.8 251.2 L387.8 244.8 L377.7 233.9 L369.2 224.7 L358.7 213.3 L350.9 204.8 L345.2 198.8 L335.5 188.8 L327.7 180.8 L318.6 171.4 L308.1 160.5 L297.5 149.6 L288.5 139.9 L282.2 132.2 L276.5 123.0 L273.7 116.7 L270.8 105.8 L270.3 93.7 L270.9 87.2 L272.8 78.3 L275.4 71.2 L279.6 64.0 L283.9 58.4 L287.7 54.3 L291.3 51.1 L297.1 47.1 L308.1 41.6 L320.8 38.0 L327.3 37.0 L337.8 36.3 L343.7 36.3 L350.4 36.4 L360.6 37.1 L362.6 37.3 L370.9 38.5 L377.5 40.2 L382.5 42.0 L387.3 44.3 L392.4 47.5 L396.1 51.0 L398.2 54.5 L399.1 58.4 L398.5 63.7 L397.7 66.1 L396.3 68.9 L395.0 70.9 L392.8 73.9 L389.1 78.5 L385.8 82.4 L382.8 86.2 L380.0 90.3 L377.1 95.9 L375.4 101.7 L375.1 103.1 L375.0 107.1 L376.2 113.2 L377.5 115.9 L378.7 117.9 L382.5 122.1 L386.0 124.4 L390.8 126.3 L394.3 127.1 L400.9 127.4 L408.6 126.2 L411.4 125.4 L419.0 122.6 L424.8 119.8 L432.9 115.2 L437.0 112.7 L448.4 105.8 L455.0 102.4 L463.1 98.7 L468.9 96.3 L481.8 92.4 L491.4 90.6 L497.6 89.9 L500.8 89.8 L505.9 90.0 L509.7 90.6 L513.7 91.5 L520.6 94.2 L524.8 97.2 L526.7 99.6 L528.4 103.9 L528.3 107.4 L527.5 110.5 L526.1 113.4 L523.4 117.3 L520.7 120.1 L518.3 122.3 L514.2 125.2 L511.4 127.0 L506.9 129.6 L503.2 131.5 L499.3 133.4 L493.8 135.9 L487.3 139.1 L477.9 144.3 L473.4 147.3 L468.3 151.7 L462.0 159.8 L460.0 163.3 L456.5 171.2 L453.3 181.6 L451.5 193.3 L451.5 195.5 L452.5 207.9 L454.7 217.5 L457.1 223.9 L461.0 231.6 L466.8 240.2 L472.7 247.0 L482.8 256.9 L489.1 262.7 L493.7 266.9 L499.4 272.1 L512.3 284.0 L517.2 288.3 L526.4 296.2 L532.4 300.7 L535.7 302.7 L536.8 303.3 L540.5 304.8 L550.5 306.3 L552.4 306.0 L556.0 305.2 L560.9 303.3 L566.1 299.6 L569.7 296.2 L573.0 292.2 L576.1 288.1 L581.4 279.9 L583.3 276.7 L587.4 269.4 L589.7 264.7 L593.8 253.7 L595.9 246.1 L597.7 238.2 L598.7 231.4 L599.7 220.3 L600.0 210.6 L599.7 199.1 L598.9 187.4 L597.8 177.9 L596.2 169.1 L593.4 156.9 L588.6 141.6 L585.4 133.7 L583.2 129.0 L574.0 113.0 L568.9 105.7 L559.3 94.3 L556.1 91.0 L550.2 85.4 L540.3 77.2 L533.6 72.3 L525.9 67.1 L518.8 62.6 L505.7 55.3 L492.8 48.9 L483.2 44.5 L465.5 36.5 L458.3 33.3 L450.1 29.8 L436.1 24.3 L429.6 21.9 L413.1 16.6 L401.2 13.2 L384.1 9.1 L371.8 6.7 L359.5 4.7 L348.1 3.1 L339.8 2.3 L326.1 1.2 L322.9 1.1 L309.2 0.4 L296.4 0.1 L283.6 0.0 L276.1 0.1 L265.4 0.3 L255.7 0.5 L241.7 0.9 L233.1 1.2 L223.4 1.6 Z" fill="none" stroke="#1a2130" stroke-width="18" stroke-linejoin="round" />
-                  <path class="draw" pathLength="1" d="M208.4 2.2 L185.7 3.1 L165.1 4.2 L151.0 4.9 L135.7 5.7 L124.8 6.3 L118.2 6.6 L96.2 7.9 L83.5 8.8 L72.8 9.6 L67.8 10.2 L54.4 11.9 L45.8 13.7 L36.7 16.3 L33.9 17.4 L27.3 20.5 L22.7 23.8 L18.2 28.8 L16.3 32.6 L15.2 35.8 L14.8 40.2 L15.7 46.2 L15.9 47.2 L17.2 50.5 L20.2 56.5 L22.5 60.3 L25.6 66.0 L28.5 71.8 L30.3 76.7 L31.3 81.6 L31.4 84.6 L28.6 94.3 L25.7 99.2 L21.3 105.5 L19.3 108.2 L14.2 116.0 L10.0 123.0 L5.4 133.1 L1.9 144.9 L0.3 157.1 L0.0 163.7 L1.5 177.2 L3.0 184.2 L7.5 197.0 L13.5 208.5 L17.1 214.0 L26.7 225.6 L32.9 231.6 L40.2 237.5 L51.7 245.2 L59.9 249.7 L75.0 257.3 L89.8 264.5 L99.0 269.0 L107.4 273.1 L117.7 278.1 L133.2 285.5 L142.0 289.6 L161.4 298.9 L173.3 304.7 L190.3 313.1 L210.3 323.0 L218.5 327.1 L229.5 332.6 L236.8 336.3 L256.2 346.1 L265.8 350.9 L277.0 356.6 L289.2 362.7 L297.6 367.1 L307.0 371.8 L320.9 379.1 L330.7 384.3 L338.0 388.1 L348.6 393.3 L361.4 397.8 L367.3 398.9 L373.2 399.5 L380.7 399.3 L386.2 398.2 L391.8 396.0 L397.2 392.2 L403.3 386.2 L406.9 381.3 L409.6 376.7 L414.1 367.2 L417.1 360.1 L419.7 351.8 L421.2 345.7 L422.4 340.2 L423.7 333.0 L424.7 322.5 L424.7 315.7 L424.0 308.8 L422.6 301.8 L420.4 294.2 L416.0 283.7 L409.4 271.3 L397.3 255.0 L393.8 251.2 L387.8 244.8 L377.7 233.9 L369.2 224.7 L358.7 213.3 L350.9 204.8 L345.2 198.8 L335.5 188.8 L327.7 180.8 L318.6 171.4 L308.1 160.5 L297.5 149.6 L288.5 139.9 L282.2 132.2 L276.5 123.0 L273.7 116.7 L270.8 105.8 L270.3 93.7 L270.9 87.2 L272.8 78.3 L275.4 71.2 L279.6 64.0 L283.9 58.4 L287.7 54.3 L291.3 51.1 L297.1 47.1 L308.1 41.6 L320.8 38.0 L327.3 37.0 L337.8 36.3 L343.7 36.3 L350.4 36.4 L360.6 37.1 L362.6 37.3 L370.9 38.5 L377.5 40.2 L382.5 42.0 L387.3 44.3 L392.4 47.5 L396.1 51.0 L398.2 54.5 L399.1 58.4 L398.5 63.7 L397.7 66.1 L396.3 68.9 L395.0 70.9 L392.8 73.9 L389.1 78.5 L385.8 82.4 L382.8 86.2 L380.0 90.3 L377.1 95.9 L375.4 101.7 L375.1 103.1 L375.0 107.1 L376.2 113.2 L377.5 115.9 L378.7 117.9 L382.5 122.1 L386.0 124.4 L390.8 126.3 L394.3 127.1 L400.9 127.4 L408.6 126.2 L411.4 125.4 L419.0 122.6 L424.8 119.8 L432.9 115.2 L437.0 112.7 L448.4 105.8 L455.0 102.4 L463.1 98.7 L468.9 96.3 L481.8 92.4 L491.4 90.6 L497.6 89.9 L500.8 89.8 L505.9 90.0 L509.7 90.6 L513.7 91.5 L520.6 94.2 L524.8 97.2 L526.7 99.6 L528.4 103.9 L528.3 107.4 L527.5 110.5 L526.1 113.4 L523.4 117.3 L520.7 120.1 L518.3 122.3 L514.2 125.2 L511.4 127.0 L506.9 129.6 L503.2 131.5 L499.3 133.4 L493.8 135.9 L487.3 139.1 L477.9 144.3 L473.4 147.3 L468.3 151.7 L462.0 159.8 L460.0 163.3 L456.5 171.2 L453.3 181.6 L451.5 193.3 L451.5 195.5 L452.5 207.9 L454.7 217.5 L457.1 223.9 L461.0 231.6 L466.8 240.2 L472.7 247.0 L482.8 256.9 L489.1 262.7 L493.7 266.9 L499.4 272.1 L512.3 284.0 L517.2 288.3 L526.4 296.2 L532.4 300.7 L535.7 302.7 L536.8 303.3 L540.5 304.8 L550.5 306.3 L552.4 306.0 L556.0 305.2 L560.9 303.3 L566.1 299.6 L569.7 296.2 L573.0 292.2 L576.1 288.1 L581.4 279.9 L583.3 276.7 L587.4 269.4 L589.7 264.7 L593.8 253.7 L595.9 246.1 L597.7 238.2 L598.7 231.4 L599.7 220.3 L600.0 210.6 L599.7 199.1 L598.9 187.4 L597.8 177.9 L596.2 169.1 L593.4 156.9 L588.6 141.6 L585.4 133.7 L583.2 129.0 L574.0 113.0 L568.9 105.7 L559.3 94.3 L556.1 91.0 L550.2 85.4 L540.3 77.2 L533.6 72.3 L525.9 67.1 L518.8 62.6 L505.7 55.3 L492.8 48.9 L483.2 44.5 L465.5 36.5 L458.3 33.3 L450.1 29.8 L436.1 24.3 L429.6 21.9 L413.1 16.6 L401.2 13.2 L384.1 9.1 L371.8 6.7 L359.5 4.7 L348.1 3.1 L339.8 2.3 L326.1 1.2 L322.9 1.1 L309.2 0.4 L296.4 0.1 L283.6 0.0 L276.1 0.1 L265.4 0.3 L255.7 0.5 L241.7 0.9 L233.1 1.2 L223.4 1.6 Z" fill="none" stroke="#f0f2f6" stroke-width="5" stroke-linejoin="round" />
-                  <circle cx="208.4" cy="2.2" r="7" fill="#e10600" />
+                <svg viewBox="0 0 440 320" role="img" aria-label="A racing line through a corner: in wide, clip the apex, out wide">
+                  <path d="M60 320 L60 200 A140 140 0 0 1 200 60 L440 60" fill="none" stroke="#1e2633" stroke-width="56" />
+                  <path class="draw" pathLength="1" d="M38 320 L38 240 C38 190 76.6 156.6 116.6 116.6 C156.6 76.6 190 38 240 38 L440 38" fill="none" stroke="#f0f2f6" stroke-width="4" stroke-linecap="round" />
+                  <circle cx="116.6" cy="116.6" r="9" fill="#e10600" />
+                  <text x="134" y="146" fill="#7f8797" font-family="Geist Mono, monospace" font-size="13" font-weight="600" letter-spacing="2.6">APEX</text>
                 </svg>
               </div>
             </a>
@@ -549,12 +383,11 @@
               <span class="arrow">→</span>
               <p class="eyebrow">AI Engineer</p>
               <h3>Ask anything</h3>
-              <p>Answers come from the same results database the screens use.</p>
-              <div class="chat">
-                <p class="bubble q">Who has the best record at Interlagos lately?</p>
-                <p class="bubble a">
-                  <b>Max Verstappen</b> — wins in 2023 and 2024. George Russell won in 2022 and Lando Norris in 2025.
-                </p>
+              <p>Strategy, history or the regulations, in plain English. Answers come from the same results database the screens use.</p>
+              <div class="chat" aria-label="Questions to try">
+                <p class="bubble">Why do teams pit under a safety car?</p>
+                <p class="bubble">What does the rulebook say about track limits?</p>
+                <p class="bubble">Who has won the most races from pole?</p>
               </div>
             </a>
           </div>
@@ -569,9 +402,7 @@
             <a class="panel card" href="grand-prix.html">
               <span class="arrow">→</span>
               <div class="motif" aria-hidden="true">
-                <div class="rail">
-                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i style="background:#3671c6;opacity:1"></i><i class="next"></i><i class="later"></i><i class="later"></i><i class="later"></i>
-                </div>
+                <div class="rail"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <h3>Grand Prix Hub</h3>
               <p>Every round: sessions, grid, tyre stints and the model's call.</p>
@@ -580,8 +411,8 @@
               <span class="arrow">→</span>
               <div class="motif" aria-hidden="true">
                 <svg viewBox="0 0 300 64" width="100%" height="64">
-                  <path d="M0 50 C 30 50 40 12 70 12 S 95 14 105 40 S 130 58 150 30 S 185 8 210 10 S 240 46 255 52 S 285 20 300 16" fill="none" stroke="#4c8dff" stroke-width="2" />
-                  <path d="M0 56 C 30 56 40 26 70 24 S 95 22 105 50 S 130 62 150 40 S 185 20 210 20 S 240 54 255 58 S 285 32 300 28" fill="none" stroke="#7f8797" stroke-width="2" stroke-dasharray="5 4" />
+                  <path d="M0 50 C 30 50 40 12 70 12 S 95 14 105 40 S 130 58 150 30 S 185 8 210 10 S 240 46 255 52 S 285 20 300 16" fill="none" stroke="#aeb6c6" stroke-width="2" />
+                  <path d="M0 56 C 30 56 40 26 70 24 S 95 22 105 50 S 130 62 150 40 S 185 20 210 20 S 240 54 255 58 S 285 32 300 28" fill="none" stroke="#3a4254" stroke-width="2" stroke-dasharray="5 4" />
                 </svg>
               </div>
               <h3>Telemetry Lab</h3>
@@ -591,9 +422,9 @@
               <span class="arrow">→</span>
               <div class="motif" aria-hidden="true">
                 <div class="bars">
-                  <div>ANT<span class="b grow-x" style="width: 100%; background: #27f4d2"></span>380</div>
-                  <div>VER<span class="b grow-x" style="width: 68.7%; background: #3671c6; animation-delay: 0.08s"></span>261</div>
-                  <div>HAM<span class="b grow-x" style="width: 68.2%; background: #e8002d; animation-delay: 0.16s"></span>259</div>
+                  <i class="grow-x" style="width: 100%"></i>
+                  <i class="grow-x" style="width: 78%; animation-delay: 0.08s"></i>
+                  <i class="grow-x" style="width: 62%; animation-delay: 0.16s"></i>
                 </div>
               </div>
               <h3>Standings</h3>
@@ -602,9 +433,7 @@
             <a class="panel card wide" href="#">
               <span class="arrow">→</span>
               <div class="motif" aria-hidden="true">
-                <div class="stripes">
-                  <i style="background: #27f4d2"></i><i style="background: #e8002d"></i><i style="background: #3671c6"></i><i style="background: #ff8000"></i><i style="background: #6692ff"></i><i style="background: #ff87bc"></i><i style="background: #b6babd"></i><i style="background: #ff0000"></i><i style="background: #64c4ff"></i><i style="background: #229971"></i><i style="background: #e0d4b8"></i>
-                </div>
+                <div class="pairs"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div>
               </div>
               <h3>Teams &amp; Drivers</h3>
               <p>Line-ups, wins and every driver's finish in every round.</p>

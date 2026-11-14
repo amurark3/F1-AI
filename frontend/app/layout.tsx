@@ -1,29 +1,12 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 
-import NavShell from "./components/NavShell";
 import ServerWarmingGate from "./components/ServerWarmingGate";
+import { FONT_VARIABLES } from "./fonts";
+import { AppShell } from "./ui/shell/AppShell";
 
 import type { Metadata } from "next";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-/** Display face for page titles and section heads (`--font-display` in globals.css). */
-const barlowCondensed = Barlow_Condensed({
-  variable: "--font-barlow",
-  weight: ["600", "700", "800"],
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "F1 AI",
@@ -37,10 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     // The font variables sit on <html> so :root-level tokens that read them resolve.
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${barlowCondensed.variable}`}>
+    <html lang="en" className={FONT_VARIABLES}>
       <body className="antialiased">
         <ServerWarmingGate>
-          <NavShell>{children}</NavShell>
+          <AppShell>{children}</AppShell>
         </ServerWarmingGate>
         <Analytics />
         <SpeedInsights />

@@ -19,6 +19,9 @@ window that reads the same document.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from app.data.predictions import review as review_module
@@ -90,6 +93,64 @@ def test_the_newest_snapshot_wins_over_the_pre_qualifying_one():
     )
 
     assert snapshot["prediction_phase"] == "post_qualifying"
+
+
+@pytest.mark.unit
+def test_a_review_naming_no_phase_grades_r20s_post_qualifying_call(stored_history):
+    # Production's R20 entry: a pre-qualifying call (VER P2) was written 16 s
+    # after the post-qualifying one (VER P8) the site showed.
+    fixture = Path(__file__).parent / "fixtures" / "sao_paulo_2026_r20" / "prediction_history_entry.json"
+    stored_history[KEY] = json.loads(fixture.read_text(encoding="utf-8"))["entry"]
+
+    review = build_prediction_review(YEAR, ROUND)
+
+    assert review["evaluated"] is True
+    assert review["prediction_phase"] == "post_qualifying"
+    assert review["generated_at"] == "2026-11-08T00:45:43.688379+00:00"
+    ver = next(row for row in review["driver_results"] if row["driver_code"] == "VER")
+    assert ver["predicted_position"] == 8
+
+
+# ---------------------------------------------------------------------------
+# Scoring a call before it is stored
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_a_call_handed_in_is_scored_instead_of_the_stored_one(stored_history):
+    # A compute reviews its own call: it reaches history only once it has been
+    # stored as a snapshot, after the review is built.
+    stored_history[KEY] = {
+        "snapshots": [{"prediction_phase": "post_qualifying", "predicted_positions": {"VER": 1, "LEC": 2}}],
+        "actual_positions": {"VER": 2, "LEC": 1},
+    }
+    call = {"generated_at": "t2", "prediction_phase": "post_qualifying", "predicted_positions": {"LEC": 1, "VER": 2}}
+
+    review = build_prediction_review(YEAR, ROUND, phase="post_qualifying", call=call)
+
+    assert review["generated_at"] == "t2"
+    assert review["winner_correct"] is True
+    assert review["exact_position_hits"] == 2
+
+
+@pytest.mark.unit
+def test_a_call_for_a_race_with_no_history_waits_for_the_result(stored_history):
+    call = {"prediction_phase": "pre_qualifying", "predicted_positions": {"VER": 1}}
+
+    review = build_prediction_review(YEAR, ROUND, phase="pre_qualifying", call=call)
+
+    assert review == {"evaluated": False, "reason": "Actual race result is not available yet."}
+
+
+@pytest.mark.unit
+def test_get_prediction_review_scores_the_call_it_is_handed(monkeypatch, stored_history):
+    monkeypatch.setattr(review_module, "record_actual_result", lambda year, round_num: None)
+    stored_history[KEY] = {"actual_positions": {"VER": 1}}
+
+    review = get_prediction_review(YEAR, ROUND, phase="post_qualifying", call={"predicted_positions": {"VER": 1}})
+
+    assert review["evaluated"] is True
+    assert review["winner_correct"] is True
 
 
 # ---------------------------------------------------------------------------

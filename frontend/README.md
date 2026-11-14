@@ -43,8 +43,9 @@ another port needs that origin added there, or every fetch is blocked.
 
 ## Routes
 
-The Race Control sidebar (`app/race-control/components/RaceControlShell.tsx`)
-groups the screens into Operations, Decision Tools and Reference.
+One top bar on every screen (`app/ui/shell/`, lists in `navConfig.ts`) links
+seven sections; Champions, Debriefs and Rulebook sit under "More". Below
+1280 px the links move into a full-screen menu.
 
 | Route                                                        | Purpose                                                                                         |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |

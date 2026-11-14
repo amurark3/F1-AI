@@ -20,7 +20,6 @@
   --foreground: #f0f0f0;
   --surface: #0d111b;
   --surface-raised: #101520;
-  --border-dim: rgba(126, 140, 170, 0.24);
 
   /* Redesign palette (docs/design/redesign/system.css). Mirrored for SVG and
      Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal. */
@@ -332,14 +331,6 @@ body {
 /* ================================================
    Utility classes
    ================================================ */
-
-/* Glass surface (the site header) */
-@utility glass-strong {
-  background: rgba(8, 11, 17, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-dim);
-}
 
 /* Diagonal rain streaks behind a wet session card */
 @utility wx-rain-streaks {

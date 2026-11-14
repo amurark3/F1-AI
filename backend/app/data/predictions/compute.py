@@ -33,7 +33,7 @@ from app.data.predictions.form import (
     _load_grid_to_finish_delta,
     _load_recent_sprint_form,
 )
-from app.data.predictions.history import save_prediction
+from app.data.predictions.history import prediction_call
 from app.data.predictions.model import _adaptive_position_corrections
 from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
 from app.data.predictions.review import get_prediction_review
@@ -405,6 +405,20 @@ def _rejected_roster(year: int, round_num: int, violation: RosterViolation) -> d
     }
 
 
+def _race_weather_impact(event_row: Any) -> str:
+    """The race-day forecast's call for this round: wet, mixed, dry or unknown.
+
+    Graded from the Command Center's race-day forecast with the risk register's
+    cut-offs, point in time (``app.services.race_control.weather_impact``).
+    Imported here rather than at module scope: the race_control package's
+    facade imports the overview, which imports the prediction service, which
+    imports this package, so a module-scope import would be a cycle.
+    """
+    from app.services.race_control.weather_impact import race_weather_impact
+
+    return race_weather_impact(event_row)
+
+
 def compute_race_predictions(year: int, round_num: int, *, phase: str | None = None) -> dict:
     """Compute probabilistic race outcome predictions for all drivers.
 
@@ -443,6 +457,8 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
             {**body, "data_sources": data_sources, "prediction_phase": resolved_phase, "warnings": warnings},
         )
 
+    weather_impact = _race_weather_impact(event.event_row)
+
     if not roster.drivers:
         logger.error("predictions.no_driver_data", year=year, round=round_num)
         return _response(
@@ -455,8 +471,7 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
                 "risk_predictions": [],
                 "prediction_review": get_prediction_review(year, round_num),
                 "prediction_phase": resolved_phase,
-                "weather_impact": "unknown",
-                "wet_scenario": None,
+                "weather_impact": weather_impact,
                 "warnings": [*warnings, "No driver data available for predictions"],
             },
         )
@@ -499,20 +514,16 @@ def compute_race_predictions(year: int, round_num: int, *, phase: str | None = N
             "predictions": predictions,
             "risk_predictions": _compute_risk_predictions(predictions, scored_by_code, year, round_num),
             "prediction_phase": resolved_phase,
-            "weather_impact": "dry",  # Weather module (Plan 02) will populate this
-            "wet_scenario": None,
+            "weather_impact": weather_impact,
             "warnings": warnings or None,
         },
     )
 
-    try:
-        save_prediction(year, round_num, result)
-    except Exception as exc:
-        logger.warning("predictions.save_failed", error=str(exc))
-
-    # Scored after the save so a completed race reviews the call just made,
-    # not the previous snapshot of this phase.
-    result = {**result, "prediction_review": get_prediction_review(year, round_num, phase=resolved_phase)}
+    # Nothing is recorded here: a call reaches prediction history only once the
+    # service has stored it as a snapshot, so a call the endpoint refuses never
+    # does. The review therefore scores this call itself, not history's last one.
+    review = get_prediction_review(year, round_num, phase=resolved_phase, call=prediction_call(result))
+    result = {**result, "prediction_review": review}
 
     logger.info(
         "predictions.computed",

@@ -1,8 +1,9 @@
 # Removed Features
 
 Features that used to exist in this codebase and have since been taken out. If you
-find one of these described in `.planning/`, an old README or a commit message, it
-is **not** a current feature. Don't go looking for it in the code.
+find one of these described in the old `.planning/` folder (deleted 2026-11-13; it
+lives on in git history before that date), an old README or a commit message, it is
+**not** a current feature. Don't go looking for it in the code.
 
 ## Live AI race commentary (removed 2026-09-29)
 
@@ -27,10 +28,11 @@ still streams `session_status` and `positions`. The timing tower on web and iOS
 and the Dynamic Island Live Activity are unaffected. The socket simply never
 sends a `commentary` message any more.
 
-**Planning docs that still describe it.** Phase 4 in `.planning/` built this
-feature: requirements LIVE-03, LIVE-04 and LIVE-05, delivered by plans 04-04,
-04-05 and 04-06. Those docs are kept as history. Each one that mentions
-commentary carries a banner pointing here, and `ROADMAP.md`, `REQUIREMENTS.md`,
+**Planning docs that still describe it.** Phase 4 of the old `.planning/` folder
+built this feature: requirements LIVE-03, LIVE-04 and LIVE-05, delivered by plans
+04-04, 04-05 and 04-06. The folder was deleted on 2026-11-13 and survives only in
+git history (`git log -- .planning`). Each of its docs that mentions commentary
+carries a banner pointing here, and its `ROADMAP.md`, `REQUIREMENTS.md`,
 `PROJECT.md` and `STATE.md` mark the affected items as removed.
 
 **Phase 5 push notifications depend on it.** Phase 5 hasn't started, but it was

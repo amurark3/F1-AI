@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import threading
 
+import structlog
+
 from app.data.predictions import (
     PHASE_POST_QUALIFYING,
     build_prediction_review,
     compute_race_predictions,
     normalise_phase,
+    save_prediction,
 )
 from app.services.prediction_cache import prediction_snapshot_cache
+
+logger = structlog.get_logger()
 
 # One compute lock per race. Computing a snapshot costs a stack of FastF1
 # session loads, so two requests arriving together for the same race — two tabs,
@@ -45,6 +50,12 @@ def compute_and_store_race_prediction(
     ``phase`` targets one of the two stored calls. Storing is per phase, so
     recomputing the pre-qualifying prediction leaves the post-qualifying one
     exactly as it was, and vice versa.
+
+    Every path that stores a snapshot comes through here (the compute
+    endpoint, first compute, the backfill script), and a call reaches
+    prediction history only after its snapshot is stored. A refused call (no
+    predictions, or a pre-qualifying answer to a post-qualifying request) and a
+    snapshot the store would not take are never graded.
     """
 
     wanted = normalise_phase(phase)
@@ -64,7 +75,21 @@ def compute_and_store_race_prediction(
             }
         )
 
-    return enrich_prediction_result(prediction_snapshot_cache.set(year, round_num, result, reason=reason))
+    stored = prediction_snapshot_cache.set(year, round_num, result, reason=reason)
+    _record_in_history(year, round_num, result)
+    return enrich_prediction_result(stored)
+
+
+def _record_in_history(year: int, round_num: int, result: dict) -> None:
+    """Record a stored call for grading; a failure costs the record, not the response.
+
+    The snapshot is already stored and served, so a history outage must not
+    turn a successful compute into an error.
+    """
+    try:
+        save_prediction(year, round_num, result)
+    except Exception as exc:
+        logger.warning("predictions.save_failed", year=year, round=round_num, error=str(exc))
 
 
 def get_or_compute_race_prediction(year: int, round_num: int) -> dict:

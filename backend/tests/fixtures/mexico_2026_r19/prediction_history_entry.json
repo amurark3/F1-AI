@@ -1,0 +1,1708 @@
+{
+ "source": "The (2026,19) entry of production's prediction_history document, copied unchanged from the backup taken 2026-11-11 01:34:58 UTC (STATUS.md log, 2026-11-11). Its last call is the post-qualifying recompute stored 2026-11-11 01:34:36, so its top-level fields already hold its graded call: the repair leaves it alone.",
+ "key": "(2026,19)",
+ "entry": {
+  "snapshots": [
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:50:51.105018+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:50:55.650939+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:50:59.873259+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:51:06.875192+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:59:07.507488+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "previous_weekend_entry_list",
+     "trained_ml_model"
+    ],
+    "generated_at": "2026-10-30T22:59:29.522869+00:00",
+    "prediction_phase": "pre_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 14,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "OCO": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 14
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 19,
+     "ALO": 18,
+     "ANT": 1,
+     "BEA": 9,
+     "BOR": 16,
+     "BOT": 21,
+     "COL": 15,
+     "GAS": 10,
+     "HAD": 8,
+     "HAM": 5,
+     "HUL": 13,
+     "LAW": 12,
+     "LEC": 3,
+     "LIN": 11,
+     "NOR": 6,
+     "OCO": 14,
+     "PER": 22,
+     "PIA": 7,
+     "RUS": 4,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 2
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "qualifying",
+     "trained_ml_model",
+     "weekend_entry_list"
+    ],
+    "generated_at": "2026-11-01T01:45:21.141311+00:00",
+    "prediction_phase": "post_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 22,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 18
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LEC": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 18,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 14
+     },
+     "NAN": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 14,
+      "mechanical_risk_pct": 15
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 18,
+     "ALO": 19,
+     "ANT": 4,
+     "BEA": 13,
+     "BOR": 15,
+     "BOT": 21,
+     "COL": 14,
+     "GAS": 11,
+     "HAD": 7,
+     "HAM": 3,
+     "HUL": 12,
+     "LAW": 9,
+     "LEC": 2,
+     "LIN": 10,
+     "NAN": 17,
+     "NOR": 6,
+     "PER": 22,
+     "PIA": 8,
+     "RUS": 5,
+     "SAI": 16,
+     "STR": 20,
+     "VER": 1
+    }
+   },
+   {
+    "data_sources": [
+     "adaptive_history",
+     "circuit_history",
+     "constructor_standings",
+     "driver_standings",
+     "last_5_races",
+     "qualifying",
+     "trained_ml_model",
+     "weekend_entry_list"
+    ],
+    "generated_at": "2026-11-11T01:34:36.345720+00:00",
+    "prediction_phase": "post_qualifying",
+    "risk_predictions": {
+     "ALB": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 14,
+      "mechanical_risk_pct": 19
+     },
+     "ALO": {
+      "risk_level": "high",
+      "dnf_risk_pct": 23,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 20
+     },
+     "ANT": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 10
+     },
+     "BEA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 15
+     },
+     "BOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 20,
+      "crash_risk_pct": 12,
+      "mechanical_risk_pct": 15
+     },
+     "BOT": {
+      "risk_level": "high",
+      "dnf_risk_pct": 36,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 33
+     },
+     "COL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 16,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 11
+     },
+     "GAS": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "HAD": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "HAM": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 8
+     },
+     "HIR": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     },
+     "HUL": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 16
+     },
+     "LAW": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 10,
+      "mechanical_risk_pct": 10
+     },
+     "LEC": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 9
+     },
+     "LIN": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 8,
+      "mechanical_risk_pct": 9
+     },
+     "NOR": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 13,
+      "crash_risk_pct": 5,
+      "mechanical_risk_pct": 11
+     },
+     "PER": {
+      "risk_level": "high",
+      "dnf_risk_pct": 27,
+      "crash_risk_pct": 4,
+      "mechanical_risk_pct": 25
+     },
+     "PIA": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 15,
+      "crash_risk_pct": 11,
+      "mechanical_risk_pct": 10
+     },
+     "RUS": {
+      "risk_level": "low",
+      "dnf_risk_pct": 11,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 8
+     },
+     "SAI": {
+      "risk_level": "medium",
+      "dnf_risk_pct": 21,
+      "crash_risk_pct": 14,
+      "mechanical_risk_pct": 15
+     },
+     "STR": {
+      "risk_level": "high",
+      "dnf_risk_pct": 25,
+      "crash_risk_pct": 6,
+      "mechanical_risk_pct": 22
+     },
+     "VER": {
+      "risk_level": "low",
+      "dnf_risk_pct": 12,
+      "crash_risk_pct": 7,
+      "mechanical_risk_pct": 9
+     }
+    },
+    "predicted_positions": {
+     "ALB": 18,
+     "ALO": 19,
+     "ANT": 3,
+     "BEA": 13,
+     "BOR": 15,
+     "BOT": 22,
+     "COL": 14,
+     "GAS": 11,
+     "HAD": 7,
+     "HAM": 4,
+     "HIR": 16,
+     "HUL": 12,
+     "LAW": 10,
+     "LEC": 2,
+     "LIN": 8,
+     "NOR": 6,
+     "PER": 21,
+     "PIA": 9,
+     "RUS": 5,
+     "SAI": 17,
+     "STR": 20,
+     "VER": 1
+    }
+   }
+  ],
+  "data_sources": [
+   "adaptive_history",
+   "circuit_history",
+   "constructor_standings",
+   "driver_standings",
+   "last_5_races",
+   "qualifying",
+   "trained_ml_model",
+   "weekend_entry_list"
+  ],
+  "generated_at": "2026-11-11T01:34:36.345720+00:00",
+  "actual_statuses": {
+   "ALB": "Finished",
+   "ALO": "Retired",
+   "ANT": "Finished",
+   "BEA": "Retired",
+   "BOR": "Finished",
+   "BOT": "Retired",
+   "COL": "Finished",
+   "GAS": "Finished",
+   "HAD": "Finished",
+   "HAM": "Finished",
+   "HIR": "Finished",
+   "HUL": "Finished",
+   "LAW": "Finished",
+   "LEC": "Finished",
+   "LIN": "Retired",
+   "NOR": "Finished",
+   "PER": "Finished",
+   "PIA": "Finished",
+   "RUS": "Finished",
+   "SAI": "Finished",
+   "STR": "Retired",
+   "VER": "Finished"
+  },
+  "actual_incidents": {
+   "ALB": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "ALO": {
+    "dnf": true,
+    "crash": false,
+    "mechanical": false
+   },
+   "ANT": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "BEA": {
+    "dnf": true,
+    "crash": false,
+    "mechanical": false
+   },
+   "BOR": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "BOT": {
+    "dnf": true,
+    "crash": false,
+    "mechanical": false
+   },
+   "COL": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "GAS": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "HAD": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "HAM": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "HIR": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "HUL": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "LAW": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "LEC": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "LIN": {
+    "dnf": true,
+    "crash": false,
+    "mechanical": false
+   },
+   "NOR": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "PER": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "PIA": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "RUS": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "SAI": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   },
+   "STR": {
+    "dnf": true,
+    "crash": false,
+    "mechanical": false
+   },
+   "VER": {
+    "dnf": false,
+    "crash": false,
+    "mechanical": false
+   }
+  },
+  "actual_positions": {
+   "ALB": 14,
+   "ALO": 22,
+   "ANT": 3,
+   "BEA": 19,
+   "BOR": 11,
+   "BOT": 20,
+   "COL": 8,
+   "GAS": 10,
+   "HAD": 12,
+   "HAM": 2,
+   "HIR": 13,
+   "HUL": 16,
+   "LAW": 9,
+   "LEC": 4,
+   "LIN": 18,
+   "NOR": 5,
+   "PER": 17,
+   "PIA": 7,
+   "RUS": 6,
+   "SAI": 15,
+   "STR": 21,
+   "VER": 1
+  },
+  "prediction_phase": "post_qualifying",
+  "risk_predictions": {
+   "ALB": {
+    "risk_level": "high",
+    "dnf_risk_pct": 25,
+    "crash_risk_pct": 14,
+    "mechanical_risk_pct": 19
+   },
+   "ALO": {
+    "risk_level": "high",
+    "dnf_risk_pct": 23,
+    "crash_risk_pct": 7,
+    "mechanical_risk_pct": 20
+   },
+   "ANT": {
+    "risk_level": "low",
+    "dnf_risk_pct": 12,
+    "crash_risk_pct": 5,
+    "mechanical_risk_pct": 10
+   },
+   "BEA": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 20,
+    "crash_risk_pct": 11,
+    "mechanical_risk_pct": 15
+   },
+   "BOR": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 20,
+    "crash_risk_pct": 12,
+    "mechanical_risk_pct": 15
+   },
+   "BOT": {
+    "risk_level": "high",
+    "dnf_risk_pct": 36,
+    "crash_risk_pct": 7,
+    "mechanical_risk_pct": 33
+   },
+   "COL": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 16,
+    "crash_risk_pct": 11,
+    "mechanical_risk_pct": 11
+   },
+   "GAS": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 15,
+    "crash_risk_pct": 10,
+    "mechanical_risk_pct": 10
+   },
+   "HAD": {
+    "risk_level": "low",
+    "dnf_risk_pct": 11,
+    "crash_risk_pct": 6,
+    "mechanical_risk_pct": 8
+   },
+   "HAM": {
+    "risk_level": "low",
+    "dnf_risk_pct": 11,
+    "crash_risk_pct": 7,
+    "mechanical_risk_pct": 8
+   },
+   "HIR": {
+    "risk_level": "low",
+    "dnf_risk_pct": 12,
+    "crash_risk_pct": 7,
+    "mechanical_risk_pct": 9
+   },
+   "HUL": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 21,
+    "crash_risk_pct": 10,
+    "mechanical_risk_pct": 16
+   },
+   "LAW": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 15,
+    "crash_risk_pct": 10,
+    "mechanical_risk_pct": 10
+   },
+   "LEC": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 13,
+    "crash_risk_pct": 8,
+    "mechanical_risk_pct": 9
+   },
+   "LIN": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 13,
+    "crash_risk_pct": 8,
+    "mechanical_risk_pct": 9
+   },
+   "NOR": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 13,
+    "crash_risk_pct": 5,
+    "mechanical_risk_pct": 11
+   },
+   "PER": {
+    "risk_level": "high",
+    "dnf_risk_pct": 27,
+    "crash_risk_pct": 4,
+    "mechanical_risk_pct": 25
+   },
+   "PIA": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 15,
+    "crash_risk_pct": 11,
+    "mechanical_risk_pct": 10
+   },
+   "RUS": {
+    "risk_level": "low",
+    "dnf_risk_pct": 11,
+    "crash_risk_pct": 6,
+    "mechanical_risk_pct": 8
+   },
+   "SAI": {
+    "risk_level": "medium",
+    "dnf_risk_pct": 21,
+    "crash_risk_pct": 14,
+    "mechanical_risk_pct": 15
+   },
+   "STR": {
+    "risk_level": "high",
+    "dnf_risk_pct": 25,
+    "crash_risk_pct": 6,
+    "mechanical_risk_pct": 22
+   },
+   "VER": {
+    "risk_level": "low",
+    "dnf_risk_pct": 12,
+    "crash_risk_pct": 7,
+    "mechanical_risk_pct": 9
+   }
+  },
+  "predicted_positions": {
+   "ALB": 18,
+   "ALO": 19,
+   "ANT": 3,
+   "BEA": 13,
+   "BOR": 15,
+   "BOT": 22,
+   "COL": 14,
+   "GAS": 11,
+   "HAD": 7,
+   "HAM": 4,
+   "HIR": 16,
+   "HUL": 12,
+   "LAW": 10,
+   "LEC": 2,
+   "LIN": 8,
+   "NOR": 6,
+   "PER": 21,
+   "PIA": 9,
+   "RUS": 5,
+   "SAI": 17,
+   "STR": 20,
+   "VER": 1
+  }
+ }
+}

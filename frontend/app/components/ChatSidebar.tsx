@@ -17,8 +17,8 @@ interface ChatSidebarProps {
   onToggleCollapse: () => void;
 }
 
-// Mirrors the Race Control sidebar's AI Engineer link: a red-tinted tile, not a
-// solid fill, so the primary action reads as part of the shell.
+// A red-tinted tile, not a solid fill, so the primary action reads as part of
+// the workspace rather than shouting over it.
 const NEW_CHAT_BUTTON =
   "w-full flex items-center justify-center rounded-md border border-[#E10600]/30 bg-[#E10600]/10 text-white hover:border-[#E10600]/50 hover:bg-[#E10600]/20 transition-colors duration-200";
 

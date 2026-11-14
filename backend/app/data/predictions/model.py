@@ -14,6 +14,7 @@ from typing import Any
 
 import structlog
 
+from app.data.predictions.graded import graded_call
 from app.data.predictions.history import _load_prediction_history
 
 logger = structlog.get_logger()
@@ -122,20 +123,13 @@ def _adaptive_position_corrections(year: int, round_num: int) -> dict[str, dict[
     )
 
     for _, entry in earlier:
-        snapshots = entry.get("snapshots")
-        if not snapshots:
-            snapshots = [
-                {
-                    "predicted_positions": entry.get("predicted_positions") or {},
-                    "generated_at": entry.get("generated_at"),
-                }
-            ]
         actual = entry.get("actual_positions") or {}
         if not actual:
             continue
 
-        latest = snapshots[-1] if snapshots else {}
-        predicted = latest.get("predicted_positions") or entry.get("predicted_positions") or {}
+        # Learn from the race's graded call (its post-qualifying one when it
+        # has one), not from whichever call happened to be stored last.
+        predicted = graded_call(entry).get("predicted_positions") or {}
         for code, predicted_pos in predicted.items():
             actual_pos = actual.get(code)
             if actual_pos is None:

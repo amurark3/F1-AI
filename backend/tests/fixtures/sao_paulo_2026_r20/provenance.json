@@ -5,7 +5,9 @@
  "files": {
   "jolpica_qualifying.json": "GET https://api.jolpi.ca/ergast/f1/2026/20/qualifying.json?limit=100, MRData.RaceTable.Races[0]",
   "openf1_drivers_qualifying.json": "GET https://api.openf1.org/v1/drivers?session_key=11408",
-  "f1db_v2026_20_camara.json": "f1db v2026.20.0 SQLite release (https://github.com/f1db/f1db/releases/download/v2026.20.0/f1db-sqlite.zip): driver, race_data and season_entrant_driver rows for rafael-camara; its own 'source' says how"
+  "f1db_v2026_20_camara.json": "f1db v2026.20.0 SQLite release (https://github.com/f1db/f1db/releases/download/v2026.20.0/f1db-sqlite.zip): driver, race_data and season_entrant_driver rows for rafael-camara; its own 'source' says how",
+  "openf1_session_result_qualifying.json": "GET https://api.openf1.org/v1/session_result?session_key=11408, captured 2026-11-14T04:55:03Z for P0b.10 (R20 post-qualifying recompute refused); unedited apart from JSON indentation. Car 51 (Câmara) is P13.",
+  "../mexico_2026_r19/openf1_session_result_qualifying.json": "GET https://api.openf1.org/v1/session_result?session_key=11400 (Mexico City 2026 qualifying), captured 2026-11-14T04:55:03Z for P0b.10; unedited apart from JSON indentation. Car 30 (Lawson, disqualified from qualifying by FIA document 57) has no position."
  },
  "notes": "Unedited apart from JSON indentation. Jolpica now codes Câmara CAM, but the FastF1 results production loaded for R20 qualifying had no Abbreviation for him (STATUS.md log, 2026-11-08), so the tests blank that one cell to NaN the way pandas hands it over. openf1_sessions.json and openf1_drivers_practice1.json predate this file (captured 2 Nov 2026; see tests/roster_support.py)."
 }

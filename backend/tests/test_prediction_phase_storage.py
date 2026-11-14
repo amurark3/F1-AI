@@ -5,9 +5,11 @@ so recomputing one leaves the other exactly as it was — the guarantee the two
 prediction tabs rest on.
 """
 
+import copy
+
 import pytest
 
-from app.data.predictions import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING
+from app.data.predictions import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, history as history_module
 from app.data.store_types import ReadResult, WriteResult
 from app.services import prediction_cache as cache_module, predictions as service_module
 from app.services.prediction_cache import (
@@ -39,11 +41,12 @@ class FakeDocumentStore:
         return WriteResult()
 
 
-def _result(phase: str, winner: str) -> dict:
+def _result(phase: str, winner: str, at: str = "2026-05-03T10:00:00+00:00") -> dict:
     return {
         "year": YEAR,
         "round": ROUND,
         "logic_version": PREDICTION_LOGIC_VERSION,
+        "generated_at": at,
         "prediction_phase": phase,
         "predictions": [{"position": 1, "driver_code": winner, "confidence_low": 60, "confidence_high": 80}],
         "risk_predictions": [],
@@ -51,7 +54,15 @@ def _result(phase: str, winner: str) -> dict:
 
 
 @pytest.fixture
-def cache(monkeypatch):
+def history_store(monkeypatch) -> FakeDocumentStore:
+    """Prediction history, which the service records each stored call in."""
+    store = FakeDocumentStore()
+    monkeypatch.setattr(history_module, "document_store", store)
+    return store
+
+
+@pytest.fixture
+def cache(monkeypatch, history_store):
     monkeypatch.setattr(cache_module, "document_store", FakeDocumentStore())
     instance = PredictionSnapshotCache()
     monkeypatch.setattr(service_module, "prediction_snapshot_cache", instance)
@@ -191,3 +202,36 @@ def test_the_requested_phase_reaches_the_model(cache, monkeypatch):
     compute_and_store_race_prediction(YEAR, ROUND, phase="nonsense")
 
     assert seen == [PHASE_PRE_QUALIFYING, None]
+
+
+# ---------------------------------------------------------------------------
+# What reaches prediction history
+# ---------------------------------------------------------------------------
+
+
+def test_a_refused_call_leaves_history_untouched(cache, history_store, monkeypatch):
+    # R20 São Paulo's sequence: the post-qualifying call, a manual
+    # pre-qualifying recompute 16 s later, then (11-11) a post-qualifying
+    # recompute that could not read qualifying and fell back to pre-qualifying.
+    post_at, pre_at = "2026-11-08T00:45:43+00:00", "2026-11-08T00:45:59+00:00"
+    calls = iter(
+        [
+            _result(PHASE_POST_QUALIFYING, "NOR", at=post_at),
+            _result(PHASE_PRE_QUALIFYING, "VER", at=pre_at),
+            _result(PHASE_PRE_QUALIFYING, "VER", at="2026-11-11T01:34:47+00:00"),
+        ]
+    )
+    monkeypatch.setattr(service_module, "compute_race_predictions", lambda year, round_num, phase=None: next(calls))
+    compute_and_store_race_prediction(YEAR, ROUND, phase=PHASE_POST_QUALIFYING)
+    compute_and_store_race_prediction(YEAR, ROUND, phase=PHASE_PRE_QUALIFYING)
+    before = copy.deepcopy(history_store.payload)
+
+    refused = compute_and_store_race_prediction(YEAR, ROUND, phase=PHASE_POST_QUALIFYING)
+
+    assert refused["predictions"] == []
+    assert history_store.payload == before
+    entry = before[f"({YEAR},{ROUND})"]
+    assert [snapshot["generated_at"] for snapshot in entry["snapshots"]] == [post_at, pre_at]
+    # The race is graded on its post-qualifying call, not the one written last.
+    assert entry["prediction_phase"] == PHASE_POST_QUALIFYING
+    assert entry["predicted_positions"] == {"NOR": 1}

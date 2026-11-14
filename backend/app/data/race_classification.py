@@ -30,7 +30,7 @@ import math
 from typing import Literal
 
 from fastf1.ergast import Ergast
-from fastf1.exceptions import ErgastError
+from fastf1.exceptions import ErgastError, RateLimitExceededError
 import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
@@ -176,8 +176,9 @@ def _openf1_classification(year: int, round_num: int) -> tuple[ClassifiedDriver,
                 return ()
             entries = entry_list(client, race.session_key)
     # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
-    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
+    # ValueError/KeyError for a bad season, OSError for a network failure and
+    # RateLimitExceededError once FastF1's per-process request cap is spent.
+    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
         logger.warning("race_classification.openf1_unavailable", year=year, round=round_num, error=str(exc))
         return ()
     if not entries:
@@ -190,8 +191,9 @@ def _openf1_classification(year: int, round_num: int) -> tuple[ClassifiedDriver,
 def _jolpica_classification(year: int, round_num: int) -> tuple[ClassifiedDriver, ...]:
     try:
         response = Ergast().get_race_results(season=year, round=round_num)
-    # requests' errors are OSErrors; FastF1 raises ErgastError for a bad answer.
-    except (ErgastError, OSError, ValueError, KeyError) as exc:
+    # requests' errors are OSErrors; FastF1 raises ErgastError for a bad answer
+    # and RateLimitExceededError once its per-process request cap is spent.
+    except (ErgastError, RateLimitExceededError, OSError, ValueError, KeyError) as exc:
         logger.warning("race_classification.jolpica_unavailable", year=year, round=round_num, error=str(exc))
         return ()
     if not response.content:

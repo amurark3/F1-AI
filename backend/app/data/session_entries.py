@@ -37,6 +37,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, new_client
@@ -168,8 +169,9 @@ def load_weekend_entry_list(year: int, round_num: int) -> WeekendEntryList:
         with new_client() as client:
             result = _read_weekend(client, year, round_num)
     # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
-    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
+    # ValueError/KeyError for a bad season, OSError for a network failure and
+    # RateLimitExceededError once FastF1's per-process request cap is spent.
+    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
         logger.warning("entry_list.openf1_unavailable", year=year, round=round_num, error=str(exc))
         result = UNAVAILABLE
 

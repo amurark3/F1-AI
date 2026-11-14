@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pandas as pd
 import pytest
@@ -296,6 +297,15 @@ def test_a_race_openf1_cannot_find_falls_back(sources):
     assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
 
 
+def test_a_calendar_lookup_past_fastf1s_request_cap_falls_back(sources, monkeypatch):
+    def capped(*_args):
+        raise RateLimitExceededError("any API: 500 calls/h")
+
+    monkeypatch.setattr(module, "find_session", capped)
+
+    assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
+
+
 def test_a_race_still_running_is_not_read_from_openf1(sources):
     # A classification read mid-race would be a running order, not a result.
     sources["session"] = make_session("R", ended=False)
@@ -324,6 +334,14 @@ def test_neither_source_answering_is_no_classification(sources):
 def test_an_ergast_error_is_no_classification(sources):
     sources["routes"].pop("session_result")
     sources["jolpica_error"] = module.ErgastError("bad response")
+
+    assert race_classification(2026, 19) == module.NO_CLASSIFICATION
+
+
+def test_fastf1s_request_cap_is_no_classification(sources):
+    """FastF1 caps its requests per process; once spent, its Ergast client raises instead of answering."""
+    sources["routes"].pop("session_result")
+    sources["jolpica_error"] = RateLimitExceededError("ergast.com: 500 calls/h")
 
     assert race_classification(2026, 19) == module.NO_CLASSIFICATION
 

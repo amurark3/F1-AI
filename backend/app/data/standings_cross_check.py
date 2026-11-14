@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Literal
 
 from fastf1.ergast import Ergast
-from fastf1.exceptions import ErgastError
+from fastf1.exceptions import ErgastError, RateLimitExceededError
 import structlog
 
 from app.data.identity import resolve_team_name, season_directory
@@ -50,8 +50,9 @@ CheckStatus = Literal["agrees", "disagrees", "unavailable"]
 Reported = tuple[dict[str, float], dict[str, float]]
 
 # A feed's answer can be missing a field or be unreadable; FastF1 raises
-# ErgastError for a bad answer and requests' errors are OSErrors.
-_FEED_ERRORS = (OpenF1UnavailableError, ErgastError, OSError, KeyError, TypeError, ValueError)
+# ErgastError for a bad answer, RateLimitExceededError once its per-process
+# request cap is spent, and requests' errors are OSErrors.
+_FEED_ERRORS = (OpenF1UnavailableError, ErgastError, RateLimitExceededError, OSError, KeyError, TypeError, ValueError)
 
 
 @dataclass(frozen=True)

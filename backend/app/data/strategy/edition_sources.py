@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
@@ -67,8 +68,9 @@ def pit_lane_times(year: int, round_num: int) -> dict[tuple[str, int], int] | No
             rows = get_json(client, "pit", {"session_key": race.session_key})
             entries = entry_list(client, race.session_key) if rows else {}
     # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
-    except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
+    # ValueError/KeyError for a bad season, OSError for a network failure and
+    # RateLimitExceededError once FastF1's per-process request cap is spent.
+    except (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError) as exc:
         logger.warning("strategy.pit_lane_unavailable", year=year, round=round_num, error=str(exc))
         return None
 

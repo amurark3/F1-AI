@@ -12,6 +12,7 @@ published before its timing data is cached, and vice versa.
 from datetime import UTC, datetime, timedelta
 import sqlite3
 
+from fastf1.exceptions import RateLimitExceededError
 import pandas as pd
 import pytest
 
@@ -468,8 +469,12 @@ def test_a_race_still_ahead_is_not_asked_about_again_within_the_retry_window(fak
 
 @pytest.mark.parametrize(
     ("race_start", "calendar_error"),
-    [(None, None), (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable"))],
-    ids=["no start time", "calendar unreachable"],
+    [
+        (None, None),
+        (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable")),
+        (datetime(2024, 5, 26, 13, tzinfo=UTC), RateLimitExceededError("any API: 500 calls/h")),
+    ],
+    ids=["no start time", "calendar unreachable", "calendar capped"],
 )
 def test_an_unknown_race_start_does_not_hide_a_stored_race(fake_fastf1, race_start, calendar_error):
     fake_fastf1["race_start"] = race_start

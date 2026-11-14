@@ -7,6 +7,7 @@ pytest alone, so async-marked tests would pass locally and skip in CI.
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pandas as pd
 import pytest
@@ -546,7 +547,15 @@ def test_event_identity_is_none_for_a_round_not_on_the_calendar(monkeypatch):
     assert client._event_identity(2026, 99) is None
 
 
-@pytest.mark.parametrize("error", [OSError("connection reset"), ValueError("bad year"), KeyError("RoundNumber")])
+@pytest.mark.parametrize(
+    "error",
+    [
+        OSError("connection reset"),
+        ValueError("bad year"),
+        KeyError("RoundNumber"),
+        RateLimitExceededError("any API: 500 calls/h"),
+    ],
+)
 def test_event_identity_survives_a_schedule_failure(monkeypatch, error):
     """A transient FastF1 failure must not take the socket down with it."""
 

@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pandas as pd
 import pytest
@@ -269,6 +270,24 @@ def test_f1db_answers_when_jolpica_is_unreachable(sources):
     sources["error"] = OSError("jolpica down")
 
     assert module.race_pit_sheet(2026, 19).source == module.F1DB_SOURCE
+
+
+def test_f1db_answers_once_fastf1s_request_cap_is_spent(sources):
+    """FastF1 caps its requests per process; once spent, its Ergast client raises instead of answering."""
+    sources["error"] = RateLimitExceededError("ergast.com: 500 calls/h")
+
+    assert module.race_pit_sheet(2026, 19) == PitSheet(source=module.F1DB_SOURCE, entries=sources["f1db"])
+
+
+def test_a_calendar_lookup_past_fastf1s_request_cap_keeps_the_sheet_untimed(sources, monkeypatch):
+    def capped(*_args):
+        raise RateLimitExceededError("any API: 500 calls/h")
+
+    monkeypatch.setattr(module, "find_session", capped)
+
+    sheet = module.race_pit_sheet(2026, 19)
+    assert (sheet.source, len(sheet.entries)) == (module.JOLPICA_SOURCE, 58)
+    assert {entry.stationary_millis for entry in sheet.entries} == {None}
 
 
 def test_a_page_cut_short_is_not_trusted(sources):

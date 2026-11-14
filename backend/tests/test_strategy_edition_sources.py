@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pytest
 
@@ -113,6 +114,15 @@ def test_a_race_with_no_pit_rows_has_no_times_and_asks_for_no_entry_list(monkeyp
 
 def test_an_unreachable_openf1_is_none_not_an_empty_answer(monkeypatch, openf1):
     serve(monkeypatch, module, {"pit": httpx.Response(401)})
+
+    assert module.pit_lane_times(2025, 21) is None
+
+
+def test_a_calendar_lookup_past_fastf1s_request_cap_is_none(monkeypatch, openf1):
+    def capped(*_args):
+        raise RateLimitExceededError("any API: 500 calls/h")
+
+    monkeypatch.setattr(module, "find_session", capped)
 
     assert module.pit_lane_times(2025, 21) is None
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import UTC
 from typing import TYPE_CHECKING
 
+from fastf1.exceptions import RateLimitExceededError
 import pytest
 import structlog
 
@@ -92,6 +93,23 @@ def test_a_feed_that_disagrees_is_reported_and_the_computed_value_is_served(feed
         ("error", "openf1-championship", 19)
     ]
     assert points(standings.drivers)["HIR"] == 1
+
+
+def test_fastf1s_request_cap_leaves_the_jolpica_check_unavailable_and_the_table_served(feeds):
+    """FastF1 caps its requests per process; once spent, its Ergast client raises instead of answering."""
+    feeds.jolpica_error = RateLimitExceededError("ergast.com: 500 calls/h")
+
+    standings = current_standings(2026)
+
+    assert points(standings.drivers)["ANT"] == 380
+    assert (standings.as_of_round, standings.provisional) == (19, True)
+    assert standings.sources[-1] == {
+        "source": "jolpica-standings",
+        "role": "cross_check",
+        "round": 19,
+        "status": "unavailable",
+        "differences": [],
+    }
 
 
 # --- confirmed tables ---------------------------------------------------------------

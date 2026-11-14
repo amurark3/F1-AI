@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pandas as pd
 import pytest
@@ -359,9 +360,14 @@ def test_a_refusal_during_a_live_session_is_no_stints_not_a_crash(openf1):
 
 
 @pytest.mark.unit
-def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch):
+@pytest.mark.parametrize(
+    "error",
+    [ValueError("schedule backend down"), RateLimitExceededError("any API: 500 calls/h")],
+    ids=["down", "capped"],
+)
+def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch, error):
     def broken(*_args, **_kwargs):
-        raise ValueError("schedule backend down")
+        raise error
 
     openf1(_monza())
     monkeypatch.setattr(sessions_module.fastf1, "get_event_schedule", broken)

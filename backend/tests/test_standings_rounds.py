@@ -12,10 +12,12 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pytest
 import structlog
 
+from app.data import standings_rounds
 from app.data.current_standings import current_standings
 from app.data.openf1.sessions import OpenF1Session
 from tests.roster_support import MEXICO, MEXICO_QUALIFYING, MEXICO_RACE, drivers_route, load, mexico_drivers, weekend
@@ -168,6 +170,19 @@ def test_a_car_that_scored_nothing_and_cannot_be_named_is_left_out(feeds):
 
 
 # --- outages ------------------------------------------------------------------------------------
+
+
+def test_a_calendar_lookup_past_fastf1s_request_cap_keeps_the_rounds_already_read(feeds, monkeypatch):
+    def weekend_sessions(_client, _year, round_num):
+        if round_num > MEXICO_ROUND:
+            raise RateLimitExceededError("any API: 500 calls/h")
+        return feeds.weekends[round_num]
+
+    monkeypatch.setattr(standings_rounds, "weekend_sessions", weekend_sessions)
+
+    standings = current_standings(2026)
+
+    assert (standings.as_of_round, standings.provisional) == (19, True)
 
 
 def test_an_openf1_outage_keeps_the_rounds_already_read(feeds):

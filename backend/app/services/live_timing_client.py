@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import fastf1
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import structlog
 
@@ -94,10 +95,11 @@ def _event_identity(year: int, round_num: int) -> EventIdentity | None:
     Blocking — callers wrap this in a thread.
     """
     # OSError covers requests.RequestException, which subclasses it — FastF1
-    # reaches the network here and a transient failure must not kill the socket.
+    # reaches the network here and a transient failure must not kill the socket,
+    # nor must FastF1's RateLimitExceededError once its request cap is spent.
     try:
         schedule = fastf1.get_event_schedule(year=year, include_testing=False)
-    except (ValueError, KeyError, OSError) as exc:
+    except (RateLimitExceededError, ValueError, KeyError, OSError) as exc:
         logger.warning("fastf1.schedule_failed", year=year, error=str(exc))
         return None
 

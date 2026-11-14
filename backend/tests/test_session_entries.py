@@ -26,6 +26,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import sqlite3
 
+from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pytest
 import structlog
@@ -162,8 +163,11 @@ class TestUnavailable:
 
         assert load_weekend_entry_list(2026, 19) is UNAVAILABLE
 
-    def test_a_calendar_that_will_not_load_is_unavailable(self, openf1):
-        openf1["sessions"] = ValueError("no such season")
+    @pytest.mark.parametrize(
+        "error", [ValueError("no such season"), RateLimitExceededError("any API: 500 calls/h")], ids=["bad", "capped"]
+    )
+    def test_a_calendar_that_will_not_load_is_unavailable(self, openf1, error):
+        openf1["sessions"] = error
 
         assert load_weekend_entry_list(2026, 19) is UNAVAILABLE
 

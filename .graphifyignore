@@ -1,0 +1,3 @@
+# FIA rulebook PDFs: raw data for the app's rulebook index, not project docs.
+# 1,304 pages that graphify would otherwise send to extraction subagents.
+backend/data/raw/

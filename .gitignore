@@ -75,3 +75,7 @@ backend/data/training_dataset.csv
 # Claude Code project data (shared skills are committed)
 .claude/*
 !.claude/skills/
+
+# graphify knowledge graph: a local build (graph, extraction cache, cost log) that
+# holds absolute paths from this machine; rebuild it with /graphify.
+graphify-out/

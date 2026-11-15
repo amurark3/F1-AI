@@ -357,3 +357,14 @@ def test_no_answer_is_retried_after_a_short_window(sources):
     sources["now"] += module.EMPTY_RETRY_SECONDS + 1
     sources["session"] = make_session("R")
     assert race_classification(2026, 19).source == module.OPENF1_SOURCE
+
+
+def test_f1db_retirement_reasons_ride_along_when_f1db_has_the_race(sources, race_results_f1db):
+    drivers = by_code(race_classification(2026, 19).drivers)
+
+    assert (drivers["LIN"].reason, drivers["BOT"].reason, drivers["STR"].reason) == ("Collision", "Accident", "Engine")
+    assert drivers["VER"].reason is None
+
+
+def test_without_f1db_the_classification_has_no_reasons(sources):
+    assert {driver.reason for driver in race_classification(2026, 19).drivers} == {None}

@@ -25,15 +25,17 @@ answer is retried after :data:`EMPTY_RETRY_SECONDS`.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 from typing import Literal
 
 import structlog
 
+from app.data.canonical_names import F1DB_READ_ERRORS
+from app.data.f1db_race_results import result_rows
 from app.data.jolpica import JolpicaUnavailableError, race_results as jolpica_results
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
-from app.data.openf1.sessions import entry_list, find_session, session_ended
+from app.data.openf1.sessions import EntryDriver, entry_list, find_session, session_ended
 from app.utils.ttl_cache import TtlCache
 
 logger = structlog.get_logger()
@@ -75,6 +77,9 @@ class ClassifiedDriver:
     status: ClassificationStatus
     #: Laps completed, or ``None`` when the source does not say.
     laps_completed: int | None
+    #: Why the car stopped (f1db's ``race_reason_retired``), or ``None``: OpenF1
+    #: and Jolpica carry no reason, and f1db only has it once it holds the race.
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -97,7 +102,7 @@ def _whole(value: object) -> int | None:
     return int(value)
 
 
-def _openf1_status(row: dict) -> ClassificationStatus:
+def openf1_status(row: dict) -> ClassificationStatus:
     if row.get("dsq"):
         return "dsq"
     if row.get("dns"):
@@ -127,7 +132,7 @@ def classification_from_openf1(rows: list[dict], codes: dict[int, str]) -> tuple
         ClassifiedDriver(
             driver_code=codes.get(int(row["driver_number"]), str(row["driver_number"])),
             position=_whole(row.get("position")),
-            status=_openf1_status(row),
+            status=openf1_status(row),
             laps_completed=_whole(row.get("number_of_laps")),
         )
         for row in rows
@@ -163,26 +168,36 @@ def classification_from_jolpica(rows: list[dict]) -> tuple[ClassifiedDriver, ...
     return tuple(_jolpica_driver(row) for row in ranked if isinstance(row.get("driverCode"), str))
 
 
-def _openf1_classification(year: int, round_num: int) -> tuple[ClassifiedDriver, ...]:
+def openf1_session_result(year: int, round_num: int, session: str = "R") -> tuple[list[dict], dict[int, EntryDriver]]:
+    """OpenF1's ``session_result`` rows for a finished race (``"R"``) or sprint (``"S"``), with the entry list.
+
+    Both are empty when the session has not ended, OpenF1 does not cover it or
+    cannot be reached; callers must then say nothing is published.
+    """
     try:
         with new_client() as client:
-            race = find_session(client, year, round_num, "R")
+            race = find_session(client, year, round_num, session)
             # A result read while the race runs would be a running order.
             if race is None or not session_ended(race):
-                return ()
+                return [], {}
             rows = get_json(client, "session_result", {"session_key": race.session_key})
             if not rows:
-                return ()
+                return [], {}
             entries = entry_list(client, race.session_key)
     # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
     # ValueError) for a season it does not hold.
     except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("race_classification.openf1_unavailable", year=year, round=round_num, error=str(exc))
-        return ()
+        return [], {}
     if not entries:
         # Numbers alone would never match the stints' driver codes.
         logger.warning("race_classification.openf1_no_entry_list", year=year, round=round_num)
-        return ()
+        return [], {}
+    return rows, entries
+
+
+def _openf1_classification(year: int, round_num: int) -> tuple[ClassifiedDriver, ...]:
+    rows, entries = openf1_session_result(year, round_num)
     return classification_from_openf1(rows, {number: entry.code for number, entry in entries.items()})
 
 
@@ -193,6 +208,16 @@ def _jolpica_classification(year: int, round_num: int) -> tuple[ClassifiedDriver
         logger.warning("race_classification.jolpica_unavailable", year=year, round=round_num, error=str(exc))
         return ()
     return classification_from_jolpica(rows)
+
+
+def _with_reasons(year: int, round_num: int, drivers: tuple[ClassifiedDriver, ...]) -> tuple[ClassifiedDriver, ...]:
+    """``drivers`` with f1db's retirement reasons, where f1db already holds the race."""
+    try:
+        reasons = {row.code: row.reason for row in result_rows(year, round_num)}
+    except F1DB_READ_ERRORS as exc:
+        logger.warning("race_classification.f1db_unreadable", year=year, round=round_num, error=str(exc))
+        return drivers
+    return tuple(replace(driver, reason=reasons.get(driver.driver_code)) for driver in drivers)
 
 
 def race_classification(year: int, round_num: int) -> RaceClassification:
@@ -212,7 +237,11 @@ def race_classification(year: int, round_num: int) -> RaceClassification:
     if not drivers:
         drivers = _jolpica_classification(year, round_num)
         source = JOLPICA_SOURCE
-    result = RaceClassification(source=source, drivers=drivers) if drivers else NO_CLASSIFICATION
+    result = (
+        RaceClassification(source=source, drivers=_with_reasons(year, round_num, drivers))
+        if drivers
+        else NO_CLASSIFICATION
+    )
     _cache.put(key, result, CLASSIFICATION_TTL_SECONDS if drivers else EMPTY_RETRY_SECONDS)
     logger.info("race_classification.loaded", year=year, round=round_num, source=result.source, drivers=len(drivers))
     return result

@@ -312,6 +312,11 @@ _SEGMENTS = [
         {"year": 2026, "round": 14, "record": None, "lap_record": None, "map": None},
     ),
     (
+        "/race-control/results/2026/14",
+        "build_race_results",
+        {"year": 2026, "round": 14, "race": None, "sprint": None},
+    ),
+    (
         "/race-control/sessions/2026/14",
         "build_weekend_sessions",
         {"year": 2026, "round": 14, "available": False, "is_sprint": False, "sessions": []},

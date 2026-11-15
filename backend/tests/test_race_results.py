@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from app.data import race_classification as classification_module
+from app.data.f1db_grid import GridSlot
 from app.services import race_results as module
 from app.services.race_results import build_race_results, clock
 from tests.openf1_support import make_session, serve
@@ -228,3 +229,26 @@ def test_openf1_car_without_an_entry_keeps_its_number(race_results_f1db):
     car = module._openf1_car(2026, row, {})
 
     assert (car.code, car.position, car.team, car.time_millis, car.points) == ("99", 3, "", None, None)
+
+
+# --- the published grid and one session at a time (D1.9) --------------------------
+
+
+def test_the_official_grid_maps_each_code_to_its_slot_and_a_pit_lane_start_to_none(monkeypatch):
+    slots = [
+        GridSlot(code, code, "Team", position, None, None, False, position is None)
+        for code, position in (("VER", 3), ("LIN", None))
+    ]
+    monkeypatch.setattr(module, "starting_grid", lambda *_args: tuple(slots))
+
+    assert module.official_grid(2026, 19) == {"VER": 3, "LIN": None}
+
+
+def test_an_unreadable_grid_is_empty_not_invented(race_results_f1db):
+    """The captured results database has no grid columns, so reading the grid fails."""
+    assert module.official_grid(2026, 19) == {}
+
+
+def test_one_session_is_read_without_asking_for_the_other(race_results_f1db, no_openf1):
+    assert module.build_session_result(2026, 2, "sprint")["classification"][0]["driver_code"] == "RUS"
+    assert module.build_session_result(2026, 19, "sprint") is None

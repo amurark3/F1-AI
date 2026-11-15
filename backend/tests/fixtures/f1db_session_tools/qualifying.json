@@ -1,0 +1,511 @@
+{
+ "mexico_q": {
+  "year": 2026,
+  "round": 19,
+  "type": "QUALIFYING_RESULT",
+  "cols": [
+   "order",
+   "position",
+   "position_text",
+   "code",
+   "name",
+   "team",
+   "q1",
+   "q2",
+   "q3"
+  ],
+  "rows": [
+   [
+    1,
+    1,
+    "1",
+    "HAM",
+    "Lewis Hamilton",
+    "Ferrari",
+    "1:17.341",
+    "1:16.953",
+    "1:16.514"
+   ],
+   [
+    2,
+    2,
+    "2",
+    "RUS",
+    "George Russell",
+    "Mercedes",
+    "1:17.659",
+    "1:17.027",
+    "1:16.523"
+   ],
+   [
+    3,
+    3,
+    "3",
+    "LEC",
+    "Charles Leclerc",
+    "Ferrari",
+    "1:17.506",
+    "1:16.944",
+    "1:16.633"
+   ],
+   [
+    4,
+    4,
+    "4",
+    "VER",
+    "Max Verstappen",
+    "Red Bull",
+    "1:17.942",
+    "1:16.876",
+    "1:16.692"
+   ],
+   [
+    5,
+    5,
+    "5",
+    "ANT",
+    "Kimi Antonelli",
+    "Mercedes",
+    "1:17.918",
+    "1:17.133",
+    "1:16.707"
+   ],
+   [
+    6,
+    6,
+    "6",
+    "NOR",
+    "Lando Norris",
+    "McLaren",
+    "1:17.733",
+    "1:16.728",
+    "1:16.824"
+   ],
+   [
+    7,
+    7,
+    "7",
+    "HAD",
+    "Isack Hadjar",
+    "Red Bull",
+    "1:17.385",
+    "1:17.047",
+    "1:16.900"
+   ],
+   [
+    8,
+    8,
+    "8",
+    "LIN",
+    "Arvid Lindblad",
+    "Racing Bulls",
+    "1:18.210",
+    "1:17.135",
+    "1:17.117"
+   ],
+   [
+    9,
+    9,
+    "9",
+    "GAS",
+    "Pierre Gasly",
+    "Alpine",
+    "1:18.194",
+    "1:17.278",
+    "1:17.153"
+   ],
+   [
+    10,
+    10,
+    "10",
+    "HUL",
+    "Nico Hülkenberg",
+    "Audi",
+    "1:17.868",
+    "1:17.306",
+    null
+   ],
+   [
+    11,
+    11,
+    "11",
+    "COL",
+    "Franco Colapinto",
+    "Alpine",
+    "1:18.517",
+    "1:17.640",
+    null
+   ],
+   [
+    12,
+    12,
+    "12",
+    "PIA",
+    "Oscar Piastri",
+    "McLaren",
+    "1:17.659",
+    "1:17.646",
+    null
+   ],
+   [
+    13,
+    13,
+    "13",
+    "BOR",
+    "Gabriel Bortoleto",
+    "Audi",
+    "1:17.727",
+    "1:17.680",
+    null
+   ],
+   [
+    14,
+    14,
+    "14",
+    "BEA",
+    "Oliver Bearman",
+    "Haas",
+    "1:18.083",
+    "1:18.083",
+    null
+   ],
+   [
+    15,
+    15,
+    "15",
+    "SAI",
+    "Carlos Sainz Jr.",
+    "Williams",
+    "1:18.521",
+    "1:18.885",
+    null
+   ],
+   [
+    16,
+    16,
+    "16",
+    "ALB",
+    "Alexander Albon",
+    "Williams",
+    "1:18.630",
+    null,
+    null
+   ],
+   [
+    17,
+    17,
+    "17",
+    "ALO",
+    "Fernando Alonso",
+    "Aston Martin",
+    "1:18.908",
+    null,
+    null
+   ],
+   [
+    18,
+    18,
+    "18",
+    "HIR",
+    "Ryō Hirakawa",
+    "Haas",
+    "1:18.958",
+    null,
+    null
+   ],
+   [
+    19,
+    19,
+    "19",
+    "STR",
+    "Lance Stroll",
+    "Aston Martin",
+    "1:19.072",
+    null,
+    null
+   ],
+   [
+    20,
+    20,
+    "20",
+    "PER",
+    "Sergio Pérez",
+    "Cadillac",
+    "1:19.105",
+    null,
+    null
+   ],
+   [
+    21,
+    21,
+    "21",
+    "BOT",
+    "Valtteri Bottas",
+    "Cadillac",
+    "1:19.852",
+    null,
+    null
+   ],
+   [
+    22,
+    null,
+    "DSQ",
+    "LAW",
+    "Liam Lawson",
+    "Racing Bulls",
+    null,
+    "1:17.207",
+    "1:17.029"
+   ]
+  ]
+ },
+ "china_sq": {
+  "year": 2026,
+  "round": 2,
+  "type": "SPRINT_QUALIFYING_RESULT",
+  "cols": [
+   "order",
+   "position",
+   "position_text",
+   "code",
+   "name",
+   "team",
+   "q1",
+   "q2",
+   "q3"
+  ],
+  "rows": [
+   [
+    1,
+    1,
+    "1",
+    "RUS",
+    "George Russell",
+    "Mercedes",
+    "1:33.030",
+    "1:32.241",
+    "1:31.520"
+   ],
+   [
+    2,
+    2,
+    "2",
+    "ANT",
+    "Kimi Antonelli",
+    "Mercedes",
+    "1:33.455",
+    "1:32.291",
+    "1:31.809"
+   ],
+   [
+    3,
+    3,
+    "3",
+    "NOR",
+    "Lando Norris",
+    "McLaren",
+    "1:33.783",
+    "1:33.086",
+    "1:32.141"
+   ],
+   [
+    4,
+    4,
+    "4",
+    "HAM",
+    "Lewis Hamilton",
+    "Ferrari",
+    "1:33.148",
+    "1:33.042",
+    "1:32.161"
+   ],
+   [
+    5,
+    5,
+    "5",
+    "PIA",
+    "Oscar Piastri",
+    "McLaren",
+    "1:33.813",
+    "1:33.038",
+    "1:32.224"
+   ],
+   [
+    6,
+    6,
+    "6",
+    "LEC",
+    "Charles Leclerc",
+    "Ferrari",
+    "1:33.194",
+    "1:32.602",
+    "1:32.528"
+   ],
+   [
+    7,
+    7,
+    "7",
+    "GAS",
+    "Pierre Gasly",
+    "Alpine",
+    "1:33.970",
+    "1:33.405",
+    "1:32.888"
+   ],
+   [
+    8,
+    8,
+    "8",
+    "VER",
+    "Max Verstappen",
+    "Red Bull",
+    "1:34.170",
+    "1:33.564",
+    "1:33.254"
+   ],
+   [
+    9,
+    9,
+    "9",
+    "BEA",
+    "Oliver Bearman",
+    "Haas",
+    "1:34.280",
+    "1:33.501",
+    "1:33.409"
+   ],
+   [
+    10,
+    10,
+    "10",
+    "HAD",
+    "Isack Hadjar",
+    "Red Bull",
+    "1:34.447",
+    "1:33.620",
+    "1:33.723"
+   ],
+   [
+    11,
+    11,
+    "11",
+    "HUL",
+    "Nico Hülkenberg",
+    "Audi",
+    "1:33.997",
+    "1:33.635",
+    null
+   ],
+   [
+    12,
+    12,
+    "12",
+    "OCO",
+    "Esteban Ocon",
+    "Haas",
+    "1:34.087",
+    "1:33.639",
+    null
+   ],
+   [
+    13,
+    13,
+    "13",
+    "LAW",
+    "Liam Lawson",
+    "Racing Bulls",
+    "1:34.110",
+    "1:33.714",
+    null
+   ],
+   [
+    14,
+    14,
+    "14",
+    "BOR",
+    "Gabriel Bortoleto",
+    "Audi",
+    "1:34.291",
+    "1:33.774",
+    null
+   ],
+   [
+    15,
+    15,
+    "15",
+    "LIN",
+    "Arvid Lindblad",
+    "Racing Bulls",
+    "1:34.495",
+    "1:34.048",
+    null
+   ],
+   [
+    16,
+    16,
+    "16",
+    "COL",
+    "Franco Colapinto",
+    "Alpine",
+    "1:34.592",
+    "1:34.327",
+    null
+   ],
+   [
+    17,
+    17,
+    "17",
+    "SAI",
+    "Carlos Sainz Jr.",
+    "Williams",
+    "1:34.761",
+    null,
+    null
+   ],
+   [
+    18,
+    18,
+    "18",
+    "ALB",
+    "Alexander Albon",
+    "Williams",
+    "1:35.305",
+    null,
+    null
+   ],
+   [
+    19,
+    19,
+    "19",
+    "ALO",
+    "Fernando Alonso",
+    "Aston Martin",
+    "1:35.581",
+    null,
+    null
+   ],
+   [
+    20,
+    20,
+    "20",
+    "STR",
+    "Lance Stroll",
+    "Aston Martin",
+    "1:36.151",
+    null,
+    null
+   ],
+   [
+    21,
+    21,
+    "21",
+    "BOT",
+    "Valtteri Bottas",
+    "Cadillac",
+    "1:37.378",
+    null,
+    null
+   ]
+  ]
+ }
+}

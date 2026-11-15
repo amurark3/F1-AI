@@ -1,90 +1,49 @@
 """Tests for app.api.tools.race — classification, head-to-head and anomalies.
 
-Three tools the model reaches for when asked what happened in a race. The risks
-are resolution-shaped and status-shaped rather than arithmetic-shaped:
+Three tools the model reaches for when asked what happened in a race. None reads FastF1:
+the classification is f1db's (OpenF1's until f1db holds the race) and the head-to-head is
+OpenF1's laps. The risks are resolution-shaped and status-shaped rather than arithmetic-shaped:
 
-* **A name has to resolve to the right driver.** The lookup is substring based
-  so "Max" works, which also means a short or empty query can land on whoever
-  happens to be first in the entry list.
-* **A retirement must not read as a finishing time.** FastF1 keeps a ``Time``
-  on rows that never saw the flag, and rendering it would put a race time next
-  to a driver who crashed out.
-* **A missing sector is an unknown gap, not a dead heat.** Zero would show as
-  the driver being level; the tools render a dash instead.
-* **Names are f1db's.** FastF1 writes "Carlos Sainz" and "RB F1 Team"; the
-  table the model reads says "Carlos Sainz Jr." and "Racing Bulls".
+* **A name has to resolve to the right driver.** The lookup is substring based so "Max"
+  works, which also means a short or empty query can land on whoever is first in the entry list.
+* **A retirement must not read as a place or a finishing time.** A car that did not finish
+  reads DNF with its reason; its row carries no position and no time.
+* **A missing sector is an unknown gap, not a dead heat.** Zero would show as the driver
+  being level; the tools render a dash instead.
 
-FastF1 is mocked at the ``get_session`` boundary and the anomaly service at its
-import site; the frames and Series are real pandas.
+The rows are real: Mexico City 2026 (R19) from f1db v2026.20.0 (five retirements and time
+penalties, ``fixtures/f1db_race_results``) and OpenF1's qualifying laps for the head-to-head
+(``fixtures/qualifying_segments``). The grid slots in the race table are set by hand.
 """
 
 from __future__ import annotations
 
-import fastf1
-import pandas as pd
+import json
+from pathlib import Path
+
+import httpx
 import pytest
 
-from app.api.tools.race import (
-    _format_race_time,
-    compare_drivers,
-    get_race_anomalies,
-    get_race_results,
-)
-from tests.identity_support import mexico_fastf1_results
+from app.api.tools import race as module
+from app.api.tools.race import compare_drivers, get_race_anomalies, get_race_results
+from app.data.openf1 import session_laps
+from app.services import race_results
+from tests.fastf1_guard import no_fastf1  # noqa: F401
+from tests.openf1_support import fresh_cache, make_session, serve
+
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_fastf1")]
+
+FIXTURES = Path(__file__).parent / "fixtures"
+QUALIFYING = FIXTURES / "qualifying_segments"
+HAMILTON, RUSSELL = 44, 63
 
 
-class _FakeLaps:
-    """``session.laps``: supports the pick_drivers().pick_fastest() chain."""
-
-    def __init__(self, fastest_by_driver: dict[str, pd.Series | None]):
-        self._fastest_by_driver = fastest_by_driver
-        self._picked: str | None = None
-
-    def pick_drivers(self, code: str) -> _FakeLaps:
-        picked = _FakeLaps(self._fastest_by_driver)
-        picked._picked = code
-        return picked
-
-    def pick_fastest(self) -> pd.Series | None:
-        return self._fastest_by_driver.get(self._picked)
+def _load(path: Path) -> list[dict]:
+    return json.loads(path.read_text())
 
 
-class _FakeSession:
-    def __init__(self, results: pd.DataFrame, laps: _FakeLaps | None = None):
-        self.results = results
-        self.laps = laps
-        self.load_kwargs: dict | None = None
-
-    def load(self, **kwargs):
-        self.load_kwargs = kwargs
-
-
-def _install_session(monkeypatch, session) -> list[tuple]:
-    """Patch ``fastf1.get_session``; a session that is an exception is raised."""
-    calls: list[tuple] = []
-
-    def _get_session(year, grand_prix, identifier):
-        calls.append((year, grand_prix, identifier))
-        if isinstance(session, Exception):
-            raise session
-        return session
-
-    monkeypatch.setattr(fastf1, "get_session", _get_session)
-    return calls
-
-
-def _lap(total: str, s1: str, s2: str, s3: str) -> pd.Series:
-    def _timing(text: str | None):
-        return pd.NaT if text is None else pd.Timedelta(text)
-
-    return pd.Series(
-        {
-            "LapTime": _timing(total),
-            "Sector1Time": _timing(s1),
-            "Sector2Time": _timing(s2),
-            "Sector3Time": _timing(s3),
-        }
-    )
+def _round(monkeypatch: pytest.MonkeyPatch, number: int) -> None:
+    monkeypatch.setattr(module, "resolve_round", lambda _year, _name: number)
 
 
 # ---------------------------------------------------------------------------
@@ -92,367 +51,157 @@ def _lap(total: str, s1: str, s2: str, s3: str) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 
-def _entry_list() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {"LastName": "Verstappen", "BroadcastName": "M VERSTAPPEN", "Abbreviation": "VER"},
-            {"LastName": "Norris", "BroadcastName": "L NORRIS", "Abbreviation": "NOR"},
-        ]
+@pytest.fixture
+def mexico_qualifying(monkeypatch):
+    """OpenF1 serving Mexico City 2026's qualifying (session 11400): laps, entry list, race control and result."""
+    _round(monkeypatch, 19)
+    state = {"laps": _load(QUALIFYING / "mexico_q_laps.json"), "session": make_session("Q")}
+    monkeypatch.setattr(session_laps, "find_session", lambda *_args: state["session"])
+    fresh_cache(monkeypatch, session_laps)
+    serve(
+        monkeypatch,
+        session_laps,
+        {
+            "laps": lambda _request: httpx.Response(200, json=state["laps"]),
+            "drivers": _load(FIXTURES / "mexico_2026_r19" / "openf1_drivers_qualifying.json"),
+            "race_control": _load(QUALIFYING / "mexico_q_race_control.json"),
+            "session_result": _load(QUALIFYING / "mexico_q_session_result.json"),
+        },
     )
+    return state
 
 
-def _comparison_session(fastest: dict[str, pd.Series | None] | None = None) -> _FakeSession:
-    laps = _FakeLaps(
-        fastest
-        if fastest is not None
-        else {
-            "VER": _lap("0 days 00:01:29.100", "0 days 00:00:29.000", "0 days 00:00:30.000", "0 days 00:00:30.100"),
-            "NOR": _lap("0 days 00:01:29.400", "0 days 00:00:29.250", "0 days 00:00:29.900", "0 days 00:00:30.250"),
-        }
-    )
-    return _FakeSession(_entry_list(), laps)
+def _lap(laps: list[dict], driver: int, seconds: float) -> dict:
+    return next(lap for lap in laps if lap["driver_number"] == driver and lap["lap_duration"] == seconds)
 
 
-@pytest.mark.unit
-def test_the_comparison_reads_the_qualifying_session(monkeypatch):
-    """Race pace and a qualifying lap are different questions; "Q" is the contract."""
-    calls = _install_session(monkeypatch, _comparison_session())
-
-    compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "VER", "driver2": "NOR"})
-
-    assert calls == [(2026, "Bahrain", "Q")]
-
-
-@pytest.mark.unit
-def test_the_comparison_loads_laps_but_not_telemetry(monkeypatch):
-    """pick_fastest needs laps; telemetry is a multi-megabyte fetch it never reads."""
-    session = _comparison_session()
-    _install_session(monkeypatch, session)
-
-    compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "VER", "driver2": "NOR"})
-
-    assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False}
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "query",
-    [
-        "Verstappen",  # exact surname
-        "verstappen",  # case insensitive
-        "stappen",  # partial surname
-        "VER",  # abbreviation
-        "ver",  # abbreviation, lowercased
-        "M VERSTAPPEN",  # broadcast name
-    ],
-)
-def test_a_driver_resolves_from_any_of_the_name_forms_a_model_might_use(monkeypatch, query):
-    """The model passes whatever the user typed; all of these mean the same driver."""
-    _install_session(monkeypatch, _comparison_session())
-
-    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": query, "driver2": "NOR"})
-
-    assert "**VER vs NOR**" in table
-
-
-@pytest.mark.unit
-def test_a_name_matching_nobody_is_reported_rather_than_guessed(monkeypatch):
-    _install_session(monkeypatch, _comparison_session())
-
-    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "Schumacher", "driver2": "NOR"})
-
-    assert result == "Could not find drivers 'Schumacher' or 'NOR' in the entry list for Bahrain 2026."
-
-
-@pytest.mark.unit
-def test_a_driver_who_set_no_lap_is_reported_rather_than_compared(monkeypatch):
-    """pick_fastest returns None for a driver who never ran; the gap is undefined."""
-    _install_session(monkeypatch, _comparison_session({"VER": _lap("0 days 00:01:29.100", None, None, None)}))
-
-    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "VER", "driver2": "NOR"})
-
-    assert result == "No lap data found for VER or NOR."
-
-
-@pytest.mark.unit
-def test_the_comparison_renders_total_and_per_sector_gaps(monkeypatch):
-    _install_session(monkeypatch, _comparison_session())
-
-    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "VER", "driver2": "NOR"})
-
-    assert table.splitlines() == [
-        "### Telemetry: Bahrain 2026",
-        "**VER vs NOR**",
-        "",
-        "| Sector | Gap (VER to NOR) | Status |",
-        "| :--- | :--- | :--- |",
-        # VER is 0.3s up the road, so every gap is negative and green.
-        # Only the total carries a word; the sector rows are the bare indicator.
-        "| **TOTAL** | **-0.300s** | 🟢 Faster |",
-        "| Sector 1 | -0.250s | 🟢 |",
-        # NOR took a tenth back in sector 2.
-        "| Sector 2 | +0.100s | 🔴 |",
-        "| Sector 3 | -0.150s | 🟢 |",
+def test_hamilton_against_russell_gaps_are_openf1s_fastest_laps_sector_by_sector(mexico_qualifying):
+    """Hamilton's 1:16.514 and Russell's 1:16.523 (their Q3 bests): the gap is the lap and sector arithmetic."""
+    laps = mexico_qualifying["laps"]
+    ham, rus = _lap(laps, HAMILTON, 76.514), _lap(laps, RUSSELL, 76.523)
+    expected = [
+        f"{ham[key] - rus[key]:+.3f}s"
+        for key in ("lap_duration", "duration_sector_1", "duration_sector_2", "duration_sector_3")
     ]
 
+    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "Hamilton", "driver2": "RUS"})
 
-@pytest.mark.unit
-def test_a_missing_sector_is_shown_as_unknown_rather_than_level(monkeypatch):
-    """A deleted lap subtracts to NaT; rendering 0.000s would claim a dead heat."""
-    _install_session(
-        monkeypatch,
-        _comparison_session(
-            {
-                "VER": _lap("0 days 00:01:29.100", "0 days 00:00:29.000", None, "0 days 00:00:30.100"),
-                "NOR": _lap("0 days 00:01:29.400", "0 days 00:00:29.250", "0 days 00:00:29.900", None),
-            }
-        ),
-    )
+    lines = table.splitlines()
+    assert lines[0] == "### Telemetry: Mexico 2026"
+    assert lines[1] == "**HAM vs RUS**"
+    assert lines[5] == f"| **TOTAL** | **{expected[0]}** | 🟢 Faster |"
+    assert expected[0] == "-0.009s"
+    for number, gap in enumerate(expected[1:], 1):
+        assert lines[5 + number].startswith(f"| Sector {number} | {gap} |")
 
-    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Bahrain", "driver1": "VER", "driver2": "NOR"})
+
+def test_a_name_matching_nobody_is_reported_rather_than_guessed(mexico_qualifying):
+    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "Nobody", "driver2": "RUS"})
+
+    assert result == "Could not find drivers 'Nobody' or 'RUS' in the entry list for Mexico 2026."
+
+
+def test_a_driver_with_no_timed_lap_is_reported_rather_than_compared(mexico_qualifying):
+    mexico_qualifying["laps"] = [lap for lap in mexico_qualifying["laps"] if lap["driver_number"] != HAMILTON]
+
+    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "HAM", "driver2": "RUS"})
+
+    assert result == "No lap data found for HAM or RUS."
+
+
+def test_a_missing_sector_is_shown_as_unknown_rather_than_level(mexico_qualifying):
+    ham = _lap(mexico_qualifying["laps"], HAMILTON, 76.514)
+    ham["duration_sector_2"] = None
+
+    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "HAM", "driver2": "RUS"})
 
     assert "| Sector 2 | - | ⚪ |" in table
-    assert "| Sector 3 | - | ⚪ |" in table
 
 
-@pytest.mark.unit
+def test_a_round_with_no_qualifying_session_is_reported(mexico_qualifying):
+    mexico_qualifying["session"] = None
+
+    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "HAM", "driver2": "RUS"})
+
+    assert result == "No qualifying session found for Mexico 2026."
+
+
 def test_a_comparison_failure_is_reported_rather_than_raised(monkeypatch):
-    _install_session(monkeypatch, ValueError("no qualifying session"))
+    def refuse(_year, _name):
+        raise ValueError("No 2026 Grand Prix matches 'Nowhere'")
 
-    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Nowhere", "driver1": "VER", "driver2": "NOR"})
+    monkeypatch.setattr(module, "resolve_round", refuse)
 
-    assert result == "Comparison failed: no qualifying session"
+    result = compare_drivers.invoke({"year": 2026, "grand_prix": "Nowhere", "driver1": "HAM", "driver2": "RUS"})
 
-
-# ---------------------------------------------------------------------------
-# _format_race_time
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_the_winners_absolute_time_drops_the_leading_hour_group():
-    """FastF1 renders a timedelta; the days and the zero hour are noise."""
-    assert _format_race_time("Finished", pd.Timedelta("0 days 01:32:45.123456")) == "01:32:45.123"
-
-
-@pytest.mark.unit
-def test_a_gap_to_the_leader_is_trimmed_to_milliseconds():
-    # removeprefix strips one zero group, so a sub-minute gap keeps its minutes field.
-    assert _format_race_time("Finished", pd.Timedelta("0 days 00:00:05.123456")) == "00:05.123"
-
-
-@pytest.mark.unit
-def test_a_whole_second_gap_needs_no_trimming():
-    assert _format_race_time("Finished", pd.Timedelta("0 days 00:00:05")) == "00:05"
-
-
-@pytest.mark.unit
-def test_a_finisher_with_no_recorded_time_is_shown_as_an_interval():
-    assert _format_race_time("Finished", pd.NaT) == "Interval"
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("status", ["+1 Lap", "+2 Laps"])
-def test_a_lapped_car_keeps_its_lap_deficit(status):
-    assert _format_race_time(status, pd.NaT) == status
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("status", ["Accident", "Engine", "Disqualified"])
-def test_a_retirement_is_flagged_rather_than_timed(status):
-    """A retired driver shown with a race time reads as a valid classification."""
-    assert _format_race_time(status, pd.Timedelta("0 days 01:00:00")) == f"❌ {status}"
+    assert result == "Comparison failed: No 2026 Grand Prix matches 'Nowhere'"
 
 
 # ---------------------------------------------------------------------------
 # get_race_results
 # ---------------------------------------------------------------------------
 
+GRID = {"VER": 3, "HAM": 1, "PIA": 8, "LIN": None}
 
-def _race_results() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "Position": 2.0,
-                "Abbreviation": "NOR",
-                "FullName": "Lando Norris",
-                "TeamName": "McLaren",
-                "Points": 18.0,
-                "GridPosition": 1.0,
-                "Status": "Finished",
-                "Time": pd.Timedelta("0 days 00:00:05.123456"),
-            },
-            {
-                "Position": 1.0,
-                "Abbreviation": "VER",
-                "FullName": "Max Verstappen",
-                "TeamName": "Red Bull Racing Honda RBPT",
-                "Points": 25.0,
-                "GridPosition": 3.0,
-                "Status": "Finished",
-                "Time": pd.Timedelta("0 days 01:32:45.123456"),
-            },
-            {
-                "Position": 3.0,
-                "Abbreviation": "LEC",
-                "FullName": "Charles Leclerc",
-                "TeamName": "Ferrari",
-                "Points": 15.0,
-                "GridPosition": 3.0,
-                "Status": "Finished",
-                "Time": pd.NaT,
-            },
-            # Pit-lane start: FastF1 records grid position 0.
-            {
-                "Position": 4.0,
-                "Abbreviation": "HAM",
-                "FullName": "Lewis Hamilton",
-                "TeamName": "Mercedes",
-                "Points": 12.0,
-                "GridPosition": 0.0,
-                "Status": "+1 Lap",
-                "Time": pd.NaT,
-            },
-            # Retired and unclassified.
-            {
-                "Position": float("nan"),
-                "Abbreviation": "ALO",
-                "FullName": "Fernando Alonso",
-                "TeamName": "Aston Martin",
-                "Points": 0.0,
-                "GridPosition": 8.0,
-                "Status": "Accident",
-                "Time": pd.NaT,
-            },
-        ]
+
+@pytest.fixture
+def mexico_race(race_results_f1db, monkeypatch):
+    _round(monkeypatch, 19)
+    monkeypatch.setattr(race_results, "openf1_session_result", lambda *_args: ([], {}))
+    monkeypatch.setattr(module, "official_grid", lambda _year, _round: GRID)
+
+
+def _row(table: str, code: str) -> str:
+    return next(line for line in table.splitlines() if f"({code})" in line)
+
+
+def test_the_classification_is_f1dbs_and_says_it_is_final(mexico_race):
+    table = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    lines = table.splitlines()
+    assert lines[:2] == ["### Race Classification: Mexico 2026", "*(Source: f1db, the FIA final classification)*"]
+    assert _row(table, "VER") == "| 🏆 1 | Max Verstappen (VER) | Red Bull | 3 | ⬆️2 | 2:20:28.772 | 25 |"
+    assert _row(table, "HAM") == "| 2 | Lewis Hamilton (HAM) | Ferrari | 1 | ⬇️1 | +0.799 | 18 |"
+
+
+def test_a_time_penalty_is_named_in_the_gap_and_the_place_change_is_from_the_grid(mexico_race):
+    assert _row(get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"}), "PIA") == (
+        "| 13 | Oscar Piastri (PIA) | McLaren | 8 | ⬇️5 | +29.475 (incl. 10s penalty) | 0 |"
     )
 
 
-@pytest.mark.unit
-def test_the_classification_reads_the_race_session(monkeypatch):
-    calls = _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
-
-    assert calls == [(2026, "Bahrain", "R")]
-
-
-@pytest.mark.unit
-def test_the_classification_is_ordered_by_finishing_position(monkeypatch):
-    """FastF1 does not guarantee the order; a shuffled table misreports the result."""
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    rows = get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-    drivers = [
-        line.split("|")[2].strip()
-        for line in rows
-        if line.startswith("| ") and "Driver" not in line and ":--" not in line
-    ]
-
-    assert drivers == [
-        "Max Verstappen (VER)",
-        "Lando Norris (NOR)",
-        "Charles Leclerc (LEC)",
-        "Lewis Hamilton (HAM)",
-        "Fernando Alonso (ALO)",
-    ]
-
-
-@pytest.mark.unit
-def test_each_driver_is_named_in_full_not_by_code_alone(monkeypatch):
-    """Given only "ANT", the model guessed "Fernando Alonso"; names come from FastF1."""
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    table = get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
-
-    assert "| Fernando Alonso (ALO) | Aston Martin |" in table
-
-
-@pytest.mark.unit
-def test_the_winner_is_marked_with_a_trophy(monkeypatch):
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    assert "| 🏆 1 | Max Verstappen (VER) |" in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
-
-
-@pytest.mark.unit
-def test_a_long_team_name_is_truncated_to_keep_the_table_readable(monkeypatch):
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    table = get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
-
-    assert "| Red Bull Racing |" in table
-    assert "Honda RBPT" not in table
-
-
-@pytest.mark.unit
-def test_whole_points_lose_their_trailing_decimal(monkeypatch):
-    """FastF1 stores points as floats; "25.0" in a championship table reads wrong."""
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    table = get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"})
-
-    assert table.rstrip().splitlines()[3].endswith("| 25 |")
-    assert "25.0" not in table
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("driver", "expected"),
-    [
-        ("VER", "⬆️2"),  # P3 on the grid to the win
-        ("NOR", "⬇️1"),  # pole to second
-        ("LEC", "➖"),  # started and finished third
-    ],
-)
-def test_the_position_change_from_the_grid_is_shown(monkeypatch, driver, expected):
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    row = next(
-        line
-        for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if f"({driver}) |" in line
+def test_a_car_with_no_published_slot_has_no_grid_and_no_change(mexico_race):
+    assert _row(get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"}), "SAI") == (
+        "| 12 | Carlos Sainz Jr. (SAI) | Williams | - | - | +28.638 | 0 |"
     )
 
-    assert f"| {expected} |" in row
+
+def test_retirements_read_dnf_with_their_reason_never_a_place(mexico_race):
+    table = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    assert _row(table, "LIN") == "| DNF | Arvid Lindblad (LIN) | Racing Bulls | PL | - | ❌ DNF (Collision) | 0 |"
+    assert _row(table, "STR") == "| DNF | Lance Stroll (STR) | Aston Martin | - | - | ❌ DNF (Engine) | 0 |"
+    assert sum(" | DNF | " in f" {line}" for line in table.splitlines()) == 5
+    assert not any(line.startswith("| 18 ") for line in table.splitlines())
 
 
-@pytest.mark.unit
-def test_a_pit_lane_start_is_shown_instead_of_a_grid_slot(monkeypatch):
-    """Grid position 0 is not a front-row start; it means the car left the pits."""
-    _install_session(monkeypatch, _FakeSession(_race_results()))
+def test_a_race_no_source_holds_says_so(mexico_race, monkeypatch):
+    _round(monkeypatch, 21)
 
-    row = next(
-        line
-        for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if "(HAM) |" in line
+    assert get_race_results.invoke({"year": 2026, "grand_prix": "Brazil"}) == (
+        "No race classification is published for Brazil 2026 yet."
     )
 
-    assert "| PL |" in row
-    # No numeric grid slot means the gain/loss cannot be computed either.
-    assert "| - |" in row
 
-
-@pytest.mark.unit
-def test_an_unclassified_driver_is_shown_as_nc(monkeypatch):
-    _install_session(monkeypatch, _FakeSession(_race_results()))
-
-    row = next(
-        line
-        for line in get_race_results.invoke({"year": 2026, "grand_prix": "Bahrain"}).splitlines()
-        if "(ALO) |" in line
-    )
-
-    assert row.startswith("| NC |")
-    assert "❌ Accident" in row
-
-
-@pytest.mark.unit
 def test_a_race_results_failure_is_reported_rather_than_raised(monkeypatch):
-    _install_session(monkeypatch, ValueError("session not available"))
+    def refuse(_year, _name):
+        raise ValueError("f1db is locked")
 
-    assert get_race_results.invoke({"year": 2026, "grand_prix": "Nowhere"}) == (
-        "Failed to fetch race results: session not available"
+    monkeypatch.setattr(module, "resolve_round", refuse)
+
+    assert (
+        get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+        == "Failed to fetch race results: f1db is locked"
     )
 
 
@@ -519,27 +268,3 @@ def test_an_anomaly_failure_is_reported_rather_than_raised(monkeypatch):
     _install_anomalies(monkeypatch, RuntimeError("f1db is locked"))
 
     assert get_race_anomalies.invoke({"year": 2026, "round_num": 4}) == "Anomaly analysis failed: f1db is locked"
-
-
-# ---------------------------------------------------------------------------
-# Names: f1db's driver and team names in the table the model reads
-# ---------------------------------------------------------------------------
-
-
-def _mexico_race() -> pd.DataFrame:
-    """FastF1's Mexico City rows (2026 R19, real spellings); FullName is FastF1's join of the two halves."""
-    frame = pd.DataFrame(mexico_fastf1_results())
-    frame["FullName"] = frame["FirstName"] + " " + frame["LastName"]
-    frame["Time"] = pd.NaT
-    return frame
-
-
-@pytest.mark.integration
-def test_the_classification_names_drivers_and_teams_as_f1db_does(identity_f1db, monkeypatch):
-    _install_session(monkeypatch, _FakeSession(_mexico_race()))
-
-    lines = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico City"}).splitlines()
-
-    assert "| 9 | Liam Lawson (LAW) | Racing Bulls | 22 | ⬆️13 | Interval | 2 |" in lines
-    assert "| 13 | Ryō Hirakawa | Haas | 18 | ⬆️5 | Interval | 0 |" in lines
-    assert "| 15 | Carlos Sainz Jr. (SAI) | Williams | 15 | ➖ | Interval | 0 |" in lines

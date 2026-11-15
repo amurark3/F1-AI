@@ -105,7 +105,7 @@ def build_championship_forecast(year: int) -> dict:
     return {
         "year": year,
         "generated_at": datetime.now(UTC).isoformat(),
-        "source": "computed-standings + FastF1 recent race classifications",
+        "source": "computed-standings + recent race classifications (f1db, OpenF1)",
         **standings.meta(),
         "completed_events": completed_events,
         "remaining_events": remaining_events,
@@ -115,7 +115,7 @@ def build_championship_forecast(year: int) -> dict:
         "notes": [
             "Current points already include every completed race and sprint result in the standings feed.",
             "Forecast adds a blended season-rate and recent-form rate across remaining Grands Prix.",
-            "Recent form uses completed race classifications that could be loaded locally; sprint-specific form is not separately projected.",
+            "Recent form uses the completed race classifications that could be loaded (f1db, or OpenF1 until f1db has the race); sprint-specific form is not separately projected.",
         ],
         "error": None if drivers or constructors else "Championship standings are unavailable for this season.",
     }

@@ -2,15 +2,39 @@
 
 from __future__ import annotations
 
-import fastf1
+from typing import TYPE_CHECKING
+
 from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
-from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_team
+from app.api.tools.rounds import resolve_round
+from app.api.tools.sessions import NO_TIME, driver_label, points_cell, source_line, time_cell
+from app.data.openf1.session_laps import load_session_laps
+from app.services.analysis.lap_selection import fastest_valid_lap
+from app.services.race_results import build_session_result, official_grid
 from app.utils.lap_deltas import LAP_DELTA_COLUMNS, delta_indicator, format_delta, lap_deltas
 
+if TYPE_CHECKING:
+    from app.data.openf1.laps import Lap
+    from app.data.openf1.sessions import EntryDriver
+
 logger = structlog.get_logger()
+
+
+def _lap_times(lap: Lap) -> pd.Series:
+    """The lap's total and sector times as the Timedelta row :func:`lap_deltas` compares; a missing time is NaT."""
+    times = (lap.time, *lap.sectors)
+    return pd.Series(dict(zip(LAP_DELTA_COLUMNS, (pd.to_timedelta(time, unit="s") for time in times), strict=True)))
+
+
+def _find_driver(drivers: dict[int, EntryDriver], query: str) -> EntryDriver | None:
+    """The entry whose name contains ``query`` (a surname or part of one) or whose code is it."""
+    wanted = query.lower().strip()
+    return next(
+        (driver for driver in drivers.values() if wanted in driver.name.lower() or wanted == driver.code.lower()),
+        None,
+    )
 
 
 @tool
@@ -19,43 +43,28 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
 
     Driver names may be partial ('Max' works as well as 'VER').
     """
-    # Lookup searches LastName, BroadcastName and Abbreviation. Returns a
-    # Markdown table of total gap and per-sector deltas, with green/red
-    # indicators relative to driver2.
+    # Returns a Markdown table of total gap and per-sector deltas, with green/red
+    # indicators relative to driver2. The laps are OpenF1's; a deleted lap is not a candidate.
     logger.info("tool.compare_drivers", driver1=driver1, driver2=driver2, grand_prix=grand_prix, year=year)
     try:
-        session = fastf1.get_session(year, grand_prix, "Q")
-        # laps=True is required to access per-driver fastest lap data.
-        session.load(telemetry=False, laps=True, weather=False)
+        session = load_session_laps(year, resolve_round(year, grand_prix), "Q")
+        if session is None:
+            return f"No qualifying session found for {grand_prix} {year}."
 
-        def get_driver_code(name_query: str) -> str | None:
-            """Resolve a name/partial name to the driver's 3-letter abbreviation."""
-            query = name_query.lower().strip()
-            for drv in session.results.itertuples():
-                if (
-                    query in str(drv.LastName).lower()
-                    or query in str(drv.BroadcastName).lower()
-                    or query == str(drv.Abbreviation).lower()
-                ):
-                    return drv.Abbreviation
-            return None
-
-        d1_code = get_driver_code(driver1)
-        d2_code = get_driver_code(driver2)
-
-        if not d1_code or not d2_code:
+        first, second = _find_driver(session.drivers, driver1), _find_driver(session.drivers, driver2)
+        if first is None or second is None:
             return f"Could not find drivers '{driver1}' or '{driver2}' in the entry list for {grand_prix} {year}."
 
+        d1_code, d2_code = first.code, second.code
         logger.debug("tool.compare_drivers.resolved", d1_code=d1_code, d2_code=d2_code)
 
-        d1_lap = session.laps.pick_drivers(d1_code).pick_fastest()
-        d2_lap = session.laps.pick_drivers(d2_code).pick_fastest()
-
+        d1_lap = fastest_valid_lap(session.laps_of(first.number))
+        d2_lap = fastest_valid_lap(session.laps_of(second.number))
         if d1_lap is None or d2_lap is None:
             return f"No lap data found for {d1_code} or {d2_code}."
 
         # Positive = d1 is slower than d2. None where a sector time is missing.
-        total, s1, s2, s3 = lap_deltas(d1_lap, d2_lap, LAP_DELTA_COLUMNS)
+        total, s1, s2, s3 = lap_deltas(_lap_times(d1_lap), _lap_times(d2_lap), LAP_DELTA_COLUMNS)
 
         return (
             f"### Telemetry: {grand_prix} {year}\n"
@@ -72,25 +81,19 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
         return f"Comparison failed: {e}"
 
 
-def _format_race_time(status: str, time_val: object) -> str:
-    """Race time, lap deficit or retirement reason for the classification table.
+def _grid_cell(code: str, grid: dict[str, int | None]) -> str:
+    """The slot the car started from; "PL" for the pit lane, "-" when no published grid names it."""
+    if code not in grid:
+        return NO_TIME
+    return "PL" if grid[code] is None else str(grid[code])
 
-    Only the winner carries an absolute time; everyone else classified carries a
-    gap, and FastF1 renders both as a timedelta that has to be trimmed.
-    """
-    if status != "Finished":
-        if "Lap" in status:
-            return status  # "+1 Lap", "+2 Laps", etc.
-        return f"❌ {status}"  # DNF / accident / mechanical
 
-    if not pd.notna(time_val):
-        return "Interval"
-
-    text = str(time_val).split("days")[-1].strip()
-    if "." in text:
-        # Trim to 3 decimal places.
-        text = text[: text.find(".") + 4]
-    return text.removeprefix("00:")
+def _change_cell(grid: str, position: int | None) -> str:
+    """Places gained or lost from the slot to the flag; "-" for a car with no place."""
+    if not grid.isdigit() or position is None:
+        return "-"
+    diff = int(grid) - position
+    return f"⬆️{diff}" if diff > 0 else (f"⬇️{abs(diff)}" if diff < 0 else "➖")
 
 
 @tool
@@ -102,43 +105,32 @@ def get_race_results(year: int, grand_prix: str) -> str:
     chars), starting grid position, position change (+/- arrows), race time
     or gap, and championship points scored.
 
-    Handles DNFs, DSQs, and lapped cars via the 'Status' column.
+    A car that did not finish reads DNF (or DNS, DSQ, NC) with its reason in
+    place of a position; lapped cars show their gap in laps.
     """
     logger.info("tool.race_results", grand_prix=grand_prix, year=year)
     try:
-        session = fastf1.get_session(year, grand_prix, "R")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results.sort_values(by="Position")
+        round_num = resolve_round(year, grand_prix)
+        race = build_session_result(year, round_num, "race")
+        if race is None:
+            return f"No race classification is published for {grand_prix} {year} yet."
+        grid = official_grid(year, round_num)
 
-        summary = [f"### Race Classification: {grand_prix} {year}"]
-        summary.append("| Pos | Driver | Team | Grid | +/- | Time/Gap | Pts |")
-        summary.append("| :-- | :----- | :--- | :--- | :-- | :------- | :-- |")
-
-        for _, row in results.iterrows():
-            pos = str(int(row["Position"])) if pd.notna(row["Position"]) else "NC"
-            driver = _fmt_driver(row, year)
-            # Truncate long team names to keep the table readable.
-            team = _fmt_team(row, year)[:15]
-            points = _fmt_points(row["Points"])
-
-            # Grid position: "PL" indicates a pit-lane start.
-            grid = str(int(row["GridPosition"])) if pd.notna(row["GridPosition"]) and row["GridPosition"] > 0 else "PL"
-
-            # Position change from grid to finish.
-            if grid.isdigit() and pos.isdigit():
-                diff = int(grid) - int(pos)
-                change = f"⬆️{diff}" if diff > 0 else (f"⬇️{abs(diff)}" if diff < 0 else "➖")
-            else:
-                change = "-"
-
-            # Format race time or gap-to-leader.
-            time_str = _format_race_time(row["Status"], row["Time"])
-
-            if pos == "1":
-                pos = "🏆 1"
-
-            summary.append(f"| {pos} | {driver} | {team} | {grid} | {change} | {time_str} | {points} |")
-
+        summary = [
+            f"### Race Classification: {grand_prix} {year}",
+            source_line(race["final"]),
+            "",
+            "| Pos | Driver | Team | Grid | +/- | Time/Gap | Pts |",
+            "| :-- | :----- | :--- | :--- | :-- | :------- | :-- |",
+        ]
+        for row in race["classification"]:
+            start = _grid_cell(row["driver_code"], grid)
+            place = row["position"]
+            pos = row["status"] if place is None else ("🏆 1" if place == 1 else str(place))
+            summary.append(
+                f"| {pos} | {driver_label(row['driver_name'], row['driver_code'])} | {(row['team'] or NO_TIME)[:15]} "
+                f"| {start} | {_change_cell(start, place)} | {time_cell(row)} | {points_cell(row['points'])} |"
+            )
         return "\n".join(summary)
 
     except Exception as e:

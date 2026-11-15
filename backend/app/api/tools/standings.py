@@ -86,7 +86,7 @@ def get_constructor_standings(year: int) -> str:
 def _naive_utc(value: object) -> pd.Timestamp:
     """Drop the timezone from an event date so it compares against a naive now.
 
-    FastF1 returns ``EventDate`` as a tz-naive ``datetime64[ns]``. Comparing that
+    f1db's calendar gives ``EventDate`` as a tz-naive ``datetime64[ns]``. Comparing that
     against a tz-aware ``datetime`` raises, and the raise is swallowed by the
     tool's except clause — every row would be reported as a fetch failure.
     """
@@ -95,11 +95,7 @@ def _naive_utc(value: object) -> pd.Timestamp:
 
 
 def _weekend_format(event_format: object) -> str:
-    """Sprint or Standard, from FastF1's ``EventFormat``.
-
-    FastF1 has spelled the sprint format three ways since 2021 — ``sprint``,
-    ``sprint_shootout`` and ``sprint_qualifying`` — so match the prefix.
-    """
+    """Sprint or Standard, from the calendar's ``EventFormat`` ("sprint" or "conventional")."""
     return "Sprint" if str(event_format).startswith("sprint") else "Standard"
 
 

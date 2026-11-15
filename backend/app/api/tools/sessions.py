@@ -1,15 +1,47 @@
-"""Session-classification tools: sprint, sprint qualifying and qualifying."""
+"""Session-classification tools: sprint, sprint qualifying and qualifying.
+
+Every table is read from f1db, or OpenF1 until f1db holds the round, and says
+which. A car that did not finish reads DNF with its reason, never a place.
+"""
 
 from __future__ import annotations
 
-import fastf1
 from langchain_core.tools import tool
-import pandas as pd
 import structlog
 
-from app.api.tools.formatting import _fmt_driver, _fmt_points, _fmt_team, _fmt_timedelta
+from app.api.tools.rounds import resolve_round
+from app.data.qualifying_times import QualifyingCar, QualifyingTimes, qualifying_times
+from app.services.race_results import build_session_result, clock
 
 logger = structlog.get_logger()
+
+NO_TIME = "-"
+
+
+def source_line(final: bool) -> str:
+    """Which source the table is read from, and whether it is the final classification."""
+    if final:
+        return "*(Source: f1db, the FIA final classification)*"
+    return "*(Source: OpenF1, provisional until f1db publishes the final classification)*"
+
+
+def driver_label(name: str, code: str) -> str:
+    """'Kimi Antonelli (ANT)': the name f1db gives the driver, with the code as a handle."""
+    return f"{name} ({code})" if name and code else name or code or NO_TIME
+
+
+def time_cell(row: dict) -> str:
+    """Race time, gap, laps down, or how the car's race ended (DNF with its reason, DNS, DSQ, NC)."""
+    status = row["status"]
+    if status != "Finished":
+        return f"❌ {status}" + (f" ({row['reason']})" if row["reason"] else "")
+    text = row["time"] if row["position"] == 1 else row["gap"]
+    penalty = f" (incl. {row['time_penalty']}s penalty)" if row["time_penalty"] else ""
+    return (text or "Interval") + penalty
+
+
+def points_cell(points: float | None) -> str:
+    return f"{points or 0:g}"
 
 
 def _header(*value_labels: str) -> list[str]:
@@ -21,13 +53,8 @@ def _header(*value_labels: str) -> list[str]:
     ]
 
 
-def _row(year: int, position: object, row: pd.Series, *values: str) -> str:
-    """One classification line: who the driver is and the team they ran for here, under f1db's names.
-
-    The model's memory of the grid predates the current season; given only a
-    driver code it filled in the rest itself — "Kimi Antonelli (Alfa Romeo)".
-    """
-    return f"| {position} | {_fmt_driver(row, year)} | {_fmt_team(row, year)} | {' | '.join(values)} |"
+def _row(position: object, name: str, code: str, team: str, *values: str) -> str:
+    return f"| {position} | {driver_label(name, code)} | {team or NO_TIME} | {' | '.join(values)} |"
 
 
 @tool
@@ -43,31 +70,69 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.sprint_results", grand_prix=grand_prix, year=year)
     try:
-        session = fastf1.get_session(year, grand_prix, "S")
-        # telemetry and weather data are not needed for a results table.
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results.sort_values(by="Position")
-
-        summary = [f"### Sprint Race Results: {grand_prix} {year}", *_header("Time/Status", "Pts")]
-
-        for _, row in results.iterrows():
-            pos = str(row["Position"]).split(".")[0]
-            status = str(row["Status"])
-
-            # DSQ takes priority over any time value.
-            if "Disqualified" in status or "DSQ" in status:
-                time_str = "DSQ"
-            elif pd.notna(row["Time"]):
-                time_str = _fmt_timedelta(row["Time"])
-            else:
-                time_str = status  # DNF / +1 Lap / etc.
-
-            summary.append(_row(year, pos, row, time_str, _fmt_points(row["Points"])))
-
-        return "\n".join(summary)
-
+        sprint = build_session_result(year, resolve_round(year, grand_prix), "sprint")
+        if sprint is None:
+            return (
+                f"No sprint classification is published for {grand_prix} {year} (not a sprint weekend, or not run yet)."
+            )
+        rows = [
+            _row(
+                row["position"] or row["status"],
+                row["driver_name"],
+                row["driver_code"],
+                row["team"],
+                time_cell(row),
+                points_cell(row["points"]),
+            )
+            for row in sprint["classification"]
+        ]
+        heading = [
+            f"### Sprint Race Results: {grand_prix} {year}",
+            source_line(sprint["final"]),
+            "",
+            *_header("Time/Status", "Pts"),
+        ]
+        return "\n".join([*heading, *rows])
     except Exception as e:
         return f"Could not fetch Sprint results: {e}"
+
+
+def _time_cell(seconds: float, note: str | None) -> str:
+    return clock(round(seconds * 1000)) + (f" ({note})" if note else "")
+
+
+def _segment_table(cars: tuple[QualifyingCar, ...], index: int, title: str, label: str) -> list[str]:
+    """One segment's table: the cars that set a time in it, fastest first; empty when none did."""
+    timed = sorted(((car, time) for car in cars if (time := car.times[index]) is not None), key=lambda pair: pair[1])
+    if not timed:
+        return []
+    rows = [
+        _row(rank, car.name, car.code, car.team, _time_cell(time, car.note))
+        for rank, (car, time) in enumerate(timed, 1)
+    ]
+    return [title, *_header(f"{label} Time"), *rows]
+
+
+def _qualifying_report(table: QualifyingTimes, prefix: str, pole: str, heading: str) -> str:
+    """The Q1/Q2/Q3 tables (``prefix`` "Q" or "SQ"), or an ordered list when the cars carry no segment times."""
+    cars = table.cars
+    titles = (f"### {prefix}1 Results ({heading})", f"### {prefix}2 Results", f"### {prefix}3 Results ({pole})")
+    tables = [_segment_table(cars, index, title, f"{prefix}{index + 1}") for index, title in enumerate(titles)]
+    shown = [lines for lines in tables if lines]
+    if shown:
+        body = [line for lines in shown[:-1] for line in (*lines, "\n---\n")] + shown[-1]
+        return "\n".join([source_line(table.final), "", *body])
+    ordered = sorted(cars, key=lambda car: car.position or len(cars) + 1)
+    rows = [_row(car.position or car.note, car.name, car.code, car.team, NO_TIME) for car in ordered]
+    return "\n".join(
+        [
+            f"### {prefix} Classification ({heading})",
+            source_line(table.final),
+            f"*(Detailed {prefix}1/{prefix}2/{prefix}3 split data currently unavailable)*\n",
+            *_header("Time"),
+            *rows,
+        ]
+    )
 
 
 @tool
@@ -77,59 +142,12 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
     Use for 'Sprint Qualifying', 'Shootout', 'SQ' or 'Sprint Quali' — NOT
     get_qualifying_results.
     """
-    # FastF1 labels the columns Q1/Q2/Q3 even for shootout data, and laps=True
-    # is required because Ergast often lacks SQ split times.
     logger.info("tool.sprint_qualifying", grand_prix=grand_prix, year=year)
     try:
-        session = fastf1.get_session(year, grand_prix, "SQ")
-        # laps=True is required: Ergast often doesn't carry SQ1/SQ2/SQ3 columns,
-        # so FastF1 derives them from the lap data instead.
-        session.load(telemetry=False, laps=True, weather=False)
-        results = session.results
-
-        output = []
-
-        # --- SQ1 ---
-        # FastF1 stores SQ1 times in the 'Q1' column (naming follows Qualifying).
-        if "Q1" in results.columns and results["Q1"].notna().any():
-            sq1_df = results.sort_values(by="Q1")
-            output.append(f"### SQ1 Results ({grand_prix} {year})")
-            output.extend(_header("SQ1 Time"))
-            for i, (_, row) in enumerate(sq1_df.iterrows(), 1):
-                if pd.notna(row["Q1"]):
-                    output.append(_row(year, i, row, _fmt_timedelta(row["Q1"])))
-            output.append("\n---\n")
-
-        # --- SQ2 ---
-        if "Q2" in results.columns and results["Q2"].notna().any():
-            sq2_df = results[results["Q2"].notna()].sort_values(by="Q2")
-            if not sq2_df.empty:
-                output.append("### SQ2 Results")
-                output.extend(_header("SQ2 Time"))
-                for i, (_, row) in enumerate(sq2_df.iterrows(), 1):
-                    output.append(_row(year, i, row, _fmt_timedelta(row["Q2"])))
-                output.append("\n---\n")
-
-        # --- SQ3 ---
-        if "Q3" in results.columns and results["Q3"].notna().any():
-            sq3_df = results[results["Q3"].notna()].sort_values(by="Q3")
-            if not sq3_df.empty:
-                output.append("### SQ3 Results (Sprint Pole Position)")
-                output.extend(_header("SQ3 Time"))
-                for i, (_, row) in enumerate(sq3_df.iterrows(), 1):
-                    output.append(_row(year, i, row, _fmt_timedelta(row["Q3"])))
-
-        # Fallback: if the split-column data is absent, show a simple ordered list.
-        if not output:
-            output.append(f"### Sprint Qualifying Results ({grand_prix} {year})")
-            output.append("*(Detailed SQ1/SQ2/SQ3 split data currently unavailable)*\n")
-            output.extend(_header("Time"))
-            for _, row in results.sort_values(by="Position").iterrows():
-                t = _fmt_timedelta(row["Time"]) if pd.notna(row["Time"]) else "-"
-                output.append(_row(year, row["Position"], row, t))
-
-        return "\n".join(output)
-
+        table = qualifying_times(year, resolve_round(year, grand_prix), "SQ")
+        if table is None:
+            return f"No sprint qualifying results are published for {grand_prix} {year} (not a sprint weekend, or not run yet)."
+        return _qualifying_report(table, "SQ", "Sprint Pole Position", f"{grand_prix} {year}")
     except Exception as e:
         return f"Could not fetch Sprint Qualifying. Note: {grand_prix} {year} might not be a Sprint weekend. Error: {e}"
 
@@ -147,38 +165,9 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.qualifying", grand_prix=grand_prix, year=year)
     try:
-        session = fastf1.get_session(year, grand_prix, "Q")
-        session.load(telemetry=False, laps=False, weather=False)
-        results = session.results
-
-        output = []
-
-        # --- Q1 --- (all drivers who set a time)
-        q1_df = results.sort_values(by="Q1")
-        output.append(f"### Q1 Results ({grand_prix} {year})")
-        output.extend(_header("Q1 Time"))
-        for i, (_, row) in enumerate(q1_df.iterrows(), 1):
-            output.append(_row(year, i, row, _fmt_timedelta(row["Q1"])))
-        output.append("\n---\n")
-
-        # --- Q2 --- (drivers who advanced beyond Q1)
-        q2_df = results[results["Q2"].notna()].sort_values(by="Q2")
-        if not q2_df.empty:
-            output.append("### Q2 Results")
-            output.extend(_header("Q2 Time"))
-            for i, (_, row) in enumerate(q2_df.iterrows(), 1):
-                output.append(_row(year, i, row, _fmt_timedelta(row["Q2"])))
-            output.append("\n---\n")
-
-        # --- Q3 --- (top 10 pole-position shootout)
-        q3_df = results[results["Q3"].notna()].sort_values(by="Q3")
-        if not q3_df.empty:
-            output.append("### Q3 Results (Pole Position)")
-            output.extend(_header("Q3 Time"))
-            for i, (_, row) in enumerate(q3_df.iterrows(), 1):
-                output.append(_row(year, i, row, _fmt_timedelta(row["Q3"])))
-
-        return "\n".join(output)
-
+        table = qualifying_times(year, resolve_round(year, grand_prix), "Q")
+        if table is None:
+            return f"No qualifying results are published for {grand_prix} {year} yet."
+        return _qualifying_report(table, "Q", "Pole Position", f"{grand_prix} {year}")
     except Exception as e:
         return f"Failed to fetch qualifying results: {e}"

@@ -34,6 +34,7 @@ from tests.circuit_history_support import circuit_history_f1db  # noqa: F401
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
 from tests.identity_support import identity_f1db  # noqa: F401
 from tests.profiles_support import profiles_f1db  # noqa: F401
+from tests.qualifying_tools_support import qualifying_f1db  # noqa: F401
 from tests.race_results_support import race_results_f1db  # noqa: F401
 
 # ---------------------------------------------------------------------------

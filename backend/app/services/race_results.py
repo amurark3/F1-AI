@@ -17,7 +17,8 @@ import re
 
 import structlog
 
-from app.data.canonical_names import driver_identity, team_display_name
+from app.data.canonical_names import F1DB_READ_ERRORS, driver_identity, team_display_name
+from app.data.f1db_grid import starting_grid
 from app.data.f1db_race_results import TYPE_RACE, TYPE_SPRINT, ResultRow, fastest_lap, result_rows
 from app.data.f1db_source import installed_version
 from app.data.race_classification import openf1_session_result, openf1_status
@@ -33,6 +34,8 @@ STATUS_BY_TEXT = {"DNF": "DNF", "NC": "NC", "DNS": "DNS", "DSQ": "DSQ", "EX": "D
 OPENF1_STATUS = {"finished": "Finished", "dnf": "DNF", "dns": "DNS", "dsq": "DSQ", "not_classified": "NC"}
 # Row order: classified cars, then NC, then DNF by laps, then DNS, then DSQ.
 STATUS_ORDER = {"Finished": 0, "NC": 1, "DNF": 2, "DNS": 3, "DSQ": 4}
+# kind -> (f1db result type, OpenF1 session code)
+SESSION_KINDS = {"race": (TYPE_RACE, "R"), "sprint": (TYPE_SPRINT, "S")}
 OPENF1_LAPS_DOWN = re.compile(r"\+(\d+)\s*LAPS?", re.IGNORECASE)
 
 
@@ -230,9 +233,28 @@ def _best(year: int, round_num: int, result_type: str, openf1_code: str) -> dict
     return _from_f1db(year, round_num, result_type) or _from_openf1(year, round_num, openf1_code)
 
 
+def build_session_result(year: int, round_num: int, kind: str) -> dict | None:
+    """One session's classification (``kind`` "race" or "sprint"), or ``None`` when no source holds it."""
+    result_type, openf1_code = SESSION_KINDS[kind]
+    return _best(year, round_num, result_type, openf1_code)
+
+
+def official_grid(year: int, round_num: int) -> dict[str, int | None]:
+    """Each car's slot on f1db's published race grid (``None`` for a pit-lane start); empty until f1db holds it.
+
+    A grid built from the qualifying order is not read: it knows no penalties,
+    so a place "gained" against it would be invented.
+    """
+    try:
+        return {slot.driver_code: slot.position for slot in starting_grid(year, round_num)}
+    except F1DB_READ_ERRORS as exc:
+        logger.warning("race_results.grid_unreadable", year=year, round=round_num, error=str(exc))
+        return {}
+
+
 def build_race_results(year: int, round_num: int) -> dict:
     """The round's race and sprint classifications; a session the round lacks is ``None``."""
-    race = _best(year, round_num, TYPE_RACE, "R")
-    sprint = _best(year, round_num, TYPE_SPRINT, "S")
+    race = build_session_result(year, round_num, "race")
+    sprint = build_session_result(year, round_num, "sprint")
     logger.info("race_results.built", year=year, round=round_num, race=race is not None, sprint=sprint is not None)
     return {"year": year, "round": round_num, "race": race, "sprint": sprint}

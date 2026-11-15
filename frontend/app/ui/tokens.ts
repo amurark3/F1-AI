@@ -60,6 +60,17 @@ export const f1 = {
   sectorPb: "#00cc00",
   /** No improvement. */
   sectorSlow: "#fff200",
+  /** Tyre compounds: data marks on a stint chart, never decoration. */
+  tyreSoft: "#e8002d",
+  tyreMedium: "#f5c542",
+  tyreHard: "#e7e9ee",
+  tyreInter: "#00a550",
+  tyreWet: "#3671c6",
+  /** Pre-2019 compounds that historical data still names. */
+  tyreUltrasoft: "#c64bc6",
+  tyreHypersoft: "#ff8fa6",
+  /** A stint whose compound was never recorded. */
+  tyreUnknown: "#4a5261",
 } as const;
 
 /** Font stacks, equal to the `--font-*` entries in `@theme inline`. */

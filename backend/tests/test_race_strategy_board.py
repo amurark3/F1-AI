@@ -509,6 +509,7 @@ def board(monkeypatch):
     monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
     monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: NO_CLASSIFICATION)
+    monkeypatch.setattr(race_strategy_board, "race_neutralisations", lambda y, r: [])
     return state
 
 

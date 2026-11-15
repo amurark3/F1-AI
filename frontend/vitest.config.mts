@@ -35,7 +35,7 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/gridDelta.ts",
   // P4.3b2: the hub's frame (header, URL-driven sections, season inputs) and
   // the Results tab. The Sessions, Grid, Weekend, Stints and Predictions
-  // panels stay off: P4.3b3, b4 and b5 rebuild them.
+  // panels stay off: P4.3b3 and b5 rebuild them.
   "app/race-control/grand-prix/HubHeader.tsx",
   "app/race-control/grand-prix/hubNavigation.ts",
   "app/race-control/grand-prix/ResultsSidePanels.tsx",
@@ -43,6 +43,17 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/ResultsTab.tsx",
   "app/race-control/grand-prix/ResultsTable.tsx",
   "app/race-control/grand-prix/useHubShell.ts",
+  // P4.3b4: the Weekend and Stints tabs, and the tyre colours they read.
+  "app/race-control/grand-prix/StintChart.tsx",
+  "app/race-control/grand-prix/StintOverlay.tsx",
+  "app/race-control/grand-prix/strategyModel.ts",
+  "app/race-control/grand-prix/tyreCompounds.ts",
+  "app/race-control/grand-prix/WeekendFacts.tsx",
+  "app/race-control/grand-prix/WeekendGlance.tsx",
+  "app/race-control/grand-prix/WeekendTabHero.tsx",
+  "app/race-control/grand-prix/WeekendPanels.tsx",
+  "app/race-control/grand-prix/WeekendSchedule.tsx",
+  "app/race-control/grand-prix/weekendTabModel.ts",
   // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
   // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
   "app/race-control/profiles/EntityLinks.tsx",

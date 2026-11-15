@@ -154,6 +154,20 @@
  *   whose 2026 race results stop after round 19: the Monday after São Paulo,
  *   before f1db published it, when round 20 is completed with no winner yet.
  *
+ * The Weekend and Stints tabs (P4.3b4, 14 Nov) read these, captured at 21:14 UTC
+ * on 14 Nov by calling the backend's own builders for Mexico City (round 19)
+ * with the real feeds (f1db v2026.20.0, OpenF1, the classification):
+ *
+ * - `circuit-round-2026-r19.json`: `race_control.build_round_circuit(2026, 19)`,
+ *   as `GET /api/race-control/circuit/2026/19` serves it.
+ * - `race-strategy-2026-r19.json`: `race_strategy_board.build_race_strategy(2026, 19)`,
+ *   as `GET /api/race-control/stints/2026/19` serves it: the five retirements
+ *   with their reasons, and the VSC (laps 7-8), safety car (44, 59-62) and red
+ *   flag (lap 45) periods.
+ * - `race-glance-2026-r19.json`: `race_glance.build_race_glance(2026, 19)`, as
+ *   `GET /api/race-control/glance/2026/19` serves it (no FIA power-unit documents
+ *   are collected for 2026, so `power_units.available` is false).
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
@@ -162,6 +176,8 @@ import type { StrategyContext, WeatherCard } from "@/app/race-control/components
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
 import type { DriverPrediction, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
+import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strategyModel";
+import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
 import type {
   DriverProfile,
   DriverProfileResponse,
@@ -185,6 +201,7 @@ import type { CircuitMapData } from "@/app/ui/outlinePath";
 import championStats from "./champions-stats.json";
 import circuitMaps from "./circuit-maps.json";
 import circuitRecords from "./circuit-records.json";
+import circuitRound2026 from "./circuit-round-2026-r19.json";
 import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
 import overviewPredictions2026 from "./overview-predictions-2026.json";
@@ -195,7 +212,9 @@ import predictionOrders2026 from "./prediction-orders-2026.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
+import glance2026 from "./race-glance-2026-r19.json";
 import raceResults2026 from "./race-results-2026.json";
+import raceStrategy2026 from "./race-strategy-2026-r19.json";
 import ready from "./ready.json";
 import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
@@ -348,4 +367,11 @@ export const SEASON_2026 = {
 export const RACE_RESULTS_2026 = {
   mexicoCity: raceResults2026.mexico_city_r19 as unknown as RaceResultsResponse,
   sprintWeekend: raceResults2026.sprint_weekend_r2 as unknown as RaceResultsResponse,
+};
+
+/** Mexico City 2026 (round 19) as the circuit route and the strategy route serve it. */
+export const MEXICO_CITY_2026 = {
+  circuit: circuitRound2026 as unknown as RoundCircuit,
+  strategy: raceStrategy2026 as unknown as RaceStrategyResponse,
+  glance: glance2026,
 };

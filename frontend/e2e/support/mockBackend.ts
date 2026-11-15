@@ -1,4 +1,4 @@
-import { DIRECTORY_2026, RACE_RESULTS_2026, READY, TEAMS_2026 } from "../../test/fixtures";
+import { DIRECTORY_2026, MEXICO_CITY_2026, RACE_RESULTS_2026, READY, TEAMS_2026 } from "../../test/fixtures";
 
 import type { Page, Route } from "@playwright/test";
 
@@ -40,4 +40,14 @@ export async function mockBackend(page: Page): Promise<void> {
     const body = round === "2" ? RACE_RESULTS_2026.sprintWeekend : RACE_RESULTS_2026.mexicoCity;
     return fulfillJson(route, body);
   });
+  // The Weekend tab's circuit and the Stints tab's chart: Mexico City.
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/circuit/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.circuit),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/stints/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.strategy),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/glance/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.glance),
+  );
 }

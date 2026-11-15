@@ -41,7 +41,7 @@ function HeadlinerValue({ person, year }: { person: Headliner | null; year?: num
       <DriverLink id={person.driver_id}>
         <DriverName name={person.driver_name} id={person.driver_id} year={year} />
       </DriverLink>{" "}
-      <span className="font-normal text-[#6F7789]">
+      <span className="font-normal text-rc-ink-3">
         (
         <TeamLink id={person.team_id}>
           <TeamName name={person.team_name} id={person.team_id} year={year} />
@@ -54,24 +54,24 @@ function HeadlinerValue({ person, year }: { person: Headliner | null; year?: num
 
 function PenaltyList({ section }: { section: RaceGlance["power_units"] }) {
   if (!section.available) {
-    return <p className="pt-3 text-xs text-[#6F7789]">{section.reason ?? "Power-unit decisions are not available."}</p>;
+    return <p className="pt-3 text-xs text-rc-ink-3">{section.reason ?? "Power-unit decisions are not available."}</p>;
   }
   if (section.decisions.length === 0) {
-    return <p className="pt-3 text-xs text-[#6F7789]">No power-unit penalty decided this weekend.</p>;
+    return <p className="pt-3 text-xs text-rc-ink-3">No power-unit penalty decided this weekend.</p>;
   }
   return (
     <ul className="space-y-1.5 pt-3">
       {section.decisions.map((decision) => (
-        <li key={`${decision.car_number}-${decision.url}`} className="flex items-start gap-2 text-xs text-[#B7BDCA]">
+        <li key={`${decision.car_number}-${decision.url}`} className="flex items-start gap-2 text-xs text-rc-ink-2">
           <Link
             href={`/race-control/power-units/${decision.car_number}`}
-            className="font-bold text-white hover:underline"
+            className="font-bold text-rc-ink hover:underline"
           >
             #{decision.car_number}{" "}
             <DriverName name={decision.driver.name} code={decision.driver.code} id={decision.driver.id} />
           </Link>
-          <span className="text-[#FF8A85]">{outcomeLabel(decision)}</span>
-          <a href={decision.url} target="_blank" rel="noreferrer" className="ml-auto text-[#6F7789] hover:text-white">
+          <span className="text-rc-red-text">{outcomeLabel(decision)}</span>
+          <a href={decision.url} target="_blank" rel="noreferrer" className="ml-auto text-rc-ink-3 hover:text-rc-ink">
             <ExternalLink className="h-3.5 w-3.5" aria-label={`FIA document: ${decision.title}`} />
           </a>
         </li>
@@ -81,9 +81,10 @@ function PenaltyList({ section }: { section: RaceGlance["power_units"] }) {
 }
 
 /**
- * Two things worth knowing before the weekend starts: who won and took pole
- * the last time F1 raced here, and any power-unit penalty already decided —
- * each from its source of record, f1db and the FIA's documents.
+ * Two things worth knowing before the weekend starts: who took pole the last
+ * time F1 raced here (the winner is in Circuit history), and any power-unit
+ * penalty already decided — each from its source of record, f1db and the FIA's
+ * documents.
  */
 export function WeekendGlance({ year, round }: { year: number; round: number }) {
   const { data, error } = useSWR<RaceGlance, Error>(`${API_BASE}/api/race-control/glance/${year}/${round}`, fetcher, {
@@ -95,21 +96,17 @@ export function WeekendGlance({ year, round }: { year: number; round: number }) 
     <Panel as="section">
       <PanelHeading eyebrow="At a glance" inset />
       <div className="p-4 font-mono text-sm">
-        {error && <p className="text-xs text-[#FFB4B1]">This round&apos;s history could not be loaded.</p>}
-        {!data && !error && <p className="text-xs text-[#6F7789]">Reading this circuit&apos;s history…</p>}
+        {error && <p className="text-xs text-rc-red-text">This round&apos;s history could not be loaded.</p>}
+        {!data && !error && <p className="text-xs text-rc-ink-3">Reading this circuit&apos;s history…</p>}
         {data && (
           <>
-            <dl className="divide-y divide-[#1E2633]">
-              <InfoRow
-                label={data.previous ? `${data.previous.year} winner` : "Last winner"}
-                value={<HeadlinerValue person={data.previous?.winner ?? null} year={data.previous?.year} />}
-              />
+            <dl className="divide-y divide-rc-line">
               <InfoRow
                 label={data.previous ? `${data.previous.year} pole` : "Last pole"}
                 value={<HeadlinerValue person={data.previous?.pole ?? null} year={data.previous?.year} />}
               />
             </dl>
-            {!data.previous && <p className="pt-2 text-xs text-[#6F7789]">No earlier race at this circuit.</p>}
+            {!data.previous && <p className="pt-2 text-xs text-rc-ink-3">No earlier race at this circuit.</p>}
             <PenaltyList section={data.power_units} />
           </>
         )}

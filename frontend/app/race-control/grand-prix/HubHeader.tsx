@@ -2,7 +2,7 @@
 
 import { LocalCountdown, LocalTime } from "@/app/components/LocalTime";
 
-import { InlineNotice, rcFont } from "../components/RaceControlPrimitives";
+import { InlineNotice } from "../components/RaceControlPrimitives";
 
 import { raceSessionTime } from "./predictionHelpers";
 
@@ -33,12 +33,12 @@ export function RaceHeader({
   const status = selectedRace?.status ?? "";
 
   return (
-    <div className="flex flex-col gap-3 border-b border-[#1E2633] pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-3 border-b border-rc-line pb-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <h1 className="text-3xl font-black leading-tight text-white sm:text-4xl" style={rcFont}>
+        <h1 className="font-display text-3xl font-extrabold uppercase leading-tight text-rc-ink sm:text-4xl">
           {raceName}
         </h1>
-        <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 font-mono text-xs text-[#8E96A8]">
+        <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 font-mono text-xs text-rc-ink-2">
           <span>{selectedRace?.circuit?.circuit_name ?? selectedRace?.location ?? "Circuit TBC"}</span>
           <span aria-hidden="true">·</span>
           <span>Round {selectedRound ?? "-"}</span>
@@ -48,7 +48,7 @@ export function RaceHeader({
             <LocalTime value={raceTime} style="time" fallback="time TBC" />
           </span>
           <span aria-hidden="true">·</span>
-          <b className="text-white">{STATUS_LABELS[status] ?? (status || "Status unknown")}</b>
+          <b className="text-rc-ink">{STATUS_LABELS[status] ?? (status || "Status unknown")}</b>
         </p>
       </div>
       {status !== "completed" && <LocalCountdown value={raceTime} />}

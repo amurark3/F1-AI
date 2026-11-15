@@ -1,14 +1,24 @@
 "use client";
 
-import { Timer, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useMemo } from "react";
 
 import { getTeamColor } from "@/app/lib/teamColors";
+import { Legend, type LegendItem } from "@/app/ui/Legend";
 import { PanelHeading } from "@/app/ui/PanelHeading";
+import { f1, rc } from "@/app/ui/tokens";
 
 import { Panel } from "../components/RaceControlPrimitives";
 
-import { finalStintLabel, resultCode, stintEndingLabel, stopTimeLabel } from "./strategyModel";
+import { StintOverlay } from "./StintOverlay";
+import {
+  finalStintLabel,
+  redFlagLap,
+  resultCode,
+  retirementTag,
+  stintEndingLabel,
+  stopTimeLabel,
+} from "./strategyModel";
 import {
   UNKNOWN_COMPOUND_COLOR,
   compoundColor,
@@ -86,10 +96,10 @@ function StintBar({ stint, share, ending }: { stint: DriverStint; share: number;
 function StopMarker({ stop }: { stop: NonNullable<DriverStint["ended_by_stop"]> }) {
   return (
     <span
-      className="relative z-10 -mx-[3px] flex h-7 w-[6px] shrink-0 items-center justify-center bg-[#0D111B]"
+      className="relative z-10 -mx-[3px] flex h-7 w-[6px] shrink-0 items-center justify-center bg-(--surface)"
       title={`Pit stop on lap ${stop.lap} - ${stopTimeLabel(stop)}`}
     >
-      <span className="h-full w-[2px] bg-[#8E96A8]" />
+      <span className="h-full w-[2px] bg-rc-ink-2" />
     </span>
   );
 }
@@ -104,10 +114,10 @@ function StopMarker({ stop }: { stop: NonNullable<DriverStint["ended_by_stop"]> 
 function RedFlagMarker() {
   return (
     <span
-      className="relative z-10 -mx-[3px] flex h-7 w-[6px] shrink-0 items-center justify-center bg-[#0D111B]"
+      className="relative z-10 -mx-[3px] flex h-7 w-[6px] shrink-0 items-center justify-center bg-(--surface)"
       title="Tyres changed under a red flag - the race was suspended, so this is not counted as a pit stop"
     >
-      <span className="h-full w-[2px] bg-[#E10600]" />
+      <span className="h-full w-[2px] bg-f1-red" />
     </span>
   );
 }
@@ -142,7 +152,7 @@ function FinishMarker({ driver }: { driver: DriverStrategy }) {
 function StintTrack({ driver, raceLaps }: { driver: DriverStrategy; raceLaps: number }) {
   if (driver.stints.length === 0) {
     return (
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6F7789]">
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-rc-ink-3">
         {driver.status === "dns" ? "Did not start" : "No stint data published"}
       </span>
     );
@@ -174,66 +184,71 @@ function DriverRow({ driver, raceLaps }: { driver: DriverStrategy; raceLaps: num
   // From the backend, which counts stint boundaries rather than published stop
   // rows — a tyre change is a stop whether or not it was timed.
   const stops = driver.stops;
+  const retired = retirementTag(driver);
 
   return (
     <div className="flex items-center gap-3 px-4 py-1.5" title={`${driver.driver_code}: ${finalStintLabel(driver)}`}>
       {/* Rows are in classification order, so the result is shown — otherwise
           the ordering looks arbitrary to anyone who does not know it. */}
       <span className="flex w-24 shrink-0 items-center gap-2">
-        <span className="w-7 shrink-0 text-right font-mono text-[11px] text-[#6F7789]">{resultCode(driver)}</span>
+        <span
+          className={`w-8 shrink-0 text-right font-mono text-[11px] font-semibold ${retired ? "text-rc-red-text" : "text-rc-ink-3"}`}
+        >
+          {resultCode(driver)}
+        </span>
         <span className="h-4 w-[3px] rounded-full" style={{ background: getTeamColor(driver.team) }} />
-        <span className="font-mono text-xs font-black uppercase tracking-[0.06em] text-white">
+        <span className="font-mono text-xs font-black uppercase tracking-[0.06em] text-rc-ink">
           {driver.driver_code}
         </span>
       </span>
       <span className="flex min-w-0 flex-1 items-center">
         <StintTrack driver={driver} raceLaps={raceLaps} />
       </span>
-      <span className="w-14 shrink-0 text-right font-mono text-[11px] text-[#7F8797]">
+      <span className="hidden w-24 shrink-0 text-right font-mono text-[11px] leading-tight text-rc-ink-3 sm:block">
         {stops} stop{stops === 1 ? "" : "s"}
+        {retired && <span className="block text-rc-red-text">{retired}</span>}
       </span>
     </div>
   );
 }
 
-function CompoundLegend({ compounds, anyUnknown }: { compounds: string[]; anyUnknown: boolean }) {
+const MARK_NOTE = "inline-flex items-center gap-[7px]";
+
+function ChartLegend({ compounds, anyUnknown }: { compounds: string[]; anyUnknown: boolean }) {
+  const items: LegendItem[] = [
+    ...compounds.map((compound) => ({ label: compoundLabel(compound), color: compoundColor(compound) })),
+    ...(anyUnknown ? [{ label: "Not recorded", color: UNKNOWN_COMPOUND_COLOR }] : []),
+    { label: "Pit stop", color: rc.ink2, mark: "rule" as const },
+    { label: "Red flag change", color: f1.red, mark: "rule" as const },
+  ];
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[#1E2633] px-4 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[#7F8797]">
-      {compounds.map((compound) => (
-        <span key={compound} className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: compoundColor(compound) }} />
-          {compoundLabel(compound)}
-        </span>
-      ))}
-      {anyUnknown && (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: UNKNOWN_COMPOUND_COLOR }} />
-          not recorded
-        </span>
-      )}
-      <span className="inline-flex items-center gap-1.5">
-        <span
-          className="h-2.5 w-2.5 rounded-sm border border-[#4A5261]"
-          style={{ backgroundImage: "repeating-linear-gradient(45deg, #8E96A8 0 2px, transparent 2px 4px)" }}
-        />
-        used set
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-3 w-[2px] bg-[#8E96A8]" />
-        pit stop
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-3 w-[2px] bg-[#E10600]" />
-        red flag change
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-[1px]" style={{ backgroundImage: CHEQUER, backgroundSize: "5px 5px" }} />
-        took the flag
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <X className="h-3 w-3 text-f1-red" strokeWidth={3} aria-hidden />
-        retired
-      </span>
+    <div className="flex flex-wrap items-center gap-x-[18px] gap-y-2 border-t border-rc-line px-4 py-3">
+      <Legend items={items} label="Tyre compounds and marks" />
+      <ul
+        aria-label="Stint marks"
+        className="flex flex-wrap gap-x-[18px] gap-y-2 font-mono text-[11px] font-medium leading-none text-rc-ink-3"
+      >
+        <li className={MARK_NOTE}>
+          <span
+            aria-hidden="true"
+            className="size-3 rounded-[2px] border border-rc-dim"
+            style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--rc-ink-2) 0 2px, transparent 2px 4px)" }}
+          />
+          Used set
+        </li>
+        <li className={MARK_NOTE}>
+          <span
+            aria-hidden="true"
+            className="size-3 rounded-[1px]"
+            style={{ backgroundImage: CHEQUER, backgroundSize: "5px 5px" }}
+          />
+          Took the flag
+        </li>
+        <li className={MARK_NOTE}>
+          <X className="size-3 text-f1-red" strokeWidth={3} aria-hidden />
+          Retired
+        </li>
+      </ul>
     </div>
   );
 }
@@ -249,11 +264,11 @@ function ChartNotes({ warnings, fastest }: { warnings?: string[]; fastest?: Race
   if (!warnings?.length && !fastest) return null;
 
   return (
-    <div className="space-y-1.5 border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#596173]">
+    <div className="space-y-1.5 border-t border-rc-line px-4 py-3 text-xs leading-relaxed text-rc-ink-3">
       {fastest && (
         <p>
-          Quickest stop: <span className="font-mono font-bold text-white">{stopTimeLabel(fastest)}</span> by{" "}
-          <span className="font-mono font-bold text-[#AEB5C5]">{fastest.driver_code}</span> on lap {fastest.lap}.
+          Quickest stop: <span className="font-mono font-bold text-rc-ink">{stopTimeLabel(fastest)}</span> by{" "}
+          <span className="font-mono font-bold text-rc-ink-2">{fastest.driver_code}</span> on lap {fastest.lap}.
           Pit-lane time runs from pit entry to pit exit; the car stands still for only part of it.
         </p>
       )}
@@ -262,6 +277,16 @@ function ChartNotes({ warnings, fastest }: { warnings?: string[]; fastest?: Race
       ))}
     </div>
   );
+}
+
+/** The chart's finding, computed from the race: the red flag's free tyre change, else the stops made. */
+function chartTitle(data: RaceStrategyResponse, raceLaps: number): string {
+  const redLap = redFlagLap(data.neutralisations);
+  const changed = data.drivers.filter((driver) => driver.red_flag_changes > 0).length;
+  if (redLap !== null && changed > 0) {
+    return `The red flag on lap ${redLap} gave ${changed} drivers a free tyre change`;
+  }
+  return `${data.stops_made} pit stops by ${data.drivers.length} cars over ${raceLaps} laps`;
 }
 
 /**
@@ -286,37 +311,34 @@ export function StintChart({ data }: { data?: RaceStrategyResponse }) {
   // The full race distance, so a retirement's row is visibly short.
   const raceLaps = useMemo(() => Math.max(1, ...drivers.map((driver) => driver.total_laps)), [drivers]);
 
-  return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Tyre stints"
-        aside={
-          <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-            <Timer className="h-3.5 w-3.5 text-[#F5C542]" />
-            {drivers.length
-              ? `${raceLaps} laps / ${data?.classification_source ? "classified" : "finishing"} order`
-              : "no data"}
-          </span>
-        }
-        inset
-      />
-
-      {drivers.length === 0 ? (
-        <p className="p-4 text-sm leading-relaxed text-[#8E96A8]">
+  if (!data || drivers.length === 0) {
+    return (
+      <Panel as="section">
+        <PanelHeading eyebrow="Tyre strategy" inset />
+        <p className="p-4 text-sm leading-relaxed text-rc-ink-2">
           {data?.warnings?.[0] ??
             "Tyre stint data appears here once the race has run and its timing data is available."}
         </p>
-      ) : (
-        <>
-          <div className="py-2">
-            {drivers.map((driver) => (
-              <DriverRow key={driver.driver_code} driver={driver} raceLaps={raceLaps} />
-            ))}
-          </div>
-          <CompoundLegend compounds={compounds} anyUnknown={anyUnknown} />
-          <ChartNotes warnings={data?.warnings} fastest={data?.fastest_stop} />
-        </>
-      )}
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel as="section">
+      <PanelHeading
+        eyebrow="Tyre strategy"
+        title={chartTitle(data, raceLaps)}
+        sub={`${data.classification_source ? "Ordered by the classification" : "Ordered by finishing order"} · ${raceLaps} laps · bars end where each car's race ended`}
+        inset
+      />
+      <div className="relative mt-10 py-2">
+        <StintOverlay neutralisations={data.neutralisations} raceLaps={raceLaps} />
+        {drivers.map((driver) => (
+          <DriverRow key={driver.driver_code} driver={driver} raceLaps={raceLaps} />
+        ))}
+      </div>
+      <ChartLegend compounds={compounds} anyUnknown={anyUnknown} />
+      <ChartNotes warnings={data.warnings} fastest={data.fastest_stop} />
     </Panel>
   );
 }

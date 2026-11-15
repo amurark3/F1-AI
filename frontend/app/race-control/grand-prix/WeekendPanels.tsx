@@ -1,88 +1,71 @@
 "use client";
 
-import { LocalTime } from "@/app/components/LocalTime";
-import { PanelHeading } from "@/app/ui/PanelHeading";
+import { API_BASE } from "@/app/constants/api";
+import { Section } from "@/app/ui/section/Section";
+import { useSection } from "@/app/ui/section/useSection";
 
-import { InfoRow, Panel } from "../components/RaceControlPrimitives";
+import { Panel } from "../components/RaceControlPrimitives";
+import { ChampionshipStakes } from "../weekend/ChampionshipStakes";
+import { CircuitHistoryPanel } from "../weekend/CircuitHistoryPanel";
 
-import { circuitLengthLabel } from "./predictionHelpers";
+import { WeekendFacts } from "./WeekendFacts";
 import { WeekendGlance } from "./WeekendGlance";
+import { WeekendSchedule } from "./WeekendSchedule";
+import { WeekendHero } from "./WeekendTabHero";
 
 import type { RaceEvent } from "./predictionModel";
+import type { RoundCircuit } from "./weekendTabModel";
+import type { OverviewShell } from "../components/CommandCenterPanels";
 
-function CircuitInfoPanel({ selectedRace }: { selectedRace: RaceEvent | null }) {
-  const circuit = selectedRace?.circuit;
+const SWR_OPTIONS = { revalidateOnFocus: false, dedupingInterval: 120_000 };
 
-  return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="This weekend"
-        aside={
-          <span className="font-mono text-[10px] text-[#7F8797]">
-            {circuit?.circuit_name ?? selectedRace?.location ?? "circuit TBC"}
-          </span>
-        }
-        inset
-      />
-      {/* Name, race time and status are in the page header; this card adds the rest. */}
-      <dl className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
-        <InfoRow label="Location" value={selectedRace?.location ?? "-"} />
-        <InfoRow label="Length" value={circuitLengthLabel(circuit)} />
-        <InfoRow label="Laps" value={circuit?.laps ? String(circuit.laps) : "-"} />
-        <InfoRow label="Type" value={circuit?.circuit_type ?? "-"} />
-      </dl>
-    </Panel>
-  );
+/**
+ * The title fight, when this is the round it is being fought over. The shell
+ * serves the current standings for the next race, so on any other round it
+ * would describe a different weekend and is left out.
+ */
+function WeekendStakes({ year, race }: { year: number; race: RaceEvent }) {
+  const shell = useSection<OverviewShell>(`${API_BASE}/api/race-control/overview/${year}/shell`, {
+    config: SWR_OPTIONS,
+  });
+  if (shell.data?.race?.round !== race.round || !shell.data.stakes) return null;
+  return <ChampionshipStakes stakes={shell.data.stakes} venue={race.location.split(",")[0]} />;
 }
 
-function SessionSchedulePanel({ sessions }: { sessions: Array<[string, string]> }) {
+function WeekendBody({ year, race }: { year: number; race: RaceEvent }) {
+  const circuit = useSection<RoundCircuit>(`${API_BASE}/api/race-control/circuit/${year}/${race.round}`, {
+    config: SWR_OPTIONS,
+  });
   return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Session schedule"
-        aside={
-          <span className="font-mono text-[10px] text-[#7F8797]">
-            {sessions.length ? `${sessions.length} sessions` : "times TBC"}
-          </span>
-        }
-        inset
-      />
-      <div className="divide-y divide-[#1E2633] p-4 font-mono text-sm">
-        {sessions.length === 0 && (
-          <p className="text-sm text-[#7F8797]">Session times have not been returned for this event.</p>
-        )}
-        {sessions.map(([label, value]) => (
-          <InfoRow
-            key={label}
-            label={label}
-            value={
-              <>
-                <LocalTime value={value} style="day" fallback="date TBC" /> -{" "}
-                <LocalTime value={value} style="time" fallback="time TBC" />
-              </>
-            }
-          />
-        ))}
+    <div className="space-y-4">
+      <WeekendHero year={year} race={race} circuit={circuit} />
+      <WeekendFacts record={circuit.data?.record} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <WeekendSchedule sessions={race.sessions ?? {}} />
+        <Section state={circuit} label="Circuit history" skeletonClassName="h-[300px]" className="h-full">
+          <CircuitHistoryPanel record={circuit.data?.record} />
+        </Section>
       </div>
-    </Panel>
+      <WeekendStakes year={year} race={race} />
+      <WeekendGlance year={year} round={race.round} />
+    </div>
   );
 }
 
 /**
- * The event itself: where it is run and when each session starts.
+ * The event itself: the next session (or the winner), the circuit, when each
+ * session starts, who won here before and what is at stake.
  *
- * Reads only the schedule, so it renders on a weekend the prediction model has
- * never been run for — which is the whole reason it is no longer bundled with
- * the model's accuracy panel.
+ * Reads the schedule and the circuit, so it renders on a weekend the
+ * prediction model has never been run for.
  */
 export function WeekendPanel({ year, selectedRace }: { year: number; selectedRace: RaceEvent | null }) {
-  const sessions = Object.entries(selectedRace?.sessions ?? {});
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <CircuitInfoPanel selectedRace={selectedRace} />
-      <SessionSchedulePanel sessions={sessions} />
-      {selectedRace && <WeekendGlance year={year} round={selectedRace.round} />}
-    </div>
-  );
+  if (!selectedRace) {
+    return (
+      <Panel as="section" className="p-5">
+        <p className="text-sm text-rc-ink-2">Pick a race to see its weekend.</p>
+      </Panel>
+    );
+  }
+  return <WeekendBody year={year} race={selectedRace} />;
 }

@@ -102,6 +102,8 @@ Today most feeds are read on demand and cached per process. That's why a restart
 - `pit_stops`, `stints`, `overtakes`, `race_control_messages`, `weather_observations`, `team_radio` (URL only).
 - `standings_snapshots`: after each session, from OpenF1 `championship_*`.
 
+**OpenF1 read-through (D1.4):** `client.get_json` keeps each whole-session answer for `drivers`, `session_result`, `laps`, `pit`, `stints`, `race_control`, `weather` and `team_radio` once the session has settled, in `openf1_sessions` and `openf1_rows` (files when `DATABASE_URL` is empty). Rows fetched within 24 h of the session end are provisional (refreshed at most every 30 min, kept if a refresh fails or is empty); later ones are final. Empty answers, narrower queries, live sessions and `position`, `intervals`, `overtakes` are never stored.
+
 **Ingest cadence**
 
 - **Weekend live window (Thursday to Sunday):**

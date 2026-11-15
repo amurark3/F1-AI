@@ -10,7 +10,8 @@
   "openf1_pit.json": "GET https://api.openf1.org/v1/pit?session_key=9869",
   "openf1_session_result.json": "GET https://api.openf1.org/v1/session_result?session_key=9869",
   "jolpica_pitstops.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/pitstops.json?limit=100, MRData.RaceTable.Races[0]",
-  "jolpica_results.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/results.json?limit=100, MRData.RaceTable.Races[0]"
+  "jolpica_results.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/results.json?limit=100, MRData.RaceTable.Races[0]",
+  "openf1_laps_ant.json": "GET https://api.openf1.org/v1/laps?session_key=9869&driver_number=12 (ANT, whose lap-6 time was deleted) captured 2026-11-14 for D1.4b; unedited apart from JSON indentation."
  },
  "notes": "Unedited apart from JSON indentation. No red flag (race control: SC laps 2-5, VSC laps 7-8). 20 starters, 17 classified finishers; HAM (lap 37), LEC (lap 5) and BOR (lap 0) retired."
 }

@@ -17,7 +17,7 @@ car's code, number and name (:mod:`app.data.canonical_names`).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -26,6 +26,7 @@ import pandas as pd
 from app.config import ANALYSIS_SESSION_SETTLE_MINUTES
 from app.data.canonical_names import driver_identity, team_display_name
 from app.data.f1db_calendar import season_schedule
+from app.data.openf1 import session_store
 from app.data.openf1.client import get_json
 from app.services.live_timing import match_meeting, parse_iso
 
@@ -145,14 +146,32 @@ def _session(row: dict) -> OpenF1Session | None:
     )
 
 
+def _running_order(sessions: list[OpenF1Session]) -> tuple[OpenF1Session, ...]:
+    return tuple(sorted(sessions, key=lambda item: item.date_start or datetime.max.replace(tzinfo=UTC)))
+
+
+def _kept_weekend(year: int, round_num: int) -> tuple[OpenF1Session, ...] | None:
+    """The weekend from the store when every session f1db schedules is kept, else None."""
+    scheduled = {session.code for session in weekend_schedule(year, round_num)}
+    kept = [OpenF1Session(**record) for record in session_store.weekend(year, round_num)]
+    if not scheduled or not scheduled <= {session.code for session in kept}:
+        return None
+    return _running_order(kept)
+
+
 def weekend_sessions(client: httpx.Client, year: int, round_num: int) -> tuple[OpenF1Session, ...]:
     """Every session of the round that was not cancelled, in running order."""
+    # shortcut: a weekend with a cancelled session f1db still lists is never complete, so it is always fetched.
+    # shortcut: inside a live weekend the list is fetched and gets the 401; serving the kept sessions is later work.
+    if (kept := _kept_weekend(year, round_num)) is not None:
+        return kept
     meeting = find_meeting(client, year, round_num)
     if meeting is None:
         return ()
     rows = get_json(client, "sessions", {"meeting_key": meeting["meeting_key"]})
     sessions = [session for row in rows if (session := _session(row)) is not None]
-    return tuple(sorted(sessions, key=lambda item: item.date_start or datetime.max.replace(tzinfo=UTC)))
+    session_store.save_sessions(year, round_num, [asdict(item) for item in sessions if session_ended(item)])
+    return _running_order(sessions)
 
 
 def find_session(client: httpx.Client, year: int, round_num: int, code: str) -> OpenF1Session | None:

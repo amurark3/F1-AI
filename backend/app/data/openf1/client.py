@@ -17,13 +17,15 @@ would otherwise burst past the rate limit together.
 
 from __future__ import annotations
 
+from datetime import timedelta
 import threading
 import time
 from typing import TYPE_CHECKING
 
 import httpx
 
-from app.config import OPENF1_HTTP_TIMEOUT_SECONDS, OPENF1_MIN_REQUEST_GAP_SECONDS
+from app.config import OPENF1_HTTP_TIMEOUT_SECONDS, OPENF1_MIN_REQUEST_GAP_SECONDS, OPENF1_STORE_FINAL_AFTER_HOURS
+from app.data.openf1 import session_store
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -105,8 +107,7 @@ def _rows(response: httpx.Response, path: str) -> list[dict]:
     return payload
 
 
-def get_json(client: httpx.Client, path: str, params: dict) -> list[dict]:
-    """The rows OpenF1 holds for a query; empty when the query matches nothing."""
+def _fetch(client: httpx.Client, path: str, params: dict) -> list[dict]:
     for _attempt in range(RATE_LIMIT_ATTEMPTS):
         PACER.wait()
         try:
@@ -118,3 +119,31 @@ def get_json(client: httpx.Client, path: str, params: dict) -> list[dict]:
             continue
         return _rows(response, path)
     raise OpenF1UnavailableError(f"{path}: rate limited")
+
+
+def get_json(client: httpx.Client, path: str, params: dict) -> list[dict]:
+    """The rows OpenF1 holds for a query; empty when the query matches nothing.
+
+    A whole-session query for a finished, registered session reads through the
+    session store: kept rows are served without a request, new ones are kept.
+    """
+    if path not in session_store.STORED_ENDPOINTS or set(params) != {"session_key"}:
+        return _fetch(client, path, params)
+    session_key = int(params["session_key"])
+    date_end, kept = session_store.lookup(path, session_key)
+    if date_end is None:  # not a finished, registered session: never stored
+        return _fetch(client, path, params)
+    now = session_store.now()
+    if kept is not None and kept.fresh(now):
+        return kept.rows
+    try:
+        rows = _fetch(client, path, params)
+    except OpenF1UnavailableError:  # 401/429/outage: a provisional copy beats "unavailable"
+        if kept is None:
+            raise
+        return kept.rows
+    if not rows:  # an empty answer is never stored
+        return kept.rows if kept else rows
+    final_at = date_end + timedelta(hours=OPENF1_STORE_FINAL_AFTER_HOURS)
+    session_store.save_rows(path, session_key, session_store.KeptRows(rows, now, provisional=now < final_at))
+    return rows

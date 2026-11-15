@@ -1,0 +1,12 @@
+{
+ "edition": "2026 Mexico City Grand Prix (2026 round 19), race 1 Nov 2026 (OpenF1 session_key 11404)",
+ "captured_for": "D1.4b OpenF1 read-through store; the other files in this folder predate this file",
+ "files": {
+  "openf1_race_control.json": "GET https://api.openf1.org/v1/race_control?session_key=11404 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_laps_first3.json": "GET https://api.openf1.org/v1/laps?session_key=11404&lap_number<=3 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_weather.json": "GET https://api.openf1.org/v1/weather?session_key=11404 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_team_radio.json": "GET https://api.openf1.org/v1/team_radio?session_key=11404 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_starting_grid_404.json": "GET https://api.openf1.org/v1/starting_grid?session_key=11404 answers HTTP 404 with this body (an empty answer, never stored). captured 2026-11-14 for D1.4b; unedited apart from JSON indentation."
+ },
+ "notes": "Unedited apart from JSON indentation."
+}

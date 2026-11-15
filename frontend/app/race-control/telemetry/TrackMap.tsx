@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { LABEL_HALO_EM } from "@/app/ui/cornerLabels";
 
@@ -40,6 +40,7 @@ const SURFACE = "#0D111B";
  */
 export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [], readout, ariaLabel }: TrackMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const maskId = `track-reveal-${useId().replaceAll(":", "")}`;
   const [hover, setHover] = useState<number | null>(null);
   const { view, stroke, fontSize, labels } = useMemo(() => trackLayout(x, y, corners), [x, y, corners]);
 
@@ -64,19 +65,42 @@ export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [],
           setHover(null);
         }}
       >
-        {x.slice(0, -1).map((startX, index) => (
-          <line
-            key={index}
-            x1={startX}
-            y1={-y[index]}
-            x2={x[index + 1]}
-            y2={-y[index + 1]}
-            stroke={colourAt(index)}
-            strokeWidth={stroke}
+        {/* The lap is revealed by a thick stroke along its own path that draws itself in (pathLength 1, as `track-draw` expects). */}
+        <mask
+          id={maskId}
+          maskUnits="userSpaceOnUse"
+          x={view.minX}
+          y={view.minY}
+          width={view.width}
+          height={view.height}
+        >
+          <polyline
+            points={x.map((px, index) => `${px},${-y[index]}`).join(" ")}
+            pathLength={1}
+            fill="none"
+            stroke="white"
+            strokeWidth={stroke * 3}
             strokeLinecap="round"
-            strokeDasharray={dashedAt?.(index) ? `${stroke * 1.2} ${stroke * 1.2}` : undefined}
+            strokeLinejoin="round"
+            strokeDasharray={1}
+            className="motion-safe:animate-track-draw"
           />
-        ))}
+        </mask>
+        <g mask={`url(#${maskId})`}>
+          {x.slice(0, -1).map((startX, index) => (
+            <line
+              key={index}
+              x1={startX}
+              y1={-y[index]}
+              x2={x[index + 1]}
+              y2={-y[index + 1]}
+              stroke={colourAt(index)}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={dashedAt?.(index) ? `${stroke * 1.2} ${stroke * 1.2}` : undefined}
+            />
+          ))}
+        </g>
         {labels.map((corner) => (
           <g key={corner.label}>
             {corner.leader && <line {...corner.leader} stroke="#3A4354" strokeWidth={stroke / 4} />}

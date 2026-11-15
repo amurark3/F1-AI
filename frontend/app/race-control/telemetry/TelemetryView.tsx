@@ -1,7 +1,5 @@
 "use client";
 
-import { Activity, Gauge, Timer } from "lucide-react";
-
 import { RacePicker } from "@/app/ui/race-picker/RacePicker";
 import { useSchedule } from "@/app/ui/race-picker/useSchedule";
 
@@ -9,9 +7,10 @@ import { InlineNotice, PageStack, SectionHeader } from "../components/RaceContro
 import { resolveDefaultRace } from "../grand-prix/predictionHelpers";
 
 import { AnalysisGate } from "./AnalysisNotice";
-import { SessionPicker } from "./AnalysisPickers";
+import { ANALYSIS_PANEL_ID, AnalysisToolbar } from "./AnalysisToolbar";
 import { HeadToHeadPanel } from "./HeadToHeadPanel";
-import { FIRST_SEASON, TABS, type TabKey, type WeekendSession } from "./telemetryModel";
+import { FIRST_SEASON, type TabKey, type WeekendSession } from "./telemetryModel";
+import { TrackMapControls } from "./TrackMapControls";
 import { TrackMapPanel } from "./TrackMapPanel";
 import { TyreDegPanel } from "./TyreDegPanel";
 import { useWeekend } from "./useAnalysisData";
@@ -31,7 +30,6 @@ const PREFERRED: Record<TabKey, string[]> = {
   "head-to-head": ["Q", "SQ", "FP3", "FP2", "FP1", "R", "S"],
   tyres: ["R", "S"],
 };
-const TAB_ICONS = { map: Gauge, "head-to-head": Activity, tyres: Timer };
 
 function allowedFor(tab: TabKey): (code: string) => boolean {
   return tab === "tyres" ? (code) => RACE_CODES.has(code) : () => true;
@@ -46,33 +44,6 @@ export function pickSession(sessions: WeekendSession[], tab: TabKey, asked: stri
 
 function seasons(current: number): number[] {
   return Array.from({ length: current - FIRST_SEASON + 1 }, (_, index) => current - index);
-}
-
-function TabBar({ tab, onChange }: { tab: TabKey; onChange: (tab: TabKey) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1 border-b border-[#1E2633]" role="group" aria-label="Analysis">
-      {TABS.map((item) => {
-        const Icon = TAB_ICONS[item.key];
-        const selected = item.key === tab;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => {
-              onChange(item.key);
-            }}
-            className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-              selected ? "border-[#3987E5] text-white" : "border-transparent text-[#7F8797] hover:text-white"
-            }`}
-          >
-            <Icon className="h-4 w-4" aria-hidden />
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
@@ -104,53 +75,55 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
           },
         }}
       />
-      <TabBar
+      <AnalysisToolbar
         tab={params.tab}
-        onChange={(tab) => {
+        onTab={(tab) => {
           update({ tab });
         }}
-      />
+        sessions={weekend.data?.available ? sessions : null}
+        session={session}
+        allowed={allowedFor(params.tab)}
+        onSession={(code) => {
+          update({ session: code, lap: null });
+        }}
+      >
+        {params.tab === "map" && (
+          <TrackMapControls
+            year={params.year}
+            round={round}
+            session={session}
+            driver={params.a}
+            lap={params.lap}
+            onPick={(driver, lap) => {
+              update({ a: driver, lap });
+            }}
+          />
+        )}
+      </AnalysisToolbar>
       <AnalysisGate state={weekend} loadingTitle="Loading the weekend's sessions" />
-      {weekend.data?.available && (
-        <SessionPicker
-          sessions={sessions}
-          value={session}
-          allowed={allowedFor(params.tab)}
-          onChange={(code) => {
-            update({ session: code, lap: null });
-          }}
-        />
-      )}
       {weekend.data?.available && session === null && (
         <InlineNotice title="Not run yet" tone="info">
           No session of this kind has started on this weekend yet. Pick an earlier round to analyse.
         </InlineNotice>
       )}
-      {params.tab === "map" && (
-        <TrackMapPanel
-          year={params.year}
-          round={round}
-          session={session}
-          driver={params.a}
-          lap={params.lap}
-          onPick={(driver, lap) => {
-            update({ a: driver, lap });
-          }}
-        />
-      )}
-      {params.tab === "head-to-head" && (
-        <HeadToHeadPanel
-          year={params.year}
-          round={round}
-          session={session}
-          a={params.a}
-          b={params.b}
-          onPick={(a, b) => {
-            update({ a, b, lap: null });
-          }}
-        />
-      )}
-      {params.tab === "tyres" && <TyreDegPanel year={params.year} round={round} session={session} />}
+      <div id={ANALYSIS_PANEL_ID} role="tabpanel" className="space-y-4">
+        {params.tab === "map" && (
+          <TrackMapPanel year={params.year} round={round} session={session} driver={params.a} lap={params.lap} />
+        )}
+        {params.tab === "head-to-head" && (
+          <HeadToHeadPanel
+            year={params.year}
+            round={round}
+            session={session}
+            a={params.a}
+            b={params.b}
+            onPick={(a, b) => {
+              update({ a, b, lap: null });
+            }}
+          />
+        )}
+        {params.tab === "tyres" && <TyreDegPanel year={params.year} round={round} session={session} />}
+      </div>
     </PageStack>
   );
 }

@@ -3,6 +3,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 
 import { LABEL_HALO_EM } from "@/app/ui/cornerLabels";
+import { f1, rc } from "@/app/ui/tokens";
 
 import { nearestIndex, trackLayout, viewBoxString } from "./trackMapGeometry";
 
@@ -31,8 +32,8 @@ export interface TrackMapProps {
   ariaLabel: string;
 }
 
-const MARKER_FILL = { brake: "#D95926", top: "#F0EFEC" } as const;
-const SURFACE = "#0D111B";
+const MARKER_FILL = { brake: f1.red, top: rc.ink } as const;
+const SURFACE = rc.hero;
 
 /**
  * A lap drawn round the circuit, one short segment per sample so each can carry
@@ -54,6 +55,12 @@ export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [],
 
   return (
     <div className="relative w-full">
+      <p
+        className="mb-2 h-6 truncate rounded border border-rc-line bg-rc-hero px-2 font-mono text-[11px] leading-6 text-rc-ink"
+        aria-live="polite"
+      >
+        {hover === null ? "Hover the track for a reading" : readout(hover)}
+      </p>
       <svg
         ref={svgRef}
         viewBox={viewBoxString(view)}
@@ -103,12 +110,12 @@ export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [],
         </g>
         {labels.map((corner) => (
           <g key={corner.label}>
-            {corner.leader && <line {...corner.leader} stroke="#3A4354" strokeWidth={stroke / 4} />}
+            {corner.leader && <line {...corner.leader} stroke={rc.dim} strokeWidth={stroke / 4} />}
             <text
               x={corner.x}
               y={corner.y}
               fontSize={fontSize}
-              fill="#A8AFBF"
+              fill={rc.ink2}
               stroke={SURFACE}
               strokeWidth={fontSize * LABEL_HALO_EM}
               strokeLinejoin="round"
@@ -135,15 +142,9 @@ export function TrackMap({ x, y, colourAt, dashedAt, corners = [], markers = [],
           </circle>
         ))}
         {hover !== null && (
-          <circle cx={x[hover]} cy={-y[hover]} r={stroke * 1.3} fill="none" stroke="#FFFFFF" strokeWidth={stroke / 3} />
+          <circle cx={x[hover]} cy={-y[hover]} r={stroke * 1.3} fill="none" stroke={rc.ink} strokeWidth={stroke / 3} />
         )}
       </svg>
-      <p
-        className="pointer-events-none absolute left-3 top-3 rounded border border-[#1E2633] bg-[#0A0E16]/90 px-2 py-1 font-mono text-[11px] text-neutral-200"
-        aria-live="polite"
-      >
-        {hover === null ? "Hover the track for a reading" : readout(hover)}
-      </p>
     </div>
   );
 }
@@ -162,7 +163,7 @@ export function GradientLegend({
 }) {
   const gradient = `linear-gradient(90deg, ${colours.join(", ")})`;
   return (
-    <div className="flex items-center gap-2 font-mono text-[11px] text-[#A8AFBF]">
+    <div className="flex items-center gap-2 font-mono text-[11px] text-rc-ink-2">
       <span>
         {Math.round(min)} {unit}
       </span>

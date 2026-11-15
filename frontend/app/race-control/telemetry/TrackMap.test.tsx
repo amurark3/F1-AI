@@ -12,6 +12,15 @@ function renderMap(extra: Partial<Parameters<typeof TrackMap>[0]> = {}) {
 }
 
 describe("TrackMap", () => {
+  it("keeps the readout in the flow above the drawing, never over the track", () => {
+    renderMap();
+    const readout = screen.getByText("Hover the track for a reading");
+    expect(readout).not.toHaveClass("absolute");
+    expect(readout.compareDocumentPosition(screen.getByRole("img", { name: "A lap" }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
   it("draws one segment per sample and needs no corners or markers", () => {
     const map = renderMap();
     expect(map.querySelectorAll("g[mask] line")).toHaveLength(X.length - 1);

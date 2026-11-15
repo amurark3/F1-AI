@@ -52,6 +52,9 @@ const COVERAGE_INCLUDE = [
   // tyre-wear files stay off: P4.4c rebuilds them.
   "app/race-control/telemetry/AnalysisPickers.tsx",
   "app/race-control/telemetry/AnalysisToolbar.tsx",
+  "app/race-control/telemetry/degradationInsights.ts",
+  "app/race-control/telemetry/degradationModel.ts",
+  "app/race-control/telemetry/DegradationCharts.tsx",
   "app/race-control/telemetry/HeadToHeadCard.tsx",
   "app/race-control/telemetry/HeadToHeadCards.tsx",
   "app/race-control/telemetry/HeadToHeadControls.tsx",
@@ -63,6 +66,7 @@ const COVERAGE_INCLUDE = [
   "app/race-control/telemetry/TrackMapControls.tsx",
   "app/race-control/telemetry/TrackMapPanel.tsx",
   "app/race-control/telemetry/trackMapSelection.ts",
+  "app/race-control/telemetry/TyreDegPanel.tsx",
 ];
 
 /** Every metric must reach this in every included file. */

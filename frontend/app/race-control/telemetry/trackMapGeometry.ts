@@ -12,6 +12,7 @@
  */
 
 import { placeCornerLabels, type MapPoint, type PlacedCornerLabel } from "@/app/ui/cornerLabels";
+import { rc } from "@/app/ui/tokens";
 
 import type { CornerMarker } from "./telemetryModel";
 
@@ -19,7 +20,7 @@ import type { CornerMarker } from "./telemetryModel";
 export const SPEED_RAMP = ["#1C5CAB", "#2A78D6", "#5598E7", "#86B6EF", "#CDE2FB"];
 
 /** Neutral for a mini-sector neither driver won. */
-export const EVEN_COLOUR = "#596173";
+export const EVEN_COLOUR = rc.ink3;
 
 export interface ViewBox {
   minX: number;

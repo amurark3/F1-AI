@@ -127,7 +127,7 @@ export function paceDomain(rows: PaceRow[], drivers: string[]): [number, number]
     .filter((value): value is number => typeof value === "number")
     .sort((left, right) => left - right);
   if (values.length === 0) return null;
-  const high = values[Math.floor(values.length * 0.97)] ?? values[values.length - 1];
+  const high = values[Math.floor(values.length * 0.97)];
   return [Math.floor((values[0] - Y_PADDING_BELOW) * 10) / 10, Math.ceil((high + Y_PADDING_ABOVE) * 10) / 10];
 }
 

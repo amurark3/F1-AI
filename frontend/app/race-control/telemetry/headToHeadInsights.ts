@@ -31,8 +31,8 @@ export function mapTitle(stretches: Stretch[], codes: Codes): string {
   const b = stretches.filter((stretch) => stretch.faster === "b").length;
   if (stretches.length === 0) return "Mini-sector map";
   if (a === b) return `The mini-sectors split ${a}–${b}`;
-  const [code, won, lost] = a > b ? [codes.a, a, b] : [codes.b, b, a];
-  return `${code} is faster in ${won} of ${stretches.length} mini-sectors, ${lost} to the other`;
+  const [code, won, other, lost] = a > b ? [codes.a, a, codes.b, b] : [codes.b, b, codes.a, a];
+  return `${code} faster in ${won} of ${stretches.length} mini-sectors, ${other} in ${lost}`;
 }
 
 /** The biggest change in the gap over any 1 km: positive means A gained. */

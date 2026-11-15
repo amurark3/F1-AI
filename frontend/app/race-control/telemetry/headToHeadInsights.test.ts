@@ -27,9 +27,9 @@ describe("head-to-head titles", () => {
   it("counts mini-sectors, and stays neutral without any", () => {
     const stretch = (faster: "a" | "b" | "even") => ({ label: "m", start: 0, end: 1, gain: 0, faster });
     expect(mapTitle([stretch("a"), stretch("a"), stretch("b")], CODES)).toBe(
-      "ANT is faster in 2 of 3 mini-sectors, 1 to the other",
+      "ANT faster in 2 of 3 mini-sectors, RUS in 1",
     );
-    expect(mapTitle([stretch("b"), stretch("b"), stretch("a")], CODES)).toContain("RUS is faster in 2 of 3");
+    expect(mapTitle([stretch("b"), stretch("b"), stretch("a")], CODES)).toContain("RUS faster in 2 of 3");
     expect(mapTitle([stretch("a"), stretch("b")], CODES)).toBe("The mini-sectors split 1–1");
     expect(mapTitle([], CODES)).toBe("Mini-sector map");
   });

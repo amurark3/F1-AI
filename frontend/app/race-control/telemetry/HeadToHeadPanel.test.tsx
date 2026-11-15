@@ -80,7 +80,7 @@ describe("HeadToHeadPanel", () => {
     const titles = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
     expect(titles).toEqual([
       "ANT by 0.270 s",
-      "ANT is faster in 2 of 2 mini-sectors, 0 to the other",
+      "ANT faster in 2 of 2 mini-sectors, RUS in 0",
       "ANT gains 0.14 s between 0.0 and 1.0 km",
       "Top speed 320 km/h for ANT, 310 for RUS",
       "Both flat out for 77% of the lap",

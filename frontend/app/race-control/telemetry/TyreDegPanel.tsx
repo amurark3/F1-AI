@@ -2,15 +2,19 @@
 
 import { useMemo, useState } from "react";
 
-import { InlineNotice, Panel } from "../components/RaceControlPrimitives";
+import { RankBars } from "@/app/ui/RankBars";
+
+import { InlineNotice } from "../components/RaceControlPrimitives";
 import { compoundColor, compoundLabel } from "../grand-prix/tyreCompounds";
 
 import { AnalysisGate, AnalysisWarnings, ModeledNote } from "./AnalysisNotice";
-import { CompoundKey, DegradationScatter, RacePaceChart } from "./DegradationCharts";
+import { CompoundLegend, DegradationScatter, RacePaceChart, StintLengths } from "./DegradationCharts";
+import { lengthRows, lengthsTitle, paceTitle, scatterTitle, wearRows, wearTitle } from "./degradationInsights";
 import { defaultDrivers, fitLines, formatRate, paceDomain, paceRows, scatterGroups, yDomain } from "./degradationModel";
+import { HeadToHeadCard } from "./HeadToHeadCard";
 import { useDegradation } from "./useAnalysisData";
 
-import type { DegradationResponse, DegradationStint } from "./telemetryModel";
+import type { DegradationResponse } from "./telemetryModel";
 
 export interface TyreDegPanelProps {
   year: number;
@@ -18,18 +22,18 @@ export interface TyreDegPanelProps {
   session: string | null;
 }
 
-const TITLE = "font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#7F8797]";
+const EMPTY = "py-6 font-mono text-xs text-rc-ink-3";
 
 function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 font-mono text-xs text-[#A8AFBF]">
+    <label className="inline-flex cursor-pointer items-center gap-2 font-mono text-xs text-rc-ink-2">
       <input
         type="checkbox"
         checked={on}
         onChange={(event) => {
           onChange(event.target.checked);
         }}
-        className="accent-[#3987E5]"
+        className="accent-rc-blue"
       />
       {label}
     </label>
@@ -58,7 +62,7 @@ function DriverChips({
               onToggle(driver.code);
             }}
             className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 font-mono text-[11px] font-bold ${
-              on ? "border-white/40 text-white" : "border-[#1E2633] text-[#6F7789]"
+              on ? "border-rc-ink-3 text-rc-ink" : "border-rc-line text-rc-ink-3"
             }`}
           >
             <span className="h-2 w-2 rounded-full" style={{ background: driver.colour }} aria-hidden />
@@ -67,90 +71,6 @@ function DriverChips({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function CompoundTable({ data }: { data: DegradationResponse }) {
-  const compounds = data.compounds ?? [];
-  if (compounds.length === 0) {
-    return <p className="font-mono text-xs text-[#6F7789]">No stint had enough clean laps to fit.</p>;
-  }
-  return (
-    <table className="w-full max-w-2xl text-left font-mono text-xs">
-      <caption className={`${TITLE} mb-1 text-left`}>Wear rate per compound, median over the stints fitted</caption>
-      <thead className="text-[#7F8797]">
-        <tr>
-          <th className="py-1 pr-3 font-normal">Compound</th>
-          <th className="py-1 pr-3 font-normal">Stints</th>
-          <th className="py-1 pr-3 font-normal">Fuel-corrected</th>
-          <th className="py-1 pr-3 font-normal">Raw</th>
-          <th className="py-1 font-normal">Middle half of stints</th>
-        </tr>
-      </thead>
-      <tbody className="text-neutral-200">
-        {compounds.map((row) => (
-          <tr key={row.compound} className="border-t border-[#161D28]">
-            <td className="py-1 pr-3">
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: compoundColor(row.compound) }}
-                  aria-hidden
-                />
-                {compoundLabel(row.compound)}
-              </span>
-            </td>
-            <td className="py-1 pr-3">{row.stints}</td>
-            <td className="py-1 pr-3">{row.corrected ? formatRate(row.median_slope) : "-"}</td>
-            <td className="py-1 pr-3">{formatRate(row.median_raw_slope)}</td>
-            <td className="py-1">
-              {formatRate(row.iqr[0])} to {formatRate(row.iqr[1])}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function StintTable({ stints }: { stints: DegradationStint[] }) {
-  if (stints.length === 0) return null;
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-left font-mono text-xs">
-        <caption className={`${TITLE} mb-1 text-left`}>Stints of the selected drivers</caption>
-        <thead className="text-[#7F8797]">
-          <tr>
-            <th className="py-1 pr-3 font-normal">Driver</th>
-            <th className="py-1 pr-3 font-normal">Stint</th>
-            <th className="py-1 pr-3 font-normal">Laps</th>
-            <th className="py-1 pr-3 font-normal">Clean laps fitted</th>
-            <th className="py-1 pr-3 font-normal">Raw rate</th>
-            <th className="py-1 pr-3 font-normal">Fuel-corrected</th>
-            <th className="py-1 font-normal">Fit (r²)</th>
-          </tr>
-        </thead>
-        <tbody className="text-neutral-200">
-          {stints.map((stint) => (
-            <tr key={`${stint.driver}-${stint.stint}`} className="border-t border-[#161D28]">
-              <td className="py-1 pr-3">{stint.driver}</td>
-              <td className="py-1 pr-3">
-                {stint.stint} · {compoundLabel(stint.compound)}
-                {stint.tyre_life_start ? ` (${stint.tyre_life_start} laps old)` : ""}
-              </td>
-              <td className="py-1 pr-3">
-                {stint.start_lap}-{stint.end_lap}
-                {stint.boundary_checked ? "" : "*"}
-              </td>
-              <td className="py-1 pr-3">{stint.fit?.laps_fitted ?? "too few"}</td>
-              <td className="py-1 pr-3">{formatRate(stint.fit?.raw.slope)}</td>
-              <td className="py-1 pr-3">{formatRate(stint.fit?.corrected?.slope)}</td>
-              <td className="py-1">{stint.fit ? (stint.fit.corrected ?? stint.fit.raw).r2.toFixed(2) : "-"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -190,48 +110,87 @@ function Degradation({ data }: { data: DegradationResponse }) {
   const paceDrivers = (data.drivers ?? []).filter((driver) => chosen.has(driver.code));
   const rows = useMemo(() => paceRows(laps, selected, useCorrected), [laps, selected, useCorrected]);
   const pace = paceDomain(rows, selected);
+  const wear = useMemo(() => wearRows(data, chosen, useCorrected), [data, chosen, useCorrected]);
+  const lengths = useMemo(() => lengthRows(data, chosen), [data, chosen]);
+  const unit = useCorrected ? "fuel-corrected" : "raw";
   const toggle = (code: string) => {
     setPicked(selected.includes(code) ? selected.filter((item) => item !== code) : [...selected, code]);
   };
 
   return (
-    <Panel className="space-y-5 p-4">
-      <CompoundTable data={data} />
+    <div className="space-y-4">
       <DriverChips data={data} selected={selected} onToggle={toggle} />
       <div className="flex flex-wrap gap-4">
         {hasFuel && <Toggle label="Fuel-corrected times (modelled)" on={corrected} onChange={setCorrected} />}
         <Toggle label="Show laps left out of the fit" on={showExcluded} onChange={setShowExcluded} />
       </div>
-      <div>
-        <p className={`${TITLE} mb-2`}>Lap time against tyre age</p>
-        <CompoundKey compounds={[...groups.clean.keys()]} showExcluded={showExcluded} />
-        {domain ? (
-          <DegradationScatter
-            clean={groups.clean}
-            excluded={groups.excluded}
-            fits={fits}
-            domain={domain}
-            labels={data.status_labels ?? {}}
-            showExcluded={showExcluded}
-          />
-        ) : (
-          <p className="py-6 font-mono text-xs text-[#6F7789]">Pick a driver with clean laps to plot.</p>
-        )}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <HeadToHeadCard
+          eyebrow="Degradation"
+          title={scatterTitle(fits)}
+          sub={`${unit} lap time against tyre age · only clean laps are fitted, the rest are hollow`}
+        >
+          {domain ? (
+            <>
+              <CompoundLegend compounds={[...groups.clean.keys()]} showExcluded={showExcluded} />
+              <DegradationScatter
+                clean={groups.clean}
+                excluded={groups.excluded}
+                fits={fits}
+                domain={domain}
+                labels={data.status_labels ?? {}}
+                showExcluded={showExcluded}
+              />
+            </>
+          ) : (
+            <p className={EMPTY}>Pick a driver with clean laps to plot.</p>
+          )}
+        </HeadToHeadCard>
+        <HeadToHeadCard
+          eyebrow="Race pace"
+          title={paceTitle(laps, selected, useCorrected)}
+          sub={`${unit} lap times · gaps are pit stops and neutralised laps · quickest final stint by average clean lap`}
+        >
+          {pace ? (
+            <RacePaceChart rows={rows} drivers={paceDrivers} domain={pace} bands={data.neutralised ?? []} />
+          ) : (
+            <p className={EMPTY}>Pick a driver with timed laps to plot.</p>
+          )}
+        </HeadToHeadCard>
+        <HeadToHeadCard
+          eyebrow="Wear rate by stint"
+          title={wearTitle(wear)}
+          sub={`Fitted slope, seconds lost per lap of tyre age · ${unit}${useCorrected ? " (raw beside it)" : ""}`}
+        >
+          {wear.length > 0 ? (
+            <RankBars
+              label="Wear rate by stint"
+              items={wear.map((row) => ({
+                id: row.id,
+                label: row.name,
+                detail: `${compoundLabel(row.compound)} · ${row.laps} laps`,
+                value: row.rate,
+                valueText: formatRate(row.rate),
+                aside: useCorrected ? `raw ${formatRate(row.raw).replace(" s/lap", "")}` : undefined,
+                color: compoundColor(row.compound),
+              }))}
+            />
+          ) : (
+            <p className={EMPTY}>No stint of the selected drivers had enough clean laps to fit.</p>
+          )}
+        </HeadToHeadCard>
+        <HeadToHeadCard eyebrow="Stint lengths" title={lengthsTitle(lengths)} sub="Laps on each set">
+          {lengths.length > 0 ? (
+            <StintLengths rows={lengths} />
+          ) : (
+            <p className={EMPTY}>No stints for the selected drivers.</p>
+          )}
+        </HeadToHeadCard>
       </div>
-      {pace && (
-        <div>
-          <p className={`${TITLE} mb-2`}>Race pace, lap by lap (gaps are pit, safety-car and opening laps)</p>
-          <RacePaceChart rows={rows} drivers={paceDrivers} domain={pace} bands={data.neutralised ?? []} />
-        </div>
-      )}
-      <StintTable stints={(data.stints ?? []).filter((stint) => chosen.has(stint.driver))} />
       <Assumptions data={data} />
       <AnalysisWarnings warnings={data.warnings} />
-      <ModeledNote
-        modeled={data.modeled}
-        extra="A * marks a stint change OpenF1 placed with no pit-out lap beside it."
-      />
-    </Panel>
+      <ModeledNote modeled={data.modeled} />
+    </div>
   );
 }
 

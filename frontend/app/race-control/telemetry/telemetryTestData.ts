@@ -1,4 +1,11 @@
-import type { ComparisonResponse, LapListResponse, TrackMapResponse, WeekendSession } from "./telemetryModel";
+import type {
+  ComparisonResponse,
+  DegradationLap,
+  DegradationResponse,
+  LapListResponse,
+  TrackMapResponse,
+  WeekendSession,
+} from "./telemetryModel";
 
 /** Small hand-made analysis answers for the Telemetry Lab tests. */
 
@@ -99,4 +106,114 @@ export const COMPARISON: ComparisonResponse = {
   ],
   map: { distance: [0, 500, 1000, 1500, 2000], x: [0, 1000, 1500, 1000, 0], y: [0, 0, 800, 1500, 800] },
   corner_markers: [{ number: 1, label: "1", x: 1500, y: 800, angle: 90 }],
+};
+
+/** Two Mercedes cars and a lone Red Bull with an unnamed compound: one stop each for the first two, none for the third. */
+function lap(
+  driver: string,
+  number: number,
+  [stint, compound, age]: [number, string | null, number | null],
+  time: number | null,
+): DegradationLap {
+  return {
+    driver,
+    lap: number,
+    time,
+    corrected: time === null ? null : time - 0.5,
+    tyre_age: age,
+    compound,
+    stint,
+    status: "clean",
+    gap_ahead: null,
+  };
+}
+
+const withStatus = (entry: DegradationLap, status: string): DegradationLap => ({ ...entry, status });
+
+const FIT = { r2: 0.9, intercept: 90 };
+
+export const DEGRADATION: DegradationResponse = {
+  available: true,
+  pending: false,
+  modeled: ["corrected", "fit"],
+  warnings: ["Two laps had no tyre age."],
+  drivers: [
+    { number: 12, code: "ANT", name: "Kimi Antonelli", team: "Mercedes", colour: "#27F4D2", position: 1 },
+    { number: 63, code: "RUS", name: "George Russell", team: "Mercedes", colour: "#27F4D2", position: 2 },
+    { number: 1, code: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", position: null },
+  ],
+  laps: [
+    withStatus(lap("ANT", 1, [1, "MEDIUM", null], null), "lap1"),
+    ...[90, 90.1, 90.2, 90.3].map((time, index) => lap("ANT", index + 2, [1, "MEDIUM", index + 1], time)),
+    withStatus(lap("ANT", 6, [1, "MEDIUM", 5], 100), "pit_in"),
+    ...[89.5, 89.6, 89.7, 89.8].map((time, index) => lap("ANT", index + 7, [2, "HARD", index + 1], time)),
+    ...[90.2, 90.3, 90.4, 90.5].map((time, index) => lap("RUS", index + 2, [1, "MEDIUM", index + 1], time)),
+    lap("RUS", 7, [2, "HARD", 1], 89.7),
+    withStatus(lap("RUS", 8, [2, "HARD", 2], 95), "sc"),
+    withStatus(lap("RUS", 9, [2, "HARD", 3], 95), "sc"),
+    ...[91, 91.1, 91.2, 91.3].map((time, index) => lap("VER", index + 2, [1, null, index + 1], time)),
+  ],
+  stints: [
+    {
+      driver: "ANT",
+      stint: 1,
+      compound: "MEDIUM",
+      start_lap: 1,
+      end_lap: 6,
+      tyre_life_start: null,
+      boundary_checked: true,
+      fit: { laps_fitted: 4, raw: { ...FIT, slope: 0.1 }, corrected: { ...FIT, slope: 0.13 } },
+    },
+    {
+      driver: "ANT",
+      stint: 2,
+      compound: "HARD",
+      start_lap: 7,
+      end_lap: 10,
+      tyre_life_start: 0,
+      boundary_checked: true,
+      fit: { laps_fitted: 4, raw: { ...FIT, slope: 0.05 }, corrected: { ...FIT, slope: 0.08 } },
+    },
+    {
+      driver: "RUS",
+      stint: 1,
+      compound: "MEDIUM",
+      start_lap: 1,
+      end_lap: 5,
+      tyre_life_start: null,
+      boundary_checked: false,
+      fit: { laps_fitted: 4, raw: { ...FIT, slope: 0.1 }, corrected: null },
+    },
+    {
+      driver: "RUS",
+      stint: 2,
+      compound: "HARD",
+      start_lap: 6,
+      end_lap: 9,
+      tyre_life_start: null,
+      boundary_checked: true,
+      fit: { laps_fitted: 3, raw: { ...FIT, slope: 0.02 }, corrected: { ...FIT, slope: 0.04 } },
+    },
+    {
+      driver: "VER",
+      stint: 1,
+      compound: "UNKNOWN",
+      start_lap: 1,
+      end_lap: 5,
+      tyre_life_start: null,
+      boundary_checked: true,
+      fit: null,
+    },
+  ],
+  neutralised: [
+    { kind: "sc", from_lap: 8, to_lap: 9 },
+    { kind: "red", from_lap: 9, to_lap: 9 },
+  ],
+  status_labels: { pit_in: "In-lap" },
+  assumptions: {
+    fuel: { start_fuel_kg: 70, seconds_per_kg: 0.03, race_laps: 10, slope_effect: 0.03 },
+    traffic_gap_seconds: 2,
+    min_fit_laps: 3,
+    outlier_factor: 1.07,
+  },
 };

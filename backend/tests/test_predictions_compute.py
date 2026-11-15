@@ -31,6 +31,7 @@ import pytest
 from app.data.driver_availability import WeekendAvailability
 from app.data.predictions import compute as module, history as history_module, sessions as sessions_module
 from app.data.predictions.driver_score import DriverScore
+from app.data.predictions.form import CircuitEditions
 from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
 from app.data.weekend_grid import GridRoster
 from app.services.race_control import weather_impact
@@ -42,7 +43,7 @@ from app.services.race_control import weather_impact
 
 def _schedule(rows: list[dict]) -> pd.DataFrame:
     """A schedule frame in the shape ``_load_event_context`` filters on."""
-    return pd.DataFrame(rows, columns=["RoundNumber", "EventName", "Location"])
+    return pd.DataFrame(rows, columns=["RoundNumber", "EventName", "Location", "CircuitId"])
 
 
 def _entry_list(*codes: str, session: str = "Practice 1") -> WeekendEntryList:
@@ -83,7 +84,9 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
     are invoked, exceptions raised, everything else returned as-is.
     """
     state: dict[str, Any] = {
-        "schedule": _schedule([{"RoundNumber": 5, "EventName": "Monaco Grand Prix", "Location": "Monte Carlo"}]),
+        "schedule": _schedule(
+            [{"RoundNumber": 5, "EventName": "Monaco Grand Prix", "Location": "Monte Carlo", "CircuitId": "monaco"}]
+        ),
         "qualifying_has_occurred": True,
         "weekend_started": True,
         "qualifying": [_quali("VER", 1), _quali("NOR", 2, team="McLaren")],
@@ -94,6 +97,7 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
         "sprint_result": [],
         "adaptive_corrections": {},
         "grid_deltas": {"VER": 1.5},
+        "circuit_missing": {},
         "recent_sprint_form": {},
         "roster": [],
         "seats": (),
@@ -136,10 +140,15 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> dict:
     monkeypatch.setattr(module, "_load_practice", lambda year, rnd: _resolve("practice"))
     monkeypatch.setattr(module, "_load_constructor_standings", lambda year, rnd: _resolve("constructor_standings"))
     monkeypatch.setattr(module, "_load_driver_standings", lambda year, rnd: _resolve("driver_standings"))
-    monkeypatch.setattr(module, "_load_circuit_history", lambda year, rnd, key: _resolve("circuit_history"))
+    monkeypatch.setattr(
+        module,
+        "circuit_editions",
+        lambda year, key: CircuitEditions(
+            _resolve("circuit_history"), _resolve("grid_deltas"), _resolve("circuit_missing")
+        ),
+    )
     monkeypatch.setattr(module, "_load_sprint_result", lambda year, rnd: _resolve("sprint_result"))
     monkeypatch.setattr(module, "_adaptive_position_corrections", lambda year, rnd: _resolve("adaptive_corrections"))
-    monkeypatch.setattr(module, "_load_grid_to_finish_delta", lambda year, rnd, key: _resolve("grid_deltas"))
     monkeypatch.setattr(module, "_load_recent_sprint_form", lambda year, rnd: _resolve("recent_sprint_form"))
     monkeypatch.setattr(module, "driver_standings_detailed", lambda year: _resolve("roster"))
     monkeypatch.setattr(module, "season_seats", lambda year, rnd: _resolve("seats"))
@@ -194,7 +203,7 @@ def test_event_context_reads_the_name_and_circuit_from_the_schedule(pipeline):
     context = module._load_event_context(2024, 5)
 
     assert context.gp_name == "Monaco Grand Prix"
-    assert context.circuit_key == "Monte Carlo"
+    assert context.circuit_key == "monaco"
     assert context.event_row is not None
     assert context.warnings == []
 
@@ -372,6 +381,21 @@ def test_missing_constructor_standings_are_the_only_feed_that_warns(pipeline):
     assert support.data_sources == []
     assert support.had_sprint is False
     assert support.sprint_positions == {}
+
+
+@pytest.mark.unit
+def test_a_past_edition_f1db_lacks_is_a_warning_not_a_silent_gap(pipeline):
+    pipeline["circuit_missing"] = {
+        2022: "f1db has no race result for round 21",
+        2023: "f1db has no Grand Prix at this circuit that season",
+    }
+
+    support = module._load_supporting_data(2024, 5, "monaco")
+
+    assert support.warnings == [
+        "Circuit history missing for 2022: f1db has no race result for round 21",
+        "Circuit history missing for 2023: f1db has no Grand Prix at this circuit that season",
+    ]
 
 
 # ---------------------------------------------------------------------------

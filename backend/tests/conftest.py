@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 # without importing them itself. `pytest_plugins` is only honoured in the
 # rootdir conftest, which this is not, so a plain import is the supported route.
 from tests.calendar_support import calendar_f1db  # noqa: F401
+from tests.circuit_history_support import circuit_history_f1db  # noqa: F401
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
 from tests.identity_support import identity_f1db  # noqa: F401
 from tests.profiles_support import profiles_f1db  # noqa: F401

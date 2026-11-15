@@ -28,11 +28,7 @@ from app.data.f1db_calendar import season_schedule
 from app.data.f1db_standings import driver_standings_detailed
 from app.data.predictions.accuracy import get_accuracy_stats
 from app.data.predictions.driver_score import RaceSignals, score_driver
-from app.data.predictions.form import (
-    _load_circuit_history,
-    _load_grid_to_finish_delta,
-    _load_recent_sprint_form,
-)
+from app.data.predictions.form import _load_recent_sprint_form, circuit_editions
 from app.data.predictions.history import prediction_call
 from app.data.predictions.model import _adaptive_position_corrections
 from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
@@ -139,7 +135,7 @@ def _load_event_context(year: int, round_num: int) -> EventContext:
             event_row = event.iloc[0]
             return EventContext(
                 gp_name=str(event_row.get("EventName", gp_name)),
-                circuit_key=str(event_row.get("Location", circuit_key)),
+                circuit_key=str(event_row.get("CircuitId", circuit_key)),
                 event_row=event_row,
                 schedule=schedule,
             )
@@ -219,9 +215,12 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
     if driver_standings:
         data_sources.append("driver_standings")
 
-    circuit_history = _load_circuit_history(year, round_num, circuit_key)
-    if circuit_history:
+    editions = circuit_editions(year, circuit_key)
+    if editions.history:
         data_sources.append("circuit_history")
+    warnings.extend(
+        f"Circuit history missing for {past_year}: {reason}" for past_year, reason in sorted(editions.missing.items())
+    )
 
     sprint_data = _load_sprint_result(year, round_num)
     if sprint_data:
@@ -236,8 +235,8 @@ def _load_supporting_data(year: int, round_num: int, circuit_key: str) -> Suppor
         data_sources=data_sources,
         constructor_standings=constructor_standings,
         driver_standings=driver_standings,
-        circuit_history=circuit_history,
-        grid_deltas=_load_grid_to_finish_delta(year, round_num, circuit_key),
+        circuit_history=editions.history,
+        grid_deltas=editions.deltas,
         sprint_positions={d["driver_code"]: d["position"] for d in sprint_data},
         had_sprint=bool(sprint_data),
         # Sprint finishes from earlier rounds this season — feeds

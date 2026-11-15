@@ -16,7 +16,7 @@ import { rc } from "@/app/ui/tokens";
 
 import type { CornerMarker } from "./telemetryModel";
 
-/** Blue ramp, deep to pale (steps 550 → 100 of the reference sequential scale). */
+/** Blue ramp, deep to pale (steps 550 → 100 of the reference sequential scale). A data scale, not UI colour, so it is not a token. */
 export const SPEED_RAMP = ["#1C5CAB", "#2A78D6", "#5598E7", "#86B6EF", "#CDE2FB"];
 
 /** Neutral for a mini-sector neither driver won. */

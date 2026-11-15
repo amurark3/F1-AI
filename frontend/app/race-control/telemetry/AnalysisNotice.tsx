@@ -47,7 +47,7 @@ export function AnalysisGate<T extends AnalysisStatus>({
   return (
     <InlineNotice title={title} tone={tone}>
       {data.message}
-      {data.error_id && <span className="ml-1 font-mono text-xs text-neutral-400">(ref {data.error_id})</span>}
+      {data.error_id && <span className="ml-1 font-mono text-xs text-rc-ink-3">(ref {data.error_id})</span>}
     </InlineNotice>
   );
 }
@@ -57,8 +57,8 @@ export function ModeledNote({ modeled, extra }: { modeled?: string[]; extra?: st
   if (!modeled?.length) return null;
   const items = modeled.map((key) => MODELED_LABELS[key] ?? key);
   return (
-    <p className="text-xs leading-relaxed text-[#8E96A8]">
-      <span className="mr-1.5 rounded border border-[#F5C542]/40 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#F5C542]">
+    <p className="text-xs leading-relaxed text-rc-ink-2">
+      <span className="mr-1.5 rounded border border-rc-blue/40 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-rc-blue">
         Modelled
       </span>
       {items.join(", ")} are derived from OpenF1&apos;s measured samples, not published by F1.

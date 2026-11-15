@@ -69,6 +69,7 @@ const COVERAGE_INCLUDE = [
   "app/race-control/weekend/**",
   // P4.4a: the Telemetry Lab toolbar and the speed map. P4.4b adds the head-to-head cards. The
   // tyre-wear files stay off: P4.4c rebuilds them.
+  "app/race-control/telemetry/AnalysisNotice.tsx",
   "app/race-control/telemetry/AnalysisPickers.tsx",
   "app/race-control/telemetry/AnalysisToolbar.tsx",
   "app/race-control/telemetry/degradationInsights.ts",
@@ -81,12 +82,17 @@ const COVERAGE_INCLUDE = [
   "app/race-control/telemetry/headToHeadInsights.ts",
   "app/race-control/telemetry/headToHeadModel.ts",
   "app/race-control/telemetry/qualifyingSegments.ts",
+  "app/race-control/telemetry/telemetryModel.ts",
+  "app/race-control/telemetry/TelemetryView.tsx",
   "app/race-control/telemetry/TelemetryTraces.tsx",
   "app/race-control/telemetry/TrackMap.tsx",
   "app/race-control/telemetry/TrackMapControls.tsx",
+  "app/race-control/telemetry/trackMapGeometry.ts",
   "app/race-control/telemetry/TrackMapPanel.tsx",
   "app/race-control/telemetry/trackMapSelection.ts",
   "app/race-control/telemetry/TyreDegPanel.tsx",
+  "app/race-control/telemetry/useAnalysisData.ts",
+  "app/race-control/telemetry/useTelemetryParams.ts",
   // P4.3b5: the Predictions tab (Order and Review rebuilt, the rest of the tab's files with
   // them) and the hub's last files, so every file in grand-prix/ is now gated.
   "app/race-control/grand-prix/CallChart.tsx",

@@ -218,7 +218,14 @@ def test_the_provisional_grid_is_qualifying_order_labelled_with_its_source(serve
 
     grid = jolpica.provisional_grid(2026, 20)
 
-    assert grid[0] == {"position": 1, "driverCode": "NOR", "provisional": True, "source": jolpica.QUALIFYING_SOURCE}
+    assert grid[0] == {
+        "position": 1,
+        "driverCode": "NOR",
+        "driverName": "Lando Norris",
+        "constructorName": "McLaren",
+        "provisional": True,
+        "source": jolpica.QUALIFYING_SOURCE,
+    }
     assert [row["position"] for row in grid] == list(range(1, len(qualifying) + 1))
     assert all(row["provisional"] for row in grid)
 

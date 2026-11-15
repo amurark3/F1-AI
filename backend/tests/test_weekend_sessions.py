@@ -311,3 +311,15 @@ def test_round_with_nothing_published_says_so(db):
 
     assert (payload["available"], payload["sessions"]) == (False, [])
     assert payload["warnings"] == [weekend_sessions.NO_SESSIONS_WARNING]
+
+
+def test_grand_prix_qualifying_is_the_last_session_and_carries_part_gaps(db):
+    db.add(13, "FREE_PRACTICE_1_RESULT", practice_time="1:23.0")
+    db.add(13, "QUALIFYING_RESULT", qualifying_q3="1:16.5", qualifying_q1="1:17.5")
+
+    payload = build_weekend_sessions(2026, 13)
+    qualifying = payload["sessions"][-1]
+
+    assert [s["id"] for s in payload["sessions"]] == ["fp1", "qualifying"]
+    assert qualifying["entries"][0]["part"] == "q3"
+    assert payload["sessions"][0]["entries"][0]["stand_in_for"] is None

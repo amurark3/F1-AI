@@ -31,11 +31,14 @@ from app.data.f1db_sessions import (
     TYPE_PRACTICE_1,
     TYPE_PRACTICE_2,
     TYPE_PRACTICE_3,
+    TYPE_QUALIFYING,
+    TYPE_RACE,
     TYPE_SPRINT_QUALIFYING,
     TYPE_SPRINT_RACE,
     SessionEntry,
     session_classification,
 )
+from app.services.session_context import annotate_qualifying, annotate_stand_ins
 
 logger = structlog.get_logger()
 
@@ -74,6 +77,7 @@ WEEKEND_SESSIONS: tuple[SessionSpec, ...] = (
     SessionSpec("sprint_qualifying", "SQ", "Sprint Qualifying", KIND_QUALIFYING, TYPE_SPRINT_QUALIFYING),
     SessionSpec("sprint_grid", "Sprint Grid", "Sprint Starting Grid", KIND_GRID, TYPE_SPRINT_GRID),
     SessionSpec("sprint", "Sprint", "Sprint Race", KIND_RACE, TYPE_SPRINT_RACE),
+    SessionSpec("qualifying", "Qualifying", "Qualifying", KIND_QUALIFYING, TYPE_QUALIFYING),
 )
 
 
@@ -116,7 +120,18 @@ def _grid_payload(slot: GridSlot) -> dict:
     }
 
 
-def _load_session(year: int, round_num: int, spec: SessionSpec) -> dict | None:
+def _regulars(year: int, round_num: int) -> dict[str, list[tuple[str, str]]]:
+    """The weekend's race entry list by team: whoever qualified or raced, as (code, name)."""
+    regulars: dict[str, list[tuple[str, str]]] = {}
+    for result_type, kind in ((TYPE_QUALIFYING, KIND_QUALIFYING), (TYPE_RACE, KIND_RACE)):
+        for entry in session_classification(year, round_num, result_type, kind):
+            drivers = regulars.setdefault(entry.team, [])
+            if all(code != entry.driver_code for code, _ in drivers):
+                drivers.append((entry.driver_code, entry.driver_name))
+    return regulars
+
+
+def _load_session(year: int, round_num: int, spec: SessionSpec, regulars: dict) -> dict | None:
     """One session's payload, or ``None`` when the weekend did not run it."""
     if spec.kind == KIND_GRID:
         slots = starting_grid(year, round_num, spec.result_type)
@@ -135,18 +150,20 @@ def _load_session(year: int, round_num: int, spec: SessionSpec) -> dict | None:
     entries = session_classification(year, round_num, spec.result_type, spec.kind)
     if not entries:
         return None
-    return {
-        "id": spec.id,
-        "label": spec.label,
-        "name": spec.name,
-        "kind": spec.kind,
-        "entries": [_entry_payload(entry) for entry in entries],
-    }
+    rows = [_entry_payload(entry) for entry in entries]
+    if spec.kind == KIND_QUALIFYING:
+        rows = annotate_qualifying(rows)
+    elif spec.kind == KIND_PRACTICE:
+        rows = annotate_stand_ins(rows, regulars)
+    return {"id": spec.id, "label": spec.label, "name": spec.name, "kind": spec.kind, "entries": rows}
 
 
 def build_weekend_sessions(year: int, round_num: int) -> dict:
     """Every session f1db holds a classification for, in running order."""
-    sessions = [payload for spec in WEEKEND_SESSIONS if (payload := _load_session(year, round_num, spec)) is not None]
+    regulars = _regulars(year, round_num)
+    sessions = [
+        payload for spec in WEEKEND_SESSIONS if (payload := _load_session(year, round_num, spec, regulars)) is not None
+    ]
     # A sprint weekend is one that actually ran a sprint, not one a calendar
     # flag says was scheduled to.
     is_sprint = any(session["id"] == "sprint" for session in sessions)

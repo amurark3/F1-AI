@@ -165,6 +165,8 @@ def provisional_grid(year: int, round_num: int) -> list[dict]:
             {
                 "position": int(row["position"]),
                 "driverCode": row["Driver"]["code"],
+                "driverName": f"{row['Driver']['givenName']} {row['Driver']['familyName']}",
+                "constructorName": row["Constructor"]["name"],
                 "provisional": True,
                 "source": QUALIFYING_SOURCE,
             }

@@ -9,16 +9,15 @@ import { RacePicker } from "@/app/ui/race-picker/RacePicker";
 import { SectionLoader, SkeletonPanel } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
-import { GridPenalties } from "./GridPenalties";
+import { GridTab } from "./GridTab";
 import { HubAlerts, RaceHeader } from "./HubHeader";
 import { HUB_TABS, type HubTab, type PredictionView } from "./hubNavigation";
 import { buildDriverLookup } from "./predictionHelpers";
 import { PredictionSection } from "./PredictionSection";
 import { ResultsTab } from "./ResultsTab";
-import { StartingGrid } from "./StartingGrid";
+import { SessionsTab } from "./SessionsTab";
 import { StintChart } from "./StintChart";
 import { WeekendPanel } from "./WeekendPanels";
-import { WeekendSessions } from "./WeekendSessions";
 
 import type { StartingGridResponse } from "./gridModel";
 import type {
@@ -64,33 +63,6 @@ function StintsSection({ strategy, strategyLoading }: { strategy?: RaceStrategyR
   return <StintChart data={strategy} />;
 }
 
-/** The starting grid and the penalties that shaped it. */
-function GridSection({
-  grid,
-  gridLoading,
-  raceName,
-}: {
-  grid?: StartingGridResponse;
-  gridLoading: boolean;
-  raceName: string;
-}) {
-  if (gridLoading) {
-    return (
-      <SectionLoader
-        title="Loading the starting grid"
-        detail="Reading the published grid sheet for this Grand Prix, and any penalties applied to it."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <StartingGrid data={grid} raceName={raceName} />
-      <GridPenalties data={grid} />
-    </div>
-  );
-}
-
 /** The section the tab strip points at; `activeTab` picks which one renders. */
 function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup }) {
   const { activeTab } = props;
@@ -100,13 +72,19 @@ function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup })
 
       {activeTab === "sessions" && (
         <>
-          <WeekendSessions data={props.sessions} loading={props.sessionsLoading} raceName={props.raceName} />
+          <SessionsTab data={props.sessions} loading={props.sessionsLoading} />
           <TelemetryLink round={props.selectedRound} tab="map" label="Speed maps and lap-by-lap comparisons" />
         </>
       )}
 
       {activeTab === "grid" && (
-        <GridSection grid={props.grid} gridLoading={props.gridLoading} raceName={props.raceName} />
+        <GridTab
+          grid={props.grid}
+          loading={props.gridLoading}
+          sessions={props.sessions}
+          round={props.selectedRound}
+          raceName={props.raceName}
+        />
       )}
 
       {activeTab === "results" && props.selectedRound !== null && (

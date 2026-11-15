@@ -51,6 +51,8 @@ export interface StartingGridResponse {
    */
   provisional: boolean;
   source: GridSource;
+  /** Which feed a provisional order came from ("jolpica-qualifying"); absent on an official grid. */
+  source_detail?: string;
   grid: GridSlot[];
   /** The subset of `grid` carrying a sanction. */
   penalties: GridSlot[];

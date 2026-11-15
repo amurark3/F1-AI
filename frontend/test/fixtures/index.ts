@@ -168,6 +168,18 @@
  *   `GET /api/race-control/glance/2026/19` serves it (no FIA power-unit documents
  *   are collected for 2026, so `power_units.available` is false).
  *
+ * The Sessions and Grid tabs (P4.3b3, 14 Nov) read:
+ *
+ * - `weekend-sessions-2026.json`: `weekend_sessions.build_weekend_sessions` over
+ *   f1db v2026.20.0 (opened read-only): Mexico City (round 19: three practice
+ *   sessions with their stand-ins, and qualifying with the in-part gaps and the
+ *   cars Lawson's disqualification lifted), the Chinese Grand Prix (round 2, a
+ *   sprint weekend with its sprint grid) and round 23 (nothing run yet).
+ * - `starting-grids-2026.json` `sao_paulo_jolpica_provisional`:
+ *   `race_grid.build_starting_grid` for round 20 with no grid sheet, over Jolpica's
+ *   captured qualifying table (`backend/tests/fixtures/sao_paulo_2026_r20/`):
+ *   the provisional grid with its source named.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
@@ -176,6 +188,7 @@ import type { StrategyContext, WeatherCard } from "@/app/race-control/components
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
 import type { DriverPrediction, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
+import type { WeekendSessionsResponse } from "@/app/race-control/grand-prix/sessionsModel";
 import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strategyModel";
 import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
 import type {
@@ -222,6 +235,7 @@ import stakes2026Earlier from "./stakes-2026-earlier.json";
 import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
+import weekendSessions2026 from "./weekend-sessions-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
@@ -329,6 +343,7 @@ export const GRIDS_2026 = {
   saoPauloF1dbV202620: startingGrids2026.sao_paulo_f1db_v2026_20 as StartingGridResponse,
   mexicoCityOfficial: startingGrids2026.mexico_city_official as StartingGridResponse,
   lasVegasNone: startingGrids2026.las_vegas_none as StartingGridResponse,
+  saoPauloJolpicaProvisional: startingGrids2026.sao_paulo_jolpica_provisional as StartingGridResponse,
 };
 
 /** One stored prediction's finishing order, kept to the fields the "vs grid" column reads. */
@@ -364,6 +379,12 @@ export const SEASON_2026 = {
  * on 14 Nov 2026 (f1db v2026.20.0), as served. Mexico City (round 19) has no
  * sprint; the Chinese Grand Prix (round 2) is a sprint weekend.
  */
+export const WEEKEND_SESSIONS_2026 = {
+  mexicoCity: weekendSessions2026.mexico_city as unknown as WeekendSessionsResponse,
+  sprintWeekend: weekendSessions2026.china_sprint as unknown as WeekendSessionsResponse,
+  none: weekendSessions2026.future as unknown as WeekendSessionsResponse,
+};
+
 export const RACE_RESULTS_2026 = {
   mexicoCity: raceResults2026.mexico_city_r19 as unknown as RaceResultsResponse,
   sprintWeekend: raceResults2026.sprint_weekend_r2 as unknown as RaceResultsResponse,

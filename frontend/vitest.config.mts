@@ -34,14 +34,23 @@ const COVERAGE_INCLUDE = [
   // the Predictions tab).
   "app/race-control/grand-prix/gridDelta.ts",
   // P4.3b2: the hub's frame (header, URL-driven sections, season inputs) and
-  // the Results tab. The Sessions, Grid, Weekend, Stints and Predictions
-  // panels stay off: P4.3b3 and b5 rebuild them.
+  // the Results tab. The Predictions panels stay off: P4.3b5 rebuilds them.
   "app/race-control/grand-prix/HubHeader.tsx",
   "app/race-control/grand-prix/hubNavigation.ts",
   "app/race-control/grand-prix/ResultsSidePanels.tsx",
   "app/race-control/grand-prix/resultsModel.ts",
   "app/race-control/grand-prix/ResultsTab.tsx",
   "app/race-control/grand-prix/ResultsTable.tsx",
+  // P4.3b3: the Sessions and Grid tabs.
+  "app/race-control/grand-prix/GridPenalties.tsx",
+  "app/race-control/grand-prix/gridHelpers.ts",
+  "app/race-control/grand-prix/GridTab.tsx",
+  "app/race-control/grand-prix/qualifyingModel.ts",
+  "app/race-control/grand-prix/QualifyingSidePanels.tsx",
+  "app/race-control/grand-prix/SessionsTab.tsx",
+  "app/race-control/grand-prix/SessionTables.tsx",
+  "app/race-control/grand-prix/StartingGrid.tsx",
+  "app/race-control/grand-prix/StateTag.tsx",
   "app/race-control/grand-prix/useHubShell.ts",
   // P4.3b4: the Weekend and Stints tabs, and the tyre colours they read.
   "app/race-control/grand-prix/StintChart.tsx",

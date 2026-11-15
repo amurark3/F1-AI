@@ -1,4 +1,12 @@
-import { DIRECTORY_2026, MEXICO_CITY_2026, RACE_RESULTS_2026, READY, TEAMS_2026 } from "../../test/fixtures";
+import {
+  DIRECTORY_2026,
+  GRIDS_2026,
+  MEXICO_CITY_2026,
+  RACE_RESULTS_2026,
+  READY,
+  TEAMS_2026,
+  WEEKEND_SESSIONS_2026,
+} from "../../test/fixtures";
 
 import type { Page, Route } from "@playwright/test";
 
@@ -49,5 +57,12 @@ export async function mockBackend(page: Page): Promise<void> {
   );
   await page.route(`${E2E_API_ORIGIN}/api/race-control/glance/2026/*`, (route) =>
     fulfillJson(route, MEXICO_CITY_2026.glance),
+  );
+  // The Sessions and Grid tabs: Mexico City's qualifying (with its disqualification) and official grid.
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/sessions/2026/*`, (route) =>
+    fulfillJson(route, WEEKEND_SESSIONS_2026.mexicoCity),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/grid/2026/*`, (route) =>
+    fulfillJson(route, GRIDS_2026.mexicoCityOfficial),
   );
 }

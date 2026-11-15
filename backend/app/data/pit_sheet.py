@@ -2,10 +2,11 @@
 
 **Where the sheet comes from, in order** (``docs/DATA_SOURCES.md``):
 
-1. Jolpica's pit stops, through FastF1's Ergast client. Published hours after
-   the race. Its ``duration`` is the **pit-lane time**, entry to exit.
-2. f1db (:mod:`app.data.f1db_pitstops`), the same sheet once its release
-   covers the round, for when Jolpica cannot answer.
+1. f1db (:mod:`app.data.f1db_pitstops`), the same sheet once its release
+   covers the round: no request at all.
+2. Jolpica's pit stops (:mod:`app.data.jolpica`, our own pacer), for the newest
+   round f1db has not caught up with. Published hours after the race. Its
+   ``duration`` is the **pit-lane time**, entry to exit.
 
 OpenF1's ``pit.stop_duration`` is the time the car stood still. It is attached
 to the matching entry when OpenF1 publishes it, which it did not for any stop
@@ -35,12 +36,11 @@ from dataclasses import dataclass, replace
 import math
 from typing import TYPE_CHECKING
 
-from fastf1.ergast import Ergast
-from fastf1.exceptions import ErgastError, RateLimitExceededError
 import pandas as pd
 import structlog
 
 from app.data.f1db_pitstops import PitStop, race_pit_stops as f1db_pit_stops
+from app.data.jolpica import JolpicaUnavailableError, pit_stops as jolpica_pit_stops, race_results as jolpica_results
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.openf1.sessions import entry_list, find_session, session_ended
 from app.utils.ttl_cache import TtlCache
@@ -53,10 +53,6 @@ logger = structlog.get_logger()
 
 JOLPICA_SOURCE = "jolpica-pitstops"
 F1DB_SOURCE = "f1db-pit-stops"
-
-# Jolpica answers 30 rows unless asked for more. A red-flagged race doubles
-# the sheet: Mexico 2026 had 58 entries.
-JOLPICA_PAGE_LIMIT = 100
 
 # Longer than any stop a car makes and rejoins from in normal running.
 SUSPENSION_MIN_MILLIS = 120_000
@@ -110,7 +106,7 @@ def _whole(value: object) -> int | None:
 
 
 def stops_from_jolpica(rows: list[dict], codes: dict[str, str]) -> tuple[PitStop, ...]:
-    """Jolpica pit-stop rows (as FastF1's Ergast client flattens them) as stops.
+    """Jolpica pit-stop rows (as :mod:`app.data.jolpica` flattens them) as stops.
 
     ``codes`` maps Jolpica's driver ids onto three-letter codes; the sheet
     carries only the id. An entry for a driver it cannot name is skipped.
@@ -192,24 +188,20 @@ def without_suspension(entries: tuple[PitStop, ...], flagged_laps: frozenset[int
 
 
 def _jolpica_entries(year: int, round_num: int) -> tuple[PitStop, ...]:
+    """Jolpica's sheet; empty when unpublished or unreachable, which is never cached as final."""
     try:
-        ergast = Ergast()
-        response = ergast.get_pit_stops(season=year, round=round_num, limit=JOLPICA_PAGE_LIMIT)
-        if not response.content:
+        rows = jolpica_pit_stops(year, round_num)
+        if not rows:
             return ()
-        if not response.is_complete:
-            # Part of a sheet would undercount the stops; f1db has the whole one.
-            logger.warning("pit_sheet.jolpica_incomplete", year=year, round=round_num)
-            return ()
-        results = ergast.get_race_results(season=year, round=round_num)
-    # requests' errors are OSErrors; FastF1 raises ErgastError for a bad answer
-    # and RateLimitExceededError once its per-process request cap is spent.
-    except (ErgastError, RateLimitExceededError, OSError, ValueError, KeyError) as exc:
+        codes = {
+            str(row["driverId"]): row["driverCode"]
+            for row in jolpica_results(year, round_num)
+            if isinstance(row.get("driverCode"), str)
+        }
+    except JolpicaUnavailableError as exc:
         logger.warning("pit_sheet.jolpica_unavailable", year=year, round=round_num, error=str(exc))
         return ()
-    rows = results.content[0].to_dict("records") if results.content else []
-    codes = {str(row["driverId"]): row["driverCode"] for row in rows if isinstance(row.get("driverCode"), str)}
-    return stops_from_jolpica(response.content[0].to_dict("records"), codes)
+    return stops_from_jolpica(rows, codes)
 
 
 def _openf1_stationary(year: int, round_num: int) -> dict[tuple[str, int], int]:
@@ -249,10 +241,10 @@ def race_pit_sheet(year: int, round_num: int) -> PitSheet:
         return cached
 
     sheet = NO_SHEET
-    if entries := _jolpica_entries(year, round_num):
-        sheet = PitSheet(source=JOLPICA_SOURCE, entries=entries)
-    elif entries := f1db_pit_stops(year, round_num):
+    if entries := f1db_pit_stops(year, round_num):
         sheet = PitSheet(source=F1DB_SOURCE, entries=entries)
+    elif entries := _jolpica_entries(year, round_num):
+        sheet = PitSheet(source=JOLPICA_SOURCE, entries=entries)
     if sheet.entries and (stationary := _openf1_stationary(year, round_num)):
         timed = tuple(
             replace(entry, stationary_millis=stationary.get((entry.driver_code, entry.lap))) for entry in sheet.entries

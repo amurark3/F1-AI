@@ -14,15 +14,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
-from fastf1.exceptions import RateLimitExceededError
 import httpx
-import pandas as pd
 import pytest
 
 from app.data import race_classification as module
 from app.data.f1db_calendar import CalendarUnavailableError
+from app.data.jolpica import JolpicaUnavailableError
 from app.data.race_classification import (
     ClassifiedDriver,
     RaceClassification,
@@ -67,7 +65,7 @@ def r19_codes() -> dict[int, str]:
 
 
 def jolpica_records() -> list[dict]:
-    """The Jolpica rows as FastF1's Ergast client flattens them."""
+    """The Jolpica rows as :mod:`app.data.jolpica` flattens them."""
     return [
         {
             "number": int(row["number"]),
@@ -236,16 +234,14 @@ def test_jolpica_rows_without_a_code_are_skipped():
 # --- where the classification comes from -------------------------------------------
 
 
-class FakeErgast:
-    def __init__(self, state: dict) -> None:
-        self.state = state
+def fake_jolpica_results(state: dict):
+    def read(_year: int, _round: int) -> list[dict]:
+        state["jolpica_calls"] += 1
+        if state["jolpica_error"] is not None:
+            raise state["jolpica_error"]
+        return state["jolpica"]
 
-    def get_race_results(self, season: int, round: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        self.state["jolpica_calls"] += 1
-        if self.state["jolpica_error"] is not None:
-            raise self.state["jolpica_error"]
-        records = self.state["jolpica"]
-        return SimpleNamespace(content=[pd.DataFrame(records)] if records else [])
+    return read
 
 
 @pytest.fixture
@@ -263,7 +259,7 @@ def sources(monkeypatch):
         "now": 1000.0,
     }
     monkeypatch.setattr(module, "find_session", lambda client, year, rnd, code: state["session"])
-    monkeypatch.setattr(module, "Ergast", lambda: FakeErgast(state))
+    monkeypatch.setattr(module, "jolpica_results", fake_jolpica_results(state))
     monkeypatch.setattr(module, "_cache", TtlCache(clock=lambda: state["now"]))
     state["openf1"] = serve(monkeypatch, module, state["routes"])
     return state
@@ -325,26 +321,11 @@ def test_a_result_without_an_entry_list_is_not_trusted(sources):
 
 def test_neither_source_answering_is_no_classification(sources):
     sources["routes"].pop("session_result")
-    sources["jolpica_error"] = OSError("jolpica unreachable")
+    sources["jolpica_error"] = JolpicaUnavailableError("jolpica unreachable")
 
     result = race_classification(2026, 19)
 
     assert result == RaceClassification(source=None, drivers=())
-
-
-def test_an_ergast_error_is_no_classification(sources):
-    sources["routes"].pop("session_result")
-    sources["jolpica_error"] = module.ErgastError("bad response")
-
-    assert race_classification(2026, 19) == module.NO_CLASSIFICATION
-
-
-def test_fastf1s_request_cap_is_no_classification(sources):
-    """FastF1 caps its requests per process; once spent, its Ergast client raises instead of answering."""
-    sources["routes"].pop("session_result")
-    sources["jolpica_error"] = RateLimitExceededError("ergast.com: 500 calls/h")
-
-    assert race_classification(2026, 19) == module.NO_CLASSIFICATION
 
 
 def test_an_answer_is_served_from_cache_within_its_lifetime(sources):

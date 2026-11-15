@@ -11,7 +11,7 @@ no stop after it looked like the last one of a finished race.
    ``dns`` and ``dsq`` flags and laps completed per car. On the morning after
    Mexico 2026 it matched FIA document 86, the final classification, including
    the post-race penalties.
-2. Jolpica's results, through FastF1's Ergast client. It applies post-race
+2. Jolpica's results, through :mod:`app.data.jolpica`. It applies post-race
    penalties late (it still had Piastri 7th that morning), so it only answers
    when OpenF1 cannot: while a live session locks OpenF1, or for a race OpenF1
    does not cover.
@@ -29,10 +29,9 @@ from dataclasses import dataclass
 import math
 from typing import Literal
 
-from fastf1.ergast import Ergast
-from fastf1.exceptions import ErgastError, RateLimitExceededError
 import structlog
 
+from app.data.jolpica import JolpicaUnavailableError, race_results as jolpica_results
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.openf1.sessions import entry_list, find_session, session_ended
 from app.utils.ttl_cache import TtlCache
@@ -159,7 +158,7 @@ def _jolpica_driver(row: dict) -> ClassifiedDriver:
 
 
 def classification_from_jolpica(rows: list[dict]) -> tuple[ClassifiedDriver, ...]:
-    """Jolpica result rows (as FastF1's Ergast client flattens them), in Jolpica's order."""
+    """Jolpica result rows (as :mod:`app.data.jolpica` flattens them), in Jolpica's order."""
     ranked = sorted(rows, key=lambda row: _whole(row.get("position")) or 0)
     return tuple(_jolpica_driver(row) for row in ranked if isinstance(row.get("driverCode"), str))
 
@@ -189,15 +188,11 @@ def _openf1_classification(year: int, round_num: int) -> tuple[ClassifiedDriver,
 
 def _jolpica_classification(year: int, round_num: int) -> tuple[ClassifiedDriver, ...]:
     try:
-        response = Ergast().get_race_results(season=year, round=round_num)
-    # requests' errors are OSErrors; FastF1 raises ErgastError for a bad answer
-    # and RateLimitExceededError once its per-process request cap is spent.
-    except (ErgastError, RateLimitExceededError, OSError, ValueError, KeyError) as exc:
+        rows = jolpica_results(year, round_num)
+    except JolpicaUnavailableError as exc:
         logger.warning("race_classification.jolpica_unavailable", year=year, round=round_num, error=str(exc))
         return ()
-    if not response.content:
-        return ()
-    return classification_from_jolpica(response.content[0].to_dict("records"))
+    return classification_from_jolpica(rows)
 
 
 def race_classification(year: int, round_num: int) -> RaceClassification:

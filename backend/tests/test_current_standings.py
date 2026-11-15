@@ -13,12 +13,12 @@ from __future__ import annotations
 from datetime import UTC
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import pytest
 import structlog
 
 from app.data import current_standings as module
 from app.data.current_standings import CONFIRMED_TTL_SECONDS, PROVISIONAL_TTL_SECONDS, current_standings
+from app.data.jolpica import JolpicaUnavailableError
 from tests.roster_support import AFTER_MEXICO, MEXICO, load
 from tests.standings_support import Feeds, mexico_feeds
 
@@ -95,9 +95,9 @@ def test_a_feed_that_disagrees_is_reported_and_the_computed_value_is_served(feed
     assert points(standings.drivers)["HIR"] == 1
 
 
-def test_fastf1s_request_cap_leaves_the_jolpica_check_unavailable_and_the_table_served(feeds):
-    """FastF1 caps its requests per process; once spent, its Ergast client raises instead of answering."""
-    feeds.jolpica_error = RateLimitExceededError("ergast.com: 500 calls/h")
+def test_the_jolpica_budget_being_spent_leaves_the_jolpica_check_unavailable_and_the_table_served(feeds):
+    """Our own hourly Jolpica budget raises instead of answering."""
+    feeds.jolpica_error = JolpicaUnavailableError("our 500 requests an hour are spent")
 
     standings = current_standings(2026)
 

@@ -21,16 +21,15 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass, field
 import sqlite3
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import httpx
-import pandas as pd
 
 from app.data import (
     current_standings,
     f1db_source,
     identity,
+    jolpica,
     session_entries,
     standings_cross_check,
     standings_rounds,
@@ -177,23 +176,20 @@ class Feeds:
         return [path for fake in self.fakes for path in fake.paths()]
 
 
-class FakeErgast:
-    """FastF1's Ergast client, answering from :class:`Feeds`."""
+def serve_jolpica(monkeypatch: pytest.MonkeyPatch, feeds: Feeds) -> None:
+    """Jolpica's standings client, answering from :class:`Feeds`."""
 
-    def __init__(self, feeds: Feeds) -> None:
-        self.feeds = feeds
+    def answer(records: list[dict]) -> Callable[[int, int], list[dict]]:
+        def read(_year: int, _round: int) -> list[dict]:
+            feeds.jolpica_calls += 1
+            if feeds.jolpica_error is not None:
+                raise feeds.jolpica_error
+            return records()
 
-    def _answer(self, records: list[dict]) -> SimpleNamespace:
-        self.feeds.jolpica_calls += 1
-        if self.feeds.jolpica_error is not None:
-            raise self.feeds.jolpica_error
-        return SimpleNamespace(content=[pd.DataFrame(records)] if records else [])
+        return read
 
-    def get_driver_standings(self, season: int, round: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        return self._answer(self.feeds.jolpica_drivers)
-
-    def get_constructor_standings(self, season: int, round: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        return self._answer(self.feeds.jolpica_teams)
+    monkeypatch.setattr(jolpica, "driver_standings", answer(lambda: feeds.jolpica_drivers))
+    monkeypatch.setattr(jolpica, "constructor_standings", answer(lambda: feeds.jolpica_teams))
 
 
 def _weekends(feeds: Feeds) -> Callable:
@@ -228,7 +224,7 @@ def mexico_feeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Fe
         monkeypatch.setattr(module, "weekend_sessions", _weekends(feeds))
     monkeypatch.setattr(session_entries, "_cache", TtlCache())
     monkeypatch.setattr(session_entries, "_utc_now", lambda: AFTER_MEXICO)
-    monkeypatch.setattr(standings_cross_check, "Ergast", lambda: FakeErgast(feeds))
+    serve_jolpica(monkeypatch, feeds)
     monkeypatch.setattr(standings_cross_check, "_alerted", TtlCache(clock=lambda: feeds.clock[0]))
     monkeypatch.setattr(current_standings, "_cache", TtlCache(clock=lambda: feeds.clock[0]))
     monkeypatch.setattr(current_standings, "_utc_now", lambda: AFTER_MEXICO)

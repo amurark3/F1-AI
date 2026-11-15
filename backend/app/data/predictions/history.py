@@ -183,7 +183,8 @@ def _classify_results(classification: RaceClassification) -> tuple[dict[str, int
     for index, driver in enumerate(classification.drivers, start=1):
         positions[driver.driver_code] = driver.position or index
         statuses[driver.driver_code] = STATUS_LABELS[driver.status]
-        incidents[driver.driver_code] = _classify_status(statuses[driver.driver_code])
+        label = statuses[driver.driver_code]
+        incidents[driver.driver_code] = _classify_status(f"{label} · {driver.reason}" if driver.reason else label)
     return positions, statuses, incidents
 
 
@@ -191,8 +192,11 @@ def actual_fields(entry: dict, classification: RaceClassification) -> dict:
     """The result fields of ``entry`` once ``classification`` is recorded on it.
 
     Final only when it agrees with what ``entry`` already holds and is not
-    Jolpica's, which shows the pre-penalty order.
+    Jolpica's, which shows the pre-penalty order. A Jolpica read never replaces a
+    result from another source: it only moves ``actual_recorded_at``.
     """
+    if classification.source == JOLPICA_SOURCE and entry.get("actual_source") not in (None, JOLPICA_SOURCE):
+        return {"actual_recorded_at": datetime.now(UTC).isoformat()}
     positions, statuses, incidents = _classify_results(classification)
     agrees = entry.get("actual_positions") == positions and entry.get("actual_statuses") == statuses
     return {

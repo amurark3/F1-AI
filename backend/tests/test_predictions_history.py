@@ -46,6 +46,7 @@ from app.data.race_classification import (
     OPENF1_SOURCE,
     ClassifiedDriver,
     RaceClassification,
+    _with_reasons,
     classification_from_jolpica,
     classification_from_openf1,
 )
@@ -458,6 +459,33 @@ def test_a_retirement_is_stored_as_dnf_with_its_incident_flag_never_only_a_place
 
 
 @pytest.mark.unit
+def test_crash_and_mechanical_flags_come_from_the_retirement_reason(race_results_f1db):
+    drivers = _with_reasons(2026, 19, _r19_openf1().drivers)
+
+    _, statuses, incidents = _classify_results(RaceClassification(source=OPENF1_SOURCE, drivers=drivers))
+
+    assert {statuses[code] for code in ("LIN", "BEA", "BOT", "STR", "ALO")} == {"DNF"}
+    assert all(incidents[code]["crash"] for code in ("LIN", "BEA", "BOT"))
+    assert all(incidents[code]["mechanical"] and not incidents[code]["crash"] for code in ("STR", "ALO"))
+
+
+@pytest.mark.unit
+def test_a_jolpica_read_never_replaces_a_result_from_another_source(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    stored = _recorded_hours_ago(25, actual_source=OPENF1_SOURCE, actual_positions={"PIA": 13})
+    store.document[KEY].update(stored)
+    feed(_r19_jolpica())
+
+    record_actual_result(YEAR, ROUND)
+
+    entry = store.document[KEY]
+    assert {key: entry[key] for key in stored if key != "actual_recorded_at"} == {
+        key: value for key, value in stored.items() if key != "actual_recorded_at"
+    }
+    assert entry["actual_recorded_at"] > stored["actual_recorded_at"]
+
+
+@pytest.mark.unit
 def test_a_result_is_stored_with_its_source_and_provisional(store, feed):
     save_prediction(YEAR, ROUND, _predictions())
     feed(_r19_openf1())
@@ -483,7 +511,7 @@ def test_every_status_reads_as_its_label_and_a_car_without_a_place_follows_the_o
 
     assert positions == {"VER": 1, "NOR": 2, "PIA": 3, "LEC": 4, "HAM": 5}
     assert statuses == {"VER": "Finished", "NOR": "DNF", "PIA": "NC", "LEC": "DNS", "HAM": "DSQ"}
-    assert [incidents[code]["dnf"] for code in positions] == [False, True, True, True, True]
+    assert [incidents[code]["dnf"] for code in positions] == [False, True, False, True, True]
 
 
 @pytest.mark.unit

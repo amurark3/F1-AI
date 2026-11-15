@@ -2,42 +2,50 @@
 
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { chartTheme } from "@/app/ui/chartTheme";
+import { rc } from "@/app/ui/tokens";
+import { useChartAnimation } from "@/app/ui/useChartAnimation";
+
+import { DriverLegend, HeadToHeadCard } from "./HeadToHeadCard";
+import { brakeTitle, deltaTitle, gearTitle, speedTitle, throttleTitle, type Codes } from "./headToHeadInsights";
 import { DASH_B, type PairColours, type TraceRow } from "./headToHeadModel";
 
-const GRID = "rgba(255,255,255,0.06)";
-const AXIS = "rgba(255,255,255,0.35)";
-const SYNC_ID = "head-to-head";
-
-interface Codes {
-  a: string;
-  b: string;
-}
-
 interface TraceSpec {
-  title: string;
+  eyebrow: string;
   unit: string;
   keys: [keyof TraceRow, keyof TraceRow];
   height: number;
+  title: (rows: TraceRow[], codes: Codes) => string;
   step?: boolean;
   domain?: [number, number];
-  /** How one value reads in the tooltip; defaults to the number and unit. */
+  /** How one value reads on the axis and in the tooltip; defaults to the number and unit. */
   format?: (value: number) => string;
 }
 
 const SPECS: TraceSpec[] = [
-  { title: "Speed", unit: "km/h", keys: ["speed_a", "speed_b"], height: 210 },
-  { title: "Throttle", unit: "%", keys: ["throttle_a", "throttle_b"], height: 120, domain: [0, 100] },
+  { eyebrow: "Speed", unit: "km/h", keys: ["speed_a", "speed_b"], height: 190, title: speedTitle },
   {
-    title: "Brake",
+    eyebrow: "Throttle",
+    unit: "%",
+    keys: ["throttle_a", "throttle_b"],
+    height: 150,
+    domain: [0, 100],
+    title: throttleTitle,
+  },
+  {
+    eyebrow: "Brake",
     unit: "on/off",
     keys: ["brake_a", "brake_b"],
-    height: 90,
+    height: 110,
     step: true,
     domain: [0, 100],
     format: (value) => (value > 0 ? "on" : "off"),
+    title: brakeTitle,
   },
-  { title: "Gear", unit: "", keys: ["gear_a", "gear_b"], height: 110, step: true, domain: [1, 8] },
+  { eyebrow: "Gear", unit: "", keys: ["gear_a", "gear_b"], height: 150, step: true, domain: [1, 8], title: gearTitle },
 ];
+
+const MARGIN = { top: 4, right: 12, bottom: 0, left: 0 };
 
 interface TraceTooltipProps {
   active?: boolean;
@@ -47,16 +55,19 @@ interface TraceTooltipProps {
   codes: Codes;
 }
 
-function TraceTooltip({ active, payload, spec, codes }: TraceTooltipProps) {
+function read(spec: TraceSpec, value: number): string {
+  return spec.format?.(value) ?? `${value} ${spec.unit}`.trim();
+}
+
+export function TraceTooltip({ active, payload, spec, codes }: TraceTooltipProps) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
-  const read = (value: number) => spec?.format?.(value) ?? `${value} ${spec?.unit ?? ""}`.trim();
   const lines = spec
-    ? [`${codes.a} ${read(row[spec.keys[0]])}`, `${codes.b} ${read(row[spec.keys[1]])}`]
+    ? spec.keys.map((key, side) => `${side === 0 ? codes.a : codes.b} ${read(spec, row[key])}`)
     : [`${codes.b} ${row.delta > 0 ? "behind" : "ahead"} by ${Math.abs(row.delta).toFixed(3)}s`];
   return (
-    <div className="rounded border border-white/10 bg-[#0F1210] px-2.5 py-1.5 font-mono text-[11px] text-neutral-200 shadow-xl">
-      <p className="text-[#7F8797]">{Math.round(row.distance)} m</p>
+    <div style={chartTheme.tooltip.contentStyle} className="font-mono text-[11px]">
+      <p className="text-rc-ink-3">{Math.round(row.distance)} m</p>
       {lines.map((line) => (
         <p key={line}>{line}</p>
       ))}
@@ -64,28 +75,15 @@ function TraceTooltip({ active, payload, spec, codes }: TraceTooltipProps) {
   );
 }
 
-function ChartTitle({ title, unit }: { title: string; unit: string }) {
-  return (
-    <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#7F8797]">
-      {title}
-      {unit && <span className="ml-1 font-normal normal-case tracking-normal">({unit})</span>}
-    </p>
-  );
-}
+const axisX = {
+  ...chartTheme.axis,
+  dataKey: "distance",
+  type: "number" as const,
+  domain: ["dataMin", "dataMax"] as [string, string],
+  tickFormatter: (value: number) => `${Math.round(value / 100) / 10} km`,
+};
 
-function axisProps(last: boolean) {
-  return {
-    dataKey: "distance",
-    type: "number" as const,
-    domain: ["dataMin", "dataMax"] as [string, string],
-    tick: last ? { fill: AXIS, fontSize: 10 } : false,
-    tickFormatter: (value: number) => `${Math.round(value / 100) / 10} km`,
-    stroke: GRID,
-    height: last ? 24 : 4,
-  };
-}
-
-function ChannelChart({
+function ChannelCard({
   rows,
   spec,
   colours,
@@ -96,28 +94,23 @@ function ChannelChart({
   colours: PairColours;
   codes: Codes;
 }) {
+  const animation = useChartAnimation();
   const type = spec.step ? "stepAfter" : "monotone";
   return (
-    <div>
-      <ChartTitle title={spec.title} unit={spec.unit} />
+    <HeadToHeadCard eyebrow={spec.eyebrow} title={spec.title(rows, codes)} sub={spec.unit || undefined}>
       <ResponsiveContainer width="100%" height={spec.height}>
-        <LineChart data={rows} syncId={SYNC_ID} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis {...axisProps(spec.title === "Gear")} />
-          <YAxis
-            width={44}
-            domain={spec.domain ?? ["auto", "auto"]}
-            tick={{ fill: AXIS, fontSize: 10 }}
-            stroke={GRID}
-          />
-          <Tooltip content={<TraceTooltip spec={spec} codes={codes} />} />
+        <LineChart data={rows} margin={MARGIN}>
+          <CartesianGrid {...chartTheme.grid} vertical={false} />
+          <XAxis {...axisX} />
+          <YAxis {...chartTheme.axis} width={44} domain={spec.domain ?? ["auto", "auto"]} tickFormatter={spec.format} />
+          <Tooltip {...chartTheme.tooltip} content={<TraceTooltip spec={spec} codes={codes} />} />
           <Line
             type={type}
             dataKey={spec.keys[0]}
             stroke={colours.a}
             strokeWidth={2}
             dot={false}
-            isAnimationActive={false}
+            {...animation.series}
           />
           <Line
             type={type}
@@ -126,63 +119,48 @@ function ChannelChart({
             strokeWidth={2}
             strokeDasharray={DASH_B}
             dot={false}
-            isAnimationActive={false}
+            {...animation.series}
           />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+      <DriverLegend colours={colours} codes={codes} />
+    </HeadToHeadCard>
   );
 }
 
-function DeltaChart({ rows, codes }: { rows: TraceRow[]; codes: Codes }) {
+/** The smoothed gap along the lap; it ends on the official lap-time gap. */
+function DeltaCard({ rows, codes }: { rows: TraceRow[]; codes: Codes }) {
+  const animation = useChartAnimation();
   return (
-    <div>
-      <ChartTitle title={`Gap: ${codes.b} to ${codes.a}`} unit={`s, above 0 = ${codes.b} behind`} />
-      <ResponsiveContainer width="100%" height={130}>
-        <LineChart data={rows} syncId={SYNC_ID} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis {...axisProps(false)} />
-          <YAxis width={44} tick={{ fill: AXIS, fontSize: 10 }} stroke={GRID} />
-          <ReferenceLine y={0} stroke={AXIS} />
-          <Tooltip content={<TraceTooltip spec={null} codes={codes} />} />
-          <Line
-            type="monotone"
-            dataKey="delta"
-            stroke="#F0EFEC"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
+    <HeadToHeadCard
+      eyebrow="Delta"
+      title={deltaTitle(rows, codes)}
+      sub={`Seconds, smoothed. Above 0 = ${codes.b} behind ${codes.a}; ends at the official gap.`}
+    >
+      <ResponsiveContainer width="100%" height={190}>
+        <LineChart data={rows} margin={MARGIN}>
+          <CartesianGrid {...chartTheme.grid} vertical={false} />
+          <XAxis {...axisX} />
+          <YAxis {...chartTheme.axis} width={44} />
+          <ReferenceLine y={0} stroke={rc.ink3} />
+          <Tooltip {...chartTheme.tooltip} content={<TraceTooltip spec={null} codes={codes} />} />
+          <Line type="monotone" dataKey="delta" stroke={rc.ink} strokeWidth={2} dot={false} {...animation.series} />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </HeadToHeadCard>
   );
 }
 
-/** Speed, gap, throttle, brake and gear against distance, sharing one hover cursor. */
+/** The gap, speed, throttle, brake and gear against distance, each its own card with its own title. */
 export function TelemetryTraces({ rows, colours, codes }: { rows: TraceRow[]; colours: PairColours; codes: Codes }) {
   const [speed, ...rest] = SPECS;
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-[#A8AFBF]">
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="22" height="6" aria-hidden>
-            <line x1="0" y1="3" x2="22" y2="3" stroke={colours.a} strokeWidth="2" />
-          </svg>
-          {codes.a}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="22" height="6" aria-hidden>
-            <line x1="0" y1="3" x2="22" y2="3" stroke={colours.b} strokeWidth="2" strokeDasharray={DASH_B} />
-          </svg>
-          {codes.b}
-        </span>
-      </div>
-      <ChannelChart rows={rows} spec={speed} colours={colours} codes={codes} />
-      <DeltaChart rows={rows} codes={codes} />
+    <>
+      <DeltaCard rows={rows} codes={codes} />
+      <ChannelCard rows={rows} spec={speed} colours={colours} codes={codes} />
       {rest.map((spec) => (
-        <ChannelChart key={spec.title} rows={rows} spec={spec} colours={colours} codes={codes} />
+        <ChannelCard key={spec.eyebrow} rows={rows} spec={spec} colours={colours} codes={codes} />
       ))}
-    </div>
+    </>
   );
 }

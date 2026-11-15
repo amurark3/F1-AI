@@ -8,6 +8,7 @@ import { resolveDefaultRace } from "../grand-prix/predictionHelpers";
 
 import { AnalysisGate } from "./AnalysisNotice";
 import { ANALYSIS_PANEL_ID, AnalysisToolbar } from "./AnalysisToolbar";
+import { HeadToHeadControls } from "./HeadToHeadControls";
 import { HeadToHeadPanel } from "./HeadToHeadPanel";
 import { FIRST_SEASON, type TabKey, type WeekendSession } from "./telemetryModel";
 import { TrackMapControls } from "./TrackMapControls";
@@ -99,6 +100,18 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
             }}
           />
         )}
+        {params.tab === "head-to-head" && (
+          <HeadToHeadControls
+            year={params.year}
+            round={round}
+            session={session}
+            a={params.a}
+            b={params.b}
+            onPick={(a, b) => {
+              update({ a, b, lap: null });
+            }}
+          />
+        )}
       </AnalysisToolbar>
       <AnalysisGate state={weekend} loadingTitle="Loading the weekend's sessions" />
       {weekend.data?.available && session === null && (
@@ -111,16 +124,7 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
           <TrackMapPanel year={params.year} round={round} session={session} driver={params.a} lap={params.lap} />
         )}
         {params.tab === "head-to-head" && (
-          <HeadToHeadPanel
-            year={params.year}
-            round={round}
-            session={session}
-            a={params.a}
-            b={params.b}
-            onPick={(a, b) => {
-              update({ a, b, lap: null });
-            }}
-          />
+          <HeadToHeadPanel year={params.year} round={round} session={session} a={params.a} b={params.b} />
         )}
         {params.tab === "tyres" && <TyreDegPanel year={params.year} round={round} session={session} />}
       </div>

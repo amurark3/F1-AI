@@ -1,4 +1,4 @@
-import type { LapListResponse, TrackMapResponse, WeekendSession } from "./telemetryModel";
+import type { ComparisonResponse, LapListResponse, TrackMapResponse, WeekendSession } from "./telemetryModel";
 
 /** Small hand-made analysis answers for the Telemetry Lab tests. */
 
@@ -59,4 +59,44 @@ export const TRACK_MAP: TrackMapResponse = {
     distance_m: 300,
   },
   corners: [{ number: 1, label: "1", x: 1500, y: 800, angle: 90 }],
+};
+
+const RIVAL = { number: 63, code: "RUS", name: "George Russell", team: "Mercedes", colour: "#9fb4c8" };
+
+const LAP_A = { ...TRACK_MAP.lap!, time: 94.0 };
+const LAP_B = { ...TRACK_MAP.lap!, number: 11, time: 94.27, is_fastest: false };
+
+/** ANT is 0.27 s up at the line, having gained it all in the middle of the lap. */
+export const COMPARISON: ComparisonResponse = {
+  available: true,
+  pending: false,
+  modeled: ["distance", "delta"],
+  warnings: ["One sample was missing."],
+  a: { driver: DRIVER, lap: LAP_A },
+  b: { driver: RIVAL, lap: LAP_B },
+  gap: 0.27,
+  trace: {
+    distance: [0, 500, 1000, 1500, 2000],
+    delta: [0, 0.02, 0.1, 0.3, 0.27],
+    speed_a: [100, 300, 320, 200, 250],
+    speed_b: [100, 290, 310, 200, 250],
+    throttle_a: [100, 100, 100, 20, 100],
+    throttle_b: [100, 100, 100, 20, 100],
+    brake_a: [0, 0, 0, 100, 0],
+    brake_b: [0, 0, 100, 100, 0],
+    gear_a: [3, 8, 8, 4, 6],
+    gear_b: [3, 8, 7, 4, 6],
+  },
+  mini_sectors: [
+    { label: "Mini-sector 1", start: 0, end: 1000, gain: 0.1, faster: "a" },
+    { label: "Mini-sector 2", start: 1000, end: 2000, gain: 0.17, faster: "a" },
+  ],
+  sectors: [
+    { sector: 1, a: 25.3, b: 25.2, gain: -0.1 },
+    { sector: 2, a: 37.3, b: 37.4, gain: 0.1 },
+    { sector: 3, a: 31.4, b: 31.4, gain: 0 },
+    { sector: 4, a: null, b: null, gain: null },
+  ],
+  map: { distance: [0, 500, 1000, 1500, 2000], x: [0, 1000, 1500, 1000, 0], y: [0, 0, 800, 1500, 800] },
+  corner_markers: [{ number: 1, label: "1", x: 1500, y: 800, angle: 90 }],
 };

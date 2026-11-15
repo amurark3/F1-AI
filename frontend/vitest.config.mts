@@ -38,9 +38,17 @@ const COVERAGE_INCLUDE = [
   "app/race-control/profiles/EntityLinks.tsx",
   "app/race-control/profiles/profilesModel.ts",
   "app/race-control/weekend/**",
-  // P4.4a: the Telemetry Lab toolbar and the speed map. The head-to-head and
-  // tyre-wear files stay off: P4.4b / P4.4c rebuild them.
+  // P4.4a: the Telemetry Lab toolbar and the speed map. P4.4b adds the head-to-head cards. The
+  // tyre-wear files stay off: P4.4c rebuilds them.
+  "app/race-control/telemetry/AnalysisPickers.tsx",
   "app/race-control/telemetry/AnalysisToolbar.tsx",
+  "app/race-control/telemetry/HeadToHeadCard.tsx",
+  "app/race-control/telemetry/HeadToHeadCards.tsx",
+  "app/race-control/telemetry/HeadToHeadControls.tsx",
+  "app/race-control/telemetry/HeadToHeadPanel.tsx",
+  "app/race-control/telemetry/headToHeadInsights.ts",
+  "app/race-control/telemetry/headToHeadModel.ts",
+  "app/race-control/telemetry/TelemetryTraces.tsx",
   "app/race-control/telemetry/TrackMap.tsx",
   "app/race-control/telemetry/TrackMapControls.tsx",
   "app/race-control/telemetry/TrackMapPanel.tsx",

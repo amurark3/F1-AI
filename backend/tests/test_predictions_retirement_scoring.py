@@ -16,6 +16,7 @@ import pytest
 from app.data.predictions import accuracy as accuracy_module, review as review_module
 from app.data.predictions.history import actual_fields
 from app.data.predictions.review import build_prediction_review
+from app.data.predictions.scoring import finished_codes
 from app.data.race_classification import (
     OPENF1_SOURCE,
     RaceClassification,
@@ -74,3 +75,11 @@ def test_the_rolling_accuracy_counts_only_finishers_but_keeps_the_retirement_cal
     assert stats["exact_position_pct"] == round(sum(predicted[c] == actual[c] for c in finishers) / 17 * 100)
     assert stats["avg_position_error"] == round(sum(abs(predicted[c] - actual[c]) for c in finishers) / 17, 1)
     assert stats["dnf_capture_pct"] is not None
+
+
+@pytest.mark.parametrize(
+    ("status", "finished"),
+    [("Finished", True), ("+1 Lap", True), ("+2 Laps", True), ("DNF", False), ("NC", False), ("Accident", False)],
+)
+def test_a_lapped_finisher_from_an_older_result_still_counts_as_finished(status, finished):
+    assert (finished_codes(["VER"], {"VER": status}) == {"VER"}) is finished

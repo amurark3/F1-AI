@@ -161,6 +161,7 @@ import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
 import type { DriverPrediction, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
+import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
 import type {
   DriverProfile,
   DriverProfileResponse,
@@ -194,6 +195,7 @@ import predictionOrders2026 from "./prediction-orders-2026.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
+import raceResults2026 from "./race-results-2026.json";
 import ready from "./ready.json";
 import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
@@ -336,4 +338,14 @@ export const SEASON_2026 = {
   winners: seasonCalendar2026.champions as SeasonWinners,
   /** Before f1db published round 20: São Paulo completed, no winner yet. */
   winnersThroughRound19: seasonCalendar2026.champions_through_round_19 as SeasonWinners,
+};
+
+/**
+ * `GET /api/race-control/results/2026/{round}`: the backend's `build_race_results`
+ * on 14 Nov 2026 (f1db v2026.20.0), as served. Mexico City (round 19) has no
+ * sprint; the Chinese Grand Prix (round 2) is a sprint weekend.
+ */
+export const RACE_RESULTS_2026 = {
+  mexicoCity: raceResults2026.mexico_city_r19 as unknown as RaceResultsResponse,
+  sprintWeekend: raceResults2026.sprint_weekend_r2 as unknown as RaceResultsResponse,
 };

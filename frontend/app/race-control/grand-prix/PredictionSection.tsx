@@ -5,11 +5,12 @@ import { AlertTriangle, LockKeyhole } from "lucide-react";
 import { InlineNotice, Panel, rcFont, SectionLoader } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
-import { ModelIO, PodiumPanel, RiskTable, StandbyPanel, FullGridTable } from "./GrandPrixPanels";
 import { PREDICTION_VIEWS, type PredictionView } from "./hubNavigation";
+import { FullGridTable, PodiumPanel } from "./OrderPanels";
 import { phaseDescription, phaseTabLabel } from "./predictionHelpers";
 import { PredictionBar } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
+import { ModelIO, RiskTable, StandbyPanel } from "./RiskModelPanels";
 
 import type { GrandPrixBoardProps } from "./GrandPrixBoard";
 import type { StartingGridResponse } from "./gridModel";

@@ -21,6 +21,7 @@ export const HUB_TABS: ReadonlyArray<{ key: HubTab; label: string }> = [
   { key: "weekend", label: "Weekend" },
   { key: "sessions", label: "Sessions" },
   { key: "grid", label: "Grid" },
+  { key: "results", label: "Results" },
   { key: "stints", label: "Stints" },
   { key: "predictions", label: "Predictions" },
 ];
@@ -76,7 +77,7 @@ function anySessionStarted(race: RaceEvent, now: number): boolean {
  */
 export function defaultHubTab(race: RaceEvent | null, now: number = Date.now()): HubTab {
   if (!race) return "weekend";
-  if (race.status === "completed") return "predictions";
+  if (race.status === "completed") return "results";
   if (qualifyingHasRun(race, now)) return "grid";
   if (isLiveRace(race.status) || anySessionStarted(race, now)) return "sessions";
   return "weekend";

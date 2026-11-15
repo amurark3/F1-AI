@@ -4,23 +4,25 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { LocalCountdown, LocalTime } from "@/app/components/LocalTime";
 import { RacePicker } from "@/app/ui/race-picker/RacePicker";
 
-import { InlineNotice, SectionLoader, rcFont } from "../components/RaceControlPrimitives";
+import { SectionLoader, SkeletonPanel } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
-import { WeekendPanel } from "./GrandPrixPanels";
 import { GridPenalties } from "./GridPenalties";
+import { HubAlerts, RaceHeader } from "./HubHeader";
 import { HUB_TABS, type HubTab, type PredictionView } from "./hubNavigation";
-import { buildDriverLookup, raceSessionTime } from "./predictionHelpers";
+import { buildDriverLookup } from "./predictionHelpers";
 import { PredictionSection } from "./PredictionSection";
+import { ResultsTab } from "./ResultsTab";
 import { StartingGrid } from "./StartingGrid";
 import { StintChart } from "./StintChart";
+import { WeekendPanel } from "./WeekendPanels";
 import { WeekendSessions } from "./WeekendSessions";
 
 import type { StartingGridResponse } from "./gridModel";
 import type {
+  DriverLookup,
   DriverPrediction,
   DriverStanding,
   PredictionPhase,
@@ -33,87 +35,6 @@ import type { WeekendSessionsResponse } from "./sessionsModel";
 import type { RaceStrategyResponse } from "./strategyModel";
 
 const HUB_TABS_ID = "grand-prix";
-
-const STATUS_LABELS: Record<string, string> = {
-  completed: "Completed",
-  upcoming: "Upcoming",
-  in_progress: "Race weekend",
-  live: "Live",
-};
-
-/**
- * The event this screen is reporting on, in one line. The race picker above
- * is the one control that changes it; the countdown shows only while there is
- * still a race to count down to.
- */
-function RaceHeader({
-  selectedRound,
-  selectedRace,
-  raceName,
-}: {
-  selectedRound: number | null;
-  selectedRace: RaceEvent | null;
-  raceName: string;
-}) {
-  const raceTime = raceSessionTime(selectedRace);
-  const status = selectedRace?.status ?? "";
-
-  return (
-    <div className="flex flex-col gap-3 border-b border-[#1E2633] pb-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <h1 className="text-3xl font-black leading-tight text-white sm:text-4xl" style={rcFont}>
-          {raceName}
-        </h1>
-        <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 font-mono text-xs text-[#8E96A8]">
-          <span>{selectedRace?.circuit?.circuit_name ?? selectedRace?.location ?? "Circuit TBC"}</span>
-          <span aria-hidden="true">·</span>
-          <span>Round {selectedRound ?? "-"}</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            Race <LocalTime value={raceTime} style="day" fallback="date TBC" />{" "}
-            <LocalTime value={raceTime} style="time" fallback="time TBC" />
-          </span>
-          <span aria-hidden="true">·</span>
-          <b className="text-white">{STATUS_LABELS[status] ?? (status || "Status unknown")}</b>
-        </p>
-      </div>
-      {status !== "completed" && <LocalCountdown value={raceTime} />}
-    </div>
-  );
-}
-
-function PredictionAlerts({
-  scheduleError,
-  driversError,
-  onReloadSchedule,
-  onReloadDrivers,
-}: {
-  scheduleError: boolean;
-  driversError: boolean;
-  onReloadSchedule: () => void;
-  onReloadDrivers: () => void;
-}) {
-  return (
-    <>
-      {scheduleError && (
-        <InlineNotice title="Race calendar unavailable" tone="error">
-          The race list could not be loaded.
-          <button onClick={onReloadSchedule} className="ml-2 font-bold text-white underline decoration-white/30">
-            Retry
-          </button>
-        </InlineNotice>
-      )}
-      {driversError && (
-        <InlineNotice title="Driver standings unavailable" tone="warning">
-          Driver-name lookups may be limited.
-          <button onClick={onReloadDrivers} className="ml-2 font-bold text-white underline decoration-white/30">
-            Retry
-          </button>
-        </InlineNotice>
-      )}
-    </>
-  );
-}
 
 /** A way into the Telemetry Lab for the round on screen. */
 function TelemetryLink({ round, tab, label }: { round: number | null; tab: string; label: string }) {
@@ -170,6 +91,40 @@ function GridSection({
   );
 }
 
+/** The section the tab strip points at; `activeTab` picks which one renders. */
+function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup }) {
+  const { activeTab } = props;
+  return (
+    <>
+      {activeTab === "weekend" && <WeekendPanel year={props.year} selectedRace={props.selectedRace} />}
+
+      {activeTab === "sessions" && (
+        <>
+          <WeekendSessions data={props.sessions} loading={props.sessionsLoading} raceName={props.raceName} />
+          <TelemetryLink round={props.selectedRound} tab="map" label="Speed maps and lap-by-lap comparisons" />
+        </>
+      )}
+
+      {activeTab === "grid" && (
+        <GridSection grid={props.grid} gridLoading={props.gridLoading} raceName={props.raceName} />
+      )}
+
+      {activeTab === "results" && props.selectedRound !== null && (
+        <ResultsTab year={props.year} round={props.selectedRound} />
+      )}
+
+      {activeTab === "stints" && (
+        <>
+          <StintsSection strategy={props.strategy} strategyLoading={props.strategyLoading} />
+          <TelemetryLink round={props.selectedRound} tab="tyres" label="Tyre degradation for this race" />
+        </>
+      )}
+
+      {activeTab === "predictions" && <PredictionSection {...props} />}
+    </>
+  );
+}
+
 export interface GrandPrixBoardProps {
   year: number;
   /** The section on screen, from the URL or the weekend's progress. */
@@ -179,6 +134,8 @@ export interface GrandPrixBoardProps {
   onSelectTab: (tab: HubTab) => void;
   onSelectView: (view: PredictionView) => void;
   schedule: RaceEvent[];
+  /** The calendar has not answered yet, so there is no round to show a section for. */
+  schedulePending: boolean;
   scheduleError: boolean;
   selectedRound: number | null;
   selectedRace: RaceEvent | null;
@@ -244,7 +201,7 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         label="Grand Prix sections"
       />
 
-      <PredictionAlerts
+      <HubAlerts
         scheduleError={props.scheduleError}
         driversError={props.driversError}
         onReloadSchedule={props.onReloadSchedule}
@@ -252,27 +209,11 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
       />
 
       <TabPanel idPrefix={HUB_TABS_ID} active={activeTab} className="space-y-4">
-        {activeTab === "weekend" && <WeekendPanel year={props.year} selectedRace={props.selectedRace} />}
-
-        {activeTab === "sessions" && (
-          <>
-            <WeekendSessions data={props.sessions} loading={props.sessionsLoading} raceName={props.raceName} />
-            <TelemetryLink round={props.selectedRound} tab="map" label="Speed maps and lap-by-lap comparisons" />
-          </>
+        {props.schedulePending ? (
+          <SkeletonPanel className="h-64" />
+        ) : (
+          <HubSection {...props} driverLookup={driverLookup} />
         )}
-
-        {activeTab === "grid" && (
-          <GridSection grid={props.grid} gridLoading={props.gridLoading} raceName={props.raceName} />
-        )}
-
-        {activeTab === "stints" && (
-          <>
-            <StintsSection strategy={props.strategy} strategyLoading={props.strategyLoading} />
-            <TelemetryLink round={props.selectedRound} tab="tyres" label="Tyre degradation for this race" />
-          </>
-        )}
-
-        {activeTab === "predictions" && <PredictionSection {...props} driverLookup={driverLookup} />}
       </TabPanel>
     </div>
   );

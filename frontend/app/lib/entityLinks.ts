@@ -6,7 +6,7 @@
  * server components and plain modules can build links too.
  */
 
-export type GrandPrixTab = "weekend" | "sessions" | "grid" | "stints" | "predictions";
+export type GrandPrixTab = "weekend" | "sessions" | "grid" | "results" | "stints" | "predictions";
 
 export function driverHref(driverId: string): string {
   return `/race-control/drivers/${encodeURIComponent(driverId)}`;

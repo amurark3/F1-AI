@@ -33,6 +33,16 @@ const COVERAGE_INCLUDE = [
   // P0b.7: the "vs grid" helper only. FullGridTable stays off (P4.3b rebuilds
   // the Predictions tab).
   "app/race-control/grand-prix/gridDelta.ts",
+  // P4.3b2: the hub's frame (header, URL-driven sections, season inputs) and
+  // the Results tab. The Sessions, Grid, Weekend, Stints and Predictions
+  // panels stay off: P4.3b3, b4 and b5 rebuild them.
+  "app/race-control/grand-prix/HubHeader.tsx",
+  "app/race-control/grand-prix/hubNavigation.ts",
+  "app/race-control/grand-prix/ResultsSidePanels.tsx",
+  "app/race-control/grand-prix/resultsModel.ts",
+  "app/race-control/grand-prix/ResultsTab.tsx",
+  "app/race-control/grand-prix/ResultsTable.tsx",
+  "app/race-control/grand-prix/useHubShell.ts",
   // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
   // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
   "app/race-control/profiles/EntityLinks.tsx",

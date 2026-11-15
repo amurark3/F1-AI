@@ -1,4 +1,4 @@
-import { DIRECTORY_2026, READY, TEAMS_2026 } from "../../test/fixtures";
+import { DIRECTORY_2026, RACE_RESULTS_2026, READY, TEAMS_2026 } from "../../test/fixtures";
 
 import type { Page, Route } from "@playwright/test";
 
@@ -34,4 +34,10 @@ export async function mockBackend(page: Page): Promise<void> {
   // Pages ask for the calendar year's season; the fixture is 2026's table.
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));
+  // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
+    const round = route.request().url().split("/").pop();
+    const body = round === "2" ? RACE_RESULTS_2026.sprintWeekend : RACE_RESULTS_2026.mexicoCity;
+    return fulfillJson(route, body);
+  });
 }

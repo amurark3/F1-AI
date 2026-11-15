@@ -6,7 +6,8 @@ import { InlineNotice, Panel, rcFont, SectionLoader } from "../components/RaceCo
 import { TabPanel, Tabs } from "../components/Tabs";
 
 import { PREDICTION_VIEWS, type PredictionView } from "./hubNavigation";
-import { FullGridTable, PodiumPanel } from "./OrderPanels";
+import { PodiumPanel } from "./OrderPanels";
+import { OrderTable } from "./OrderTable";
 import { phaseDescription, phaseTabLabel } from "./predictionHelpers";
 import { PredictionBar } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
@@ -132,6 +133,9 @@ interface PredictionViewContentProps {
   /** The round's starting grid, which the order's "vs grid" column reads. */
   grid?: StartingGridResponse;
   gridLoading: boolean;
+  phase: PredictionPhase;
+  year: number;
+  round: number | null;
 }
 
 function PredictionViewContent({
@@ -143,16 +147,20 @@ function PredictionViewContent({
   data,
   grid,
   gridLoading,
+  phase,
+  year,
+  round,
 }: PredictionViewContentProps) {
   return (
     <>
       {view === "order" && (
-        <FullGridTable
+        <OrderTable
           predictions={predictions}
-          riskPredictions={riskPredictions}
           driverLookup={driverLookup}
+          phase={phase}
           grid={grid}
           gridLoading={gridLoading}
+          data={data}
         />
       )}
       {view === "podium" && <PodiumPanel podium={podium} driverLookup={driverLookup} data={data} />}
@@ -164,6 +172,8 @@ function PredictionViewContent({
           accuracy={data?.accuracy}
           predictions={predictions}
           driverLookup={driverLookup}
+          year={year}
+          round={round}
         />
       )}
     </>
@@ -239,6 +249,9 @@ export function PredictionSection(props: GrandPrixBoardProps & { driverLookup: D
               data={props.data}
               grid={props.grid}
               gridLoading={props.gridLoading}
+              phase={props.activePhase}
+              year={props.year}
+              round={props.selectedRound}
             />
           </TabPanel>
         </>

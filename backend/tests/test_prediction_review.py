@@ -29,7 +29,7 @@ HISTORY = {
         "generated_at": "2026-07-25T12:00:00+00:00",
         "prediction_phase": "post_qualifying",
         "actual_positions": ACTUAL,
-        "actual_statuses": {"HAM": "Accident", "NOR": "Finished"},
+        "actual_statuses": {"HAM": "DNF", "NOR": "Finished"},
         "actual_incidents": {"HAM": {"dnf": True, "crash": True}},
         "risk_predictions": {"HAM": {"dnf_risk_pct": 18, "crash_risk_pct": 12}},
         "snapshots": [
@@ -69,11 +69,14 @@ def test_review_reports_every_driver_side_by_side(stored_history):
 def test_review_marks_exact_hits_and_misses(stored_history):
     review = build_prediction_review(YEAR, ROUND)
 
-    assert _row(review, "HAM")["position_delta"] == 10
+    # A retirement is no finish: no place and no delta, whatever place it is listed at.
+    assert _row(review, "HAM")["position_delta"] is None
+    assert _row(review, "HAM")["actual_position"] is None
     assert _row(review, "HAM")["exact"] is False
+    assert review["drivers_compared"] == 2
     assert _row(review, "HAM")["dnf"] is True
     assert _row(review, "HAM")["crash"] is True
-    assert _row(review, "HAM")["status"] == "Accident"
+    assert _row(review, "HAM")["status"] == "DNF"
     assert review["winner_correct"] is False
     assert review["predicted_winner"] == "HAM"
     assert review["actual_winner"] == "NOR"

@@ -186,7 +186,7 @@
 import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
-import type { DriverPrediction, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
+import type { DriverPrediction, PredictionsResponse, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
 import type { WeekendSessionsResponse } from "@/app/race-control/grand-prix/sessionsModel";
 import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strategyModel";
@@ -222,6 +222,7 @@ import overviewShell2026 from "./overview-shell-2026.json";
 import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
+import predictionReviewR19 from "./prediction-review-2026-r19.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
@@ -358,6 +359,18 @@ export const PREDICTION_ORDERS_2026: Record<
   saoPauloPreQualifying: predictionOrders2026.sao_paulo_pre_qualifying.predictions,
   mexicoCityPostQualifying: predictionOrders2026.mexico_city_post_qualifying.predictions,
 };
+
+/**
+ * Mexico City 2026 (round 19) as `GET /api/predictions/2026/19/snapshot?phase=post_qualifying`
+ * serves it with its review attached (P4.3b5, 14 Nov). The stored snapshot is the one captured
+ * in `backend/tests/fixtures/mexico_2026_r19/prediction_snapshot_entry.json` (rows kept to the
+ * fields the tab reads). `prediction_review` is the backend's `build_prediction_review` over the
+ * stored history entry regraded to OpenF1's final classification with f1db's retirement reasons
+ * (`prediction_history_entry.json`, which is the call of 11 Nov, not the snapshot's of 1 Nov):
+ * 17 classified cars, five retirements with no place, the result still provisional because it
+ * has been read once.
+ */
+export const PREDICTION_REVIEW_R19 = predictionReviewR19 as unknown as PredictionsResponse;
 
 /** What `GET /api/champions/{year}` answers that the race picker reads. */
 export interface SeasonWinners {

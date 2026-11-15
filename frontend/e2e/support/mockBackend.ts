@@ -2,6 +2,7 @@ import {
   DIRECTORY_2026,
   GRIDS_2026,
   MEXICO_CITY_2026,
+  PREDICTION_REVIEW_R19,
   RACE_RESULTS_2026,
   READY,
   TEAMS_2026,
@@ -64,5 +65,9 @@ export async function mockBackend(page: Page): Promise<void> {
   );
   await page.route(`${E2E_API_ORIGIN}/api/race-control/grid/2026/*`, (route) =>
     fulfillJson(route, GRIDS_2026.mexicoCityOfficial),
+  );
+  // The Predictions tab: Mexico City's stored after-qualifying call, with its review.
+  await page.route(`${E2E_API_ORIGIN}/api/predictions/2026/*/snapshot*`, (route) =>
+    fulfillJson(route, PREDICTION_REVIEW_R19),
   );
 }

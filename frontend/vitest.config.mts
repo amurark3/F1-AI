@@ -30,11 +30,10 @@ const COVERAGE_INCLUDE = [
   "app/race-control/components/RaceControlPrimitives.tsx",
   "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
-  // P0b.7: the "vs grid" helper only. FullGridTable stays off (P4.3b rebuilds
-  // the Predictions tab).
+  // P0b.7: the "vs grid" helper.
   "app/race-control/grand-prix/gridDelta.ts",
   // P4.3b2: the hub's frame (header, URL-driven sections, season inputs) and
-  // the Results tab. The Predictions panels stay off: P4.3b5 rebuilds them.
+  // the Results tab.
   "app/race-control/grand-prix/HubHeader.tsx",
   "app/race-control/grand-prix/hubNavigation.ts",
   "app/race-control/grand-prix/ResultsSidePanels.tsx",
@@ -88,6 +87,31 @@ const COVERAGE_INCLUDE = [
   "app/race-control/telemetry/TrackMapPanel.tsx",
   "app/race-control/telemetry/trackMapSelection.ts",
   "app/race-control/telemetry/TyreDegPanel.tsx",
+  // P4.3b5: the Predictions tab (Order and Review rebuilt, the rest of the tab's files with
+  // them) and the hub's last files, so every file in grand-prix/ is now gated.
+  "app/race-control/grand-prix/CallChart.tsx",
+  "app/race-control/grand-prix/computeRun.ts",
+  "app/race-control/grand-prix/GrandPrixBoard.tsx",
+  "app/race-control/grand-prix/GrandPrixHub.tsx",
+  "app/race-control/grand-prix/GrandPrixView.tsx",
+  "app/race-control/grand-prix/gridModel.ts",
+  "app/race-control/grand-prix/hubSeed.ts",
+  "app/race-control/grand-prix/OrderPanels.tsx",
+  "app/race-control/grand-prix/OrderTable.tsx",
+  "app/race-control/grand-prix/page.tsx",
+  "app/race-control/grand-prix/predictionHelpers.ts",
+  "app/race-control/grand-prix/predictionModel.ts",
+  "app/race-control/grand-prix/PredictionPhaseTabs.tsx",
+  "app/race-control/grand-prix/PredictionResultsReview.tsx",
+  "app/race-control/grand-prix/PredictionSection.tsx",
+  "app/race-control/grand-prix/predictionState.ts",
+  "app/race-control/grand-prix/RetirementCalls.tsx",
+  "app/race-control/grand-prix/reviewModel.ts",
+  "app/race-control/grand-prix/RiskModelPanels.tsx",
+  "app/race-control/grand-prix/sessionsModel.ts",
+  "app/race-control/grand-prix/useHubData.ts",
+  "app/race-control/grand-prix/useHubUrlState.ts",
+  "app/race-control/grand-prix/usePredictionWorkspace.ts",
 ];
 
 /** Every metric must reach this in every included file. */

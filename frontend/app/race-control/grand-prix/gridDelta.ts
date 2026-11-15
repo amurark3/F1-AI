@@ -93,7 +93,7 @@ export function gridDelta(
 /** How a `GridDelta` is written in the table. */
 export function gridDeltaCell(delta: GridDelta): GridDeltaCell {
   if (delta.kind === "pit_lane") {
-    return { text: "Pit lane", className: PIT_LANE_CLASS, note: "Starts from the pit lane" };
+    return { text: "from pit lane", className: PIT_LANE_CLASS, note: "Starts from the pit lane" };
   }
   if (delta.kind === "unknown") {
     return { text: UNKNOWN_TEXT, className: UNKNOWN_CLASS, note: UNKNOWN_NOTES[delta.reason] };

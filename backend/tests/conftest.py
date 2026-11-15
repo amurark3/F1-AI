@@ -160,3 +160,11 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     identity.clear_cache()
     yield
     identity.clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def _empty_openf1_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts with an empty, private OpenF1 store, never the developer's files or a database."""
+    from app.data.openf1 import session_store
+
+    monkeypatch.setattr(session_store, "STORE", session_store.FileSessionStore(tmp_path_factory.mktemp("openf1_store")))

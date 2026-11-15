@@ -27,6 +27,13 @@ OPENF1_HTTP_TIMEOUT_SECONDS = int(os.getenv("OPENF1_HTTP_TIMEOUT_SECONDS", "10")
 # free tier allows about three a second and answers a burst of ~20 with 429.
 OPENF1_MIN_REQUEST_GAP_SECONDS = float(os.getenv("OPENF1_MIN_REQUEST_GAP_SECONDS", "0.4"))
 
+# Kept OpenF1 answers (app/data/openf1/session_store.py): where the file backend
+# writes without DATABASE_URL, how long after a session ends its rows stay
+# provisional (late penalties), and how often provisional rows are refetched.
+OPENF1_STORE_DIR = os.getenv("OPENF1_STORE_DIR", "data/openf1_store")
+OPENF1_STORE_FINAL_AFTER_HOURS = int(os.getenv("OPENF1_STORE_FINAL_AFTER_HOURS", "24"))
+OPENF1_STORE_PROVISIONAL_TTL_MINUTES = int(os.getenv("OPENF1_STORE_PROVISIONAL_TTL_MINUTES", "30"))
+
 # ---------------------------------------------------------------------------
 # WebSocket settings
 # ---------------------------------------------------------------------------

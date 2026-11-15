@@ -18,14 +18,16 @@ test("switching Q1 to Q3 redraws the speed map with that part's fastest lap", as
   await expect(page.getByRole("radio", { name: "Q1", checked: true })).toBeVisible();
   await expect(title).toContainText("Q1 · fastest valid lap");
   await expect(title).toContainText("1:17.341");
-  await expect(page.getByText("Lap 6 · fastest valid")).toBeVisible();
+  // Options in a closed <select> are never "visible"; the lap being listed under its part is what matters.
+  const laps = page.getByRole("combobox", { name: "Lap" });
+  await expect(laps.locator("option", { hasText: "Lap 6 · 1:17.341" })).toBeAttached();
 
   await page.getByRole("radio", { name: "Q3" }).click();
 
   await expect(page).toHaveURL(/segment=3/);
   await expect(title).toContainText("Q3 · fastest valid lap");
   await expect(title).toContainText("1:16.514");
-  await expect(page.getByText("Lap 19 · fastest valid")).toBeVisible();
+  await expect(laps.locator("option", { hasText: "Lap 19 · 1:16.514" })).toBeAttached();
 });
 
 test("opens on the last part the driver reached", async ({ page }) => {

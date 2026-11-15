@@ -240,34 +240,3 @@ export function QualifyingTable({ entries }: { entries: QualifyingEntry[] }) {
     </table>
   );
 }
-
-/** Sprint race: the result, with what it paid and where it started from. */
-export function RaceTable({ entries }: { entries: SessionEntry[] }) {
-  return (
-    <table className="w-full border-collapse text-left text-sm">
-      <thead>
-        <tr className="border-b border-rc-line">
-          <th className={HEAD}>Pos</th>
-          <th className={HEAD}>Driver</th>
-          <th className={`${HEAD} text-right`}>Grid</th>
-          <th className={`${HEAD} text-right`}>Time / gap</th>
-          <th className={`${HEAD} pr-0 text-right`}>Pts</th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map((entry) => (
-          <tr key={entry.driver_code}>
-            <PositionCell entry={entry} />
-            <DriverCell entry={entry} />
-            <td className={`${CELL} ${NUM} text-rc-ink-2`}>{entry.grid === null ? "—" : `P${entry.grid}`}</td>
-            <td className={`${CELL} ${NUM} ${entry.retired ? "text-rc-red-text" : "text-rc-ink"}`}>
-              {entry.retired ?? entry.gap ?? entry.time ?? "—"}
-            </td>
-            {/* Nullish, not falsy: a driver who scored 0 finished, which differs from no points recorded. */}
-            <td className={`${CELL} ${NUM} pr-0 text-rc-ink`}>{entry.points ?? "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}

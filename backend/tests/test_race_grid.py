@@ -249,9 +249,9 @@ def test_jolpica_qualifying_is_the_provisional_grid_when_f1db_has_none(sources, 
     assert payload["penalties"] == []
 
 
-def test_the_fastf1_order_still_answers_when_jolpica_cannot(sources):
+def test_the_published_qualifying_order_still_answers_when_jolpica_cannot(sources):
     sources["qualifying"] = [{"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "position": 1}]
 
     payload = build_starting_grid(2026, 14)
 
-    assert (payload["provisional"], payload["source_detail"]) == (True, "fastf1-qualifying")
+    assert (payload["provisional"], payload["source_detail"]) == (True, "openf1-qualifying")

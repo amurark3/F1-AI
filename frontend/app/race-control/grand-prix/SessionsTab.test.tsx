@@ -7,7 +7,7 @@ import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
 import { SessionsTab } from "./SessionsTab";
-import { PracticeTable, QualifyingTable, RaceTable } from "./SessionTables";
+import { PracticeTable, QualifyingTable } from "./SessionTables";
 
 import type { WeekendSessionsResponse } from "./sessionsModel";
 
@@ -112,8 +112,7 @@ describe("SessionsTab", () => {
 
   it("shows a dash for every figure a row lacks", () => {
     const [fp1, , , qualifying] = WEEKEND_SESSIONS_2026.mexicoCity.sessions;
-    const sprint = WEEKEND_SESSIONS_2026.sprintWeekend.sessions.find((s) => s.kind === "race");
-    if (fp1?.kind !== "practice" || qualifying?.kind !== "qualifying" || sprint?.kind !== "race") {
+    if (fp1?.kind !== "practice" || qualifying?.kind !== "qualifying") {
       throw new Error("fixture changed");
     }
     const blank = { time: null, gap: null, laps: null, grid: null, retired: null, points: null };
@@ -126,32 +125,12 @@ describe("SessionsTab", () => {
     expect(screen.getByText("No time set")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(3);
     quali.unmount();
-
-    const race = renderWithProviders(
-      <RaceTable
-        entries={[
-          { ...sprint.entries[0], ...blank },
-          { ...sprint.entries[1], ...blank, retired: "Collision" },
-          { ...sprint.entries[2], ...blank, time: "1:30:00.000" },
-        ]}
-      />,
-    );
-    expect(screen.getByText("Collision")).toHaveClass("text-rc-red-text");
-    expect(screen.getByText("1:30:00.000")).toBeInTheDocument();
-    race.unmount();
   });
 
-  it("falls back to the practice label when a table is given none, and draws a race table", () => {
+  it("falls back to the practice label when a table is given none", () => {
     const fp1 = WEEKEND_SESSIONS_2026.mexicoCity.sessions[0];
     if (fp1?.kind !== "practice") throw new Error("fixture changed");
-    const { unmount } = renderWithProviders(<PracticeTable entries={fp1.entries.slice(2, 3)} />);
+    renderWithProviders(<PracticeTable entries={fp1.entries.slice(2, 3)} />);
     expect(screen.getByText(/Practice run ·/)).toBeInTheDocument();
-    unmount();
-
-    const sprint = WEEKEND_SESSIONS_2026.sprintWeekend.sessions.find((s) => s.kind === "race");
-    if (sprint?.kind !== "race") throw new Error("fixture changed");
-    renderWithProviders(<RaceTable entries={sprint.entries} />);
-    expect(screen.getByRole("columnheader", { name: "Grid" })).toBeInTheDocument();
-    expect(screen.getAllByRole("row").length).toBe(sprint.entries.length + 1);
   });
 });

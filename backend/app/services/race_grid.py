@@ -168,9 +168,9 @@ def build_starting_grid(year: int, round_num: int) -> dict:
 
     qualifying = load_qualifying(year, round_num)
     if qualifying:
-        logger.info("race_grid.provisional", year=year, round=round_num, drivers=len(qualifying), source="fastf1")
+        logger.info("race_grid.provisional", year=year, round=round_num, drivers=len(qualifying), source="openf1")
         return _from_qualifying(
-            year, round_num, [_provisional_row(driver) for driver in qualifying], "fastf1-qualifying"
+            year, round_num, [_provisional_row(driver) for driver in qualifying], "openf1-qualifying"
         )
 
     logger.info("race_grid.unavailable", year=year, round=round_num)

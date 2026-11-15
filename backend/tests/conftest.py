@@ -68,6 +68,11 @@ for _key in _CLEARED_ENV:
 # present one. A real DSN there would ship every deliberately raised test error
 # to the live Sentry project.
 os.environ["SENTRY_DSN"] = ""
+# The same refill would hand a test that imports `main` the developer's real LLM
+# keys, and its self-improvement pass would call the live engines. Blank means
+# "no provider" (`app.api.llm` checks the key's truthiness).
+os.environ["TOKENLAB_API_KEY"] = ""
+os.environ["GOOGLE_API_KEY"] = ""
 
 # Deterministic settings the suite asserts against.
 os.environ.setdefault("ENVIRONMENT", "test")

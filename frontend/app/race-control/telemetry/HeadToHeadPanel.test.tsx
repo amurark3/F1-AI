@@ -4,6 +4,7 @@ import { cloneElement, isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DIRECTORY_2026 } from "@/test/fixtures";
+import mexicoLaps from "@/test/fixtures/qualifying-laps-mexico-2026.json";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -45,7 +46,7 @@ function serve(compare: ComparisonResponse, laps: LapListResponse = TWO_DRIVERS)
 
 function renderPanel(compare: ComparisonResponse) {
   serve(compare);
-  return renderWithProviders(<HeadToHeadPanel year={2026} round={20} session="Q" a={null} b={null} />);
+  return renderWithProviders(<HeadToHeadPanel year={2026} round={20} session="Q" a={null} b={null} segment={null} />);
 }
 
 // jsdom lays nothing out: stub the transform the map reads the pointer through.
@@ -178,7 +179,16 @@ describe("HeadToHeadControls", () => {
     serve(COMPARISON, laps);
     const onPick = vi.fn();
     const view = renderWithProviders(
-      <HeadToHeadControls year={2026} round={20} session="Q" a={a} b={b} onPick={onPick} />,
+      <HeadToHeadControls
+        year={2026}
+        round={20}
+        session="Q"
+        a={a}
+        b={b}
+        segment={null}
+        onPick={onPick}
+        onSegment={vi.fn()}
+      />,
     );
     return { ...view, onPick };
   }
@@ -212,5 +222,53 @@ describe("HeadToHeadControls", () => {
     const { container } = renderControls(null, null, LAPS);
     await new Promise((done) => setTimeout(done, 50));
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("head-to-head in qualifying", () => {
+  function serveMexico() {
+    const asked: URLSearchParams[] = [];
+    server.use(
+      http.get(apiUrl("/api/profiles/2026/directory"), () => HttpResponse.json(DIRECTORY_2026)),
+      http.get(apiUrl("/api/analysis/2026/19/laps"), () => HttpResponse.json(mexicoLaps)),
+      http.get(apiUrl("/api/analysis/2026/19/compare"), ({ request }) => {
+        asked.push(new URL(request.url).searchParams);
+        return HttpResponse.json(COMPARISON);
+      }),
+    );
+    return asked;
+  }
+
+  it("compares the two quickest of the part and names it in the title", async () => {
+    const asked = serveMexico();
+    renderWithProviders(<HeadToHeadPanel year={2026} round={19} session="Q" a={null} b={null} segment={1} />);
+    expect(await screen.findByRole("heading", { level: 2, name: "Q1 · ANT by 0.270 s" })).toBeInTheDocument();
+    expect(asked[0].get("segment")).toBe("1");
+  });
+
+  it("defaults to the last part both drivers reached", async () => {
+    const asked = serveMexico();
+    renderWithProviders(<HeadToHeadPanel year={2026} round={19} session="Q" a="HAM" b="HUL" segment={null} />);
+    expect(await screen.findByRole("heading", { level: 2, name: "Q2 · ANT by 0.270 s" })).toBeInTheDocument();
+    expect(asked[0].get("segment")).toBe("2");
+  });
+
+  it("groups both pickers and says which part the laps are from", async () => {
+    serveMexico();
+    const { user } = renderWithProviders(
+      <HeadToHeadControls
+        year={2026}
+        round={19}
+        session="Q"
+        a="HAM"
+        b="HUL"
+        segment={null}
+        onPick={vi.fn()}
+        onSegment={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText("Each driver's fastest valid lap in Q2")).toBeInTheDocument();
+    expect(screen.getAllByRole("group", { name: "Out in Q1" })).toHaveLength(2);
+    await user.click(screen.getByRole("radio", { name: "Q1" }));
   });
 });

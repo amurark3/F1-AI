@@ -9,6 +9,7 @@
 
 import { rc } from "@/app/ui/tokens";
 
+import { quickest } from "./qualifyingSegments";
 import { EVEN_COLOUR, stretchIndex } from "./trackMapGeometry";
 
 import type { ComparisonResponse, Faster, LapListDriver, Stretch } from "./telemetryModel";
@@ -85,14 +86,16 @@ export function rankedDrivers(drivers: LapListDriver[] | undefined): LapListDriv
   return (drivers ?? []).filter((driver) => driver.best !== null);
 }
 
-/** The pair shown: the URL's picks, else the two quickest. */
+/** The pair shown: the URL's picks, else the two quickest (in the qualifying part, if one is on show). */
 export function resolvePair(
   drivers: LapListDriver[],
   a: string | null,
   b: string | null,
+  segment: number | null = null,
 ): { first: string | null; second: string | null } {
-  const first = a ?? drivers[0]?.code ?? null;
-  return { first, second: b ?? drivers.find((driver) => driver.code !== first)?.code ?? null };
+  const fastest = quickest(drivers, segment);
+  const first = a ?? fastest[0]?.code ?? null;
+  return { first, second: b ?? fastest.find((driver) => driver.code !== first)?.code ?? null };
 }
 
 export interface PairColours {

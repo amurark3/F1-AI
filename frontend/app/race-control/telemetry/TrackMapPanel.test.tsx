@@ -3,13 +3,14 @@ import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DIRECTORY_2026 } from "@/test/fixtures";
+import mexicoLaps from "@/test/fixtures/qualifying-laps-mexico-2026.json";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
 import { LAPS, TRACK_MAP } from "./telemetryTestData";
 import { TrackMapPanel } from "./TrackMapPanel";
 
-import type { TrackMapResponse } from "./telemetryModel";
+import type { LapListResponse, TrackMapResponse } from "./telemetryModel";
 
 function renderPanel(map: TrackMapResponse, props: { driver?: string | null; lap?: number | null } = {}) {
   server.use(
@@ -18,7 +19,14 @@ function renderPanel(map: TrackMapResponse, props: { driver?: string | null; lap
     http.get(apiUrl("/api/analysis/2026/20/track-map"), () => HttpResponse.json(map)),
   );
   return renderWithProviders(
-    <TrackMapPanel year={2026} round={20} session="Q" driver={props.driver ?? null} lap={props.lap ?? null} />,
+    <TrackMapPanel
+      year={2026}
+      round={20}
+      session="Q"
+      driver={props.driver ?? null}
+      lap={props.lap ?? null}
+      segment={null}
+    />,
   );
 }
 
@@ -128,5 +136,39 @@ describe("TrackMap", () => {
     const group = map.querySelector("g[mask]");
     expect(group?.getAttribute("mask")).toBe(`url(#${map.querySelector("mask")?.id})`);
     expect(group?.querySelectorAll("line")).toHaveLength(3);
+  });
+});
+
+describe("TrackMapPanel in qualifying", () => {
+  function renderQualifying(props: { driver: string | null; lap: number | null; segment: number | null }) {
+    const asked: URLSearchParams[] = [];
+    server.use(
+      http.get(apiUrl("/api/profiles/2026/directory"), () => HttpResponse.json(DIRECTORY_2026)),
+      http.get(apiUrl("/api/analysis/2026/19/laps"), () => HttpResponse.json(mexicoLaps as unknown as LapListResponse)),
+      http.get(apiUrl("/api/analysis/2026/19/track-map"), ({ request }) => {
+        asked.push(new URL(request.url).searchParams);
+        return HttpResponse.json(TRACK_MAP);
+      }),
+    );
+    renderWithProviders(<TrackMapPanel year={2026} round={19} session="Q" {...props} />);
+    return asked;
+  }
+
+  it("names the part in the title and asks for the driver's last reached part", async () => {
+    const asked = renderQualifying({ driver: "HUL", lap: null, segment: null });
+    expect(await screen.findByRole("heading", { level: 2 })).toHaveTextContent(/Q2 · fastest valid lap · 1:34\.035/);
+    expect(asked[0].get("segment")).toBe("2");
+    expect(asked[0].get("driver")).toBe("HUL");
+  });
+
+  it("starts on the quickest driver of the part and asks for the URL's part", async () => {
+    const asked = renderQualifying({ driver: null, lap: null, segment: 1 });
+    expect(await screen.findByRole("heading", { level: 2 })).toHaveTextContent(/Q1 · fastest valid lap/);
+    expect(asked[0].get("segment")).toBe("1");
+  });
+
+  it("names a chosen lap with its own part", async () => {
+    renderQualifying({ driver: "HAM", lap: 2, segment: 3 });
+    expect(await screen.findByRole("heading", { level: 2 })).toHaveTextContent(/Q1 · lap 14/);
   });
 });

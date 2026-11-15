@@ -20,15 +20,24 @@ export interface TelemetryParams {
   a: string | null;
   b: string | null;
   lap: number | null;
+  /** The qualifying part (1-3); null means the driver's last reached. */
+  segment: number | null;
 }
 
 const DRIVER_CODE = /^[A-Z]{3}$/;
 const SESSION_CODES = new Set(["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]);
 
+const MAX_SEGMENT = 3;
+
 function positiveInt(value: string | null): number | null {
   if (value === null) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function segmentNumber(value: string | null): number | null {
+  const parsed = positiveInt(value);
+  return parsed !== null && parsed <= MAX_SEGMENT ? parsed : null;
 }
 
 function driverCode(value: string | null): string | null {
@@ -49,6 +58,7 @@ export function readParams(search: URLSearchParams, currentYear: number): Teleme
     a: driverCode(search.get("a")),
     b: driverCode(search.get("b")),
     lap: positiveInt(search.get("lap")),
+    segment: segmentNumber(search.get("segment")),
   };
 }
 
@@ -62,6 +72,7 @@ function toQuery(params: TelemetryParams): string {
     ["a", params.a],
     ["b", params.b],
     ["lap", params.lap],
+    ["segment", params.segment],
   ];
   for (const [key, value] of optional) {
     if (value !== null) query.set(key, String(value));

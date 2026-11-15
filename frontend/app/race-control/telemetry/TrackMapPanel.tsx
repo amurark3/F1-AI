@@ -9,6 +9,7 @@ import { PanelHeading } from "@/app/ui/PanelHeading";
 import { Panel } from "../components/RaceControlPrimitives";
 
 import { AnalysisGate, AnalysisWarnings, ModeledNote } from "./AnalysisNotice";
+import { resolveSegment, titleSegment } from "./qualifyingSegments";
 import { formatLapTime } from "./telemetryModel";
 import { GradientLegend, TrackMap, type MapMarker } from "./TrackMap";
 import { SPEED_RAMP, speedScale } from "./trackMapGeometry";
@@ -23,6 +24,7 @@ export interface TrackMapPanelProps {
   session: string | null;
   driver: string | null;
   lap: number | null;
+  segment: number | null;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -138,11 +140,26 @@ function SpeedMap({ data }: { data: TrackMapResponse }) {
   );
 }
 
-export function TrackMapPanel({ year, round, session, driver, lap }: TrackMapPanelProps) {
+/** "Q3 · fastest valid lap", or "Q3 · lap 12" for a chosen lap; the lap alone outside qualifying. */
+function lapPhrase(part: string | null, lap: { number: number }, chosen: number | null): string {
+  const what = chosen === null && part !== null ? "fastest valid lap" : `lap ${lap.number}`;
+  return part === null ? what : `${part} · ${what}`;
+}
+
+export function TrackMapPanel({ year, round, session, driver, lap, segment }: TrackMapPanelProps) {
   const laps = useLapList(year, round, session);
   const drivers = laps.data?.drivers ?? [];
-  const map = useTrackMap(year, round, { session, driver: driver ?? defaultDriver(drivers), lap });
+  const choice = resolveSegment(laps.data, [driver], segment);
+  const code = driver ?? defaultDriver(drivers, choice?.segment ?? null);
+  // Wait for the lap list: whether the session has qualifying parts decides what to ask for.
+  const map = useTrackMap(year, round, {
+    session: laps.data ? session : null,
+    driver: code,
+    lap,
+    segment: choice?.segment ?? null,
+  });
   const data = map.data;
+  const part = titleSegment(drivers, code, lap, choice);
 
   return (
     <div className="space-y-4">
@@ -156,8 +173,8 @@ export function TrackMapPanel({ year, round, session, driver, lap }: TrackMapPan
             title={
               data.driver && data.lap ? (
                 <>
-                  <DriverName name={data.driver.name} code={data.driver.code} year={year} /> · lap {data.lap.number} ·{" "}
-                  {formatLapTime(data.lap.time)}
+                  <DriverName name={data.driver.name} code={data.driver.code} year={year} /> ·{" "}
+                  {lapPhrase(part, data.lap, lap)} · {formatLapTime(data.lap.time)}
                 </>
               ) : undefined
             }

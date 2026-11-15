@@ -67,12 +67,12 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
         races={races}
         selectedRound={round}
         onSelectRound={(next) => {
-          update({ round: next, session: null, a: null, b: null, lap: null });
+          update({ round: next, session: null, a: null, b: null, lap: null, segment: null });
         }}
         seasons={{
           years: seasons(seed.year),
           onSelect: (year) => {
-            update({ year, round: null, session: null, a: null, b: null, lap: null });
+            update({ year, round: null, session: null, a: null, b: null, lap: null, segment: null });
           },
         }}
       />
@@ -85,7 +85,7 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
         session={session}
         allowed={allowedFor(params.tab)}
         onSession={(code) => {
-          update({ session: code, lap: null });
+          update({ session: code, lap: null, segment: null });
         }}
       >
         {params.tab === "map" && (
@@ -95,8 +95,12 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
             session={session}
             driver={params.a}
             lap={params.lap}
+            segment={params.segment}
             onPick={(driver, lap) => {
               update({ a: driver, lap });
+            }}
+            onSegment={(segment) => {
+              update({ segment, lap: null });
             }}
           />
         )}
@@ -107,8 +111,12 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
             session={session}
             a={params.a}
             b={params.b}
+            segment={params.segment}
             onPick={(a, b) => {
               update({ a, b, lap: null });
+            }}
+            onSegment={(segment) => {
+              update({ segment, lap: null });
             }}
           />
         )}
@@ -121,10 +129,24 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
       )}
       <div id={ANALYSIS_PANEL_ID} role="tabpanel" className="space-y-4">
         {params.tab === "map" && (
-          <TrackMapPanel year={params.year} round={round} session={session} driver={params.a} lap={params.lap} />
+          <TrackMapPanel
+            year={params.year}
+            round={round}
+            session={session}
+            driver={params.a}
+            lap={params.lap}
+            segment={params.segment}
+          />
         )}
         {params.tab === "head-to-head" && (
-          <HeadToHeadPanel year={params.year} round={round} session={session} a={params.a} b={params.b} />
+          <HeadToHeadPanel
+            year={params.year}
+            round={round}
+            session={session}
+            a={params.a}
+            b={params.b}
+            segment={params.segment}
+          />
         )}
         {params.tab === "tyres" && <TyreDegPanel year={params.year} round={round} session={session} />}
       </div>

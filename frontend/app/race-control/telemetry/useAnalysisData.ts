@@ -58,22 +58,31 @@ export function useLapList(year: number, round: number | null, session: string |
 export function useTrackMap(
   year: number,
   round: number | null,
-  pick: { session: string | null; driver: string | null; lap: number | null },
+  pick: { session: string | null; driver: string | null; lap: number | null; segment: number | null },
 ) {
   const ready = round && pick.session && pick.driver;
   return useAnalysis<TrackMapResponse>(
-    ready ? `${year}/${round}/track-map?${query({ session: pick.session, driver: pick.driver, lap: pick.lap })}` : null,
+    ready
+      ? `${year}/${round}/track-map?${query({
+          session: pick.session,
+          driver: pick.driver,
+          lap: pick.lap,
+          segment: pick.segment,
+        })}`
+      : null,
   );
 }
 
 export function useComparison(
   year: number,
   round: number | null,
-  pick: { session: string | null; a: string | null; b: string | null },
+  pick: { session: string | null; a: string | null; b: string | null; segment: number | null },
 ) {
   const ready = round && pick.session && pick.a && pick.b && pick.a !== pick.b;
   return useAnalysis<ComparisonResponse>(
-    ready ? `${year}/${round}/compare?${query({ session: pick.session, a: pick.a, b: pick.b })}` : null,
+    ready
+      ? `${year}/${round}/compare?${query({ session: pick.session, a: pick.a, b: pick.b, segment: pick.segment })}`
+      : null,
   );
 }
 

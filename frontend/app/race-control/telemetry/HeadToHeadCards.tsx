@@ -17,16 +17,18 @@ interface CardProps {
   data: ComparisonResponse;
   colours: PairColours;
   codes: Codes;
+  /** The qualifying part both laps come from ("Q3"), named in the title. */
+  part?: string | null;
 }
 
 /** Each driver's lap, then each sector with its winner. */
-export function LapCard({ data, colours, codes }: CardProps) {
+export function LapCard({ data, colours, codes, part = null }: CardProps) {
   const sectors = data.sectors ?? [];
   return (
     <HeadToHeadCard
       wide
       eyebrow="Lap"
-      title={lapTitle(data.gap, codes)}
+      title={part ? `${part} · ${lapTitle(data.gap, codes)}` : lapTitle(data.gap, codes)}
       sub={`${codes.a} ${formatLapTime(data.a?.lap.time)} · ${codes.b} ${formatLapTime(data.b?.lap.time)} · best counted laps`}
     >
       <div className="grid gap-3 sm:grid-cols-3">

@@ -81,6 +81,7 @@ const COVERAGE_INCLUDE = [
   "app/race-control/telemetry/HeadToHeadPanel.tsx",
   "app/race-control/telemetry/headToHeadInsights.ts",
   "app/race-control/telemetry/headToHeadModel.ts",
+  "app/race-control/telemetry/qualifyingSegments.ts",
   "app/race-control/telemetry/TelemetryTraces.tsx",
   "app/race-control/telemetry/TrackMap.tsx",
   "app/race-control/telemetry/TrackMapControls.tsx",

@@ -217,3 +217,9 @@ export const DEGRADATION: DegradationResponse = {
     outlier_factor: 1.07,
   },
 };
+
+/** The notice case: Miami-style sprint qualifying, race control publishing no phase 1. */
+export const SEGMENT_NOTICE_LAPS: LapListResponse = {
+  ...LAPS,
+  segments: { available: false, labels: ["Q1", "Q2", "Q3"], notice: "Q1/Q2/Q3 not published for this session" },
+};

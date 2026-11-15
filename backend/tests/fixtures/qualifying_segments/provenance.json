@@ -1,0 +1,15 @@
+{
+  "captured_at": "2026-11-14",
+  "captured_for": "P4.5a qualifying segments (windows, per-segment bests, groups, sprint qualifying, partial phases)",
+  "files": {
+    "mexico_q_race_control.json": "GET https://api.openf1.org/v1/race_control?session_key=11400 (Mexico City 2026 qualifying); unedited, HTTP 200",
+    "mexico_q_laps.json": "GET https://api.openf1.org/v1/laps?session_key=11400 (every driver); unedited, HTTP 200, 171 KB, nothing trimmed",
+    "mexico_q_session_result.json": "GET https://api.openf1.org/v1/session_result?session_key=11400; unedited, HTTP 200. Car 30 (Lawson) has no position and dsq false; his DSQ is in f1db (position_text DSQ)",
+    "shanghai_sq_race_control.json": "GET https://api.openf1.org/v1/race_control?session_key=11236 (China 2026, round 2, Sprint Qualifying); unedited, HTTP 200",
+    "shanghai_sq_laps.json": "GET https://api.openf1.org/v1/laps?session_key=11236; unedited, HTTP 200, 123 KB, nothing trimmed",
+    "shanghai_sq_session_result.json": "GET https://api.openf1.org/v1/session_result?session_key=11236; unedited, HTTP 200",
+    "shanghai_sq_drivers.json": "GET https://api.openf1.org/v1/drivers?session_key=11236; unedited, HTTP 200",
+    "miami_sq_race_control.json": "GET https://api.openf1.org/v1/race_control?session_key=11271 (Miami 2026, round 4, Sprint Qualifying); unedited, HTTP 200. Race control publishes phases 2 and 3 only (no phase 1), the case of a session with phases missing"
+  },
+  "notes": "Mexico City drivers come from ../mexico_2026_r19/openf1_drivers_qualifying.json."
+}

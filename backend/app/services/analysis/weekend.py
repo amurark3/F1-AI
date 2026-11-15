@@ -23,6 +23,7 @@ from app.services.analysis.common import (
 )
 from app.services.analysis.lap_selection import timed_laps
 from app.services.analysis.loading import require_session
+from app.services.analysis.qualifying import LABELS, qualifying_view
 
 if TYPE_CHECKING:
     from app.services.analysis.common import SessionRef
@@ -63,16 +64,20 @@ def build_weekend(year: int, round_num: int, now: datetime | None = None) -> dic
 
 def build_lap_list(ref: SessionRef) -> dict:
     session = require_session(ref)
+    segments, extra = qualifying_view(session) if session.session.code in LABELS else (None, {})
     drivers = []
     for driver in session.drivers.values():
         laps = timed_laps(session, driver.number)
         best = min((lap["time"] for lap in laps if not lap["deleted"]), default=None)
-        drivers.append({**driver_json(driver, session.year), "best": best, "laps": laps})
+        drivers.append(
+            {**driver_json(driver, session.year), "best": best, "laps": laps, **extra.get(driver.number, {})}
+        )
     drivers.sort(key=lambda entry: (entry["best"] is None, entry["best"] or 0.0, entry["code"]))
     return {
         "available": True,
         "pending": False,
         "source": SOURCE,
         "session": session_json(session),
+        **({} if segments is None else {"segments": segments}),
         "drivers": drivers,
     }

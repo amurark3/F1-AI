@@ -80,9 +80,9 @@ def test_a_driver_without_a_valid_lap_has_no_default():
 
 def test_the_lap_picker_lists_timed_laps_with_the_fastest_marked():
     assert timed_laps(SESSION, 1) == [
-        {"number": 2, "time": 94.379, "deleted": True, "is_fastest": False},
-        {"number": 3, "time": 130.0, "deleted": False, "is_fastest": False},
-        {"number": 4, "time": 94.539, "deleted": False, "is_fastest": True},
+        {"number": 2, "time": 94.379, "deleted": True, "is_fastest": False, "segment": None},
+        {"number": 3, "time": 130.0, "deleted": False, "is_fastest": False, "segment": None},
+        {"number": 4, "time": 94.539, "deleted": False, "is_fastest": True, "segment": None},
     ]
     only_deleted = make_session_laps((make_lap(1, 2, start=0, time=90.0, deleted=True),))
     assert timed_laps(only_deleted, 1)[0]["is_fastest"] is False

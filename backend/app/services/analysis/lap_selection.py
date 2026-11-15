@@ -5,6 +5,10 @@ begin in the pit lane, and race control did not delete it. Car 1's quickest
 Austin 2026 qualifying time (1:34.379) was deleted for track limits, so picking
 the plain minimum would have mapped a lap that does not count.
 
+In qualifying a caller may ask for one segment (1-3, from race control's windows):
+the fastest valid lap is then the fastest inside it, and a deletion only ever
+counts against its own segment's laps.
+
 A caller may ask for a specific lap instead, a deleted one included; the answer
 then says it was deleted.
 """
@@ -16,6 +20,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.data.openf1.laps import Lap
+    from app.data.openf1.race_control import SegmentWindow
     from app.data.openf1.session_laps import SessionLaps
 
 
@@ -36,10 +41,20 @@ def fastest_valid_lap(laps: tuple[Lap, ...]) -> Lap | None:
     return min(valid, key=lambda lap: (lap.time, lap.number), default=None)
 
 
-def choose_lap(session: SessionLaps, driver_number: int, lap_number: int | None) -> LapChoice | None:
-    """The lap asked for (or the fastest valid one); None when there is no such timed lap."""
+def segment_of(lap: Lap, windows: tuple[SegmentWindow, ...]) -> int | None:
+    """The segment a lap began in, even if it ended after the flag; None outside every window."""
+    if lap.start is None:
+        return None
+    return next((window.number for window in windows if window.start <= lap.start <= window.end), None)
+
+
+def choose_lap(
+    session: SessionLaps, driver_number: int, lap_number: int | None, segment: int | None = None
+) -> LapChoice | None:
+    """The lap asked for (or the fastest valid one, within ``segment`` if given); None when there is no such timed lap."""
     own = session.laps_of(driver_number)
-    fastest = fastest_valid_lap(own)
+    inside = own if segment is None else tuple(lap for lap in own if segment_of(lap, session.segments) == segment)
+    fastest = fastest_valid_lap(inside)
     if lap_number is None:
         return None if fastest is None else LapChoice(lap=fastest, fastest=fastest)
     lap = next((lap for lap in own if lap.number == lap_number and is_timed(lap)), None)
@@ -56,6 +71,7 @@ def timed_laps(session: SessionLaps, driver_number: int) -> list[dict]:
             "time": lap.time,
             "deleted": lap.deleted,
             "is_fastest": fastest is not None and lap.number == fastest.number,
+            "segment": segment_of(lap, session.segments),
         }
         for lap in own
         if is_timed(lap)

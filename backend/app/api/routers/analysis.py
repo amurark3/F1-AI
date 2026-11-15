@@ -82,7 +82,7 @@ async def get_laps(year: Year, round_num: Round, query: Annotated[SessionQuery, 
 @router.get("/{year}/{round_num}/track-map")
 async def get_track_map(year: Year, round_num: Round, query: Annotated[TrackMapQuery, Query()]) -> dict:
     """One lap round the circuit, coloured by speed, with braking and high-speed zones."""
-    ref, pick = SessionRef(year, round_num, query.session), DriverLap(query.driver.upper(), query.lap)
+    ref, pick = SessionRef(year, round_num, query.session), DriverLap(query.driver.upper(), query.lap, query.segment)
     return await _answer(("track-map", ref, pick), partial(build_track_map, ref, pick))
 
 
@@ -90,7 +90,8 @@ async def get_track_map(year: Year, round_num: Round, query: Annotated[TrackMapQ
 async def get_comparison(year: Year, round_num: Round, query: Annotated[CompareQuery, Query()]) -> dict:
     """Two laps side by side: traces, delta, and where each driver gains."""
     ref = SessionRef(year, round_num, query.session)
-    pick_a, pick_b = DriverLap(query.a.upper(), query.lap_a), DriverLap(query.b.upper(), query.lap_b)
+    pick_a = DriverLap(query.a.upper(), query.lap_a, query.segment)
+    pick_b = DriverLap(query.b.upper(), query.lap_b, query.segment)
     return await _answer(("compare", ref, pick_a, pick_b), partial(build_comparison, ref, pick_a, pick_b))
 
 

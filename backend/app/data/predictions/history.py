@@ -7,30 +7,19 @@ is a read-modify-write of one document.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import threading
 import time
-from typing import TYPE_CHECKING
 
-import fastf1
 import structlog
 
-from app.data.canonical_names import fastf1_code
 from app.data.predictions.graded import with_graded_fields
 from app.data.predictions.incidents import _classify_status
 from app.data.predictions.phases import trim_snapshots
+from app.data.race_classification import JOLPICA_SOURCE, RaceClassification, race_classification
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
-from app.utils.fastf1_lock import FASTF1_LOCK
-
-if TYPE_CHECKING:
-    import pandas as pd
-
 
 logger = structlog.get_logger()
-
-# Aliased to the process-wide lock: a per-module lock does not serialise
-# against the other modules sharing FastF1's SQLite cache.
-_fastf1_lock = FASTF1_LOCK
 
 _history_file_lock = threading.Lock()
 
@@ -153,10 +142,9 @@ def save_prediction(year: int, round_num: int, predictions: dict) -> None:
 def _should_attempt_actual_load(year: int, round_num: int) -> bool:
     """Rate-limit result loads for a race that has no result yet.
 
-    A future (or unpublished) race fails every load, so an unguarded call from
-    a request path would pay a slow failing FastF1 round trip on every page
-    view. Failed attempts back off; a successful load records the result and
-    never comes back here.
+    A future (or unpublished) race answers nothing, so an unguarded call from a
+    request path would ask the feeds again on every page view. Failed attempts
+    back off.
     """
     now = time.monotonic()
     with _actual_result_attempt_lock:
@@ -166,84 +154,110 @@ def _should_attempt_actual_load(year: int, round_num: int) -> bool:
         return True
 
 
-def _classify_results(results: pd.DataFrame, year: int) -> tuple[dict[str, int], dict[str, str], dict[str, dict]]:
-    """Split a race classification of ``year`` into positions, statuses and incident flags.
+# A car's status as stored in ``actual_statuses``: the review and the incident
+# flags read it, so a retirement stays a retirement whatever place it is listed at.
+STATUS_LABELS: dict[str, str] = {
+    "finished": "Finished",
+    "dnf": "DNF",
+    "dns": "DNS",
+    "dsq": "DSQ",
+    "not_classified": "NC",
+}
 
-    Each driver is keyed by FastF1's code, else f1db's, so a driver FastF1 sent
-    without one is still graded against their prediction. A row with no code,
-    or whose position will not coerce to an int, contributes nothing at all —
-    recording a status without the position it belongs to would leave the three
-    maps disagreeing about which drivers were classified.
+# Penalties land for a day or two after the flag. A result stands as provisional
+# until a second read this long after the first one agrees with it.
+CONFIRM_AFTER = timedelta(hours=24)
+
+
+def _classify_results(classification: RaceClassification) -> tuple[dict[str, int], dict[str, str], dict[str, dict]]:
+    """Split a race classification into positions, statuses and incident flags.
+
+    The classification is in published order, so a car with no classified place
+    (a retirement, a non-starter, a disqualification) is listed after the
+    classified ones at its place in that order. Its status says what it is: it
+    is never recorded as a place alone.
     """
     positions: dict[str, int] = {}
     statuses: dict[str, str] = {}
     incidents: dict[str, dict] = {}
-
-    for _, row in results.iterrows():
-        code = fastf1_code(year, row)
-        position = row.get("Position")
-        if not code or position is None:
-            continue
-        try:
-            positions[code] = int(position)
-        except (ValueError, TypeError):
-            continue
-        status = str(row.get("Status", "") or row.get("status", ""))
-        statuses[code] = status
-        incidents[code] = _classify_status(status)
-
+    for index, driver in enumerate(classification.drivers, start=1):
+        positions[driver.driver_code] = driver.position or index
+        statuses[driver.driver_code] = STATUS_LABELS[driver.status]
+        incidents[driver.driver_code] = _classify_status(statuses[driver.driver_code])
     return positions, statuses, incidents
 
 
+def actual_fields(entry: dict, classification: RaceClassification) -> dict:
+    """The result fields of ``entry`` once ``classification`` is recorded on it.
+
+    Final only when it agrees with what ``entry`` already holds and is not
+    Jolpica's, which shows the pre-penalty order.
+    """
+    positions, statuses, incidents = _classify_results(classification)
+    agrees = entry.get("actual_positions") == positions and entry.get("actual_statuses") == statuses
+    return {
+        "actual_positions": positions,
+        "actual_statuses": statuses,
+        "actual_incidents": incidents,
+        "actual_source": classification.source,
+        "actual_provisional": not (agrees and classification.source != JOLPICA_SOURCE),
+        "actual_recorded_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def actuals_pending(entry: dict) -> bool:
+    """Whether a race's graded call still needs its result recorded or confirmed.
+
+    A result recorded before provenance was stored (no ``actual_provisional``)
+    is left to ``scripts.regrade_actuals``, which backs up and lists every
+    change; it is never rewritten from a request path.
+    """
+    if not entry.get("actual_positions"):
+        return True
+    if entry.get("actual_provisional") is not True:
+        return False
+    recorded_at = entry.get("actual_recorded_at")
+    return not isinstance(recorded_at, str) or datetime.now(UTC) - datetime.fromisoformat(recorded_at) >= CONFIRM_AFTER
+
+
 def record_actual_result(year: int, round_num: int) -> None:
-    """Load actual race finishing positions from FastF1 and store in history.
+    """Grade a race against its published classification and store it in history.
 
     Called lazily when accuracy stats or a post-race review are requested and
-    actual data is missing for a past race.
+    the result is missing, or recorded as provisional for a day. The
+    classification is :func:`race_classification`'s (no FastF1): the order after
+    post-race penalties, with each car's status. A read that finds nothing
+    records nothing and is retried later.
+
+    The result is stored with its ``actual_source`` and ``actual_provisional``.
+    It becomes final when a later read, a day after it was recorded, agrees with
+    it and did not come from Jolpica, which shows the pre-penalty order. A read
+    that differs replaces it (still provisional); the graded call is untouched.
     """
     key = f"({year},{round_num})"
 
     with _history_file_lock:
-        history = _load_prediction_history()
-
-        # Only update if we have a prediction but no actual result yet
-        entry = history.get(key)
-        if not entry or entry.get("actual_positions"):
+        entry = _load_prediction_history().get(key)
+        if not entry or not actuals_pending(entry):
             return
 
     if not _should_attempt_actual_load(year, round_num):
         return
 
-    # Load actual results (outside the file lock to avoid holding it during I/O)
-    actual_positions = {}
-    actual_statuses = {}
-    actual_incidents = {}
-    try:
-        with _fastf1_lock:
-            session = fastf1.get_session(year, round_num, "R")
-            session.load(telemetry=False, laps=False, weather=False)
-
-        results = session.results
-        if results is not None and not results.empty:
-            actual_positions, actual_statuses, actual_incidents = _classify_results(results, year)
-    except Exception as exc:
-        logger.warning(
-            "predictions.actual_result_load_error",
-            year=year,
-            round=round_num,
-            error=str(exc),
-        )
-        return
-
-    if not actual_positions:
+    classification = race_classification(year, round_num)
+    if not classification.drivers:
         return
 
     # Write back with file lock
     with _history_file_lock:
         history = _load_prediction_history()
         if key in history:
-            history[key]["actual_positions"] = actual_positions
-            history[key]["actual_statuses"] = actual_statuses
-            history[key]["actual_incidents"] = actual_incidents
+            entry = history[key]
+            history[key] = {**entry, **actual_fields(entry, classification)}
             _save_prediction_history(history)
-            logger.info("predictions.actual_recorded", key=key, drivers=len(actual_positions))
+            logger.info(
+                "predictions.actual_recorded",
+                key=key,
+                drivers=len(classification.drivers),
+                source=classification.source,
+            )

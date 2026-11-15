@@ -8,41 +8,53 @@ accumulated predictions with the single race in hand. That is exactly the outage
 ``ReadResult.ok`` was introduced for, and ``save_prediction`` must refuse to
 write when it cannot see what is already there.
 
-The rest is the same theme at smaller scale: a race that has not happened yet
-fails every FastF1 load, so the retry must be rate-limited rather than paid on
-every page view; and a classification row whose position will not parse must
-drop out of *all three* result maps together, or the maps disagree about who was
-classified.
+The rest is the same theme at smaller scale: a race that has not been published
+yet answers nothing, so the retry must be rate-limited rather than paid on every
+page view; and a result is graded on the published classification (the order
+after post-race penalties, Mexico City 2026's real captures), stored with its
+source and provisional until a later read confirms it.
 
-The document store and FastF1 are both replaced at the module boundary — the
-namespace these functions resolve the names in.
+The document store and the classification are both replaced at the module
+boundary — the namespace these functions resolve the names in.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+import json
+from pathlib import Path
 
-import pandas as pd
 import pytest
 
 from app.data.predictions import history as history_module
 from app.data.predictions.history import (
     ACTUAL_RESULT_RETRY_SECONDS,
+    CONFIRM_AFTER,
     _classify_results,
     _load_prediction_history,
     _read_prediction_history,
     _save_prediction_history,
     _should_attempt_actual_load,
+    actuals_pending,
     prediction_call,
     record_actual_result,
     save_prediction,
 )
+from app.data.race_classification import (
+    JOLPICA_SOURCE,
+    OPENF1_SOURCE,
+    ClassifiedDriver,
+    RaceClassification,
+    classification_from_jolpica,
+    classification_from_openf1,
+)
 from app.data.store_types import ReadResult, WriteResult
-from tests.identity_support import mexico_fastf1_results
 
 YEAR = 2026
 ROUND = 4
 KEY = f"({YEAR},{ROUND})"
+R19 = Path(__file__).parent / "fixtures" / "mexico_2026_r19"
 
 
 @dataclass
@@ -104,10 +116,6 @@ def _predictions(**overrides: object) -> dict:
     }
     payload.update(overrides)
     return payload
-
-
-def _results_frame(rows: list[dict]) -> pd.DataFrame:
-    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -338,198 +346,257 @@ def test_back_off_is_tracked_per_race():
 
 
 # ---------------------------------------------------------------------------
-# Classifying a race result
+# Grading from the published classification
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
-def test_classification_splits_a_result_into_positions_statuses_and_flags():
-    positions, statuses, incidents = _classify_results(
-        _results_frame(
-            [
-                {"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"},
-                {"Abbreviation": "NOR", "Position": 15.0, "Status": "Accident"},
-            ]
-        ),
-        YEAR,
-    )
-
-    assert positions == {"VER": 1, "NOR": 15}
-    assert statuses["NOR"] == "Accident"
-    assert incidents["NOR"] == {"dnf": True, "crash": True, "mechanical": False}
-    assert incidents["VER"]["dnf"] is False
+def _r19(name: str) -> list | dict:
+    return json.loads((R19 / name).read_text())
 
 
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "row",
-    [
-        pytest.param({"Abbreviation": "", "Position": 3.0, "Status": "Finished"}, id="no_code"),
-        pytest.param({"Abbreviation": "HUL", "Position": None, "Status": "Finished"}, id="null_position"),
-        pytest.param({"Abbreviation": "HUL", "Position": "DNS", "Status": "Did not start"}, id="unparsable_position"),
-    ],
-)
-def test_a_row_that_cannot_be_placed_contributes_to_none_of_the_three_maps(row):
-    positions, statuses, incidents = _classify_results(
-        _results_frame([{"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"}, row]), YEAR
-    )
-
-    # A status without its position would leave the maps disagreeing about who
-    # was classified, which the review table renders directly.
-    assert set(positions) == set(statuses) == set(incidents) == {"VER"}
+def _r19_openf1() -> RaceClassification:
+    """Mexico City 2026 as OpenF1 published it: the final order, post-penalty."""
+    codes = {row["driver_number"]: row["name_acronym"] for row in _r19("openf1_drivers.json")}
+    drivers = classification_from_openf1(_r19("openf1_session_result.json"), codes)
+    return RaceClassification(source=OPENF1_SOURCE, drivers=drivers)
 
 
-@pytest.mark.integration
-def test_a_finisher_fastf1_sent_without_a_code_is_graded_under_f1dbs_code(identity_f1db):
-    """Hirakawa (car 50, Mexico City 2026) had no FastF1 abbreviation; his prediction is keyed HIR."""
-    positions, statuses, incidents = _classify_results(pd.DataFrame(mexico_fastf1_results()), 2026)
-
-    assert (positions["HIR"], statuses["HIR"], incidents["HIR"]["dnf"]) == (13, "Finished", False)
-    assert "nan" not in {code.lower() for code in positions}
-
-
-# ---------------------------------------------------------------------------
-# Recording the actual result
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class _FakeSession:
-    results: object
+def _r19_jolpica() -> RaceClassification:
+    """The same race as Jolpica showed it the morning after: before the penalties."""
+    rows = [
+        {
+            "driverCode": row["Driver"]["code"],
+            "position": row["position"],
+            "positionText": row["positionText"],
+            "status": row["status"],
+            "laps": row["laps"],
+        }
+        for row in _r19("jolpica_results.json")["Results"]
+    ]
+    return RaceClassification(source=JOLPICA_SOURCE, drivers=classification_from_jolpica(rows))
 
 
-class _FakeFastF1:
-    """Stands in for the ``fastf1`` module inside ``history``."""
+class _Feed:
+    """A scripted ``race_classification`` that counts its reads."""
 
-    def __init__(self, results: object = None, error: Exception | None = None) -> None:
-        self.results = results
-        self.error = error
-        self.calls: list[tuple] = []
+    def __init__(self, answer: RaceClassification) -> None:
+        self.answer = answer
+        self.calls: list[tuple[int, int]] = []
 
-    def get_session(self, year: int, round_num: int, session: str):
-        self.calls.append((year, round_num, session))
-        if self.error is not None:
-            raise self.error
-        return _FakeLoadableSession(self.results)
-
-
-class _FakeLoadableSession:
-    def __init__(self, results: object) -> None:
-        self.results = results
-
-    def load(self, telemetry: bool = True, laps: bool = True, weather: bool = True) -> None:
-        return
+    def __call__(self, year: int, round_num: int) -> RaceClassification:
+        self.calls.append((year, round_num))
+        return self.answer
 
 
 @pytest.fixture
-def fastf1_results(monkeypatch):
-    """Install a scripted FastF1 and hand the test the double back."""
+def feed(monkeypatch):
+    """Install a scripted classification feed and hand the test the double back."""
 
-    def _install(results: object = None, error: Exception | None = None) -> _FakeFastF1:
-        fake = _FakeFastF1(results=results, error=error)
-        monkeypatch.setattr(history_module, "fastf1", fake)
+    def _install(answer: RaceClassification) -> _Feed:
+        fake = _Feed(answer)
+        monkeypatch.setattr(history_module, "race_classification", fake)
         return fake
 
     return _install
 
 
+def _recorded_hours_ago(hours: float, **fields: object) -> dict:
+    stamp = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    return {
+        "actual_positions": {"VER": 1},
+        "actual_statuses": {"VER": "Finished"},
+        "actual_provisional": True,
+        "actual_recorded_at": stamp,
+        **fields,
+    }
+
+
 @pytest.mark.unit
-def test_a_finished_race_records_positions_statuses_and_incidents(store, fastf1_results):
-    save_prediction(YEAR, ROUND, _predictions())
-    fastf1_results(
-        _results_frame(
-            [
-                {"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"},
-                {"Abbreviation": "NOR", "Position": 18.0, "Status": "Engine"},
-            ]
-        )
+def test_jolpicas_morning_after_order_is_not_the_final_order():
+    """The finding behind D1.8: the stored review's Mexico City actuals followed Jolpica, not the FIA."""
+    jolpica = {driver.driver_code: driver.position for driver in _r19_jolpica().drivers}
+    final = {driver.driver_code: driver.position for driver in _r19_openf1().drivers}
+
+    # What the stored review held (fixtures/mexico_2026_r19/prediction_history_entry.json) is Jolpica's.
+    stored = _r19("prediction_history_entry.json")["entry"]["actual_positions"]
+    assert (
+        (stored["PIA"], stored["COL"], stored["GAS"]) == (jolpica["PIA"], jolpica["COL"], jolpica["GAS"]) == (7, 8, 10)
     )
+    assert (final["PIA"], final["COL"], final["GAS"]) == (13, 15, 17)
+
+
+@pytest.mark.unit
+def test_a_race_with_a_post_race_penalty_is_graded_on_the_post_penalty_order(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(_r19_openf1())
 
     record_actual_result(YEAR, ROUND)
 
     entry = store.document[KEY]
-    assert entry["actual_positions"] == {"VER": 1, "NOR": 18}
-    assert entry["actual_statuses"]["NOR"] == "Engine"
-    assert entry["actual_incidents"]["NOR"]["mechanical"] is True
+    assert (entry["actual_positions"]["PIA"], entry["actual_positions"]["COL"], entry["actual_positions"]["GAS"]) == (
+        13,
+        15,
+        17,
+    )
+    assert entry["actual_positions"]["VER"] == 1
 
 
 @pytest.mark.unit
-def test_a_race_with_no_stored_prediction_is_never_fetched(store, fastf1_results):
-    fake = fastf1_results(_results_frame([{"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"}]))
+def test_a_retirement_is_stored_as_dnf_with_its_incident_flag_never_only_a_place(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(_r19_openf1())
 
     record_actual_result(YEAR, ROUND)
 
-    # Nothing to compare against, so the slow session load is pointless.
+    entry = store.document[KEY]
+    retired = ("LIN", "BEA", "BOT", "STR", "ALO")
+    assert {entry["actual_statuses"][code] for code in retired} == {"DNF"}
+    assert all(entry["actual_incidents"][code]["dnf"] for code in retired)
+    assert not entry["actual_incidents"]["PIA"]["dnf"]
+    # Listed after the 17 classified cars, in the order they are published.
+    assert sorted(entry["actual_positions"][code] for code in retired) == [18, 19, 20, 21, 22]
+
+
+@pytest.mark.unit
+def test_a_result_is_stored_with_its_source_and_provisional(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(_r19_openf1())
+
+    record_actual_result(YEAR, ROUND)
+
+    entry = store.document[KEY]
+    assert (entry["actual_source"], entry["actual_provisional"]) == (OPENF1_SOURCE, True)
+    assert datetime.fromisoformat(entry["actual_recorded_at"]).tzinfo is not None
+
+
+@pytest.mark.unit
+def test_every_status_reads_as_its_label_and_a_car_without_a_place_follows_the_order():
+    drivers = (
+        ClassifiedDriver("VER", 1, "finished", 70),
+        ClassifiedDriver("NOR", None, "dnf", 40),
+        ClassifiedDriver("PIA", None, "not_classified", 10),
+        ClassifiedDriver("LEC", None, "dns", None),
+        ClassifiedDriver("HAM", None, "dsq", 70),
+    )
+
+    positions, statuses, incidents = _classify_results(RaceClassification(source=OPENF1_SOURCE, drivers=drivers))
+
+    assert positions == {"VER": 1, "NOR": 2, "PIA": 3, "LEC": 4, "HAM": 5}
+    assert statuses == {"VER": "Finished", "NOR": "DNF", "PIA": "NC", "LEC": "DNS", "HAM": "DSQ"}
+    assert [incidents[code]["dnf"] for code in positions] == [False, True, True, True, True]
+
+
+@pytest.mark.unit
+def test_a_race_with_no_stored_prediction_is_never_fetched(store, feed):
+    fake = feed(_r19_openf1())
+
+    record_actual_result(YEAR, ROUND)
+
+    # Nothing to compare against, so reading the classification is pointless.
     assert fake.calls == []
 
 
 @pytest.mark.unit
-def test_an_already_recorded_result_is_not_fetched_again(store, fastf1_results):
+def test_an_unpublished_classification_records_nothing_and_is_retried_after_the_window(store, feed, monkeypatch):
     save_prediction(YEAR, ROUND, _predictions())
-    store.document[KEY]["actual_positions"] = {"VER": 1}
-    fake = fastf1_results(_results_frame([{"Abbreviation": "VER", "Position": 2.0, "Status": "Finished"}]))
-
-    record_actual_result(YEAR, ROUND)
-
-    assert fake.calls == []
-    assert store.document[KEY]["actual_positions"] == {"VER": 1}
-
-
-@pytest.mark.unit
-def test_a_backed_off_race_is_not_fetched_again_within_the_window(store, fastf1_results):
-    save_prediction(YEAR, ROUND, _predictions())
-    fake = fastf1_results(_results_frame([]))
-
-    record_actual_result(YEAR, ROUND)
-    record_actual_result(YEAR, ROUND)
-
-    assert len(fake.calls) == 1
-
-
-@pytest.mark.unit
-def test_a_failing_session_load_leaves_the_stored_prediction_untouched(store, fastf1_results):
-    save_prediction(YEAR, ROUND, _predictions())
+    fake = feed(RaceClassification(source=None, drivers=()))
     writes_before = len(store.writes)
-    fastf1_results(error=ConnectionError("ergast is down"))
+    clock = [1000.0]
+    monkeypatch.setattr(history_module.time, "monotonic", lambda: clock[0])
 
     record_actual_result(YEAR, ROUND)
+    record_actual_result(YEAR, ROUND)
+    assert (len(fake.calls), len(store.writes)) == (1, writes_before)
 
-    assert len(store.writes) == writes_before
-    assert store.document[KEY]["actual_positions"] is None
+    clock[0] += ACTUAL_RESULT_RETRY_SECONDS + 1
+    fake.answer = _r19_openf1()
+    record_actual_result(YEAR, ROUND)
+
+    assert (len(fake.calls), store.document[KEY]["actual_source"]) == (2, OPENF1_SOURCE)
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    "results",
-    [pytest.param(None, id="no_results_object"), pytest.param([], id="empty_classification")],
-)
-def test_a_race_with_no_classification_yet_records_nothing(store, fastf1_results, results):
+def test_a_result_for_a_race_removed_from_history_mid_flight_is_dropped(store, monkeypatch):
     save_prediction(YEAR, ROUND, _predictions())
-    writes_before = len(store.writes)
-    fastf1_results(results if results is None else _results_frame(results))
 
-    record_actual_result(YEAR, ROUND)
+    def _read_while_the_race_is_removed(year: int, round_num: int) -> RaceClassification:
+        store.document = {}
+        return _r19_openf1()
 
-    assert len(store.writes) == writes_before
-
-
-@pytest.mark.unit
-def test_a_result_whose_rows_are_all_unusable_records_nothing(store, fastf1_results):
-    save_prediction(YEAR, ROUND, _predictions())
-    writes_before = len(store.writes)
-    fastf1_results(_results_frame([{"Abbreviation": "", "Position": 1.0, "Status": "Finished"}]))
-
-    record_actual_result(YEAR, ROUND)
-
-    assert len(store.writes) == writes_before
-
-
-@pytest.mark.unit
-def test_a_result_for_a_race_removed_from_history_mid_flight_is_dropped(store, fastf1_results):
-    save_prediction(YEAR, ROUND, _predictions())
-    fastf1_results(_results_frame([{"Abbreviation": "VER", "Position": 1.0, "Status": "Finished"}]))
-    store.document = {}
+    monkeypatch.setattr(history_module, "race_classification", _read_while_the_race_is_removed)
 
     record_actual_result(YEAR, ROUND)
 
     assert store.document == {}
+
+
+@pytest.mark.unit
+def test_a_provisional_result_is_not_read_again_within_a_day(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    store.document[KEY].update(_recorded_hours_ago(2))
+    fake = feed(_r19_openf1())
+
+    record_actual_result(YEAR, ROUND)
+
+    assert fake.calls == []
+
+
+@pytest.mark.unit
+def test_a_read_a_day_later_that_agrees_makes_the_result_final(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(_r19_openf1())
+    record_actual_result(YEAR, ROUND)
+    store.document[KEY]["actual_recorded_at"] = (datetime.now(UTC) - CONFIRM_AFTER).isoformat()
+    history_module._actual_result_attempts.clear()
+
+    record_actual_result(YEAR, ROUND)
+
+    assert store.document[KEY]["actual_provisional"] is False
+    assert actuals_pending(store.document[KEY]) is False
+
+
+@pytest.mark.unit
+def test_a_read_a_day_later_that_differs_replaces_the_result_and_it_stays_provisional(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    store.document[KEY].update(_recorded_hours_ago(25, actual_source=JOLPICA_SOURCE))
+    graded_before = store.document[KEY]["predicted_positions"]
+    feed(_r19_openf1())
+
+    record_actual_result(YEAR, ROUND)
+
+    entry = store.document[KEY]
+    assert (entry["actual_positions"]["PIA"], entry["actual_source"], entry["actual_provisional"]) == (
+        13,
+        OPENF1_SOURCE,
+        True,
+    )
+    assert entry["predicted_positions"] == graded_before
+
+
+@pytest.mark.unit
+def test_jolpicas_pre_penalty_order_never_confirms_itself(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(_r19_jolpica())
+    record_actual_result(YEAR, ROUND)
+    store.document[KEY]["actual_recorded_at"] = (datetime.now(UTC) - CONFIRM_AFTER).isoformat()
+    history_module._actual_result_attempts.clear()
+
+    record_actual_result(YEAR, ROUND)
+
+    assert (store.document[KEY]["actual_source"], store.document[KEY]["actual_provisional"]) == (JOLPICA_SOURCE, True)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("entry", "pending"),
+    [
+        pytest.param({}, True, id="nothing_recorded"),
+        pytest.param({"actual_positions": {"VER": 1}}, False, id="recorded_before_sources_are_left_to_the_script"),
+        pytest.param(_recorded_hours_ago(1, actual_provisional=False), False, id="final"),
+        pytest.param(_recorded_hours_ago(1), False, id="provisional_and_recent"),
+        pytest.param(_recorded_hours_ago(30), True, id="provisional_for_over_a_day"),
+        pytest.param(_recorded_hours_ago(1, actual_recorded_at=None), True, id="provisional_with_no_stamp"),
+    ],
+)
+def test_which_races_still_need_their_result_recorded_or_confirmed(entry, pending):
+    assert actuals_pending(entry) is pending

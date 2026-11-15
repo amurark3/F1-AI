@@ -8,7 +8,7 @@ import statistics
 import structlog
 
 from app.data.predictions.graded import graded_call
-from app.data.predictions.history import _load_prediction_history, record_actual_result
+from app.data.predictions.history import _load_prediction_history, actuals_pending, record_actual_result
 from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
 
 logger = structlog.get_logger()
@@ -80,7 +80,7 @@ def _evaluated_entries(history: dict) -> list[dict]:
 def _backfill_actuals(history: dict) -> None:
     """Lazily load results for predictions that have none recorded yet."""
     for key, entry in history.items():
-        if not graded_call(entry).get("predicted_positions") or entry.get("actual_positions"):
+        if not graded_call(entry).get("predicted_positions") or not actuals_pending(entry):
             continue
         try:
             # Keys are stored as "(year,round)".

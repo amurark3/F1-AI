@@ -1,14 +1,13 @@
-"""São Paulo 2026 qualifying (round 20) the way production read it, for the driver-code tests.
+"""São Paulo 2026 qualifying (round 20), for the driver-code tests.
 
-FastF1 sent Rafael Câmara's row (Q P13, car 51 in Ocon's Haas) with no
-``Abbreviation``. ``str()`` turned that NaN into the code "nan", the grid
+On the day, FastF1 sent Rafael Câmara's row (Q P13, car 51 in Ocon's Haas) with
+no ``Abbreviation``. ``str()`` turned that NaN into the code "nan", the grid
 dropped him as not entered and back-filled him at "P23", and the model scored
-him from there. The fixtures in ``fixtures/sao_paulo_2026_r20/`` are real
+him from there. FastF1 no longer feeds the order; :func:`r20_openf1_qualifying`
+builds it from OpenF1 and can blank his code the same way. The fixtures in ``fixtures/sao_paulo_2026_r20/`` are real
 (``provenance.json`` names every request):
 
-* ``jolpica_qualifying.json``: the classification FastF1 reads, in its order.
-  Jolpica codes him CAM today; :func:`r20_fastf1_qualifying` blanks that one
-  cell, as FastF1 had it.
+* ``jolpica_qualifying.json``: the classification FastF1 read, in its order.
 * ``openf1_drivers_qualifying.json``: the qualifying entry list. OpenF1 codes
   car 51 CAM.
 * ``f1db_v2026_20_camara.json``: his f1db rows, which arrived with v2026.20.0
@@ -24,9 +23,9 @@ from pathlib import Path
 import sqlite3
 
 import httpx
-import pandas as pd
 
 from app.data.openf1.sessions import entry_list
+from app.data.predictions.openf1_qualifying import qualifying_order
 from app.data.session_entries import WeekendEntryList, _entry
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sao_paulo_2026_r20"
@@ -40,26 +39,18 @@ def _load(name: str) -> dict | list:
     return json.loads((FIXTURES / name).read_text())
 
 
-def r20_fastf1_qualifying() -> pd.DataFrame:
-    """FastF1's R20 qualifying results: Jolpica's rows, with Câmara's Abbreviation NaN.
+def r20_openf1_qualifying(*, camara_coded: bool = True) -> list[dict]:
+    """R20's qualifying order as the OpenF1 path builds it from the captured ``session_result`` and entry list.
 
-    Columns are FastF1's: ``DriverNumber`` is text and ``Position`` a float, as
-    pandas hands them over.
+    ``camara_coded=False`` blanks Câmara's ``name_acronym``, the way a feed can send a debutant: the entry list
+    then prints car 51 by its number and only f1db can name him.
     """
-    rows = _load("jolpica_qualifying.json")["QualifyingResults"]
-    return pd.DataFrame(
-        [
-            {
-                "DriverNumber": row["number"],
-                "Position": float(row["position"]),
-                "Abbreviation": float("nan") if int(row["number"]) == CAMARA_NUMBER else row["Driver"]["code"],
-                "FirstName": row["Driver"]["givenName"],
-                "LastName": row["Driver"]["familyName"],
-                "TeamName": row["Constructor"]["name"],
-            }
-            for row in rows
-        ]
-    )
+    rows = _load("openf1_drivers_qualifying.json")
+    if not camara_coded:
+        rows = [{**row, "name_acronym": None} if row["driver_number"] == CAMARA_NUMBER else row for row in rows]
+    with httpx.Client(transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=rows))) as client:
+        entries = entry_list(client, QUALIFYING_SESSION_KEY)
+    return qualifying_order(_load("openf1_session_result_qualifying.json"), entries, YEAR)
 
 
 def add_camara_to_f1db(db_path: Path) -> None:

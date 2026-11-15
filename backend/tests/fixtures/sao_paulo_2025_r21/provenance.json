@@ -11,7 +11,8 @@
   "openf1_session_result.json": "GET https://api.openf1.org/v1/session_result?session_key=9869",
   "jolpica_pitstops.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/pitstops.json?limit=100, MRData.RaceTable.Races[0]",
   "jolpica_results.json": "GET https://api.jolpi.ca/ergast/f1/2025/21/results.json?limit=100, MRData.RaceTable.Races[0]",
-  "openf1_laps_ant.json": "GET https://api.openf1.org/v1/laps?session_key=9869&driver_number=12 (ANT, whose lap-6 time was deleted) captured 2026-11-14 for D1.4b; unedited apart from JSON indentation."
+  "openf1_laps_ant.json": "GET https://api.openf1.org/v1/laps?session_key=9869&driver_number=12 (ANT, whose lap-6 time was deleted) captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "f1db_qualifying_sprint.json": "f1db v2026.20.0 (backend/data/f1db.db): race_data rows of type QUALIFYING_RESULT (19 cars) and SPRINT_RACE_RESULT (20 cars; PIA and COL retired with no position) for 2025 round 21, joined to driver and constructor; selected columns, captured 2026-11-14 for D1.6."
  },
  "notes": "Unedited apart from JSON indentation. No red flag (race control: SC laps 2-5, VSC laps 7-8). 20 starters, 17 classified finishers; HAM (lap 37), LEC (lap 5) and BOR (lap 0) retired."
 }

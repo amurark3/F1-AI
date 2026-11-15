@@ -64,7 +64,7 @@ def _entry_code(entry: EntryDriver | None) -> str | None:
     return entry.code if entry is not None and entry.code.isalpha() else None
 
 
-def _order_row(number: int, entry: EntryDriver | None, position: int, year: int) -> dict:
+def order_row(number: int, entry: EntryDriver | None, position: int, year: int) -> dict:
     """One classified car, coded like the FastF1 path: the feed's code, else f1db's, else labelled."""
     name = entry.name if entry is not None else None
     driver = driver_identity(year, code=_entry_code(entry), number=number, name=name)
@@ -96,11 +96,11 @@ def qualifying_order(rows: list[dict], entries: dict[int, EntryDriver], year: in
         if (position := _classified_position(row)) is not None
         and (number := feed_number(row.get("driver_number"))) is not None
     )
-    return [_order_row(number, entries.get(number), position, year) for position, number in placed]
+    return [order_row(number, entries.get(number), position, year) for position, number in placed]
 
 
-def load_openf1_qualifying(year: int, round_num: int) -> list[dict]:
-    """The round's qualifying order from OpenF1, or ``[]`` when OpenF1 cannot give one.
+def load_openf1_qualifying(year: int, round_num: int, code: str = "Q") -> list[dict]:
+    """The round's qualifying (or, with ``code="S"``, sprint) order from OpenF1, or ``[]`` when it cannot give one.
 
     Only a session that has ended and settled is read: mid-session the result
     is a running order. A result with no entry list is not trusted, since car
@@ -108,7 +108,7 @@ def load_openf1_qualifying(year: int, round_num: int) -> list[dict]:
     """
     try:
         with new_client() as client:
-            session = find_session(client, year, round_num, "Q")
+            session = find_session(client, year, round_num, code)
             if session is None or not session_ended(session):
                 return []
             rows = get_json(client, "session_result", {"session_key": session.session_key})

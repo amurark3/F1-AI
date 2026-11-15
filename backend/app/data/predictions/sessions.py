@@ -5,10 +5,17 @@ that gate them: whether the weekend has started (practice pace and the entry
 list exist from FP1) and whether qualifying has run — which decides between the
 qualifying-based and practice-based scoring paths.
 
+None of them reads FastF1 (its 500-requests-an-hour cap, spent in minutes, is
+why). The qualifying and sprint orders come from f1db once it holds the round,
+else from OpenF1's ``session_result``; practice pace is the best lap of each
+car in OpenF1's ``laps``. Every OpenF1 read of a finished session is served
+from the read-through store (:mod:`app.data.openf1.session_store`) after its
+first fetch. Each source reads only sessions that have ended, and a session
+ends before the call that needs it: practice and the sprint precede qualifying,
+and qualifying precedes the race.
+
 Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
-Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
-the feed's. See :mod:`app.data.canonical_names`. The qualifying order is read
-from OpenF1 before FastF1 (:mod:`app.data.predictions.openf1_qualifying`).
+Bulls"); see :mod:`app.data.canonical_names`.
 """
 
 from __future__ import annotations
@@ -16,27 +23,19 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import fastf1
 import pandas as pd
 import structlog
 
-from app.data.canonical_names import (
-    CODE_UNRESOLVED,
-    driver_identity,
-    fastf1_driver,
-    feed_code,
-    feed_number,
-    feed_text,
-    team_display_name,
-)
-from app.data.predictions.openf1_qualifying import OPENF1_SOURCE, load_openf1_qualifying
-from app.utils.fastf1_lock import FASTF1_LOCK
+from app.data.canonical_names import F1DB_READ_ERRORS
+from app.data.f1db_sessions import KIND_QUALIFYING, KIND_RACE, TYPE_QUALIFYING, TYPE_SPRINT_RACE, session_classification
+from app.data.openf1.client import OpenF1UnavailableError
+from app.data.openf1.session_laps import load_session_laps
+from app.data.openf1.sessions import weekend_schedule
+from app.data.predictions.openf1_qualifying import OPENF1_SOURCE, load_openf1_qualifying, order_row
 
 logger = structlog.get_logger()
 
-# Aliased to the process-wide lock: a per-module lock does not serialise
-# against the other modules sharing FastF1's SQLite cache.
-_fastf1_lock = FASTF1_LOCK
+F1DB_SOURCE = "f1db"
 
 # (year, round_num) -> qualifying results dict
 _qualifying_cache: dict[tuple[int, int], Any] = {}
@@ -47,83 +46,23 @@ _practice_cache: dict[tuple[int, int], Any] = {}
 # (year, round_num) -> sprint results dict (empty if no sprint that weekend)
 _sprint_cache: dict[tuple[int, int], list[dict]] = {}
 
-
-def _fastf1_names(row: pd.Series, code: str, year: int) -> dict[str, str]:
-    """A FastF1 row's driver and team as printed: f1db's names, else FastF1's words, else the code."""
-    feed_name = " ".join(part for part in (feed_text(row.get("FirstName")), feed_text(row.get("LastName"))) if part)
-    # The row's own cell, not ``code``: a missing abbreviation is NaN, which the resolver reads as no code.
-    driver = driver_identity(year, code=row.get("Abbreviation", code), number=row.get("DriverNumber"), name=feed_name)
-    return {"driver_name": driver.name or code, "team": team_display_name(year, row.get("TeamName"))}
+# A practice session OpenF1 cannot give (not run, still live, unreachable) is skipped, not fatal.
+_PRACTICE_ERRORS = (OpenF1UnavailableError, ValueError, KeyError, OSError)
 
 
-def _classified_row(row: pd.Series, position: int, year: int) -> dict:
-    """One classified driver, under FastF1's code, else f1db's.
-
-    FastF1 sends some debutants and stand-ins with no abbreviation: Câmara, P13
-    in São Paulo qualifying (2026 R20), came through as NaN, which ``str()``
-    turned into the code ``nan``. The grid then dropped him as not entered and
-    put him at the back. f1db names such a driver by car number or name once it has
-    published a round they drove. Until then no source has the code, so the row
-    keeps its place with an empty code, its car number and
-    :data:`CODE_UNRESOLVED`, and the grid matches the car on the entry list.
-    """
-    driver = fastf1_driver(year, row)
-    code = feed_code(row.get("Abbreviation")) or driver.code
-    entry = {
-        "driver_code": code or "",
-        "driver_name": driver.name or code or "",
-        "team": team_display_name(year, row.get("TeamName")),
-        "position": position,
-    }
-    if code:
-        return entry
-    number = feed_number(row.get("DriverNumber"))
-    logger.warning("predictions.driver_code_unresolved", year=year, number=number, name=driver.name, position=position)
-    return {**entry, CODE_UNRESOLVED: True, "driver_number": number}
-
-
-def _classified_order(results: pd.DataFrame | None, year: int) -> list[dict]:
-    """A session's classification as driver dicts, in finishing order.
-
-    A driver without a position (no time set, retired, or a session FastF1 has
-    not classified yet) is left out rather than coerced to P0, which would put
-    them first. A driver without a code keeps their position (see
-    :func:`_classified_row`).
-    """
-    if results is None or results.empty:
-        return []
-
-    return [
-        _classified_row(row, int(row["Position"]), year)
-        for _, row in results.sort_values("Position").iterrows()
-        # covers None and the NaN pandas uses for a missing position
-        if not pd.isna(row.get("Position"))
-    ]
-
-
-def _fastf1_qualifying(year: int, round_num: int) -> list[dict] | None:
-    """The qualifying order FastF1 can build: Jolpica's classification, else one derived from laps.
-
-    Laps and race control messages are loaded because the Ergast mirror
-    publishes a session's classification hours (sometimes days) after it ends.
-    Until then FastF1 has only the driver list, and derives positions from lap
-    times — striking off laps race control deleted — which it can only do with
-    both loaded.
-    """
+def _f1db_order(year: int, round_num: int, result_type: str, kind: str) -> list[dict]:
+    """A session's classified drivers from f1db, in order; ``[]`` until f1db holds the round or when it cannot be read."""
     try:
-        with _fastf1_lock:
-            session = fastf1.get_session(year, round_num, "Q")
-            session.load(telemetry=False, laps=True, weather=False, messages=True)
-    except Exception as exc:
-        # Includes FastF1's own hourly request cap ("any API: 500 calls/h").
-        logger.warning("predictions.qualifying_unavailable", year=year, round=round_num, error=str(exc))
-        return None
-
-    drivers = _classified_order(session.results, year)
-    if not drivers:
-        logger.warning("predictions.qualifying_unclassified", year=year, round=round_num)
-        return None
-    return drivers
+        entries = session_classification(year, round_num, result_type, kind)
+    except F1DB_READ_ERRORS as exc:
+        logger.warning(
+            "predictions.f1db_session_unavailable", year=year, round=round_num, type=result_type, error=str(exc)
+        )
+        return []
+    return [
+        {"driver_code": e.driver_code, "driver_name": e.driver_name, "team": e.team, "position": e.position}
+        for e in sorted((e for e in entries if e.position is not None), key=lambda e: e.position or 0)
+    ]
 
 
 def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
@@ -132,21 +71,19 @@ def _load_qualifying(year: int, round_num: int) -> list[dict] | None:
     Returns a list of dicts with keys: driver_code, driver_name, team,
     position.  Returns None if qualifying data is unavailable.
 
-    OpenF1's ``session_result`` is read first (``docs/DATA_SOURCES.md``: the
-    classification's first source once the session has run), then FastF1. OpenF1
-    is outside FastF1's hourly request cap, which a booting production process
-    spends within minutes; with FastF1 alone, R20's post-qualifying recompute of
-    2026-11-11 had no order and was refused (:mod:`.openf1_qualifying`). An order
-    neither source has yet is not cached, so the next compute retries instead of
-    pinning the race to the practice proxy.
+    f1db's classification is read first (``docs/DATA_SOURCES.md``: it mirrors
+    the FIA's), which holds a round only once it is complete. Until then
+    OpenF1's ``session_result`` gives the order (:mod:`.openf1_qualifying`).
+    An order neither source has yet is not cached, so the next compute retries
+    instead of pinning the race to the practice proxy.
     """
     cache_key = (year, round_num)
     if cache_key in _qualifying_cache:
         return _qualifying_cache[cache_key]
 
-    drivers, source = load_openf1_qualifying(year, round_num), OPENF1_SOURCE
+    drivers, source = _f1db_order(year, round_num, TYPE_QUALIFYING, KIND_QUALIFYING), F1DB_SOURCE
     if not drivers:
-        drivers, source = _fastf1_qualifying(year, round_num), "fastf1"
+        drivers, source = load_openf1_qualifying(year, round_num), OPENF1_SOURCE
     if not drivers:
         return None
 
@@ -161,10 +98,23 @@ def load_qualifying(year: int, round_num: int) -> list[dict] | None:
     Exposed for :mod:`app.services.race_grid`, which needs the qualifying order
     as a *provisional* stand-in during the window after a session has run and
     before f1db publishes that round's official grid sheet. Sharing this
-    module's cache keeps the grid panel from reading OpenF1 or FastF1 again for
+    module's cache keeps the grid panel from reading f1db or OpenF1 again for
     data a prediction has usually already fetched.
     """
     return _load_qualifying(year, round_num)
+
+
+def _practice_order(year: int, round_num: int, session_name: str) -> list[dict]:
+    """One practice session's cars ranked by best lap (deleted laps struck off); ``[]`` when none set a time."""
+    laps = load_session_laps(year, round_num, session_name)
+    if laps is None:
+        return []
+    best: dict[int, float] = {}
+    for lap in laps.laps:
+        if lap.time is not None and not lap.deleted:
+            best[lap.driver] = min(lap.time, best.get(lap.driver, lap.time))
+    ranked = sorted(best, key=lambda number: (best[number], number))
+    return [order_row(number, laps.drivers.get(number), pos, year) for pos, number in enumerate(ranked, 1)]
 
 
 def _load_practice(year: int, round_num: int) -> list[dict] | None:
@@ -179,24 +129,13 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
 
     for session_name in ("FP3", "FP2", "FP1"):
         try:
-            with _fastf1_lock:
-                session = fastf1.get_session(year, round_num, session_name)
-                session.load(telemetry=False, laps=True, weather=False)
-
-            laps = session.laps
-            if laps is None or laps.empty:
-                continue
-
-            # Get best lap time per driver
-            best_laps = laps.groupby("Driver")["LapTime"].min().dropna().sort_values()
-            if best_laps.empty:
-                continue
-
-            drivers = [
-                _practice_row(session.results, str(driver_code), pos, year)
-                for pos, driver_code in enumerate(best_laps.index, 1)
-            ]
-
+            drivers = _practice_order(year, round_num, session_name)
+        except _PRACTICE_ERRORS as exc:
+            logger.debug(
+                "predictions.practice_session_failed", year=year, round=round_num, session=session_name, error=str(exc)
+            )
+            continue
+        if drivers:
             _practice_cache[cache_key] = drivers
             logger.info(
                 "predictions.practice_loaded",
@@ -204,44 +143,20 @@ def _load_practice(year: int, round_num: int) -> list[dict] | None:
                 round=round_num,
                 session=session_name,
                 drivers=len(drivers),
+                source=OPENF1_SOURCE,
             )
             return drivers
-
-        except Exception as exc:
-            logger.debug(
-                "predictions.practice_session_failed",
-                year=year,
-                round=round_num,
-                session=session_name,
-                error=str(exc),
-            )
-            continue
 
     logger.warning("predictions.no_practice_data", year=year, round=round_num)
     return None
 
 
-def _practice_row(results: pd.DataFrame, driver_code: str, position: int, year: int) -> dict:
-    """A practice pace rank, named from the session results.
-
-    A Friday rookie can run laps without a results row; f1db still names them
-    by their code, and only a code it does not know is printed as the code.
-    """
-    matches = results[results["Abbreviation"] == driver_code]
-    row = matches.iloc[0] if not matches.empty else pd.Series(dtype=object)
-    return {"driver_code": driver_code, **_fastf1_names(row, driver_code, year), "position": position}
-
-
-def _sprint_session(year: int, round_num: int) -> Any | None:
-    """The weekend's sprint session, or None when the weekend has no sprint.
-
-    FastF1 answers a session identifier the event does not have with
-    ValueError. Anything else (the schedule fetch failing, say) propagates, so
-    an outage is not mistaken for a conventional weekend.
-    """
+def _has_sprint(year: int, round_num: int) -> bool | None:
+    """Whether f1db's calendar gives the weekend a sprint; None when the calendar cannot be read."""
     try:
-        return fastf1.get_session(year, round_num, "S")
-    except ValueError:
+        return any(session.code == "S" for session in weekend_schedule(year, round_num))
+    except F1DB_READ_ERRORS as exc:
+        logger.warning("predictions.sprint_calendar_unavailable", year=year, round=round_num, error=str(exc))
         return None
 
 
@@ -252,34 +167,30 @@ def _load_sprint_result(year: int, round_num: int) -> list[dict]:
     Returns an empty list when the weekend has no sprint, or its sprint has no
     classification yet. Sprint races exist at selected rounds from 2021 onward.
 
-    Laps and race control messages are loaded for the same reason as
-    qualifying: the Ergast mirror publishes the sprint classification hours
-    after it ends, and until then FastF1 derives it from lap timing. Only the
-    absence of a sprint is cached as empty — a sprint that has not run, has not
-    been classified, or failed to load is retried by the next compute.
+    f1db's sprint result is read first, then OpenF1's ``session_result`` for the
+    sprint once it has ended. Only the absence of a sprint (per f1db's calendar)
+    is cached as empty: a sprint that has not run, has not been classified, or
+    whose calendar or feed failed to load is retried by the next compute.
     """
     cache_key = (year, round_num)
     if cache_key in _sprint_cache:
         return _sprint_cache[cache_key]
 
-    try:
-        with _fastf1_lock:
-            session = _sprint_session(year, round_num)
-            if session is None:
-                _sprint_cache[cache_key] = []  # a conventional weekend stays one
-                return []
-            session.load(telemetry=False, laps=True, weather=False, messages=True)
-        drivers = _classified_order(session.results, year)
-    except Exception as exc:
-        logger.warning("predictions.sprint_unavailable", year=year, round=round_num, error=str(exc))
-        return []
+    drivers, source = _f1db_order(year, round_num, TYPE_SPRINT_RACE, KIND_RACE), F1DB_SOURCE
+    if not drivers:
+        has_sprint = _has_sprint(year, round_num)
+        if has_sprint is False:
+            _sprint_cache[cache_key] = []  # a conventional weekend stays one
+            return []
+        if has_sprint:
+            drivers, source = load_openf1_qualifying(year, round_num, "S"), OPENF1_SOURCE
 
     if not drivers:
         logger.info("predictions.sprint_unclassified", year=year, round=round_num)
         return []
 
     _sprint_cache[cache_key] = drivers
-    logger.info("predictions.sprint_loaded", year=year, round=round_num, drivers=len(drivers))
+    logger.info("predictions.sprint_loaded", year=year, round=round_num, drivers=len(drivers), source=source)
     return drivers
 
 

@@ -74,7 +74,7 @@ def _provisional_row(driver: dict) -> dict:
     The penalty fields are absent rather than zero: nothing here has been
     checked against a grid sheet, and a zero would read as "no penalty". A
     driver no source could code keeps their slot with an empty code and
-    ``code_unresolved`` set (:func:`app.data.predictions.sessions._classified_row`).
+    ``code_unresolved`` set (:func:`app.data.predictions.openf1_qualifying.order_row`).
     """
     position = driver.get("position")
     return {

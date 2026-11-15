@@ -15,7 +15,6 @@ from app.data.driver_availability import (
     DriverAdjustment,
     WeekendAvailability,
 )
-from app.data.predictions.sessions import _classified_order
 from app.data.season_seats import SeasonSeat
 from app.data.session_entries import UNAVAILABLE, EntryListDriver, WeekendEntryList
 from app.data.weekend_grid import (
@@ -28,7 +27,7 @@ from app.data.weekend_grid import (
     resolve_grid,
     roster_violation,
 )
-from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying, r20_qualifying_entry_list
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_openf1_qualifying, r20_qualifying_entry_list
 
 CHAMPIONSHIP = [
     {"code": "ANT", "name": "Kimi Antonelli", "team": "Mercedes", "position": 1},
@@ -231,12 +230,12 @@ class TestOnceASessionHasRun:
         assert any("not in the entry list and were excluded" in w for w in grid.warnings)
 
 
-class TestAQualifierFastF1SentWithoutACode:
-    """R20: FastF1 sent Câmara (Q P13, car 51) with no code; the grid dropped him and back-filled him at P23."""
+class TestAQualifierSentWithoutACode:
+    """R20: the feed sent Câmara (Q P13, car 51) with no code; the grid dropped him and back-filled him at P23."""
 
     @staticmethod
     def _r20_grid():
-        timed = _classified_order(r20_fastf1_qualifying(), 2026)
+        timed = r20_openf1_qualifying(camara_coded=False)
         return resolve_grid(timed, [], EntryLists(r20_qualifying_entry_list()), WeekendAvailability())
 
     @staticmethod

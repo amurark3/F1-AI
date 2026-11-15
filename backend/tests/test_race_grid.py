@@ -18,7 +18,6 @@ from app.data import predictions
 from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.f1db_grid import GridSlot
 from app.data.predictions import sessions as prediction_sessions
-from app.data.predictions.sessions import _classified_order
 from app.services import race_grid
 from app.services.race_grid import (
     PROVISIONAL_WARNING,
@@ -27,7 +26,7 @@ from app.services.race_grid import (
     SOURCE_QUALIFYING,
     build_starting_grid,
 )
-from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_openf1_qualifying
 
 
 def slot(code, position, qualifying, **overrides):
@@ -135,9 +134,9 @@ def test_provisional_row_falls_back_to_the_driver_code_for_a_missing_name(source
 
 
 @pytest.mark.integration
-def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_fastf1_sent_without_one(sources, identity_f1db):
+def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_sent_without_a_code(sources, identity_f1db):
     add_camara_to_f1db(identity_f1db)
-    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+    sources["qualifying"] = r20_openf1_qualifying(camara_coded=False)
 
     grid = build_starting_grid(2026, 20)["grid"]
 
@@ -149,7 +148,7 @@ def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_fastf1_sent_
 @pytest.mark.integration
 def test_the_r20_provisional_grid_keeps_and_labels_a_qualifier_no_source_can_code(sources, identity_f1db):
     """Production's f1db on qualifying day (v2026.19.0) did not know Câmara yet."""
-    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+    sources["qualifying"] = r20_openf1_qualifying(camara_coded=False)
 
     grid = build_starting_grid(2026, 20)["grid"]
 

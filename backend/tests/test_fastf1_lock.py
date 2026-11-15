@@ -13,17 +13,14 @@ import threading
 import pytest
 
 from app.data import race_stints
-from app.data.strategy import history as strategy_history, session as strategy_session
 from app.utils.fastf1_lock import FASTF1_LOCK
 
 pytestmark = pytest.mark.unit
 
-# Every module that loads a FastF1 session itself. The prediction and strategy
-# packages hold the lock in the submodules that do the loading.
+# Every module that loads a FastF1 session itself. The strategy package no
+# longer does (D1.10).
 FASTF1_MODULES = [
     race_stints,
-    strategy_history,
-    strategy_session,
 ]
 
 

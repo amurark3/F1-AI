@@ -7,7 +7,7 @@ risks are the ones that would quietly poison everything downstream:
   unfiltered mean describes the pit stop rather than the stint.
 * **Degradation read from too few laps.** A trend taken from two laps is noise
   presented as tyre wear, so short stints must report 0.0.
-* **A failed session load masquerading as an empty race.** It has to return
+* **A failed read masquerading as an empty race.** It has to return
   None so callers degrade rather than reporting a race with no strategy.
 * **A location the history cannot find.** The history matches past seasons on
   f1db's calendar, so the race's location is f1db's ("Montreal"), not FastF1's
@@ -16,11 +16,20 @@ risks are the ones that would quietly poison everything downstream:
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
+from app.data.f1db_calendar import CalendarUnavailableError
+from app.data.openf1.client import OpenF1UnavailableError
 from app.data.strategy import session as module
-from tests.strategy_fixture import FakeSession, laps_frame, stint_rows
+from tests.strategy_fixture import laps_frame, stint_rows
+from tests.strategy_openf1_support import (
+    race_classification_2025,
+    race_session_laps,
+    race_stints_2025,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -36,17 +45,12 @@ def _clear_cache():
     module._race_data_cache.clear()
 
 
-def _stub_session(monkeypatch: pytest.MonkeyPatch, session, *, error: BaseException | None = None) -> list[tuple]:
-    requested: list[tuple] = []
-
-    def _get_session(year: int, round_num: int, identifier: str):
-        requested.append((year, round_num, identifier))
-        if error is not None:
-            raise error
-        return session
-
-    monkeypatch.setattr(module.fastf1, "get_session", _get_session)
-    return requested
+@pytest.fixture(autouse=True)
+def _openf1(monkeypatch, no_fastf1):
+    """The race, as OpenF1 publishes it, with every FastF1 request refused."""
+    monkeypatch.setattr(module, "load_session_laps", lambda year, rnd, code: race_session_laps())
+    monkeypatch.setattr(module, "race_stints", lambda year, rnd: race_stints_2025())
+    monkeypatch.setattr(module, "race_classification", lambda year, rnd: race_classification_2025())
 
 
 # ---------------------------------------------------------------------------
@@ -80,74 +84,106 @@ def test_a_missing_lap_time_renders_as_a_dash():
 
 
 @pytest.mark.unit
-def test_a_loaded_race_exposes_its_laps_results_and_event_identity(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    laps = laps_frame(stint_rows("VER", [("SOFT", 1, 10)]))
-    session = FakeSession(
-        laps=laps,
-        results=pd.DataFrame([{"Abbreviation": "VER", "Position": 1.0}]),
-        event={"EventName": "Canadian Grand Prix", "Location": "Montréal"},
-    )
-    requested = _stub_session(monkeypatch, session)
-
+def test_a_loaded_race_exposes_its_laps_results_and_event_identity():
     data = module._load_race_data(2026, 5)
 
     assert data is not None
     assert data["event_name"] == "Canadian Grand Prix"
     assert data["location"] == "Montreal"
-    assert data["laps"] is laps
-    assert requested == [(2026, 5, "R")]
-    # Telemetry and weather are the expensive loads and are not needed here.
-    assert session.load_kwargs == {"telemetry": False, "laps": True, "weather": False}
+    assert set(data) == {"laps", "results", "event_name", "location"}
+    assert len(data["laps"]) == 71
+    assert data["results"].iloc[0].to_dict() == {"Abbreviation": "NOR", "Position": 1.0}
+    # Three cars have no classified position (retirements) and are not in the order.
+    assert len(data["results"]) == 17
 
 
 @pytest.mark.unit
-def test_an_event_without_a_name_falls_back_to_its_round(monkeypatch: pytest.MonkeyPatch):
-    session = FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={})
-    _stub_session(monkeypatch, session)
+def test_the_laps_frame_tags_each_lap_with_its_stint_from_race_stints():
+    laps = module._load_race_data(2026, 5)["laps"]
 
-    data = module._load_race_data(2026, 7)
+    stints = module._extract_stint_data(laps, "ANT")
 
-    assert data["event_name"] == "Round 7"
-    assert data["location"] == "Montmeló"
-
-
-@pytest.mark.unit
-def test_a_round_off_f1dbs_calendar_has_no_location(monkeypatch: pytest.MonkeyPatch):
-    _stub_session(monkeypatch, FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={}))
-
-    assert module._load_race_data(2026, 30)["location"] == ""
+    assert [(s["stint"], s["compound"], s["laps"], s["stint_length"]) for s in stints] == [
+        (1, "SOFT", "1-21", 21),
+        (2, "MEDIUM", "22-47", 26),
+        (3, "MEDIUM", "48-71", 24),
+    ]
+    # OpenF1 says SOFT's first set was used, the second new; stint 3 was not.
+    assert [s["fresh_tyres"] for s in stints] == [False, True, False]
+    assert [p["lap"] for p in module._extract_pit_stops(laps, None, "ANT")] == [22, 48]
 
 
 @pytest.mark.unit
-def test_a_second_request_for_the_same_race_is_served_from_cache(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session = FakeSession(laps=laps_frame(stint_rows("VER", [("SOFT", 1, 5)])), event={})
-    requested = _stub_session(monkeypatch, session)
+def test_a_lap_outside_every_stint_has_no_stint_and_a_car_off_the_entry_list_is_dropped(monkeypatch):
+    race = race_session_laps()
+    stranger = replace(race.laps[0], driver=99)
+    monkeypatch.setattr(module, "load_session_laps", lambda *a: replace(race, laps=(stranger, *race.laps)))
+    monkeypatch.setattr(module, "race_stints", lambda *a: tuple(s for s in race_stints_2025() if s.stint != 2))
+
+    laps = module._load_race_data(2026, 5)["laps"]
+
+    assert len(laps) == 71
+    ant = laps[laps["Driver"] == "ANT"]
+    assert ant[ant["LapNumber"] == 30.0]["Stint"].isna().all()
+
+
+@pytest.mark.unit
+def test_a_classified_car_without_a_position_is_left_out_of_the_results(monkeypatch):
+    classification = race_classification_2025()
+    unplaced = replace(classification.drivers[0], position=None)
+    monkeypatch.setattr(
+        module,
+        "race_classification",
+        lambda *a: replace(classification, drivers=(unplaced, *classification.drivers[1:])),
+    )
+
+    assert len(module._load_race_data(2026, 5)["results"]) == 16
+
+
+@pytest.mark.unit
+def test_an_event_off_f1dbs_calendar_is_named_by_its_round_and_has_no_location():
+    data = module._load_race_data(2026, 30)
+
+    assert (data["event_name"], data["location"]) == ("Round 30", "")
+
+
+@pytest.mark.unit
+def test_a_second_request_for_the_same_race_is_served_from_cache(monkeypatch):
+    asked = []
+    monkeypatch.setattr(module, "load_session_laps", lambda *a: asked.append(a) or race_session_laps())
 
     first = module._load_race_data(2026, 5)
     second = module._load_race_data(2026, 5)
 
     assert first is second
-    assert len(requested) == 1
+    assert len(asked) == 1
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("laps", [None, pd.DataFrame()])
-def test_a_race_with_no_laps_returns_nothing_and_is_not_cached(monkeypatch: pytest.MonkeyPatch, laps):
-    _stub_session(monkeypatch, FakeSession(laps=laps, event={}))
+@pytest.mark.parametrize("missing", ["session", "laps", "stints"])
+def test_a_race_with_nothing_to_read_returns_nothing_and_is_not_cached(monkeypatch, missing):
+    race = race_session_laps()
+    if missing == "session":
+        monkeypatch.setattr(module, "load_session_laps", lambda *a: None)
+    elif missing == "laps":
+        monkeypatch.setattr(module, "load_session_laps", lambda *a: replace(race, laps=()))
+    else:
+        monkeypatch.setattr(module, "race_stints", lambda *a: ())
 
     assert module._load_race_data(2026, 5) is None
     assert module._race_data_cache == {}
 
 
 @pytest.mark.unit
-def test_a_failing_session_load_degrades_to_nothing(monkeypatch: pytest.MonkeyPatch):
-    _stub_session(monkeypatch, None, error=RuntimeError("FastF1 cache miss"))
+@pytest.mark.parametrize("error", [OpenF1UnavailableError("429"), CalendarUnavailableError("no season")])
+def test_a_source_that_cannot_answer_degrades_to_nothing_and_is_not_cached(monkeypatch, error):
+    def refuse(*args):
+        raise error
+
+    monkeypatch.setattr(module, "load_session_laps", refuse)
 
     assert module._load_race_data(2026, 5) is None
+    assert module._race_data_cache == {}
 
 
 # ---------------------------------------------------------------------------

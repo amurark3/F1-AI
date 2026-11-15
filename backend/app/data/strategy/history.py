@@ -5,21 +5,23 @@ from __future__ import annotations
 from collections import Counter
 from typing import TYPE_CHECKING, Any
 
-import fastf1
 import structlog
 
 from app.data.canonical_names import feed_code
 from app.data.f1db_calendar import season_schedule
-from app.data.strategy.session import (
-    _extract_stint_data,
-    _fastf1_lock,
-    _load_race_data,
-)
+from app.data.openf1.race_control import SAFETY_CAR, VIRTUAL_SAFETY_CAR
+from app.data.openf1.session_laps import load_session_laps
+from app.data.strategy.session import _SOURCE_ERRORS, _extract_stint_data, _load_race_data
 
 if TYPE_CHECKING:
     import pandas as pd
 
 logger = structlog.get_logger()
+
+# OpenF1 publishes laps and race control from the 2023 season on. Earlier races
+# were read from FastF1, which cannot load them on a cold cache (F1's archive
+# needs a login since 15 Oct 2026), so they are left out (plan decision 3).
+OPENF1_FIRST_SEASON = 2023
 
 # (circuit_key, year_range_key) -> historical strategy summaries
 _historical_cache: dict[str, Any] = {}
@@ -109,121 +111,124 @@ def _get_historical_strategies(location: str, current_year: int) -> dict:
         return _historical_cache[cache_key]
 
     editions = []
+    missing_years: list[int] = []
     all_stop_counts: list[int] = []
     all_compound_sequences: list[str] = []
 
-    # Try last 3 years
-    for past_year in range(current_year - 1, max(current_year - 4, 2018), -1):
+    # The last 3 editions, never before OpenF1's first season.
+    for past_year in range(current_year - 1, max(current_year - 4, OPENF1_FIRST_SEASON - 1), -1):
         try:
-            schedule = season_schedule(past_year)
-            round_num = _round_for_location(schedule, location)
-            if round_num is None:
-                continue
-
-            race_data = _load_race_data(past_year, round_num)
-            if race_data is None:
-                continue
-
-            laps = race_data["laps"]
-            stop_counts, sequences = _field_strategies(laps)
-            all_stop_counts.extend(stop_counts)
-            all_compound_sequences.extend(sequences)
-
-            editions.append(
-                {
-                    "year": past_year,
-                    "winner_strategy": _winner_strategy(laps, race_data["results"]),
-                    "avg_stops": round(sum(stop_counts) / len(stop_counts), 1) if stop_counts else 0,
-                }
-            )
-
-        except Exception as exc:
-            logger.debug("strategy.historical_year_error", location=location, year=past_year, error=str(exc))
+            round_num = _round_for_location(season_schedule(past_year), location)
+        except _SOURCE_ERRORS as exc:
+            logger.warning("strategy.historical_year_error", location=location, year=past_year, error=str(exc))
+            missing_years.append(past_year)
             continue
+        if round_num is None:
+            continue
+
+        race_data = _load_race_data(past_year, round_num)
+        if race_data is None:
+            missing_years.append(past_year)
+            continue
+
+        laps = race_data["laps"]
+        stop_counts, sequences = _field_strategies(laps)
+        all_stop_counts.extend(stop_counts)
+        all_compound_sequences.extend(sequences)
+        editions.append(
+            {
+                "year": past_year,
+                "winner_strategy": _winner_strategy(laps, race_data["results"]),
+                "avg_stops": round(sum(stop_counts) / len(stop_counts), 1) if stop_counts else 0,
+            }
+        )
 
     result = {
         "dominant_strategy": _dominant_strategy(all_compound_sequences, all_stop_counts),
         "editions": editions,
+        # An edition that exists but could not be read is missing, not an empty one.
+        "missing_years": missing_years,
     }
 
-    _historical_cache[cache_key] = result
+    # An answer that left an edition unread is retried on the next call.
+    if not missing_years:
+        _historical_cache[cache_key] = result
     return result
 
 
-# FastF1 TrackStatus codes: 1=Track Clear, 2=Yellow, 4=SC, 5=Red, 6=VSC. A lap's
-# status is a concatenation of the codes active during it, hence the substring test.
-_SAFETY_CAR_CODES = ("4", "6")
-
-# Editions sampled before the probability is considered settled.
-_SAFETY_CAR_SAMPLE_LIMIT = 8
+# Race control windows that count as a neutralisation by safety car.
+_SAFETY_CAR_KINDS = frozenset({SAFETY_CAR, VIRTUAL_SAFETY_CAR})
 
 # Probability reported when no edition could be assessed either way.
 _SAFETY_CAR_UNKNOWN_PROBABILITY = 50
 
 
-def _had_safety_car(race_laps: pd.DataFrame) -> bool:
-    """Whether any lap ran under a safety car or virtual safety car."""
-    statuses = race_laps["TrackStatus"].dropna().astype(str)
-    return any(code in status for status in statuses for code in _SAFETY_CAR_CODES)
+def _race_had_safety_car(year: int, round_num: int) -> bool | None:
+    """Whether race control deployed a safety car or VSC; None when the race cannot be read."""
+    try:
+        loaded = load_session_laps(year, round_num, "R")
+    except _SOURCE_ERRORS as exc:
+        logger.warning("strategy.safety_car_year_failed", year=year, error=str(exc))
+        return None
+    if loaded is None or not loaded.laps:
+        return None
+    return any(window.kind in _SAFETY_CAR_KINDS for window in loaded.windows)
+
+
+def _safety_car_context(location: str, with_sc: list[int], without_sc: list[int], missing: list[int]) -> str:
+    """The figure in words, always with how many races it is drawn from."""
+    checked = len(with_sc) + len(without_sc)
+    if checked == 0:
+        context = (
+            f"Insufficient data for {location} safety car history (no race since {OPENF1_FIRST_SEASON} could be read)"
+        )
+    else:
+        years = ", ".join(str(year) for year in sorted(with_sc + without_sc))
+        context = (
+            f"{location} had a safety car or virtual safety car in {len(with_sc)} of {checked} "
+            f"race{'s' if checked != 1 else ''} since {OPENF1_FIRST_SEASON} ({years})"
+        )
+    if missing:
+        context += f"; {', '.join(str(year) for year in sorted(missing))} could not be read"
+    return context
 
 
 def _calculate_safety_car_probability(location: str, current_year: int) -> tuple[int, str]:
-    """Calculate safety car probability from circuit history.
+    """Safety car probability from this circuit's races since 2023.
 
-    Checks the last 5 years (or as many as available) at this circuit.
-    Returns (probability_pct, context_string).
+    Returns (probability_pct, context_string); the context states the sample size.
     """
-    cache_key = location
-    if cache_key in _safety_car_cache:
-        cached = _safety_car_cache[cache_key]
+    if location in _safety_car_cache:
+        cached = _safety_car_cache[location]
         return cached["probability"], cached["context"]
 
-    races_checked = 0
-    races_with_sc = 0
-    years_range = range(current_year - 1, max(current_year - 9, 2018), -1)
+    with_sc: list[int] = []
+    without_sc: list[int] = []
+    missing: list[int] = []
 
-    for past_year in years_range:
+    for past_year in range(current_year - 1, OPENF1_FIRST_SEASON - 1, -1):
         try:
             schedule = season_schedule(past_year)
-            matching = schedule[schedule["Location"] == location]
-
-            if matching.empty:
-                continue
-
-            round_num = int(matching.iloc[0]["RoundNumber"])
-
-            with _fastf1_lock:
-                session = fastf1.get_session(past_year, round_num, "R")
-                session.load(telemetry=False, laps=True, weather=False)
-
-            race_laps = session.laps
-            if race_laps is None or race_laps.empty:
-                continue
-
-            if "TrackStatus" not in race_laps.columns:
-                # Without track status there is no way to tell whether a safety
-                # car was deployed. Counting the race would put it in the
-                # denominator and never the numerator, biasing the probability
-                # down, so it is skipped rather than recorded as "no safety car".
-                continue
-
-            races_checked += 1
-            if _had_safety_car(race_laps):
-                races_with_sc += 1
-
-            if races_checked >= _SAFETY_CAR_SAMPLE_LIMIT:
-                break
-
-        except Exception as exc:
-            logger.debug("strategy.safety_car_year_failed", error=str(exc))
+        except _SOURCE_ERRORS as exc:
+            logger.warning("strategy.safety_car_year_failed", year=past_year, error=str(exc))
+            missing.append(past_year)
             continue
 
-    if races_checked == 0:
-        probability = _SAFETY_CAR_UNKNOWN_PROBABILITY
-        context = f"Insufficient data for {location} safety car history"
-    else:
-        probability = round((races_with_sc / races_checked) * 100)
-        context = f"{location} has had safety cars in {races_with_sc} of last {races_checked} races"
+        matching = schedule[schedule["Location"] == location]
+        if matching.empty:
+            continue
 
-    _safety_car_cache[cache_key] = {"probability": probability, "context": context}
+        had = _race_had_safety_car(past_year, int(matching.iloc[0]["RoundNumber"]))
+        if had is None:
+            missing.append(past_year)
+        else:
+            (with_sc if had else without_sc).append(past_year)
+
+    checked = len(with_sc) + len(without_sc)
+    probability = round(len(with_sc) / checked * 100) if checked else _SAFETY_CAR_UNKNOWN_PROBABILITY
+    context = _safety_car_context(location, with_sc, without_sc, missing)
+
+    # A year that could not be read is retried on the next call.
+    if not missing:
+        _safety_car_cache[location] = {"probability": probability, "context": context}
     return probability, context

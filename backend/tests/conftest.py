@@ -36,6 +36,7 @@ from tests.identity_support import identity_f1db  # noqa: F401
 from tests.profiles_support import profiles_f1db  # noqa: F401
 from tests.qualifying_tools_support import qualifying_f1db  # noqa: F401
 from tests.race_results_support import race_results_f1db  # noqa: F401
+from tests.strategy_openf1_support import no_fastf1  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Environment scrubbing — must run before `app.*` is imported anywhere.

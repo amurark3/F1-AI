@@ -13,10 +13,17 @@ field-wide view of the race, or one driver's stints. What the tests guard:
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
-from app.data.strategy import pit as module
-from tests.strategy_fixture import laps_frame, results_frame, stint_rows
+from app.data.strategy import history, pit as module, session
+from tests.strategy_fixture import laps_frame, results_frame, schedule_frame, stint_rows
+from tests.strategy_openf1_support import (
+    race_classification_2025,
+    race_session_laps,
+    race_stints_2025,
+)
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -254,3 +261,33 @@ def test_the_historical_sections_are_attached_to_a_driver_view_too(race):
 
     assert result["historical_strategies"] == race["historical"]
     assert result["safety_car_probability"] == 60
+
+
+# ---------------------------------------------------------------------------
+# A cold call, end to end, on the real 2025 São Paulo rows
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_a_cold_call_reads_openf1_only_and_states_the_safety_car_sample(monkeypatch, no_fastf1):
+    session._race_data_cache.clear()
+    history._historical_cache.clear()
+    history._safety_car_cache.clear()
+    race = race_session_laps()
+    monkeypatch.setattr(session, "load_session_laps", lambda *a: race)
+    monkeypatch.setattr(session, "race_stints", lambda *a: race_stints_2025())
+    monkeypatch.setattr(session, "race_classification", lambda *a: race_classification_2025())
+    monkeypatch.setattr(
+        history, "load_session_laps", lambda year, *a: replace(race, windows=()) if year == 2024 else race
+    )
+    monkeypatch.setattr(history, "season_schedule", lambda year: schedule_frame([(21, "Montreal")]))
+    monkeypatch.setattr(session, "season_schedule", lambda year: schedule_frame([(5, "Montreal"), (21, "Montreal")]))
+
+    result = module.analyze_pit_strategy(2026, 5, "ANT")
+
+    assert [stint["compound"] for stint in result["stints"]] == ["SOFT", "MEDIUM", "MEDIUM"]
+    assert result["safety_car_probability"] == 67
+    assert result["safety_car_context"] == (
+        "Montreal had a safety car or virtual safety car in 2 of 3 races since 2023 (2023, 2024, 2025)"
+    )
+    assert result["historical_strategies"]["missing_years"] == []

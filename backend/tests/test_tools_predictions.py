@@ -378,3 +378,25 @@ def test_a_strategy_crash_becomes_a_message_the_model_can_relay(monkeypatch):
     _install_strategy(monkeypatch, RuntimeError("fastf1 cache corrupt"))
 
     assert get_pit_strategy.invoke({"year": 2026, "round_num": 3}) == "Strategy analysis failed: fastf1 cache corrupt"
+
+
+@pytest.mark.unit
+def test_editions_that_could_not_be_read_are_named_in_the_history():
+    lines = _historical_lines(
+        {
+            "dominant_strategy": "1-stop",
+            "editions": [{"year": 2025, "winner_strategy": "1-stop", "avg_stops": 1.0}],
+            "missing_years": [2024],
+        }
+    )
+
+    assert "  - Not read (data unavailable): 2024" in lines
+
+
+@pytest.mark.unit
+def test_a_history_with_only_unread_editions_still_says_so():
+    lines = _historical_lines(
+        {"dominant_strategy": "Insufficient historical data", "editions": [], "missing_years": [2025]}
+    )
+
+    assert lines[-2] == "  - Not read (data unavailable): 2025"

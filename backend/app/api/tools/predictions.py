@@ -173,7 +173,8 @@ def _distribution_lines(distribution: dict[str, int]) -> list[str]:
 
 def _historical_lines(historical: dict) -> list[str]:
     """Previous editions of the same race, when any could be loaded."""
-    if not historical or not historical.get("editions"):
+    missing = historical.get("missing_years", []) if historical else []
+    if not historical or not (historical.get("editions") or missing):
         return []
 
     lines = [
@@ -184,6 +185,8 @@ def _historical_lines(historical: dict) -> list[str]:
         f"  - {edition['year']}: Winner used {edition['winner_strategy']} (avg {edition['avg_stops']} stops)"
         for edition in historical["editions"]
     )
+    if missing:
+        lines.append(f"  - Not read (data unavailable): {', '.join(str(year) for year in missing)}")
     lines.append("")
     return lines
 

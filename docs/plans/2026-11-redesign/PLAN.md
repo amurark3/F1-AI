@@ -877,7 +877,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
     - **Each lap gets a `segment`** from its `date_start`: a lap that starts before the chequered flag belongs to that segment even if it ends after.
     - **Cross-check** against OpenF1 `session_result.duration` ([Q1, Q2, Q3]): each driver's best in segment n must be a lap inside window n. On a mismatch, log a warning and mark the grouping unconfirmed.
     - **Never infer segments from lap gaps.** With no phases in race control, laps stay ungrouped, with a notice "Q1/Q2/Q3 not published for this session".
-    - **The segment each driver reached** comes from the classified position and the elimination cut for the entry count (22 cars: 6 out in Q1, 6 out in Q2, 10 in Q3), not from which times exist. In Mexico City, Hülkenberg (P10) reached Q3 with no Q3 time and Albon (P16) reached Q2 with no Q2 time; they read "no time set in Q3" / "no time set in Q2".
+    - **The segment each driver reached** comes from the on-road knock-outs: the classification with any disqualified car put back where it qualified on the road, and the elimination cut for the entry count (22 cars: 6 out in Q1, 6 out in Q2, 10 in Q3). A disqualification moves cars up the classification, never into a part they didn't run (user, 2026-11-14; corrected from P4.3a's finding). In Mexico City Lawson ran Q3 (9th in Q2) and was then disqualified, so Hülkenberg (11th in Q2 on the road) is out in Q2 and reads "out in Q2 · P10 after Lawson's DSQ"; Albon is out in Q1 and reads "out in Q1 · P16 after Lawson's DSQ". "No time set in Qn" is only for a car that ran in that part and set no time (none in Mexico).
     - **Disqualifications:** OpenF1 doesn't flag Lawson's qualifying disqualification (FIA doc 57; `dsq` is false). The label comes from f1db/Jolpica qualifying, and from the FIA classification after D2.2. A disqualified driver's laps stay viewable, labelled.
     - **Payloads:**
       - `timed_laps` carries `segment` per lap.
@@ -894,7 +894,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
     - Fixture from the captured Mexico City qualifying (OpenF1 `race_control`, `laps`, `session_result` for session 11400):
       - the three windows match the times above exactly;
       - every driver's per-segment best matches `session_result.duration`;
-      - the groups are 10 / 6 / 6, with Hülkenberg in the Q3 group showing "no time set in Q3" and Albon in the Q2 group;
+      - the groups are Q3 9 / Disqualified 1 (Lawson, who ran Q3) / out in Q2 6 / out in Q1 6, with Hülkenberg in the out-in-Q2 group reading "P10 after Lawson's DSQ" and Albon in the out-in-Q1 group reading "P16 after Lawson's DSQ";
       - Lawson is labelled disqualified.
     - A sprint qualifying fixture groups SQ1–SQ3.
     - A session with no phases stays ungrouped, with the notice.

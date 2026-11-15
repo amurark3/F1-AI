@@ -1,0 +1,11 @@
+{
+ "captured_at": "2026-11-14T11:02:01Z (2026 meetings), 2026-11-14T19:14:16Z (2023 meetings and Baku sessions)",
+ "captured_for": "D1.3 the calendar moves from FastF1's schedule to f1db; OpenF1 meetings are matched by date",
+ "files": {
+  "calendar.json": "f1db v2026.20.0 SQLite release; its own 'source' says how it was cut",
+  "openf1_meetings_2026.json": "GET https://api.openf1.org/v1/meetings?year=2026, every meeting with only meeting_key, meeting_name, location, circuit_key, date_start, date_end and is_cancelled kept; values unedited",
+  "openf1_meetings_2023.json": "GET https://api.openf1.org/v1/meetings?year=2023, trimmed the same way",
+  "openf1_sessions_2023_baku.json": "GET https://api.openf1.org/v1/sessions?meeting_key=1207 (Azerbaijan 2023, a sprint weekend), with only the fields the R19/R20 session captures carry; values unedited"
+ },
+ "notes": "OpenF1 lists 27 meetings for 2026: two pre-season tests, the 23 rounds f1db has, and the April Bahrain (1282) and Saudi Arabian (1283) rounds, both is_cancelled, which f1db does not list. The 2026 Bahrain Grand Prix ran at Sepang: f1db files it at circuit 'sepang' (place 'Sepang', Malaysia), OpenF1 at location 'Kuala Lumpur' (1308). 2023 lists Imola (1209) as cancelled; f1db has no 2023 Imola round. f1db has no 2023 session times, OpenF1 does. The R19 and R20 session lists are ../mexico_2026_r19/openf1_sessions.json and ../sao_paulo_2026_r20/openf1_sessions.json."
+}

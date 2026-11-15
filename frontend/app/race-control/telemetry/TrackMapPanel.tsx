@@ -4,17 +4,19 @@ import { useMemo } from "react";
 
 import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
+import { PanelHeading } from "@/app/ui/PanelHeading";
 
-import { Panel, rcFont } from "../components/RaceControlPrimitives";
+import { Panel } from "../components/RaceControlPrimitives";
 
 import { AnalysisGate, AnalysisWarnings, ModeledNote } from "./AnalysisNotice";
-import { DriverPicker, LapPicker } from "./AnalysisPickers";
+import { resolveSegment, titleSegment } from "./qualifyingSegments";
 import { formatLapTime } from "./telemetryModel";
 import { GradientLegend, TrackMap, type MapMarker } from "./TrackMap";
 import { SPEED_RAMP, speedScale } from "./trackMapGeometry";
+import { defaultDriver } from "./trackMapSelection";
 import { useLapList, useTrackMap } from "./useAnalysisData";
 
-import type { LapListDriver, TrackMapResponse } from "./telemetryModel";
+import type { TrackMapResponse } from "./telemetryModel";
 
 export interface TrackMapPanelProps {
   year: number;
@@ -22,12 +24,7 @@ export interface TrackMapPanelProps {
   session: string | null;
   driver: string | null;
   lap: number | null;
-  onPick: (driver: string | null, lap: number | null) => void;
-}
-
-/** The quickest driver with a valid lap: the natural first map to show. */
-export function defaultDriver(drivers: LapListDriver[]): string | null {
-  return drivers.find((driver) => driver.best !== null)?.code ?? null;
+  segment: number | null;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -123,6 +120,7 @@ function SpeedMap({ data }: { data: TrackMapResponse }) {
       <TrackMap
         x={points.x}
         y={points.y}
+        key={`${data.driver?.code}-${data.lap?.number}`}
         colourAt={(index) => scale.colour((points.speed[index] + points.speed[index + 1]) / 2)}
         corners={data.corners}
         markers={mapMarkers(data)}
@@ -142,52 +140,59 @@ function SpeedMap({ data }: { data: TrackMapResponse }) {
   );
 }
 
-export function TrackMapPanel({ year, round, session, driver, lap, onPick }: TrackMapPanelProps) {
+/** "Q3 · fastest valid lap", or "Q3 · lap 12" for a chosen lap; the lap alone outside qualifying. */
+function lapPhrase(part: string | null, lap: { number: number }, chosen: number | null): string {
+  const what = chosen === null && part !== null ? "fastest valid lap" : `lap ${lap.number}`;
+  return part === null ? what : `${part} · ${what}`;
+}
+
+export function TrackMapPanel({ year, round, session, driver, lap, segment }: TrackMapPanelProps) {
   const laps = useLapList(year, round, session);
   const drivers = laps.data?.drivers ?? [];
-  const chosen = driver ?? defaultDriver(drivers);
-  const map = useTrackMap(year, round, { session, driver: chosen, lap });
-  const chosenDriver = drivers.find((entry) => entry.code === chosen);
+  const choice = resolveSegment(laps.data, [driver], segment);
+  const code = driver ?? defaultDriver(drivers, choice?.segment ?? null);
+  // Wait for the lap list: whether the session has qualifying parts decides what to ask for.
+  const map = useTrackMap(year, round, {
+    session: laps.data ? session : null,
+    driver: code,
+    lap,
+    segment: choice?.segment ?? null,
+  });
+  const data = map.data;
+  const part = titleSegment(drivers, code, lap, choice);
 
   return (
     <div className="space-y-4">
       <AnalysisGate state={laps} loadingTitle="Loading the session's laps" />
-      {drivers.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <DriverPicker
-            label="Driver"
-            drivers={drivers}
-            value={chosen}
-            onChange={(code) => {
-              onPick(code, null);
-            }}
-          />
-          <LapPicker
-            driver={chosenDriver}
-            value={lap}
-            onChange={(number) => {
-              onPick(chosen, number);
-            }}
-          />
-        </div>
-      )}
       <AnalysisGate state={map} loadingTitle="Loading the lap's telemetry" />
-      {map.data?.available && (
+      {data?.available && (
         <Panel className="space-y-4 p-4">
-          <p className="text-sm font-semibold text-white" style={rcFont}>
-            {map.data.driver && (
-              <>
-                <DriverName name={map.data.driver.name} code={map.data.driver.code} year={year} /> ·{" "}
-                <TeamName name={map.data.driver.team} year={year} />
-              </>
-            )}
-          </p>
-          <MapStats data={map.data} />
-          <SpeedMap data={map.data} />
-          <AnalysisWarnings warnings={map.data.warnings} />
-          <BrakingTable data={map.data} />
+          <PanelHeading
+            as="h2"
+            eyebrow="Speed map"
+            title={
+              data.driver && data.lap ? (
+                <>
+                  <DriverName name={data.driver.name} code={data.driver.code} year={year} /> ·{" "}
+                  {lapPhrase(part, data.lap, lap)} · {formatLapTime(data.lap.time)}
+                </>
+              ) : undefined
+            }
+            sub={
+              data.driver && (
+                <>
+                  <TeamName name={data.driver.team} year={year} />. Slow is deep blue, fast is pale.
+                </>
+              )
+            }
+            className="!mb-0"
+          />
+          <MapStats data={data} />
+          <SpeedMap data={data} />
+          <AnalysisWarnings warnings={data.warnings} />
+          <BrakingTable data={data} />
           <ModeledNote
-            modeled={map.data.modeled}
+            modeled={data.modeled}
             extra="A braking zone is where the brake channel (on/off, ~4 samples a second) was on, so its start is known to within one sample."
           />
         </Panel>

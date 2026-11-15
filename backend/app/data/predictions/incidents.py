@@ -21,7 +21,8 @@ _incident_cache: dict[tuple[str, int, int], dict[str, Any]] = {}
 
 def _classify_status(status: str) -> dict[str, bool]:
     text = status.lower()
-    classified = bool(text) and "finished" not in text and "lap" not in text
+    # "NC" (not classified) is its own label, not a retirement; reasons may hold any word.
+    classified = bool(text) and "finished" not in text and "lap" not in text and text != "nc"
     crash_terms = ("accident", "collision", "crash", "spun", "damage")
     mechanical_terms = (
         "engine",

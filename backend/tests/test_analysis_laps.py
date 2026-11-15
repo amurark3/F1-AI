@@ -34,7 +34,8 @@ from app.services.analysis.lap_selection import LapChoice, choose_lap, fastest_v
 from app.services.analysis.loading import LoadedLap, require_lap, require_session
 from app.services.analysis.track_map import DELETED_LAP_WARNING, build_track_map, corner_markers
 from app.services.analysis.weekend import build_lap_list, build_weekend
-from tests.openf1_support import NOR, VER, FakeOpenF1, make_lap, make_session_laps
+from tests.calendar_support import FIXTURES
+from tests.openf1_support import NOR, VER, FakeOpenF1, make_lap, make_session_laps, serve
 
 pytestmark = pytest.mark.unit
 
@@ -79,9 +80,9 @@ def test_a_driver_without_a_valid_lap_has_no_default():
 
 def test_the_lap_picker_lists_timed_laps_with_the_fastest_marked():
     assert timed_laps(SESSION, 1) == [
-        {"number": 2, "time": 94.379, "deleted": True, "is_fastest": False},
-        {"number": 3, "time": 130.0, "deleted": False, "is_fastest": False},
-        {"number": 4, "time": 94.539, "deleted": False, "is_fastest": True},
+        {"number": 2, "time": 94.379, "deleted": True, "is_fastest": False, "segment": None},
+        {"number": 3, "time": 130.0, "deleted": False, "is_fastest": False, "segment": None},
+        {"number": 4, "time": 94.539, "deleted": False, "is_fastest": True, "segment": None},
     ]
     only_deleted = make_session_laps((make_lap(1, 2, start=0, time=90.0, deleted=True),))
     assert timed_laps(only_deleted, 1)[0]["is_fastest"] is False
@@ -166,11 +167,37 @@ def test_the_weekend_lists_sessions_and_which_have_started(monkeypatch):
     assert weekend["sessions"][2]["date_start"] is None
 
 
-def test_a_round_off_the_calendar_has_no_sessions(monkeypatch):
-    monkeypatch.setattr(weekend_module, "weekend_schedule", lambda *_args: ())
+def test_a_round_off_the_calendar_has_no_sessions(calendar_f1db, monkeypatch):
+    serve(monkeypatch, weekend_module, {})
 
     with pytest.raises(AnalysisUnavailableError):
         build_weekend(2026, 99)
+
+
+def test_a_weekend_f1db_cannot_time_lists_openf1s_sessions(calendar_f1db, monkeypatch):
+    """f1db sets no session times before 2024; OpenF1, which the Lab reads from 2023, has them."""
+    baku = FIXTURES / "f1db_calendar"
+    fake = serve(
+        monkeypatch,
+        weekend_module,
+        {
+            "meetings": json.loads((baku / "openf1_meetings_2023.json").read_text()),
+            "sessions": json.loads((baku / "openf1_sessions_2023_baku.json").read_text()),
+        },
+    )
+
+    weekend = build_weekend(2023, 4, now=datetime(2026, 11, 14, tzinfo=UTC))
+
+    assert weekend["source"] == "openf1"
+    assert [(s["code"], s["started"]) for s in weekend["sessions"]] == [
+        ("FP1", True),
+        ("Q", True),
+        ("SQ", True),
+        ("S", True),
+        ("R", True),
+    ]
+    assert weekend["sessions"][4]["date_start"] == "2023-04-30T11:00:00+00:00"
+    assert fake.requests[1].url.params["meeting_key"] == "1207"
 
 
 def test_drivers_are_listed_quickest_first_with_lapless_ones_last(monkeypatch):

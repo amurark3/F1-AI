@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import httpx
-import pandas as pd
 import pytest
 
 from app.data import race_classification as module
+from app.data.f1db_calendar import CalendarUnavailableError
+from app.data.jolpica import JolpicaUnavailableError
 from app.data.race_classification import (
     ClassifiedDriver,
     RaceClassification,
@@ -65,7 +65,7 @@ def r19_codes() -> dict[int, str]:
 
 
 def jolpica_records() -> list[dict]:
-    """The Jolpica rows as FastF1's Ergast client flattens them."""
+    """The Jolpica rows as :mod:`app.data.jolpica` flattens them."""
     return [
         {
             "number": int(row["number"]),
@@ -234,16 +234,14 @@ def test_jolpica_rows_without_a_code_are_skipped():
 # --- where the classification comes from -------------------------------------------
 
 
-class FakeErgast:
-    def __init__(self, state: dict) -> None:
-        self.state = state
+def fake_jolpica_results(state: dict):
+    def read(_year: int, _round: int) -> list[dict]:
+        state["jolpica_calls"] += 1
+        if state["jolpica_error"] is not None:
+            raise state["jolpica_error"]
+        return state["jolpica"]
 
-    def get_race_results(self, season: int, round: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        self.state["jolpica_calls"] += 1
-        if self.state["jolpica_error"] is not None:
-            raise self.state["jolpica_error"]
-        records = self.state["jolpica"]
-        return SimpleNamespace(content=[pd.DataFrame(records)] if records else [])
+    return read
 
 
 @pytest.fixture
@@ -261,7 +259,7 @@ def sources(monkeypatch):
         "now": 1000.0,
     }
     monkeypatch.setattr(module, "find_session", lambda client, year, rnd, code: state["session"])
-    monkeypatch.setattr(module, "Ergast", lambda: FakeErgast(state))
+    monkeypatch.setattr(module, "jolpica_results", fake_jolpica_results(state))
     monkeypatch.setattr(module, "_cache", TtlCache(clock=lambda: state["now"]))
     state["openf1"] = serve(monkeypatch, module, state["routes"])
     return state
@@ -296,6 +294,15 @@ def test_a_race_openf1_cannot_find_falls_back(sources):
     assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
 
 
+def test_a_season_f1db_does_not_hold_falls_back(sources, monkeypatch):
+    def not_in_f1db(*_args):
+        raise CalendarUnavailableError("f1db has no calendar for 2026 yet")
+
+    monkeypatch.setattr(module, "find_session", not_in_f1db)
+
+    assert race_classification(2026, 19).source == module.JOLPICA_SOURCE
+
+
 def test_a_race_still_running_is_not_read_from_openf1(sources):
     # A classification read mid-race would be a running order, not a result.
     sources["session"] = make_session("R", ended=False)
@@ -314,18 +321,11 @@ def test_a_result_without_an_entry_list_is_not_trusted(sources):
 
 def test_neither_source_answering_is_no_classification(sources):
     sources["routes"].pop("session_result")
-    sources["jolpica_error"] = OSError("jolpica unreachable")
+    sources["jolpica_error"] = JolpicaUnavailableError("jolpica unreachable")
 
     result = race_classification(2026, 19)
 
     assert result == RaceClassification(source=None, drivers=())
-
-
-def test_an_ergast_error_is_no_classification(sources):
-    sources["routes"].pop("session_result")
-    sources["jolpica_error"] = module.ErgastError("bad response")
-
-    assert race_classification(2026, 19) == module.NO_CLASSIFICATION
 
 
 def test_an_answer_is_served_from_cache_within_its_lifetime(sources):
@@ -357,3 +357,14 @@ def test_no_answer_is_retried_after_a_short_window(sources):
     sources["now"] += module.EMPTY_RETRY_SECONDS + 1
     sources["session"] = make_session("R")
     assert race_classification(2026, 19).source == module.OPENF1_SOURCE
+
+
+def test_f1db_retirement_reasons_ride_along_when_f1db_has_the_race(sources, race_results_f1db):
+    drivers = by_code(race_classification(2026, 19).drivers)
+
+    assert (drivers["LIN"].reason, drivers["BOT"].reason, drivers["STR"].reason) == ("Collision", "Accident", "Engine")
+    assert drivers["VER"].reason is None
+
+
+def test_without_f1db_the_classification_has_no_reasons(sources):
+    assert {driver.reason for driver in race_classification(2026, 19).drivers} == {None}

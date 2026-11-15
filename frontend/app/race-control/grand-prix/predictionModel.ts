@@ -17,6 +17,9 @@ export interface DriverPrediction {
   confidence_high: number;
   factors: string[];
   model_attribution?: ModelAttribution[] | null;
+  /** The seat is held by a stand-in until the entry list publishes. */
+  seat_tbc?: boolean;
+  seat_tbc_reason?: string | null;
 }
 
 export interface RaceEvent {
@@ -56,9 +59,10 @@ export interface PredictionDriverResult {
   driver_code: string;
   predicted_position: number | null;
   actual_position: number | null;
-  /** actual - predicted: positive means the driver finished lower than predicted. */
+  /** actual - predicted: positive means the driver finished lower than predicted. Null for a retirement. */
   position_delta: number | null;
   exact: boolean;
+  /** `Finished`, `DNF`, `DNS`, `DSQ` or `NC`. A car that is not `Finished` carries no place and no delta. */
   status?: string | null;
   dnf: boolean;
   crash: boolean;
@@ -77,7 +81,11 @@ export interface PredictionReview {
   top10_possible?: number;
   exact_position_hits?: number;
   drivers_compared?: number;
+  /** Over classified cars only: a retirement is scored as a retirement call. */
   avg_position_error?: number;
+  /** Whether the result the review scored is still provisional; null when the entry predates provenance. */
+  actual_provisional?: boolean | null;
+  actual_source?: string | null;
   dnf_correct?: number;
   dnf_predicted?: number;
   dnf_actual?: number;

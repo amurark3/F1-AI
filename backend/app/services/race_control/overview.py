@@ -115,6 +115,13 @@ def build_overview_circuit(year: int) -> dict:
     return {"year": year, **build_circuit_segment(year, _selected_race(year))}
 
 
+def build_round_circuit(year: int, round_num: int) -> dict:
+    """A given round's circuit; a round the season doesn't have reports every part unavailable."""
+
+    race = next((event for event in season_events(year) if event["round"] == round_num), None)
+    return {"year": year, "round": round_num, **build_circuit_segment(year, race)}
+
+
 def build_overview_predictions(year: int) -> dict:
     """Projected podium from the stored race model snapshot."""
 

@@ -88,7 +88,7 @@ def _upcoming_row(**fields) -> dict:
 
 def _stub_schedule(monkeypatch: pytest.MonkeyPatch, rows: list[dict]) -> None:
     frame = pd.DataFrame(rows)
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", lambda **_kwargs: frame)
+    monkeypatch.setattr(module, "season_schedule", lambda _year: frame)
 
 
 def _stub_standings(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:

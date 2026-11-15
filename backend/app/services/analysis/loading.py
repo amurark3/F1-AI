@@ -42,7 +42,7 @@ def require_lap(session: SessionLaps, pick: DriverLap) -> LoadedLap:
     driver = session.driver_by_code(pick.code)
     if driver is None:
         raise AnalysisUnavailableError(REASON_NO_DRIVER)
-    choice = choose_lap(session, driver.number, pick.lap)
+    choice = choose_lap(session, driver.number, pick.lap, pick.segment)
     if choice is None:
         raise AnalysisUnavailableError(REASON_NO_LAP)
     trace = load_lap_trace(session, choice.lap)

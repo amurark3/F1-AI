@@ -5,11 +5,13 @@ import { AlertTriangle, LockKeyhole } from "lucide-react";
 import { InlineNotice, Panel, rcFont, SectionLoader } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
-import { ModelIO, PodiumPanel, RiskTable, StandbyPanel, FullGridTable } from "./GrandPrixPanels";
 import { PREDICTION_VIEWS, type PredictionView } from "./hubNavigation";
+import { PodiumPanel } from "./OrderPanels";
+import { OrderTable } from "./OrderTable";
 import { phaseDescription, phaseTabLabel } from "./predictionHelpers";
 import { PredictionBar } from "./PredictionPhaseTabs";
 import { ResultsReview } from "./PredictionResultsReview";
+import { ModelIO, RiskTable, StandbyPanel } from "./RiskModelPanels";
 
 import type { GrandPrixBoardProps } from "./GrandPrixBoard";
 import type { StartingGridResponse } from "./gridModel";
@@ -131,6 +133,9 @@ interface PredictionViewContentProps {
   /** The round's starting grid, which the order's "vs grid" column reads. */
   grid?: StartingGridResponse;
   gridLoading: boolean;
+  phase: PredictionPhase;
+  year: number;
+  round: number | null;
 }
 
 function PredictionViewContent({
@@ -142,16 +147,20 @@ function PredictionViewContent({
   data,
   grid,
   gridLoading,
+  phase,
+  year,
+  round,
 }: PredictionViewContentProps) {
   return (
     <>
       {view === "order" && (
-        <FullGridTable
+        <OrderTable
           predictions={predictions}
-          riskPredictions={riskPredictions}
           driverLookup={driverLookup}
+          phase={phase}
           grid={grid}
           gridLoading={gridLoading}
+          data={data}
         />
       )}
       {view === "podium" && <PodiumPanel podium={podium} driverLookup={driverLookup} data={data} />}
@@ -163,6 +172,8 @@ function PredictionViewContent({
           accuracy={data?.accuracy}
           predictions={predictions}
           driverLookup={driverLookup}
+          year={year}
+          round={round}
         />
       )}
     </>
@@ -238,6 +249,9 @@ export function PredictionSection(props: GrandPrixBoardProps & { driverLookup: D
               data={props.data}
               grid={props.grid}
               gridLoading={props.gridLoading}
+              phase={props.activePhase}
+              year={props.year}
+              round={props.selectedRound}
             />
           </TabPanel>
         </>

@@ -37,7 +37,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import fastf1
 import pandas as pd
 import structlog
 
@@ -45,6 +44,7 @@ from app.data.circuit_reference_cache import (
     CircuitReferenceCacheUnavailableError,
     circuit_reference_cache,
 )
+from app.data.f1db_calendar import season_schedule
 from app.data.strategy.edition_plan import Edition
 from app.data.strategy.edition_sources import edition_reference
 from app.utils.ttl_cache import TtlCache
@@ -168,10 +168,10 @@ def _search_circuit_editions(city: str, current_year: int) -> _Search:
 
     for year in range(current_year, OPENF1_FIRST_SEASON - 1, -1):
         try:
-            schedule = fastf1.get_event_schedule(year, include_testing=False)
+            schedule = season_schedule(year)
         except Exception as exc:
-            # FastF1's schedule backend fails in more ways than it documents; a
-            # season it cannot list may still hold this circuit, so it is unread.
+            # A season f1db's calendar cannot list (CalendarUnavailableError) may
+            # still hold this circuit, so it is unread.
             logger.warning("strategy.reference_schedule_error", year=year, error=str(exc))
             unread.append(year)
             continue

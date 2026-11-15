@@ -1,0 +1,1757 @@
+{
+  "year": 2026,
+  "round": 19,
+  "available": true,
+  "has_stints": true,
+  "has_stops": true,
+  "classification_source": "openf1-session-result",
+  "neutralisations": [
+    {
+      "kind": "vsc",
+      "start_lap": 7,
+      "end_lap": 8
+    },
+    {
+      "kind": "sc",
+      "start_lap": 44,
+      "end_lap": 44
+    },
+    {
+      "kind": "red",
+      "start_lap": 45,
+      "end_lap": 46
+    },
+    {
+      "kind": "sc",
+      "start_lap": 59,
+      "end_lap": 62
+    }
+  ],
+  "drivers": [
+    {
+      "driver_code": "VER",
+      "team": "Red Bull Racing",
+      "finish_position": 1,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "VER",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 27,
+          "laps": 27,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "VER",
+            "stop": 1,
+            "lap": 27,
+            "time": "22.466",
+            "millis": 22466,
+            "stationary_millis": 2300
+          }
+        },
+        {
+          "driver_code": "VER",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 28,
+          "end_lap": 45,
+          "laps": 18,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "VER",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "HAM",
+      "team": "Ferrari",
+      "finish_position": 2,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "HAM",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 28,
+          "laps": 28,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HAM",
+            "stop": 1,
+            "lap": 28,
+            "time": "22.734",
+            "millis": 22734,
+            "stationary_millis": 2500
+          }
+        },
+        {
+          "driver_code": "HAM",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 29,
+          "end_lap": 44,
+          "laps": 16,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HAM",
+            "stop": 2,
+            "lap": 44,
+            "time": "23.806",
+            "millis": 23806,
+            "stationary_millis": 3600
+          }
+        },
+        {
+          "driver_code": "HAM",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 45,
+          "laps": 1,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "HAM",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "ANT",
+      "team": "Mercedes",
+      "finish_position": 3,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "ANT",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 43,
+          "laps": 43,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "ANT",
+            "stop": 1,
+            "lap": 43,
+            "time": "23.738",
+            "millis": 23738,
+            "stationary_millis": 4300
+          }
+        },
+        {
+          "driver_code": "ANT",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 44,
+          "end_lap": 45,
+          "laps": 2,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "ANT",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 4,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "LEC",
+      "team": "Ferrari",
+      "finish_position": 4,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "LEC",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 27,
+          "laps": 27,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "LEC",
+            "stop": 1,
+            "lap": 27,
+            "time": "28.706",
+            "millis": 28706,
+            "stationary_millis": 8700
+          }
+        },
+        {
+          "driver_code": "LEC",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 28,
+          "end_lap": 45,
+          "laps": 18,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "LEC",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "NOR",
+      "team": "McLaren",
+      "finish_position": 5,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "NOR",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 39,
+          "laps": 39,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "NOR",
+            "stop": 1,
+            "lap": 39,
+            "time": "24.708",
+            "millis": 24708,
+            "stationary_millis": 6000
+          }
+        },
+        {
+          "driver_code": "NOR",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 40,
+          "end_lap": 45,
+          "laps": 6,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "NOR",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 2,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "RUS",
+      "team": "Mercedes",
+      "finish_position": 6,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "RUS",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 33,
+          "laps": 33,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "RUS",
+            "stop": 1,
+            "lap": 33,
+            "time": "33.926",
+            "millis": 33926,
+            "stationary_millis": 13800
+          }
+        },
+        {
+          "driver_code": "RUS",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 34,
+          "end_lap": 44,
+          "laps": 11,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "RUS",
+            "stop": 2,
+            "lap": 44,
+            "time": "22.264",
+            "millis": 22264,
+            "stationary_millis": 2400
+          }
+        },
+        {
+          "driver_code": "RUS",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 71,
+          "laps": 27,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 0,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "LAW",
+      "team": "Racing Bulls",
+      "finish_position": 7,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "LAW",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 11,
+          "laps": 11,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "LAW",
+            "stop": 1,
+            "lap": 11,
+            "time": "22.855",
+            "millis": 22855,
+            "stationary_millis": 2500
+          }
+        },
+        {
+          "driver_code": "LAW",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 12,
+          "end_lap": 42,
+          "laps": 31,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "LAW",
+            "stop": 2,
+            "lap": 42,
+            "time": "22.581",
+            "millis": 22581,
+            "stationary_millis": 2300
+          }
+        },
+        {
+          "driver_code": "LAW",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 43,
+          "end_lap": 44,
+          "laps": 2,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "LAW",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 71,
+          "laps": 27,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "BOR",
+      "team": "Audi",
+      "finish_position": 8,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "BOR",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 38,
+          "laps": 38,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "BOR",
+            "stop": 1,
+            "lap": 38,
+            "time": "22.546",
+            "millis": 22546,
+            "stationary_millis": 2900
+          }
+        },
+        {
+          "driver_code": "BOR",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 39,
+          "end_lap": 45,
+          "laps": 7,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "BOR",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "HAD",
+      "team": "Red Bull Racing",
+      "finish_position": 9,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "HAD",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 7,
+          "laps": 7,
+          "tyre_life_start": 2,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HAD",
+            "stop": 1,
+            "lap": 7,
+            "time": "23.989",
+            "millis": 23989,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "HAD",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 8,
+          "end_lap": 41,
+          "laps": 34,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HAD",
+            "stop": 2,
+            "lap": 41,
+            "time": "22.611",
+            "millis": 22611,
+            "stationary_millis": 5000
+          }
+        },
+        {
+          "driver_code": "HAD",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 42,
+          "end_lap": 45,
+          "laps": 4,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "HAD",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "HIR",
+      "team": "Haas F1 Team",
+      "finish_position": 10,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "HIR",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 35,
+          "laps": 35,
+          "tyre_life_start": 1,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HIR",
+            "stop": 1,
+            "lap": 35,
+            "time": "22.876",
+            "millis": 22876,
+            "stationary_millis": 2900
+          }
+        },
+        {
+          "driver_code": "HIR",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 36,
+          "end_lap": 43,
+          "laps": 8,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HIR",
+            "stop": 2,
+            "lap": 43,
+            "time": "23.802",
+            "millis": 23802,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "HIR",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 44,
+          "end_lap": 44,
+          "laps": 1,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "HIR",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 59,
+          "laps": 15,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HIR",
+            "stop": 3,
+            "lap": 59,
+            "time": "22.971",
+            "millis": 22971,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "HIR",
+          "stint": 5,
+          "compound": "SOFT",
+          "start_lap": 60,
+          "end_lap": 71,
+          "laps": 12,
+          "tyre_life_start": 8,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 3,
+      "red_flag_changes": 1,
+      "timed_stops": 3,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "ALB",
+      "team": "Williams",
+      "finish_position": 11,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "ALB",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 18,
+          "laps": 18,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "ALB",
+            "stop": 1,
+            "lap": 18,
+            "time": "22.012",
+            "millis": 22012,
+            "stationary_millis": 2200
+          }
+        },
+        {
+          "driver_code": "ALB",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 19,
+          "end_lap": 41,
+          "laps": 23,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "ALB",
+            "stop": 2,
+            "lap": 41,
+            "time": "25.430",
+            "millis": 25430,
+            "stationary_millis": 5700
+          }
+        },
+        {
+          "driver_code": "ALB",
+          "stint": 3,
+          "compound": "MEDIUM",
+          "start_lap": 42,
+          "end_lap": 44,
+          "laps": 3,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "ALB",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 71,
+          "laps": 27,
+          "tyre_life_start": 4,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "SAI",
+      "team": "Williams",
+      "finish_position": 12,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "SAI",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 36,
+          "laps": 36,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "SAI",
+            "stop": 1,
+            "lap": 36,
+            "time": "22.572",
+            "millis": 22572,
+            "stationary_millis": 2700
+          }
+        },
+        {
+          "driver_code": "SAI",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 37,
+          "end_lap": 44,
+          "laps": 8,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "SAI",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 71,
+          "laps": 27,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "PIA",
+      "team": "McLaren",
+      "finish_position": 13,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "PIA",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 26,
+          "laps": 26,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "PIA",
+            "stop": 1,
+            "lap": 26,
+            "time": "22.681",
+            "millis": 22681,
+            "stationary_millis": 5200
+          }
+        },
+        {
+          "driver_code": "PIA",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 27,
+          "end_lap": 44,
+          "laps": 18,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "PIA",
+            "stop": 2,
+            "lap": 44,
+            "time": "24.559",
+            "millis": 24559,
+            "stationary_millis": 4400
+          }
+        },
+        {
+          "driver_code": "PIA",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 45,
+          "laps": 1,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "PIA",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "HUL",
+      "team": "Audi",
+      "finish_position": 14,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "HUL",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 31,
+          "laps": 31,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "HUL",
+            "stop": 1,
+            "lap": 31,
+            "time": "21.929",
+            "millis": 21929,
+            "stationary_millis": 2700
+          }
+        },
+        {
+          "driver_code": "HUL",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 32,
+          "end_lap": 45,
+          "laps": 14,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "HUL",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "COL",
+      "team": "Alpine",
+      "finish_position": 15,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "COL",
+          "stint": 1,
+          "compound": "MEDIUM",
+          "start_lap": 1,
+          "end_lap": 34,
+          "laps": 34,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "COL",
+            "stop": 1,
+            "lap": 34,
+            "time": "23.343",
+            "millis": 23343,
+            "stationary_millis": 3000
+          }
+        },
+        {
+          "driver_code": "COL",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 35,
+          "end_lap": 45,
+          "laps": 11,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "COL",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 2,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "PER",
+      "team": "Cadillac",
+      "finish_position": 16,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "PER",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 30,
+          "laps": 30,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "PER",
+            "stop": 1,
+            "lap": 30,
+            "time": "28.905",
+            "millis": 28905,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "PER",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 31,
+          "end_lap": 43,
+          "laps": 13,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "PER",
+            "stop": 2,
+            "lap": 43,
+            "time": "24.123",
+            "millis": 24123,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "PER",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 44,
+          "end_lap": 59,
+          "laps": 16,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "PER",
+            "stop": 3,
+            "lap": 59,
+            "time": "29.847",
+            "millis": 29847,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "PER",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 60,
+          "end_lap": 71,
+          "laps": 12,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 3,
+      "red_flag_changes": 0,
+      "timed_stops": 3,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "GAS",
+      "team": "Alpine",
+      "finish_position": 17,
+      "status": "finished",
+      "laps_completed": 71,
+      "reason": null,
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "GAS",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 17,
+          "laps": 17,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "GAS",
+            "stop": 1,
+            "lap": 17,
+            "time": "22.965",
+            "millis": 22965,
+            "stationary_millis": 2600
+          }
+        },
+        {
+          "driver_code": "GAS",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 18,
+          "end_lap": 44,
+          "laps": 27,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "GAS",
+            "stop": 2,
+            "lap": 44,
+            "time": "22.833",
+            "millis": 22833,
+            "stationary_millis": null
+          }
+        },
+        {
+          "driver_code": "GAS",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 45,
+          "end_lap": 45,
+          "laps": 1,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "GAS",
+          "stint": 4,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 71,
+          "laps": 26,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 2,
+      "red_flag_changes": 1,
+      "timed_stops": 2,
+      "total_laps": 71
+    },
+    {
+      "driver_code": "LIN",
+      "team": "Racing Bulls",
+      "finish_position": null,
+      "status": "dnf",
+      "laps_completed": 58,
+      "reason": "Collision",
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "LIN",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 35,
+          "laps": 35,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "LIN",
+            "stop": 1,
+            "lap": 35,
+            "time": "22.823",
+            "millis": 22823,
+            "stationary_millis": 2600
+          }
+        },
+        {
+          "driver_code": "LIN",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 36,
+          "end_lap": 45,
+          "laps": 10,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "LIN",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 58,
+          "laps": 13,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 58
+    },
+    {
+      "driver_code": "BEA",
+      "team": "Haas F1 Team",
+      "finish_position": null,
+      "status": "dnf",
+      "laps_completed": 47,
+      "reason": "Collision damage",
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "BEA",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 40,
+          "laps": 40,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "BEA",
+            "stop": 1,
+            "lap": 40,
+            "time": "22.590",
+            "millis": 22590,
+            "stationary_millis": 2900
+          }
+        },
+        {
+          "driver_code": "BEA",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 41,
+          "end_lap": 45,
+          "laps": 5,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": true,
+          "ended_by_stop": null
+        },
+        {
+          "driver_code": "BEA",
+          "stint": 3,
+          "compound": "SOFT",
+          "start_lap": 46,
+          "end_lap": 47,
+          "laps": 2,
+          "tyre_life_start": 3,
+          "fresh": false,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 1,
+      "timed_stops": 1,
+      "total_laps": 47
+    },
+    {
+      "driver_code": "BOT",
+      "team": "Cadillac",
+      "finish_position": null,
+      "status": "dnf",
+      "laps_completed": 42,
+      "reason": "Accident",
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "BOT",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 30,
+          "laps": 30,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "BOT",
+            "stop": 1,
+            "lap": 30,
+            "time": "26.712",
+            "millis": 26712,
+            "stationary_millis": 6200
+          }
+        },
+        {
+          "driver_code": "BOT",
+          "stint": 2,
+          "compound": "MEDIUM",
+          "start_lap": 31,
+          "end_lap": 42,
+          "laps": 12,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 0,
+      "timed_stops": 1,
+      "total_laps": 42
+    },
+    {
+      "driver_code": "STR",
+      "team": "Aston Martin",
+      "finish_position": null,
+      "status": "dnf",
+      "laps_completed": 5,
+      "reason": "Engine",
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "STR",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 3,
+          "laps": 3,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "STR",
+            "stop": 1,
+            "lap": 3,
+            "time": "27.180",
+            "millis": 27180,
+            "stationary_millis": 9900
+          }
+        },
+        {
+          "driver_code": "STR",
+          "stint": 2,
+          "compound": null,
+          "start_lap": 4,
+          "end_lap": 5,
+          "laps": 2,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 0,
+      "timed_stops": 1,
+      "total_laps": 5
+    },
+    {
+      "driver_code": "ALO",
+      "team": "Aston Martin",
+      "finish_position": null,
+      "status": "dnf",
+      "laps_completed": 5,
+      "reason": "Engine",
+      "retired_in_pits": false,
+      "stints": [
+        {
+          "driver_code": "ALO",
+          "stint": 1,
+          "compound": "SOFT",
+          "start_lap": 1,
+          "end_lap": 3,
+          "laps": 3,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": {
+            "driver_code": "ALO",
+            "stop": 1,
+            "lap": 3,
+            "time": "23.958",
+            "millis": 23958,
+            "stationary_millis": 5300
+          }
+        },
+        {
+          "driver_code": "ALO",
+          "stint": 2,
+          "compound": "SOFT",
+          "start_lap": 4,
+          "end_lap": 5,
+          "laps": 2,
+          "tyre_life_start": 0,
+          "fresh": true,
+          "ended_under_red_flag": false,
+          "ended_by_stop": null
+        }
+      ],
+      "stops": 1,
+      "red_flag_changes": 0,
+      "timed_stops": 1,
+      "total_laps": 5
+    }
+  ],
+  "stops_source": "f1db-pit-stops",
+  "stops": [
+    {
+      "driver_code": "ALO",
+      "stop": 1,
+      "lap": 3,
+      "time": "23.958",
+      "millis": 23958,
+      "stationary_millis": 5300
+    },
+    {
+      "driver_code": "STR",
+      "stop": 1,
+      "lap": 3,
+      "time": "27.180",
+      "millis": 27180,
+      "stationary_millis": 9900
+    },
+    {
+      "driver_code": "HAD",
+      "stop": 1,
+      "lap": 7,
+      "time": "23.989",
+      "millis": 23989,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "LAW",
+      "stop": 1,
+      "lap": 11,
+      "time": "22.855",
+      "millis": 22855,
+      "stationary_millis": 2500
+    },
+    {
+      "driver_code": "GAS",
+      "stop": 1,
+      "lap": 17,
+      "time": "22.965",
+      "millis": 22965,
+      "stationary_millis": 2600
+    },
+    {
+      "driver_code": "ALB",
+      "stop": 1,
+      "lap": 18,
+      "time": "22.012",
+      "millis": 22012,
+      "stationary_millis": 2200
+    },
+    {
+      "driver_code": "PIA",
+      "stop": 1,
+      "lap": 26,
+      "time": "22.681",
+      "millis": 22681,
+      "stationary_millis": 5200
+    },
+    {
+      "driver_code": "LEC",
+      "stop": 1,
+      "lap": 27,
+      "time": "28.706",
+      "millis": 28706,
+      "stationary_millis": 8700
+    },
+    {
+      "driver_code": "VER",
+      "stop": 1,
+      "lap": 27,
+      "time": "22.466",
+      "millis": 22466,
+      "stationary_millis": 2300
+    },
+    {
+      "driver_code": "HAM",
+      "stop": 1,
+      "lap": 28,
+      "time": "22.734",
+      "millis": 22734,
+      "stationary_millis": 2500
+    },
+    {
+      "driver_code": "PER",
+      "stop": 1,
+      "lap": 30,
+      "time": "28.905",
+      "millis": 28905,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "BOT",
+      "stop": 1,
+      "lap": 30,
+      "time": "26.712",
+      "millis": 26712,
+      "stationary_millis": 6200
+    },
+    {
+      "driver_code": "HUL",
+      "stop": 1,
+      "lap": 31,
+      "time": "21.929",
+      "millis": 21929,
+      "stationary_millis": 2700
+    },
+    {
+      "driver_code": "RUS",
+      "stop": 1,
+      "lap": 33,
+      "time": "33.926",
+      "millis": 33926,
+      "stationary_millis": 13800
+    },
+    {
+      "driver_code": "COL",
+      "stop": 1,
+      "lap": 34,
+      "time": "23.343",
+      "millis": 23343,
+      "stationary_millis": 3000
+    },
+    {
+      "driver_code": "LIN",
+      "stop": 1,
+      "lap": 35,
+      "time": "22.823",
+      "millis": 22823,
+      "stationary_millis": 2600
+    },
+    {
+      "driver_code": "HIR",
+      "stop": 1,
+      "lap": 35,
+      "time": "22.876",
+      "millis": 22876,
+      "stationary_millis": 2900
+    },
+    {
+      "driver_code": "SAI",
+      "stop": 1,
+      "lap": 36,
+      "time": "22.572",
+      "millis": 22572,
+      "stationary_millis": 2700
+    },
+    {
+      "driver_code": "BOR",
+      "stop": 1,
+      "lap": 38,
+      "time": "22.546",
+      "millis": 22546,
+      "stationary_millis": 2900
+    },
+    {
+      "driver_code": "NOR",
+      "stop": 1,
+      "lap": 39,
+      "time": "24.708",
+      "millis": 24708,
+      "stationary_millis": 6000
+    },
+    {
+      "driver_code": "BEA",
+      "stop": 1,
+      "lap": 40,
+      "time": "22.590",
+      "millis": 22590,
+      "stationary_millis": 2900
+    },
+    {
+      "driver_code": "HAD",
+      "stop": 2,
+      "lap": 41,
+      "time": "22.611",
+      "millis": 22611,
+      "stationary_millis": 5000
+    },
+    {
+      "driver_code": "ALB",
+      "stop": 2,
+      "lap": 41,
+      "time": "25.430",
+      "millis": 25430,
+      "stationary_millis": 5700
+    },
+    {
+      "driver_code": "LAW",
+      "stop": 2,
+      "lap": 42,
+      "time": "22.581",
+      "millis": 22581,
+      "stationary_millis": 2300
+    },
+    {
+      "driver_code": "ANT",
+      "stop": 1,
+      "lap": 43,
+      "time": "23.738",
+      "millis": 23738,
+      "stationary_millis": 4300
+    },
+    {
+      "driver_code": "HIR",
+      "stop": 2,
+      "lap": 43,
+      "time": "23.802",
+      "millis": 23802,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "PER",
+      "stop": 2,
+      "lap": 43,
+      "time": "24.123",
+      "millis": 24123,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "HAM",
+      "stop": 2,
+      "lap": 44,
+      "time": "23.806",
+      "millis": 23806,
+      "stationary_millis": 3600
+    },
+    {
+      "driver_code": "RUS",
+      "stop": 2,
+      "lap": 44,
+      "time": "22.264",
+      "millis": 22264,
+      "stationary_millis": 2400
+    },
+    {
+      "driver_code": "PIA",
+      "stop": 2,
+      "lap": 44,
+      "time": "24.559",
+      "millis": 24559,
+      "stationary_millis": 4400
+    },
+    {
+      "driver_code": "GAS",
+      "stop": 2,
+      "lap": 44,
+      "time": "22.833",
+      "millis": 22833,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "HUL",
+      "stop": 2,
+      "lap": 59,
+      "time": "34.546",
+      "millis": 34546,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "PER",
+      "stop": 3,
+      "lap": 59,
+      "time": "29.847",
+      "millis": 29847,
+      "stationary_millis": null
+    },
+    {
+      "driver_code": "HIR",
+      "stop": 3,
+      "lap": 59,
+      "time": "22.971",
+      "millis": 22971,
+      "stationary_millis": null
+    }
+  ],
+  "suspension_entries": 0,
+  "stops_made": 33,
+  "red_flag_changes": 17,
+  "unmatched_stops": [
+    {
+      "driver_code": "HUL",
+      "stop": 2,
+      "lap": 59,
+      "time": "34.546",
+      "millis": 34546,
+      "stationary_millis": null
+    }
+  ],
+  "fastest_stop": {
+    "driver_code": "HUL",
+    "stop": 1,
+    "lap": 31,
+    "time": "21.929",
+    "millis": 21929,
+    "stationary_millis": 2700
+  },
+  "warnings": [
+    "Tyre changes for 2 driver(s) are shown on the laps the published stop sheet records. The timing feed placed them on different laps.",
+    "17 tyre change(s) happened while the race was red-flagged. Those are not counted as pit stops: the race was suspended and the change cost the driver nothing."
+  ]
+}

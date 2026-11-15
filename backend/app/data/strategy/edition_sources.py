@@ -66,8 +66,8 @@ def pit_lane_times(year: int, round_num: int) -> dict[tuple[str, int], int] | No
                 return None
             rows = get_json(client, "pit", {"session_key": race.session_key})
             entries = entry_list(client, race.session_key) if rows else {}
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
     except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("strategy.pit_lane_unavailable", year=year, round=round_num, error=str(exc))
         return None

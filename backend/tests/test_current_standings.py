@@ -18,6 +18,7 @@ import structlog
 
 from app.data import current_standings as module
 from app.data.current_standings import CONFIRMED_TTL_SECONDS, PROVISIONAL_TTL_SECONDS, current_standings
+from app.data.jolpica import JolpicaUnavailableError
 from tests.roster_support import AFTER_MEXICO, MEXICO, load
 from tests.standings_support import Feeds, mexico_feeds
 
@@ -92,6 +93,23 @@ def test_a_feed_that_disagrees_is_reported_and_the_computed_value_is_served(feed
         ("error", "openf1-championship", 19)
     ]
     assert points(standings.drivers)["HIR"] == 1
+
+
+def test_the_jolpica_budget_being_spent_leaves_the_jolpica_check_unavailable_and_the_table_served(feeds):
+    """Our own hourly Jolpica budget raises instead of answering."""
+    feeds.jolpica_error = JolpicaUnavailableError("our 500 requests an hour are spent")
+
+    standings = current_standings(2026)
+
+    assert points(standings.drivers)["ANT"] == 380
+    assert (standings.as_of_round, standings.provisional) == (19, True)
+    assert standings.sources[-1] == {
+        "source": "jolpica-standings",
+        "role": "cross_check",
+        "round": 19,
+        "status": "unavailable",
+        "differences": [],
+    }
 
 
 # --- confirmed tables ---------------------------------------------------------------

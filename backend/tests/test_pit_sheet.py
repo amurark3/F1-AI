@@ -16,14 +16,15 @@ from collections import Counter
 from datetime import timedelta
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import httpx
 import pandas as pd
 import pytest
 
 from app.data import pit_sheet as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.f1db_pitstops import PitStop
+from app.data.jolpica import JolpicaUnavailableError
 from app.data.pit_sheet import (
     NO_SHEET,
     PitSheet,
@@ -50,7 +51,7 @@ def ergast_seconds(text: str) -> timedelta:
 
 
 def jolpica_pit_rows() -> list[dict]:
-    """The R19 sheet as FastF1's Ergast client flattens it."""
+    """The R19 sheet as :mod:`app.data.jolpica` flattens it."""
     return [
         {
             "driverId": row["driverId"],
@@ -212,21 +213,18 @@ def test_an_untimed_entry_is_never_read_as_a_suspension():
 # --- where the sheet comes from ----------------------------------------------------------
 
 
-class FakeErgast:
-    def __init__(self, state: dict) -> None:
-        self.state = state
+def fake_jolpica(state: dict) -> tuple:
+    def pit_stops(_year: int, _round: int) -> list[dict]:
+        state["calls"].append("pit_stops")
+        if state["error"] is not None:
+            raise state["error"]
+        return state["pit_rows"]
 
-    def get_pit_stops(self, season: int, round: int, limit: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        self.state["calls"].append(("pit_stops", limit))
-        if self.state["error"] is not None:
-            raise self.state["error"]
-        rows = self.state["pit_rows"]
-        return SimpleNamespace(content=[pd.DataFrame(rows)] if rows else [], is_complete=self.state["complete"])
+    def results(_year: int, _round: int) -> list[dict]:
+        state["calls"].append("results")
+        return [{"driverId": key, "driverCode": code} for key, code in state["codes"].items()]
 
-    def get_race_results(self, season: int, round: int) -> SimpleNamespace:  # noqa: A002 - FastF1's keyword
-        self.state["calls"].append(("results", None))
-        rows = [{"driverId": key, "driverCode": code} for key, code in self.state["codes"].items()]
-        return SimpleNamespace(content=[pd.DataFrame(rows)] if rows else [])
+    return pit_stops, results
 
 
 @pytest.fixture
@@ -234,15 +232,15 @@ def sources(monkeypatch):
     state = {
         "pit_rows": jolpica_pit_rows(),
         "codes": jolpica_codes(),
-        "complete": True,
         "error": None,
         "calls": [],
-        "f1db": (entry("VER", 27, 22.466),),
+        "f1db": (),
         "session": make_session("R"),
         "routes": {"pit": fixture("openf1_pit.json"), "drivers": fixture("openf1_drivers.json")},
         "now": 1000.0,
     }
-    monkeypatch.setattr(module, "Ergast", lambda: FakeErgast(state))
+    monkeypatch.setattr(module, "jolpica_pit_stops", fake_jolpica(state)[0])
+    monkeypatch.setattr(module, "jolpica_results", fake_jolpica(state)[1])
     monkeypatch.setattr(module, "f1db_pit_stops", lambda year, rnd: state["f1db"])
     monkeypatch.setattr(module, "find_session", lambda client, year, rnd, code: state["session"])
     monkeypatch.setattr(module, "_cache", TtlCache(clock=lambda: state["now"]))
@@ -250,41 +248,48 @@ def sources(monkeypatch):
     return state
 
 
-def test_jolpica_publishes_the_sheet_first(sources):
+def test_f1db_answers_first_and_jolpica_is_not_asked(sources):
+    sources["f1db"] = (entry("VER", 27, 22.466),)
+
+    assert module.race_pit_sheet(2026, 19) == PitSheet(source=module.F1DB_SOURCE, entries=sources["f1db"])
+    assert sources["calls"] == []
+
+
+def test_jolpica_publishes_the_sheet_f1db_has_not_caught_up_with(sources):
     sheet = module.race_pit_sheet(2026, 19)
 
     assert sheet.source == module.JOLPICA_SOURCE
     assert len(sheet.entries) == 58
-    # Jolpica answers 30 rows unless asked for more; a red-flagged race has 58.
-    assert ("pit_stops", module.JOLPICA_PAGE_LIMIT) in sources["calls"]
 
 
-def test_f1db_answers_when_jolpica_has_no_sheet(sources):
-    sources["pit_rows"] = []
+def test_jolpica_unreachable_is_no_sheet_and_retried_later(sources):
+    sources["error"] = JolpicaUnavailableError("our 500 requests an hour are spent")
+    assert module.race_pit_sheet(2026, 19) == NO_SHEET
 
-    assert module.race_pit_sheet(2026, 19) == PitSheet(source=module.F1DB_SOURCE, entries=sources["f1db"])
-
-
-def test_f1db_answers_when_jolpica_is_unreachable(sources):
-    sources["error"] = OSError("jolpica down")
-
-    assert module.race_pit_sheet(2026, 19).source == module.F1DB_SOURCE
+    sources["error"] = None
+    sources["now"] += module.EMPTY_RETRY_SECONDS + 1
+    assert module.race_pit_sheet(2026, 19).source == module.JOLPICA_SOURCE
 
 
-def test_a_page_cut_short_is_not_trusted(sources):
-    sources["complete"] = False
+def test_a_season_f1db_does_not_hold_keeps_the_sheet_untimed(sources, monkeypatch):
+    def not_in_f1db(*_args):
+        raise CalendarUnavailableError("f1db has no calendar for 2026 yet")
 
-    assert module.race_pit_sheet(2026, 19).source == module.F1DB_SOURCE
+    monkeypatch.setattr(module, "find_session", not_in_f1db)
+
+    sheet = module.race_pit_sheet(2026, 19)
+    assert (sheet.source, len(sheet.entries)) == (module.JOLPICA_SOURCE, 58)
+    assert {entry.stationary_millis for entry in sheet.entries} == {None}
 
 
-def test_a_sheet_jolpica_cannot_name_drivers_for_falls_back(sources):
+def test_a_sheet_jolpica_cannot_name_drivers_for_is_no_sheet(sources):
     sources["codes"] = {}
 
-    assert module.race_pit_sheet(2026, 19).source == module.F1DB_SOURCE
+    assert module.race_pit_sheet(2026, 19) == NO_SHEET
 
 
 def test_no_sheet_anywhere_is_no_sheet(sources):
-    sources["pit_rows"], sources["f1db"] = [], ()
+    sources["pit_rows"] = []
 
     assert module.race_pit_sheet(2026, 19) == NO_SHEET
 
@@ -328,11 +333,11 @@ def test_the_sheet_is_kept_for_a_while_then_read_again(sources):
     assert module.race_pit_sheet(2026, 19).source == module.JOLPICA_SOURCE
 
     sources["now"] += 2
-    assert module.race_pit_sheet(2026, 19).source == module.F1DB_SOURCE
+    assert module.race_pit_sheet(2026, 19) == NO_SHEET
 
 
 def test_no_sheet_is_retried_after_a_short_window(sources):
-    sources["pit_rows"], sources["f1db"] = [], ()
+    sources["pit_rows"] = []
     module.race_pit_sheet(2026, 19)
     sources["pit_rows"] = jolpica_pit_rows()
 

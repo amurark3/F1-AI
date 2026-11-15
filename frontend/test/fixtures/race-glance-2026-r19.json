@@ -1,0 +1,26 @@
+{
+  "year": 2026,
+  "round": 19,
+  "previous": {
+    "year": 2025,
+    "round": 20,
+    "name": "Mexican Grand Prix",
+    "winner": {
+      "driver_id": "lando-norris",
+      "driver_name": "Lando Norris",
+      "team_id": "mclaren",
+      "team_name": "McLaren"
+    },
+    "pole": {
+      "driver_id": "lando-norris",
+      "driver_name": "Lando Norris",
+      "team_id": "mclaren",
+      "team_name": "McLaren"
+    }
+  },
+  "power_units": {
+    "available": false,
+    "reason": "No FIA power-unit documents have been collected for 2026 yet.",
+    "decisions": []
+  }
+}

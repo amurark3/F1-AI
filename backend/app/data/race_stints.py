@@ -225,8 +225,8 @@ def _race_not_over(year: int, round_num: int) -> bool:
     """
     try:
         start = next((session.start for session in weekend_schedule(year, round_num) if session.code == "R"), None)
-    # FastF1's schedule backend raises ValueError/KeyError for a bad season and
-    # OSError for a network failure.
+    # f1db raises CalendarUnavailableError (a ValueError) for a season it does
+    # not hold, and OSError when a missing file cannot be fetched.
     except (ValueError, KeyError, OSError) as exc:
         logger.warning("race_stints.calendar_unavailable", year=year, round=round_num, error=str(exc))
         return False

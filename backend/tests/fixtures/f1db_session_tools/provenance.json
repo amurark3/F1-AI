@@ -1,0 +1,7 @@
+{
+ "captured_at": "2026-11-14",
+ "captured_for": "D1.9 the chat qualifying tools read f1db instead of FastF1",
+ "files": {
+  "qualifying.json": "f1db v2026.20.0 (backend/data/f1db.db): race_data rows of 2026 R19 QUALIFYING_RESULT (Lawson DSQ, position_number NULL, q1 NULL, q2/q3 kept) and R2 SPRINT_QUALIFYING_RESULT, joined to driver.abbreviation, driver.name and constructor.name; values unedited"
+ }
+}

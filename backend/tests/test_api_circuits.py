@@ -13,6 +13,7 @@ from __future__ import annotations
 import pytest
 
 from app.api.circuits import CIRCUIT_DATA, get_circuit_gps, get_circuit_info
+from app.data.f1db_calendar import season_schedule
 
 # Venues the calendar reports under more than one Location string. Each pair
 # must resolve to the same circuit, or the same race gets two identities.
@@ -24,6 +25,11 @@ ALIAS_PAIRS = [
     ("Marina Bay", "Singapore"),
     ("Yas Island", "Abu Dhabi"),
     ("Yas Island", "Yas Marina"),
+    # f1db's place names, the calendar's Location since D1.3.
+    ("Montréal", "Montreal"),
+    ("Barcelona", "Montmeló"),
+    ("Spa-Francorchamps", "Spa"),
+    ("Kuala Lumpur", "Sepang"),
 ]
 
 
@@ -60,6 +66,14 @@ def test_unknown_location_returns_none_rather_than_a_guess():
 @pytest.mark.parametrize(("primary", "alias"), ALIAS_PAIRS)
 def test_venue_aliases_resolve_to_the_same_circuit(primary, alias):
     assert get_circuit_info(primary) == get_circuit_info(alias)
+
+
+@pytest.mark.unit
+def test_every_venue_on_f1dbs_2026_calendar_has_circuit_data_and_coordinates(calendar_f1db):
+    """The schedule's ``circuit`` and the weekend forecast read this table under f1db's Location."""
+    venues = [f"{row.Location}, {row.Country}" for row in season_schedule(2026).itertuples()]
+
+    assert [venue for venue in venues if get_circuit_info(venue) is None or get_circuit_gps(venue) is None] == []
 
 
 @pytest.mark.unit
@@ -103,7 +117,7 @@ def test_every_circuit_has_plausible_coordinates():
 
 
 @pytest.mark.unit
-def test_every_circuit_has_the_fields_the_race_detail_response_reads():
+def test_every_circuit_has_the_fields_the_schedule_response_reads():
     required = {"circuit_name", "track_length_km", "laps", "lap_record", "first_gp", "circuit_type"}
 
     for name, data in CIRCUIT_DATA.items():

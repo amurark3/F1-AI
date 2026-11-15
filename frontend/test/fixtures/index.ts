@@ -142,13 +142,55 @@
  *   (00:46 UTC), and Mexico City after qualifying (stored 1 Nov 01:45 UTC,
  *   Hirakawa coded `NAN`).
  *
+ * The race picker (P4.1, 14 Nov) reads `season-calendar-2026.json`, captured
+ * at 19:13 UTC on 14 Nov through the backend's own route functions (f1db
+ * v2026.20.0, which publishes round 20):
+ *
+ * - `schedule`: `GET /api/schedule/2026`, as served: 23 rounds, São Paulo
+ *   (round 20) the last completed, Las Vegas (round 21) the next.
+ * - `champions`: `GET /api/champions/2026`, kept to `season` and
+ *   `race_winners` (a winner, with its team, for rounds 1 to 20).
+ * - `champions_through_round_19`: the same function on a copy of that f1db
+ *   whose 2026 race results stop after round 19: the Monday after São Paulo,
+ *   before f1db published it, when round 20 is completed with no winner yet.
+ *
+ * The Weekend and Stints tabs (P4.3b4, 14 Nov) read these, captured at 21:14 UTC
+ * on 14 Nov by calling the backend's own builders for Mexico City (round 19)
+ * with the real feeds (f1db v2026.20.0, OpenF1, the classification):
+ *
+ * - `circuit-round-2026-r19.json`: `race_control.build_round_circuit(2026, 19)`,
+ *   as `GET /api/race-control/circuit/2026/19` serves it.
+ * - `race-strategy-2026-r19.json`: `race_strategy_board.build_race_strategy(2026, 19)`,
+ *   as `GET /api/race-control/stints/2026/19` serves it: the five retirements
+ *   with their reasons, and the VSC (laps 7-8), safety car (44, 59-62) and red
+ *   flag (lap 45) periods.
+ * - `race-glance-2026-r19.json`: `race_glance.build_race_glance(2026, 19)`, as
+ *   `GET /api/race-control/glance/2026/19` serves it (no FIA power-unit documents
+ *   are collected for 2026, so `power_units.available` is false).
+ *
+ * The Sessions and Grid tabs (P4.3b3, 14 Nov) read:
+ *
+ * - `weekend-sessions-2026.json`: `weekend_sessions.build_weekend_sessions` over
+ *   f1db v2026.20.0 (opened read-only): Mexico City (round 19: three practice
+ *   sessions with their stand-ins, and qualifying with the in-part gaps and the
+ *   cars Lawson's disqualification lifted), the Chinese Grand Prix (round 2, a
+ *   sprint weekend with its sprint grid) and round 23 (nothing run yet).
+ * - `starting-grids-2026.json` `sao_paulo_jolpica_provisional`:
+ *   `race_grid.build_starting_grid` for round 20 with no grid sheet, over Jolpica's
+ *   captured qualifying table (`backend/tests/fixtures/sao_paulo_2026_r20/`):
+ *   the provisional grid with its source named.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
-import type { StatsResponse } from "@/app/lib/server/champions";
+import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
-import type { DriverPrediction } from "@/app/race-control/grand-prix/predictionModel";
+import type { DriverPrediction, PredictionsResponse, RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
+import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
+import type { WeekendSessionsResponse } from "@/app/race-control/grand-prix/sessionsModel";
+import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strategyModel";
+import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
 import type {
   DriverProfile,
   DriverProfileResponse,
@@ -172,6 +214,7 @@ import type { CircuitMapData } from "@/app/ui/outlinePath";
 import championStats from "./champions-stats.json";
 import circuitMaps from "./circuit-maps.json";
 import circuitRecords from "./circuit-records.json";
+import circuitRound2026 from "./circuit-round-2026-r19.json";
 import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
 import overviewPredictions2026 from "./overview-predictions-2026.json";
@@ -179,15 +222,21 @@ import overviewShell2026 from "./overview-shell-2026.json";
 import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
+import predictionReviewR19 from "./prediction-review-2026-r19.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
+import glance2026 from "./race-glance-2026-r19.json";
+import raceResults2026 from "./race-results-2026.json";
+import raceStrategy2026 from "./race-strategy-2026-r19.json";
 import ready from "./ready.json";
+import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
 import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
+import weekendSessions2026 from "./weekend-sessions-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
@@ -295,6 +344,7 @@ export const GRIDS_2026 = {
   saoPauloF1dbV202620: startingGrids2026.sao_paulo_f1db_v2026_20 as StartingGridResponse,
   mexicoCityOfficial: startingGrids2026.mexico_city_official as StartingGridResponse,
   lasVegasNone: startingGrids2026.las_vegas_none as StartingGridResponse,
+  saoPauloJolpicaProvisional: startingGrids2026.sao_paulo_jolpica_provisional as StartingGridResponse,
 };
 
 /** One stored prediction's finishing order, kept to the fields the "vs grid" column reads. */
@@ -308,4 +358,54 @@ export const PREDICTION_ORDERS_2026: Record<
   saoPauloPostQualifying: predictionOrders2026.sao_paulo_post_qualifying.predictions,
   saoPauloPreQualifying: predictionOrders2026.sao_paulo_pre_qualifying.predictions,
   mexicoCityPostQualifying: predictionOrders2026.mexico_city_post_qualifying.predictions,
+};
+
+/**
+ * Mexico City 2026 (round 19) as `GET /api/predictions/2026/19/snapshot?phase=post_qualifying`
+ * serves it with its review attached (P4.3b5, 14 Nov). The stored snapshot is the one captured
+ * in `backend/tests/fixtures/mexico_2026_r19/prediction_snapshot_entry.json` (rows kept to the
+ * fields the tab reads). `prediction_review` is the backend's `build_prediction_review` over the
+ * stored history entry regraded to OpenF1's final classification with f1db's retirement reasons
+ * (`prediction_history_entry.json`, which is the call of 11 Nov, not the snapshot's of 1 Nov):
+ * 17 classified cars, five retirements with no place, the result still provisional because it
+ * has been read once.
+ */
+export const PREDICTION_REVIEW_R19 = predictionReviewR19 as unknown as PredictionsResponse;
+
+/** What `GET /api/champions/{year}` answers that the race picker reads. */
+export interface SeasonWinners {
+  season: number;
+  race_winners: RaceWinner[];
+}
+
+/** The 2026 calendar and race winners, as served at 19:13 UTC on 14 Nov. */
+export const SEASON_2026 = {
+  // JSON typing reads each weekend's missing session keys as `undefined`, which `Record<string, string>` refuses.
+  schedule: seasonCalendar2026.schedule as unknown as RaceEvent[],
+  winners: seasonCalendar2026.champions as SeasonWinners,
+  /** Before f1db published round 20: São Paulo completed, no winner yet. */
+  winnersThroughRound19: seasonCalendar2026.champions_through_round_19 as SeasonWinners,
+};
+
+/**
+ * `GET /api/race-control/results/2026/{round}`: the backend's `build_race_results`
+ * on 14 Nov 2026 (f1db v2026.20.0), as served. Mexico City (round 19) has no
+ * sprint; the Chinese Grand Prix (round 2) is a sprint weekend.
+ */
+export const WEEKEND_SESSIONS_2026 = {
+  mexicoCity: weekendSessions2026.mexico_city as unknown as WeekendSessionsResponse,
+  sprintWeekend: weekendSessions2026.china_sprint as unknown as WeekendSessionsResponse,
+  none: weekendSessions2026.future as unknown as WeekendSessionsResponse,
+};
+
+export const RACE_RESULTS_2026 = {
+  mexicoCity: raceResults2026.mexico_city_r19 as unknown as RaceResultsResponse,
+  sprintWeekend: raceResults2026.sprint_weekend_r2 as unknown as RaceResultsResponse,
+};
+
+/** Mexico City 2026 (round 19) as the circuit route and the strategy route serve it. */
+export const MEXICO_CITY_2026 = {
+  circuit: circuitRound2026 as unknown as RoundCircuit,
+  strategy: raceStrategy2026 as unknown as RaceStrategyResponse,
+  glance: glance2026,
 };

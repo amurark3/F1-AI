@@ -3,8 +3,12 @@
 * Sessions are picked by OpenF1's **name**, and 2023's sprint shootout is
   "Sprint Qualifying" in OpenF1, so SQ maps to both names.
 * A cancelled session is not offered.
-* The weekend list comes from FastF1's calendar, which loads while OpenF1 is
+* The weekend list comes from f1db's calendar, which loads while OpenF1 is
   closed for a live session.
+* The OpenF1 meeting is the one starting nearest the f1db race day: on the real
+  2026 rows every round finds its meeting, past the two cancelled April rounds
+  and pre-season testing, and R19/R20 find the session keys production used
+  (Mexico City Q 11400, São Paulo Q 11408).
 * A car prints under f1db's names: OpenF1 writes "Ryo HIRAKAWA" and "Haas F1
   Team" for car 50, the payload says "Ryō Hirakawa" and "Haas". OpenF1's number,
   code and colour are kept, and its own words when f1db cannot be read.
@@ -30,19 +34,22 @@ from app.data.openf1.sessions import (
     OpenF1Session,
     canonical_entry,
     entry_list,
-    event_identity,
+    event_date,
+    find_meeting,
     find_session,
     session_code,
     session_ended,
     weekend_schedule,
     weekend_sessions,
 )
+from tests.calendar_support import meetings_2026
 from tests.openf1_support import FakeOpenF1
 
 pytestmark = pytest.mark.unit
 
+FIXTURES = Path(__file__).parent / "fixtures"
 # OpenF1's Mexico City qualifying list (2026 R19): Hirakawa in car 50 for Haas.
-MEXICO_QUALIFYING = Path(__file__).parent / "fixtures" / "mexico_2026_r19" / "openf1_drivers_qualifying.json"
+MEXICO_QUALIFYING = FIXTURES / "mexico_2026_r19" / "openf1_drivers_qualifying.json"
 
 SCHEDULE = pd.DataFrame(
     [
@@ -84,7 +91,7 @@ SESSIONS = [
 
 @pytest.fixture
 def calendar(monkeypatch):
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", lambda *_args, **_kwargs: SCHEDULE)
+    monkeypatch.setattr(module, "season_schedule", lambda _year: SCHEDULE)
 
 
 def _client(routes: dict) -> httpx.Client:
@@ -105,9 +112,9 @@ def test_session_names_map_to_app_codes(name, code):
     assert session_code(name) == code
 
 
-def test_the_event_is_located_from_the_calendar(calendar):
-    assert event_identity(2023, 4) == ("Baku", datetime(2023, 4, 30, tzinfo=UTC))
-    assert event_identity(2023, 99) is None
+def test_the_race_day_comes_from_the_calendar(calendar):
+    assert event_date(2023, 4) == datetime(2023, 4, 30, tzinfo=UTC)
+    assert event_date(2023, 99) is None
 
 
 def test_the_weekend_list_comes_from_the_calendar_without_openf1(calendar):
@@ -144,6 +151,72 @@ def test_a_round_off_the_calendar_or_unmatched_has_no_sessions(calendar):
     with _client({"meetings": [{"meeting_key": 1, "location": "Imola", "date_start": "2023-05-19"}]}) as client:
         assert weekend_sessions(client, 2023, 99) == ()
         assert find_session(client, 2023, 4, "R") is None
+
+
+SESSIONS_2026 = {
+    1298: json.loads((FIXTURES / "mexico_2026_r19" / "openf1_sessions.json").read_text()),
+    1299: json.loads((FIXTURES / "sao_paulo_2026_r20" / "openf1_sessions.json").read_text()),
+}
+
+
+def _openf1_2026() -> httpx.Client:
+    def sessions(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=SESSIONS_2026[int(request.url.params["meeting_key"])])
+
+    return _client({"meetings": meetings_2026(), "sessions": sessions})
+
+
+def test_every_2026_round_finds_its_own_meeting_by_date(calendar_f1db):
+    raced = [
+        meeting["meeting_key"]
+        for meeting in meetings_2026()
+        if not meeting["is_cancelled"] and meeting["meeting_name"] != "Pre-Season Testing"
+    ]
+
+    with _openf1_2026() as client:
+        found = [find_meeting(client, 2026, round_num)["meeting_key"] for round_num in range(1, 24)]
+
+    # 23 rounds, past the cancelled April Bahrain and Saudi rounds; R16 is the
+    # Bahrain Grand Prix OpenF1 files under Kuala Lumpur.
+    assert found == raced
+    assert found[15] == 1308
+
+
+@pytest.mark.parametrize(
+    ("round_num", "keys"),
+    [
+        (19, {"FP1": 11397, "FP2": 11398, "FP3": 11399, "Q": 11400, "R": 11404}),
+        (20, {"FP1": 11405, "FP2": 11406, "FP3": 11407, "Q": 11408, "R": 11412}),
+    ],
+    ids=["R19", "R20"],
+)
+def test_r19_and_r20_find_the_sessions_production_resolved(calendar_f1db, round_num, keys):
+    with _openf1_2026() as client:
+        found = {code: find_session(client, 2026, round_num, code).session_key for code in keys}
+
+    assert found == keys
+
+
+def test_a_round_f1db_does_not_list_has_no_meeting(calendar_f1db):
+    with _openf1_2026() as client:
+        assert find_meeting(client, 2026, 24) is None
+
+
+@pytest.mark.parametrize(
+    ("round_num", "codes"),
+    [(17, ["FP1", "SQ", "S", "Q", "R"]), (19, ["FP1", "FP2", "FP3", "Q", "R"])],
+    ids=["sprint", "conventional"],
+)
+def test_the_weekend_list_reads_f1dbs_sessions(calendar_f1db, round_num, codes):
+    schedule = weekend_schedule(2026, round_num)
+
+    assert [session.code for session in schedule] == codes
+    assert all(session.start is not None and session.start.tzinfo is UTC for session in schedule)
+
+
+def test_a_weekend_before_f1db_has_session_times_lists_none(calendar_f1db):
+    assert weekend_schedule(2023, 4) == ()
+    assert event_date(2023, 4) == datetime(2023, 4, 30, tzinfo=UTC)
 
 
 def _session(end: datetime | None) -> OpenF1Session:

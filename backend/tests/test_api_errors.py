@@ -43,7 +43,8 @@ SECRET_FRAGMENTS = [
 @pytest.mark.parametrize("exc", LEAKY_EXCEPTIONS, ids=["postgres", "sql", "path"])
 def test_client_error_never_echoes_exception_text(exc):
     payload = client_error("test.event", exc)
-    serialized = repr(payload)
+    # The random hex error id can contain a fragment such as "5432" by chance (about 1 in 10,000).
+    serialized = repr({key: value for key, value in payload.items() if key != "error_id"})
 
     assert payload["error"] == GENERIC_ERROR_MESSAGE
     assert str(exc) not in serialized

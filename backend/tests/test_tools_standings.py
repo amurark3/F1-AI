@@ -193,13 +193,13 @@ def _schedule(dates: list[pd.Timestamp], formats: list[str] | None = None) -> pd
 def _install_schedule(monkeypatch, schedule) -> list[dict]:
     calls: list[dict] = []
 
-    def _get_event_schedule(*, year, include_testing):
-        calls.append({"year": year, "include_testing": include_testing})
+    def _season_schedule(year):
+        calls.append({"year": year})
         if isinstance(schedule, Exception):
             raise schedule
         return schedule
 
-    monkeypatch.setattr(standings_module.fastf1, "get_event_schedule", _get_event_schedule)
+    monkeypatch.setattr(standings_module, "season_schedule", _season_schedule)
     return calls
 
 
@@ -316,13 +316,13 @@ def test_the_2021_sprint_format_name_is_also_flagged(monkeypatch):
 
 
 @pytest.mark.unit
-def test_the_schedule_excludes_pre_season_testing(monkeypatch):
-    """Test sessions are not races and would be classified alongside them."""
-    calls = _install_schedule(monkeypatch, _schedule([pd.Timestamp(_now() - timedelta(days=1))]))
+def test_the_schedule_reads_f1dbs_calendar_and_formats(calendar_f1db):
+    """f1db's real 2026 calendar: Singapore (R17) is a sprint weekend, Mexico City (R19) is not."""
+    table = get_season_schedule.invoke({"year": 2026})
 
-    get_season_schedule.invoke({"year": 2026})
-
-    assert calls == [{"year": 2026, "include_testing": False}]
+    assert "| 17 | Singapore Grand Prix | 11 Oct | Sprint |" in table
+    assert "| 19 | Mexican Grand Prix | 01 Nov | Standard |" in table
+    assert table.count("| Sprint |") == 6
 
 
 @pytest.mark.unit

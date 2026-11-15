@@ -181,8 +181,8 @@ def openf1_race_stints(year: int, round_num: int) -> tuple[Stint, ...]:
         with new_client() as client:
             session_key = _race_session_key(client, year, round_num)
             stints = () if session_key is None else _session_stints(client, session_key)
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
     except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("openf1_stints.unavailable", year=year, round=round_num, error=str(exc))
         return ()

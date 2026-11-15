@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import ErgastError
 import pytest
 import structlog
 
 from app.data import standings_cross_check as module
 from app.data.current_standings import current_standings
+from app.data.jolpica import JolpicaUnavailableError
 from app.data.standings_cross_check import ALERT_REPEAT_SECONDS, cross_check
 from app.data.standings_rounds import RoundPoints
 from app.data.standings_table import Table
@@ -147,7 +147,7 @@ def test_jolpica_before_it_publishes_the_round_is_unavailable(feeds, table):
     assert checks_by_source(table)["jolpica-standings"].status == "unavailable"
 
 
-@pytest.mark.parametrize("error", [ErgastError("bad answer"), OSError("down")], ids=["ergast", "network"])
+@pytest.mark.parametrize("error", [JolpicaUnavailableError("bad answer"), OSError("down")], ids=["jolpica", "network"])
 def test_a_jolpica_failure_is_unavailable(feeds, table, error):
     feeds.jolpica_error = error
 

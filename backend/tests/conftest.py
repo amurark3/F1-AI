@@ -29,9 +29,14 @@ if TYPE_CHECKING:
 # Re-exported so any test module can request the shared f1db fixtures by name
 # without importing them itself. `pytest_plugins` is only honoured in the
 # rootdir conftest, which this is not, so a plain import is the supported route.
+from tests.calendar_support import calendar_f1db  # noqa: F401
+from tests.circuit_history_support import circuit_history_f1db  # noqa: F401
 from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
 from tests.identity_support import identity_f1db  # noqa: F401
 from tests.profiles_support import profiles_f1db  # noqa: F401
+from tests.qualifying_tools_support import qualifying_f1db  # noqa: F401
+from tests.race_results_support import race_results_f1db  # noqa: F401
+from tests.strategy_openf1_support import no_fastf1  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Environment scrubbing — must run before `app.*` is imported anywhere.
@@ -63,6 +68,11 @@ for _key in _CLEARED_ENV:
 # present one. A real DSN there would ship every deliberately raised test error
 # to the live Sentry project.
 os.environ["SENTRY_DSN"] = ""
+# The same refill would hand a test that imports `main` the developer's real LLM
+# keys, and its self-improvement pass would call the live engines. Blank means
+# "no provider" (`app.api.llm` checks the key's truthiness).
+os.environ["TOKENLAB_API_KEY"] = ""
+os.environ["GOOGLE_API_KEY"] = ""
 
 # Deterministic settings the suite asserts against.
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -158,3 +168,11 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     identity.clear_cache()
     yield
     identity.clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def _empty_openf1_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts with an empty, private OpenF1 store, never the developer's files or a database."""
+    from app.data.openf1 import session_store
+
+    monkeypatch.setattr(session_store, "STORE", session_store.FileSessionStore(tmp_path_factory.mktemp("openf1_store")))

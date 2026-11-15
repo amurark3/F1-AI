@@ -25,6 +25,7 @@ import pandas as pd
 import pytest
 
 from app.data import openf1_stints as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.openf1 import client as client_module, sessions as sessions_module
 from app.data.openf1_stints import (
     laps_in_progress,
@@ -268,7 +269,7 @@ def openf1(monkeypatch):
         return fake
 
     schedule = pd.DataFrame([{"RoundNumber": 13, "Location": "Monza", "EventDate": pd.Timestamp("2026-09-06")}])
-    monkeypatch.setattr(sessions_module.fastf1, "get_event_schedule", lambda *_args, **_kwargs: schedule)
+    monkeypatch.setattr(sessions_module, "season_schedule", lambda _year: schedule)
     monkeypatch.setattr(client_module.time, "sleep", lambda _seconds: None)
     return install
 
@@ -359,12 +360,17 @@ def test_a_refusal_during_a_live_session_is_no_stints_not_a_crash(openf1):
 
 
 @pytest.mark.unit
-def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch):
+@pytest.mark.parametrize(
+    "error",
+    [CalendarUnavailableError("f1db has no calendar for 2026 yet"), OSError("f1db download failed")],
+    ids=["not-in-f1db", "unreadable"],
+)
+def test_a_failing_calendar_lookup_is_no_stints(openf1, monkeypatch, error):
     def broken(*_args, **_kwargs):
-        raise ValueError("schedule backend down")
+        raise error
 
     openf1(_monza())
-    monkeypatch.setattr(sessions_module.fastf1, "get_event_schedule", broken)
+    monkeypatch.setattr(sessions_module, "season_schedule", broken)
 
     assert openf1_race_stints(2026, 13) == ()
 

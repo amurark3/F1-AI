@@ -16,14 +16,23 @@ import structlog
 from app.data.analysis_cache import analysis_cache
 from app.data.openf1.client import get_json, new_client
 from app.data.openf1.laps import Lap, laps_from_openf1
-from app.data.openf1.race_control import Window, deleted_laps, neutralised_windows, standing_deletions
+from app.data.openf1.qualifying_result import ResultRow, result_rows
+from app.data.openf1.race_control import (
+    SegmentWindow,
+    Window,
+    deleted_laps,
+    neutralised_windows,
+    segment_windows,
+    standing_deletions,
+)
 from app.data.openf1.sessions import EntryDriver, OpenF1Session, entry_list, find_session, session_ended
 from app.services.live_timing import parse_iso
 
 logger = structlog.get_logger()
 
 SESSION_LAPS_KIND = "session_laps"
-SESSION_LAPS_VERSION = 1
+SESSION_LAPS_VERSION = 2
+QUALIFYING_CODES = frozenset({"Q", "SQ"})
 
 
 @dataclass(frozen=True)
@@ -34,6 +43,9 @@ class SessionLaps:
     drivers: dict[int, EntryDriver]
     laps: tuple[Lap, ...]
     windows: tuple[Window, ...]
+    # Qualifying only: the three segment windows (none unless all were published) and the classification.
+    segments: tuple[SegmentWindow, ...] = ()
+    result: tuple[ResultRow, ...] = ()
 
     def driver_by_code(self, code: str) -> EntryDriver | None:
         wanted = code.strip().upper()
@@ -59,6 +71,8 @@ class SessionLaps:
             "drivers": [driver.__dict__ for driver in self.drivers.values()],
             "laps": [lap.to_json() for lap in self.laps],
             "windows": [window.to_json() for window in self.windows],
+            "segments": [window.to_json() for window in self.segments],
+            "result": [row.to_json() for row in self.result],
         }
 
     @classmethod
@@ -80,6 +94,8 @@ class SessionLaps:
             drivers={driver.number: driver for driver in drivers},
             laps=tuple(Lap.from_json(row) for row in payload["laps"]),
             windows=tuple(Window.from_json(row) for row in payload["windows"]),
+            segments=tuple(SegmentWindow.from_json(row) for row in payload["segments"]),
+            result=tuple(ResultRow.from_json(row) for row in payload["result"]),
         )
 
 
@@ -96,6 +112,7 @@ def _fetch(year: int, round_num: int, code: str) -> SessionLaps | None:
         drivers = entry_list(client, session.session_key)
         laps = laps_from_openf1(get_json(client, "laps", query))
         messages = get_json(client, "race_control", query)
+        classification = get_json(client, "session_result", query) if code in QUALIFYING_CODES else []
     deleted = deleted_laps(standing_deletions(messages), laps)
     return SessionLaps(
         session=session,
@@ -104,6 +121,8 @@ def _fetch(year: int, round_num: int, code: str) -> SessionLaps | None:
         drivers=drivers,
         laps=tuple(lap.marked_deleted() if (lap.driver, lap.number) in deleted else lap for lap in laps),
         windows=neutralised_windows(messages),
+        segments=segment_windows(messages),
+        result=result_rows(classification),
     )
 
 

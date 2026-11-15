@@ -53,57 +53,70 @@ export function buildGridLayout(slots: GridSlot[]): GridLayout {
   };
 }
 
-/**
- * Short chip text for a sanction, or null when the driver starts where they
- * qualified.
- *
- * The offence is deliberately absent: the published grid sheet records the
- * places dropped, not the reason, and no reason is inferred here.
- */
-export function penaltyChipLabel(slot: GridSlot): string | null {
-  if (slot.pit_lane) return "PIT LANE";
-  if (slot.start_from_back) return "BACK OF GRID";
-  if (slot.penalty_positions) return `-${slot.penalty_positions} PLACES`;
-  return null;
+const MINUS = "\u2212";
+
+function placesWord(count: number): string {
+  return `${count} ${count === 1 ? "place" : "places"}`;
 }
 
-/** Where a driver lines up, written the way a timing screen would. */
-export function startLabel(slot: GridSlot): string {
+/** The last numbered slot on the grid: a car there cannot lose a place to a penalty. */
+export function lastSlot(slots: GridSlot[]): number {
+  return Math.max(0, ...slots.map((slot) => slot.position ?? 0));
+}
+
+/**
+ * Where the car qualified, only when that is news: a car that started where it
+ * qualified says nothing, and a disqualified qualifier says `DSQ`.
+ */
+export function qualifiedNote(slot: GridSlot, dsq: ReadonlySet<string>): string | null {
+  if (dsq.has(slot.driver_code)) return "DSQ";
+  const qualified = slot.qualifying_position;
+  return qualified === null || qualified === slot.position ? null : `Qualified P${qualified}`;
+}
+
+/** The sanction in the hub's vocabulary, or null. A penalty that moved nothing says so. */
+export function penaltyNote(slot: GridSlot, last: number): string | null {
   if (slot.pit_lane) return "Pit lane";
-  return slot.position === null ? "-" : `P${slot.position}`;
-}
-
-/** Where a driver qualified, or a dash when the classification is unknown. */
-export function qualifiedLabel(slot: GridSlot): string {
-  return slot.qualifying_position === null ? "-" : `P${slot.qualifying_position}`;
-}
-
-/** The penalty as published: a place count, or the sanction's own name. */
-export function penaltyLabel(slot: GridSlot): string {
   if (slot.start_from_back) return "Back of grid";
-  if (slot.penalty_positions) return `${slot.penalty_positions} places`;
-  return slot.pit_lane ? "Pit lane start" : "-";
+  if (!slot.penalty_positions) return null;
+  const label = `${MINUS}${placesWord(slot.penalty_positions)}`;
+  if (slot.places_lost !== 0) return label;
+  return `${label} \u00b7 cost nothing${slot.position === last ? ", already at the back" : ""}`;
 }
 
-/**
- * Slots actually dropped, signed.
- *
- * A penalty of five places moves a driver fewer than five slots when someone
- * ahead of them is also penalised, so this reports the real movement rather
- * than restating the sanction.
- */
-export function netMoveLabel(slot: GridSlot): string {
-  if (slot.places_lost === null) return "-";
-  if (slot.places_lost === 0) return "held";
-  return slot.places_lost > 0 ? `-${slot.places_lost}` : `+${Math.abs(slot.places_lost)}`;
+/** Places gained and the penalised cars that gave them: those that qualified ahead and start behind. */
+export function promotedNote(slot: GridSlot, slots: GridSlot[]): { places: number; by: string[] } | null {
+  if (slot.places_lost === null || slot.places_lost >= 0) return null;
+  const qualified = slot.qualifying_position;
+  const by = slots
+    .filter(
+      (other) =>
+        other.penalised &&
+        other.qualifying_position !== null &&
+        qualified !== null &&
+        other.qualifying_position < qualified &&
+        (other.position ?? Infinity) > (slot.position ?? 0),
+    )
+    .map((other) => other.driver_code);
+  return { places: -slot.places_lost, by };
 }
 
-/** Colour for the net-move cell: a drop, a gain, or no movement. */
-export function netMoveColor(slot: GridSlot): string {
-  if (slot.places_lost === null) return "text-[#3F4756]";
-  if (slot.places_lost > 0) return "text-[#FF4655]";
-  if (slot.places_lost < 0) return "text-[#00FF78]";
-  return "text-[#D7DBE7]";
+/** The headline: how many sanctions the grid carries, counted from the payload. */
+export function gridTitle(data?: StartingGridResponse): string | undefined {
+  if (!data?.available || data.grid.length === 0) return undefined;
+  if (data.provisional) return "Qualifying order, before any penalty";
+  const count = data.penalties.length;
+  if (count === 0) return "Every car starts where it qualified";
+  return `${count} ${count === 1 ? "penalty" : "penalties"} on the grid`;
+}
+
+/** The note that ends the section: which source, and whether it is final. */
+export function gridNote(data?: StartingGridResponse): string {
+  if (!data?.available || data.grid.length === 0) return "No grid is published for this round yet.";
+  if (data.provisional) {
+    return `Order: the qualifying classification (${data.source_detail ?? "qualifying"}), provisional: no penalty is applied to it · the official grid replaces it once published`;
+  }
+  return "Grid: f1db, mirroring the FIA final starting grid · f1db records the places dropped, never the offence behind them";
 }
 
 /** Provenance line for the panel header, so the source is never implicit. */
@@ -115,5 +128,5 @@ export function gridSourceLabel(source: GridSource): string {
 
 /** Whether a payload holds a grid worth drawing. */
 export function hasGrid(data: StartingGridResponse | undefined): boolean {
-  return Boolean(data?.available) && (data?.grid.length ?? 0) > 0;
+  return data?.available === true && data.grid.length > 0;
 }

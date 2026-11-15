@@ -29,8 +29,8 @@ LAP_FEED_WINDOW = timedelta(minutes=15)
 # Sessions routinely run past their scheduled end (red flags, safety cars).
 SESSION_END_GRACE = timedelta(minutes=15)
 
-# A meeting's own window is only a day-level hint, so the location fallback
-# accepts any event date inside the race weekend.
+# A meeting starts on the weekend's first session and the calendar gives race
+# day, so a meeting this close to race day is that weekend's.
 MEETING_DATE_TOLERANCE = timedelta(days=4)
 
 # Schedule-derived session lengths, used where only start times are known
@@ -69,47 +69,24 @@ def _normalise(value: object) -> str:
     return str(value or "").strip().lower()
 
 
-def _nearest(meetings: list[dict], event_date: datetime | None) -> dict:
-    """The meeting starting nearest the event date; the first listed without one."""
-    if event_date is None or len(meetings) == 1:
-        return meetings[0]
+def match_meeting(meetings: list[dict], event_date: datetime) -> dict | None:
+    """Find the OpenF1 meeting of the weekend whose race is on ``event_date``.
 
-    def distance(meeting: dict) -> timedelta:
-        start = parse_iso(meeting.get("date_start"))
-        return timedelta.max if start is None else abs(start - event_date)
-
-    return min(meetings, key=distance)
-
-
-def match_meeting(
-    meetings: list[dict],
-    location: str,
-    event_date: datetime | None = None,
-) -> dict | None:
-    """Find the OpenF1 meeting for a circuit location.
-
-    Positional lookup (``meetings[round - 1]``) is unusable: the two calendars
-    disagree about which events exist, so a mismatch silently shifts every
-    later round onto a different race. Location is stable across both sources.
-
-    Location alone is not unique, though. Pre-season testing at Sakhir is listed
-    a week before the Bahrain Grand Prix at the same location, and it has no
-    qualifying or race. Among meetings at the location, the one nearest the
-    event date is the round.
+    Matched by date, the one thing f1db's calendar and OpenF1 agree on. Positional
+    lookup (``meetings[round - 1]``) is unusable: OpenF1 lists events f1db does
+    not (testing, cancelled rounds), so every later round would shift. Names
+    differ too: OpenF1 files the 2026 Bahrain Grand Prix under "Kuala Lumpur",
+    f1db under "Sepang". The meeting starting nearest the race day within the
+    weekend window is the round, so pre-season testing at the same circuit a
+    week earlier never is.
     """
-    target = _normalise(location)
-    located = [meeting for meeting in meetings if target and _normalise(meeting.get("location")) == target]
-    if located:
-        return _nearest(located, event_date)
-
-    if event_date is None:
-        return None
-
-    for meeting in meetings:
-        start = parse_iso(meeting.get("date_start"))
-        if start is not None and abs(start - event_date) <= MEETING_DATE_TOLERANCE:
-            return meeting
-    return None
+    dated = [
+        (abs(start - event_date), meeting)
+        for meeting in meetings
+        if (start := parse_iso(meeting.get("date_start"))) is not None
+    ]
+    near = [pair for pair in dated if pair[0] <= MEETING_DATE_TOLERANCE]
+    return min(near, key=lambda pair: pair[0])[1] if near else None
 
 
 def select_active_session(

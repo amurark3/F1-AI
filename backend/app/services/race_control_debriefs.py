@@ -1,8 +1,12 @@
 """Race classification loading and post-race debrief generation.
 
+The classification is :func:`app.services.race_results.build_session_result`'s:
+f1db's, or OpenF1's until f1db holds the race. No FastF1 request is made. A car
+that did not finish has no ``position``: its ``status`` reads DNF (or DNS, DSQ,
+NC) with the reason f1db gives, never a place.
+
 Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
-Bulls"), not FastF1's ("Andrea Kimi Antonelli", "RB F1 Team"); the code stays
-FastF1's. Every sentence here is built from those rows, so it names drivers
+Bulls"). Every sentence here is built from those rows, so it names drivers
 and teams the same way. See :mod:`app.data.canonical_names`.
 """
 
@@ -12,11 +16,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import fastf1
 import pandas as pd
 
-from app.data.canonical_names import fastf1_driver, feed_code, team_display_name
-from app.services.race_control_common import safe_float, safe_int
+from app.data.f1db_calendar import season_schedule
+from app.services.race_control_common import safe_float
+from app.services.race_results import build_session_result, official_grid
 
 
 @dataclass(frozen=True)
@@ -44,9 +48,7 @@ def build_race_debrief(year: int, round_num: int) -> dict:
         reverse=True,
     )[:3]
     constructor_impact = build_constructor_impact(results)
-    reliability = [
-        row for row in results if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
-    ]
+    reliability = [row for row in results if row.get("status") and row["status"] != "Finished"]
 
     return {
         "year": year,
@@ -72,6 +74,8 @@ def build_race_debrief(year: int, round_num: int) -> dict:
                 reliability=reliability,
             ),
         ),
+        "final": detail.get("final", False),
+        "sources": detail.get("sources", []),
         "insight_source": "Derived from race classification, grid positions, finishing status, and points.",
         "incidents": [],
     }
@@ -138,9 +142,7 @@ def build_debrief_takeaways(results: list[dict], podium: list[dict]) -> list[str
         if points > 0:
             takeaways.append(f"{team} scored the strongest constructor haul with {points:g} points.")
 
-    non_standard_statuses = [
-        row for row in results if row.get("status") and row["status"] != "Finished" and "Lap" not in row["status"]
-    ]
+    non_standard_statuses = [row for row in results if row.get("status") and row["status"] != "Finished"]
     if non_standard_statuses:
         takeaways.append(
             f"{len(non_standard_statuses)} car{'s' if len(non_standard_statuses) != 1 else ''} had non-standard finish statuses, so reliability and incident exposure mattered."
@@ -237,7 +239,7 @@ def build_race_control_notes(results: list[dict], sections: DebriefSections) -> 
 
 
 def load_race_classification(year: int, round_num: int) -> dict:
-    schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+    schedule = season_schedule(year)
     event_row = schedule[schedule["RoundNumber"] == round_num]
     if event_row.empty:
         return {"error": f"Round {round_num} not found for {year}", "race_results": [], "podium": []}
@@ -262,31 +264,35 @@ def load_race_classification(year: int, round_num: int) -> dict:
     if not race_date or datetime.now(UTC).replace(tzinfo=None) <= race_date + pd.Timedelta(hours=3):
         return result
 
-    session = fastf1.get_session(year, round_num, "R")
-    session.load(telemetry=False, laps=False, weather=False)
-    race_results = session.results.sort_values(by="Position")
-    rows = [_classification_row(row, year) for _, row in race_results.iterrows()]
+    race = build_session_result(year, round_num, "race")
+    if race is None:
+        return result
+    grid = official_grid(year, round_num)
+    rows = [_classification_row(row, grid) for row in race["classification"]]
     result["race_results"] = rows
+    result["sources"] = race["sources"]
+    result["final"] = race["final"]
     result["podium"] = sorted(
         [row for row in rows if row["position"] and row["position"] <= 3], key=lambda row: row["position"]
     )
     return result
 
 
-def _classification_row(row: pd.Series, year: int) -> dict:
-    """One FastF1 result row, its driver and team under f1db's names (FastF1's own words if f1db can't say).
+def _status_text(row: dict) -> str:
+    """ "Finished", or how the race ended: "DNF (Engine)", "DSQ", "DNS", "NC"."""
+    if row["status"] == "Finished":
+        return "Finished"
+    return f"{row['status']} ({row['reason']})" if row["reason"] else row["status"]
 
-    The code is FastF1's, else f1db's, else "" — never the NaN cell FastF1 sends
-    for a driver it has no abbreviation for.
-    """
-    driver = fastf1_driver(year, row)
-    grid = row.get("GridPosition")
+
+def _classification_row(row: dict, grid: dict[str, int | None]) -> dict:
+    """One classification row in the debrief's shape; a pit-lane start or an unlisted car has no grid slot."""
     return {
-        "position": safe_int(row.get("Position"), None),
-        "driver": feed_code(row.get("Abbreviation")) or driver.code or "",
-        "full_name": driver.name,
-        "team": team_display_name(year, row.get("TeamName")) or "Unknown",
-        "grid": safe_int(grid, None) if pd.notna(grid) and grid > 0 else None,
-        "points": safe_float(row.get("Points", 0)),
-        "status": row.get("Status", ""),
+        "position": row["position"],
+        "driver": row["driver_code"],
+        "full_name": row["driver_name"],
+        "team": row["team"] or "Unknown",
+        "grid": grid.get(row["driver_code"]),
+        "points": safe_float(row["points"]),
+        "status": _status_text(row),
     }

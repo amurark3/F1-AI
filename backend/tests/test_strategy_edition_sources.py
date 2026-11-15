@@ -13,6 +13,7 @@ from dataclasses import replace
 import httpx
 import pytest
 
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.f1db_pitstops import PitStop
 from app.data.pit_sheet import JOLPICA_SOURCE, NO_SHEET, PitSheet
 from app.data.race_classification import NO_CLASSIFICATION, OPENF1_SOURCE, RaceClassification
@@ -113,6 +114,15 @@ def test_a_race_with_no_pit_rows_has_no_times_and_asks_for_no_entry_list(monkeyp
 
 def test_an_unreachable_openf1_is_none_not_an_empty_answer(monkeypatch, openf1):
     serve(monkeypatch, module, {"pit": httpx.Response(401)})
+
+    assert module.pit_lane_times(2025, 21) is None
+
+
+def test_a_season_f1db_does_not_hold_is_none(monkeypatch, openf1):
+    def not_in_f1db(*_args):
+        raise CalendarUnavailableError("f1db has no calendar for 2025 yet")
+
+    monkeypatch.setattr(module, "find_session", not_in_f1db)
 
     assert module.pit_lane_times(2025, 21) is None
 

@@ -15,7 +15,7 @@ Available tools
   get_sprint_results          — Sprint race (Saturday short race) classification.
   get_sprint_qualifying_results — Sprint Qualifying / Shootout results split by SQ1/SQ2/SQ3.
   get_qualifying_results      — Main Qualifying results split by Q1/Q2/Q3.
-  compare_drivers             — Fastest-lap telemetry comparison between two drivers.
+  compare_drivers             — Fastest qualifying lap, sector by sector, between two drivers.
   get_race_results            — Full race classification with grid delta and points.
   consult_rulebook            — Semantic search of FIA regulations via pgvector.
   get_driver_standings        — World Drivers' Championship table, its round and title state.
@@ -23,8 +23,8 @@ Available tools
   get_season_schedule         — Full season calendar with completed/upcoming status.
   get_power_unit_usage        — PU element usage vs allowance per car, and the penalties (FIA documents).
 
-Tools are grouped by the data they reach for — ``sessions`` and ``race`` read
-FastF1, ``standings`` reads f1db, ``external`` leaves the building — so a change
+Tools are grouped by the data they reach for — ``sessions``, ``race`` and
+``standings`` read f1db (and OpenF1 until f1db holds a round), ``external`` leaves the building — so a change
 to one source touches one module. This package assembles them into the registry
 below. The chat router binds the whole ``TOOL_LIST`` on every request and
 dispatches each call by name through ``TOOL_MAP``. Every schema is re-sent on
@@ -50,11 +50,6 @@ from app.api.tools.standings import (
     get_driver_standings,
     get_season_schedule,
 )
-from app.utils.fastf1_cache import enable_fastf1_cache
-
-# Enable FastF1 disk cache to avoid re-downloading session data on every call.
-# Corrupted cache files are quarantined and recreated on startup.
-enable_fastf1_cache()
 
 # ---------------------------------------------------------------------------
 # Tool registry — imported by the chat router

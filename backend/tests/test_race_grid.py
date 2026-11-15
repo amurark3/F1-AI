@@ -9,16 +9,18 @@ heading is the failure this module exists to prevent.
 """
 
 import asyncio
+import json
+from pathlib import Path
 
 import pytest
 
 from app.api.routers import race_control as race_control_router
 from app.api.routers.race_control import get_starting_grid
-from app.data import predictions
+from app.data import jolpica, predictions
 from app.data.canonical_names import CODE_UNRESOLVED
 from app.data.f1db_grid import GridSlot
+from app.data.jolpica import JolpicaUnavailableError
 from app.data.predictions import sessions as prediction_sessions
-from app.data.predictions.sessions import _classified_order
 from app.services import race_grid
 from app.services.race_grid import (
     PROVISIONAL_WARNING,
@@ -27,7 +29,9 @@ from app.services.race_grid import (
     SOURCE_QUALIFYING,
     build_starting_grid,
 )
-from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_fastf1_qualifying
+from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_openf1_qualifying
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def slot(code, position, qualifying, **overrides):
@@ -46,7 +50,14 @@ def slot(code, position, qualifying, **overrides):
 @pytest.fixture
 def sources(monkeypatch):
     """Stub both grid sources; each test sets only the one it is exercising."""
-    state = {"official": (), "qualifying": None}
+    state = {"official": (), "qualifying": None, "jolpica": None}
+
+    def jolpica(year, rnd):
+        if state["jolpica"] is None:
+            raise JolpicaUnavailableError("not stubbed")
+        return state["jolpica"]
+
+    monkeypatch.setattr(race_grid, "provisional_grid", jolpica)
     monkeypatch.setattr(race_grid, "starting_grid", lambda year, rnd: state["official"])
     monkeypatch.setattr(race_grid, "load_qualifying", lambda year, rnd: state["qualifying"])
     return state
@@ -135,9 +146,9 @@ def test_provisional_row_falls_back_to_the_driver_code_for_a_missing_name(source
 
 
 @pytest.mark.integration
-def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_fastf1_sent_without_one(sources, identity_f1db):
+def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_sent_without_a_code(sources, identity_f1db):
     add_camara_to_f1db(identity_f1db)
-    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+    sources["qualifying"] = r20_openf1_qualifying(camara_coded=False)
 
     grid = build_starting_grid(2026, 20)["grid"]
 
@@ -149,7 +160,7 @@ def test_the_r20_provisional_grid_prints_f1dbs_code_for_a_qualifier_fastf1_sent_
 @pytest.mark.integration
 def test_the_r20_provisional_grid_keeps_and_labels_a_qualifier_no_source_can_code(sources, identity_f1db):
     """Production's f1db on qualifying day (v2026.19.0) did not know Câmara yet."""
-    sources["qualifying"] = _classified_order(r20_fastf1_qualifying(), 2026)
+    sources["qualifying"] = r20_openf1_qualifying(camara_coded=False)
 
     grid = build_starting_grid(2026, 20)["grid"]
 
@@ -218,3 +229,29 @@ def test_load_qualifying_exposes_the_cached_classification(monkeypatch):
     monkeypatch.setattr(prediction_sessions, "_load_qualifying", lambda year, rnd: [{"driver_code": "VER"}])
 
     assert predictions.load_qualifying(2026, 14) == [{"driver_code": "VER"}]
+
+
+def test_jolpica_qualifying_is_the_provisional_grid_when_f1db_has_none(sources, monkeypatch):
+    """Sao Paulo 2026: Jolpica's real qualifying table, read through the real client code."""
+    qualifying = json.loads((FIXTURES / "sao_paulo_2026_r20" / "jolpica_qualifying.json").read_text())
+    monkeypatch.setattr(jolpica, "_race_rows", lambda *args: qualifying["QualifyingResults"])
+    monkeypatch.setattr(race_grid, "provisional_grid", jolpica.provisional_grid)
+    sources["qualifying"] = [{"driver_code": "ZZZ", "position": 1}]
+
+    payload = build_starting_grid(2026, 20)
+
+    assert (payload["available"], payload["provisional"], payload["source"]) == (True, True, SOURCE_QUALIFYING)
+    assert payload["source_detail"] == jolpica.QUALIFYING_SOURCE
+    assert payload["warnings"] == [PROVISIONAL_WARNING]
+    assert [row["position"] for row in payload["grid"]] == list(range(1, 23))
+    assert payload["grid"][0]["driver_code"] == "NOR"
+    assert payload["grid"][12]["driver_code"] == "CAM"
+    assert payload["penalties"] == []
+
+
+def test_the_published_qualifying_order_still_answers_when_jolpica_cannot(sources):
+    sources["qualifying"] = [{"driver_code": "VER", "driver_name": "Max Verstappen", "team": "Red Bull", "position": 1}]
+
+    payload = build_starting_grid(2026, 14)
+
+    assert (payload["provisional"], payload["source_detail"]) == (True, "openf1-qualifying")

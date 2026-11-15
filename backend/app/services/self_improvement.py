@@ -27,6 +27,7 @@ from app.data.predictions import (
     graded_call,
     record_actual_result,
 )
+from app.data.predictions.history import actuals_pending
 from app.data.store import DOCUMENT_PREDICTION_POSTMORTEMS, document_store
 
 logger = structlog.get_logger()
@@ -180,7 +181,7 @@ def run_self_improvement_pass(year: int) -> dict:
         if not parsed or parsed[0] != year:
             continue
         y, r = parsed
-        if graded_call(entry).get("predicted_positions") and not entry.get("actual_positions"):
+        if graded_call(entry).get("predicted_positions") and actuals_pending(entry):
             record_actual_result(y, r)
             recorded += 1
         if not get_postmortem(y, r) and generate_miss_postmortem(y, r):

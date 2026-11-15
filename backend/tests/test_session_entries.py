@@ -31,6 +31,7 @@ import pytest
 import structlog
 
 from app.data import f1db_source, session_entries as module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.session_entries import (
     UNAVAILABLE,
     EntryListDriver,
@@ -162,8 +163,13 @@ class TestUnavailable:
 
         assert load_weekend_entry_list(2026, 19) is UNAVAILABLE
 
-    def test_a_calendar_that_will_not_load_is_unavailable(self, openf1):
-        openf1["sessions"] = ValueError("no such season")
+    @pytest.mark.parametrize(
+        "error",
+        [CalendarUnavailableError("f1db has no calendar for 2026 yet"), OSError("f1db download failed")],
+        ids=["not-in-f1db", "unreadable"],
+    )
+    def test_a_calendar_that_will_not_load_is_unavailable(self, openf1, error):
+        openf1["sessions"] = error
 
         assert load_weekend_entry_list(2026, 19) is UNAVAILABLE
 

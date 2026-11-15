@@ -104,7 +104,7 @@ def world(monkeypatch):
         "now": 0.0,
     }
 
-    def get_event_schedule(year, include_testing=False):
+    def season_schedule(year):
         state["listed"].append(year)
         schedule = state["schedules"].get(year)
         if isinstance(schedule, BaseException):
@@ -116,7 +116,7 @@ def world(monkeypatch):
         return {"source_year": edition.year, "finishers": 17} if edition.year in state["readable"] else None
 
     _Clock.moment = NOW
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", get_event_schedule)
+    monkeypatch.setattr(module, "season_schedule", season_schedule)
     monkeypatch.setattr(module, "edition_reference", edition_reference)
     monkeypatch.setattr(module, "datetime", _Clock)
     monkeypatch.setattr(module, "_unread", TtlCache(clock=lambda: state["now"]))

@@ -35,10 +35,11 @@ class SessionRef:
 
 @dataclass(frozen=True)
 class DriverLap:
-    """A driver by three-letter code, and a lap number (None: the fastest valid lap)."""
+    """A driver by three-letter code, a lap number (None: the fastest valid lap), and a qualifying segment to look in."""
 
     code: str
     lap: int | None = None
+    segment: int | None = None
 
 
 REASON_NO_SESSION = "no_session"

@@ -2,22 +2,28 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import fastf1
 import pandas as pd
 import structlog
 
-from app.utils.fastf1_lock import FASTF1_LOCK
+from app.data.f1db_calendar import season_schedule
+from app.data.openf1.client import OpenF1UnavailableError
+from app.data.openf1.session_laps import SessionLaps, load_session_laps
+from app.data.race_classification import race_classification
+from app.data.race_stints import race_stints
+
+if TYPE_CHECKING:
+    from app.data.stint_model import Stint
 
 logger = structlog.get_logger()
 
-# Aliased to the process-wide lock: a per-module lock does not serialise
-# against the other modules sharing FastF1's SQLite cache.
-_fastf1_lock = FASTF1_LOCK
-
-# (year, round_num) -> race session laps/results data
+# (year, round_num) -> race laps/results data; only a race that was read is kept.
 _race_data_cache: dict[tuple[int, int], dict[str, Any]] = {}
+
+# Reads that fail without meaning the race has no data: f1db's calendar raises
+# CalendarUnavailableError (a ValueError), the rest are the usual I/O.
+_SOURCE_ERRORS = (OpenF1UnavailableError, ValueError, KeyError, OSError)
 
 
 def _fmt_laptime(td: pd.Timedelta | None) -> str:
@@ -32,43 +38,83 @@ def _fmt_laptime(td: pd.Timedelta | None) -> str:
     return f"{seconds:.3f}"
 
 
-def _load_race_data(year: int, round_num: int) -> dict[str, Any] | None:
-    """Load race session with laps data for strategy analysis.
+def _calendar_event(year: int, round_num: int) -> tuple[str, str]:
+    """The round's name and Location on f1db's calendar, the one the history matches past seasons on."""
+    schedule = season_schedule(year)
+    event = schedule[schedule["RoundNumber"] == round_num]
+    if event.empty:
+        return f"Round {round_num}", ""
+    return str(event.iloc[0].get("EventName") or f"Round {round_num}"), str(event.iloc[0]["Location"])
 
-    Returns a dict with 'session', 'laps', 'results' keys, or None on failure.
-    Caches the processed data.
+
+def _laps_frame(session: SessionLaps, stints: tuple[Stint, ...]) -> pd.DataFrame:
+    """OpenF1's laps in the shape the strategy maths reads: one row per lap, tagged with its stint."""
+    by_driver: dict[str, list[Stint]] = {}
+    for stint in stints:
+        by_driver.setdefault(stint.driver_code, []).append(stint)
+
+    rows = []
+    for lap in session.laps:
+        entry = session.drivers.get(lap.driver)
+        if entry is None:
+            continue
+        stint = next((s for s in by_driver.get(entry.code, []) if s.start_lap <= lap.number <= s.end_lap), None)
+        rows.append(
+            {
+                "Driver": entry.code,
+                "LapNumber": float(lap.number),
+                "Stint": None if stint is None else float(stint.stint),
+                "Compound": None if stint is None else stint.compound,
+                "LapTime": pd.NaT if lap.time is None else pd.to_timedelta(lap.time, unit="s"),
+                "FreshTyre": None if stint is None else stint.fresh,
+            }
+        )
+    return pd.DataFrame(rows, columns=["Driver", "LapNumber", "Stint", "Compound", "LapTime", "FreshTyre"])
+
+
+def _results_frame(year: int, round_num: int) -> pd.DataFrame:
+    """The classification as the Abbreviation/Position frame the maths reads."""
+    rows = [
+        {"Abbreviation": driver.driver_code, "Position": float(driver.position)}
+        for driver in race_classification(year, round_num).drivers
+        if driver.position is not None
+    ]
+    return pd.DataFrame(rows, columns=["Abbreviation", "Position"])
+
+
+def _load_race_data(year: int, round_num: int) -> dict[str, Any] | None:
+    """Load a race's laps, stints and classification for strategy analysis.
+
+    Laps come from OpenF1 through the store, stints from ``race_stints`` and the
+    order from the classification; no FastF1 request is made. Returns a dict with
+    'laps', 'results', 'event_name' and 'location', or None when the race cannot
+    be read. Only a race that was read is cached.
     """
     cache_key = (year, round_num)
     if cache_key in _race_data_cache:
         return _race_data_cache[cache_key]
 
     try:
-        with _fastf1_lock:
-            session = fastf1.get_session(year, round_num, "R")
-            session.load(telemetry=False, laps=True, weather=False)
-
-        laps = session.laps
-        results = session.results
-
-        if laps is None or laps.empty:
-            logger.warning("strategy.no_laps_data", year=year, round=round_num)
-            return None
-
-        data = {
-            "session": session,
-            "laps": laps,
-            "results": results,
-            "event_name": str(session.event.get("EventName", f"Round {round_num}")),
-            "location": str(session.event.get("Location", "")),
-        }
-
-        _race_data_cache[cache_key] = data
-        logger.info("strategy.race_data_loaded", year=year, round=round_num)
-        return data
-
-    except Exception as exc:
+        session = load_session_laps(year, round_num, "R")
+        stints = race_stints(year, round_num) if session is not None else ()
+        event_name, location = _calendar_event(year, round_num)
+    except _SOURCE_ERRORS as exc:
         logger.warning("strategy.race_data_error", year=year, round=round_num, error=str(exc))
         return None
+
+    if session is None or not session.laps or not stints:
+        logger.warning("strategy.no_laps_data", year=year, round=round_num)
+        return None
+
+    data = {
+        "laps": _laps_frame(session, stints),
+        "results": _results_frame(year, round_num),
+        "event_name": event_name,
+        "location": location,
+    }
+    _race_data_cache[cache_key] = data
+    logger.info("strategy.race_data_loaded", year=year, round=round_num)
+    return data
 
 
 # Laps needed at both ends of a stint before degradation is worth reporting.

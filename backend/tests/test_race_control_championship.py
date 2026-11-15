@@ -10,10 +10,10 @@ races. Three things must hold or the projection lies confidently.
 * **Empty or early seasons must not divide by zero.** Round zero of a new
   season still has to render.
 * **Keys must match how each feed spells them.** Driver rows are matched on an
-  upper-cased code against FastF1 abbreviations; constructor rows are matched
-  on the team name verbatim. A mismatch silently scores a rate of zero. The
-  classification prints f1db's team names, the table's spelling, so FastF1's
-  "RB F1 Team" counts towards "Racing Bulls".
+  upper-cased code against the classification's codes; constructor rows are
+  matched on the team name verbatim. A mismatch silently scores a rate of zero.
+  The recent form reads f1db's classification (no FastF1 request), which prints
+  the table's team names ("Racing Bulls").
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.services import race_control_championship as module, race_control_debriefs
+from app.services import race_control_championship as module, race_control_debriefs, race_results
 from app.services.race_control_championship import EntrantAccessors, SeasonProgress
-from tests.identity_support import mexico_fastf1_results
+from tests.fastf1_guard import no_fastf1  # noqa: F401
 from tests.standings_support import standings_from_rows
 
 # ---------------------------------------------------------------------------
@@ -378,7 +378,7 @@ def test_a_round_that_fails_to_load_is_skipped_without_shrinking_the_window(
         total_events=3,
         classifications={
             1: {"race_results": [_result("VER", "Red Bull", 25)]},
-            2: RuntimeError("FastF1 cache miss"),
+            2: RuntimeError("f1db is locked"),
         },
     )
 
@@ -469,27 +469,20 @@ def test_forecast_envelope_names_its_sources_and_states_its_limits(
 
     assert result["year"] == 2024
     assert result["generated_at"].endswith("+00:00")
-    assert result["source"] == "computed-standings + FastF1 recent race classifications"
+    assert result["source"] == "computed-standings + recent race classifications (f1db, OpenF1)"
     assert len(result["notes"]) == 3
     assert any("sprint" in note for note in result["notes"])
 
 
-class _MexicoRace:
-    """FastF1's Mexico City race session (2026 R19, real spellings), as ``fastf1.get_session`` returns it."""
-
-    results = pd.DataFrame(mexico_fastf1_results())
-
-    def load(self, **_kwargs: object) -> None:
-        return None
-
-
 @pytest.mark.integration
-def test_recent_constructor_form_counts_a_team_fastf1_spells_its_own_way(
-    identity_f1db, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.usefixtures("no_fastf1")
+def test_recent_form_reads_f1dbs_classification_without_asking_fastf1(
+    race_results_f1db, monkeypatch: pytest.MonkeyPatch
 ):
-    """FastF1 says "RB F1 Team", the table "Racing Bulls": Lawson's two Mexico points must still count."""
+    """Mexico City 2026 from f1db: Verstappen won (25), Lawson was 7th (6) and Lindblad retired (0), all for Racing Bulls."""
     _stub_season(
         monkeypatch,
+        drivers=[_driver_row("VER", position=1, points=25.0)],
         constructors=[_constructor_row("Racing Bulls", position=5, points=108.0)],
         completed_rounds=[19],
     )
@@ -497,7 +490,7 @@ def test_recent_constructor_form_counts_a_team_fastf1_spells_its_own_way(
         [
             {
                 "RoundNumber": 19,
-                "EventName": "Mexico City Grand Prix",
+                "EventName": "Mexican Grand Prix",
                 "Location": "Mexico City",
                 "Country": "Mexico",
                 "Session5": "Race",
@@ -506,9 +499,11 @@ def test_recent_constructor_form_counts_a_team_fastf1_spells_its_own_way(
         ]
     )
     monkeypatch.setattr(module, "load_race_classification", race_control_debriefs.load_race_classification)
-    monkeypatch.setattr(race_control_debriefs.fastf1, "get_event_schedule", lambda year, include_testing: schedule)
-    monkeypatch.setattr(race_control_debriefs.fastf1, "get_session", lambda *_args: _MexicoRace())
+    monkeypatch.setattr(race_control_debriefs, "season_schedule", lambda _year: schedule)
+    monkeypatch.setattr(race_results, "openf1_session_result", lambda *_args: ([], {}))
 
-    constructors = _by_key(module.build_championship_forecast(2026)["constructors"])
+    result = module.build_championship_forecast(2026)
 
-    assert constructors["Racing Bulls"]["recent_points_per_event"] == 2.0
+    assert _by_key(result["constructors"])["Racing Bulls"]["recent_points_per_event"] == 6.0
+    assert _by_key(result["drivers"])["VER"]["recent_points_per_event"] == 25.0
+    assert result["recent_window"] == 1

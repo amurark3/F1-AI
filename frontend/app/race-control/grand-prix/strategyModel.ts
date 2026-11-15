@@ -69,6 +69,8 @@ export interface DriverStrategy {
   status: FinishStatus | null;
   /** Laps completed, from the classification; null when it does not say. */
   laps_completed: number | null;
+  /** Why the car stopped (f1db), once published; null for a car that did not stop or has no reason yet. */
+  reason: string | null;
   /** Went into the pits on its last lap and retired there, which is not a stop. */
   retired_in_pits: boolean;
   /** Empty for a classified car with no stint data, such as one that never started. */
@@ -85,6 +87,13 @@ export interface DriverStrategy {
   total_laps: number;
 }
 
+/** A period the race ran under a neutralisation, in the lap numbers of the leading car. */
+export interface Neutralisation {
+  kind: "sc" | "vsc" | "red";
+  start_lap: number;
+  end_lap: number;
+}
+
 export interface RaceStrategyResponse {
   year: number;
   round: number;
@@ -93,6 +102,8 @@ export interface RaceStrategyResponse {
   has_stops: boolean;
   /** Where each driver's status and the row order came from; null before a result is published. */
   classification_source: string | null;
+  /** Safety car, VSC and red-flag periods; null when OpenF1 could not say, [] when there were none. */
+  neutralisations: Neutralisation[] | null;
   drivers: DriverStrategy[];
   stops: PitStop[];
   /** Stops whose lap matched no stint boundary: reported, never forced. */
@@ -119,23 +130,34 @@ const STATUS_CODE: Record<FinishStatus, string> = {
 };
 
 /**
- * The short result for a driver's row: the classified position, or the
- * status for a car the classification does not place. "-" before any result.
+ * The Pos cell: the classified place for a finisher, the status word for any
+ * other car (a retirement reads DNF whatever place a source lists it at), and
+ * "-" before any result.
  */
 export function resultCode(driver: Pick<DriverStrategy, "finish_position" | "status">): string {
-  if (driver.finish_position !== null) return `P${driver.finish_position}`;
-  return driver.status === null ? "-" : STATUS_CODE[driver.status] || "-";
+  const word = driver.status === null ? "" : STATUS_CODE[driver.status];
+  if (word) return word;
+  return driver.finish_position === null ? "-" : String(driver.finish_position);
+}
+
+/** The Stops column's tag for a retirement: `DNF · L58`, or `DNF` with no lap count. */
+export function retirementTag(driver: Pick<DriverStrategy, "status" | "laps_completed">): string | null {
+  if (driver.status !== "dnf") return null;
+  return driver.laps_completed === null ? "DNF" : `DNF · L${driver.laps_completed}`;
 }
 
 /** How the driver's last stint ended, in words, from the classification only. */
-export function finalStintLabel(driver: Pick<DriverStrategy, "status" | "laps_completed" | "retired_in_pits">): string {
+export function finalStintLabel(
+  driver: Pick<DriverStrategy, "status" | "laps_completed" | "retired_in_pits" | "reason">,
+): string {
   const laps = driver.laps_completed;
   switch (driver.status) {
     case "finished":
       return "Took the flag";
     case "dnf": {
       const where = driver.retired_in_pits ? "Retired in the pits" : "Retired";
-      return laps === null ? where : `${where} · lap ${laps}`;
+      const why = driver.reason ? `${where}: ${driver.reason}` : where;
+      return laps === null ? why : `${why} · lap ${laps}`;
     }
     case "dns":
       return "Did not start";
@@ -173,4 +195,9 @@ export function stopTimeLabel(stop: Pick<PitStop, "time" | "stationary_millis">)
   const lane = `${stop.time.includes(":") ? stop.time : `${stop.time} s`} in the pit lane`;
   if (stop.stationary_millis === null) return lane;
   return `${lane}, ${(stop.stationary_millis / 1000).toFixed(1)} s stationary`;
+}
+
+/** The `RED FLAG · L45` mark's lap, or null when the race had no red flag. */
+export function redFlagLap(neutralisations: Neutralisation[] | null): number | null {
+  return neutralisations?.find((period) => period.kind === "red")?.start_lap ?? null;
 }

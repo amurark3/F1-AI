@@ -10,7 +10,7 @@ import structlog
 from app.data.predictions.graded import graded_call, legacy_call
 from app.data.predictions.history import _load_prediction_history, record_actual_result
 from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
-from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
+from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, finished_codes, safe_number
 
 logger = structlog.get_logger()
 
@@ -82,7 +82,9 @@ def _build_driver_results(predicted: dict, actual: dict, lookups: ReviewLookups)
     rows = []
     for code in set(predicted) | set(actual):
         predicted_position = _position_value(predicted.get(code))
-        actual_position = _position_value(actual.get(code))
+        # A retirement is listed at a place in the published order; that is no finish.
+        finished = code in finished_codes([code], lookups.statuses)
+        actual_position = _position_value(actual.get(code)) if finished else None
         delta = (
             actual_position - predicted_position
             if predicted_position is not None and actual_position is not None
@@ -172,8 +174,10 @@ def build_prediction_review(
     actual_top3 = {code for code, pos in actual.items() if pos <= 3}
     predicted_top10 = {code for code, pos in predicted.items() if pos <= 10}
     actual_top10 = {code for code, pos in actual.items() if pos <= 10}
-    exact_hits = sum(1 for code in common_drivers if predicted[code] == actual[code])
-    position_errors = [abs(float(predicted[code]) - float(actual[code])) for code in common_drivers]
+    statuses = entry.get("actual_statuses") or {}
+    placed = finished_codes(common_drivers, statuses)
+    exact_hits = sum(1 for code in placed if predicted[code] == actual[code])
+    position_errors = [abs(float(predicted[code]) - float(actual[code])) for code in placed]
 
     incidents = entry.get("actual_incidents") or {}
     actual_dnfs = {code for code, flags in incidents.items() if flags.get("dnf")}
@@ -198,7 +202,9 @@ def build_prediction_review(
         "top10_correct": len(predicted_top10 & actual_top10),
         "top10_possible": min(10, len(actual_top10)),
         "exact_position_hits": exact_hits,
-        "drivers_compared": len(common_drivers),
+        "drivers_compared": len(placed),
+        "actual_provisional": entry.get("actual_provisional"),
+        "actual_source": entry.get("actual_source"),
         "avg_position_error": round(statistics.mean(position_errors), 1) if position_errors else 0.0,
         "dnf_correct": len(predicted_dnfs & actual_dnfs),
         "dnf_predicted": len(predicted_dnfs),
@@ -210,7 +216,7 @@ def build_prediction_review(
             predicted,
             actual,
             ReviewLookups(
-                statuses=entry.get("actual_statuses") or {},
+                statuses=statuses,
                 incidents=incidents,
                 risks=risks,
             ),

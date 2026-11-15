@@ -150,7 +150,7 @@ describe("gridDeltaCell", () => {
 
   it("writes a pit-lane start out", () => {
     expect(gridDeltaCell({ kind: "pit_lane" })).toEqual({
-      text: "Pit lane",
+      text: "from pit lane",
       className: "text-rc-ink-2",
       note: "Starts from the pit lane",
     });

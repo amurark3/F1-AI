@@ -25,6 +25,7 @@ from app.services.race_control.overview import (
     build_overview_shell,
     build_overview_strategy,
     build_overview_weather,
+    build_round_circuit,
 )
 from app.services.race_control.risk import build_risk_register
 from app.services.race_control.strategy_context import build_strategy_context
@@ -39,6 +40,7 @@ __all__ = [
     "build_overview_strategy",
     "build_overview_weather",
     "build_risk_register",
+    "build_round_circuit",
     "build_strategy_context",
     "focus_for_event",
 ]

@@ -58,6 +58,7 @@ import structlog
 from app.data.f1db_results import race_results
 from app.data.pit_sheet import race_pit_sheet, without_suspension
 from app.data.race_classification import RaceClassification, race_classification
+from app.data.race_neutralisations import race_neutralisations
 from app.data.race_stints import Stint, race_stints
 
 if TYPE_CHECKING:
@@ -168,6 +169,7 @@ class _Place:
     finish_position: int | None
     status: str | None = None
     laps_completed: int | None = None
+    reason: str | None = None
 
 
 def _places(year: int, round_num: int, classification: RaceClassification) -> dict[str, _Place]:
@@ -183,6 +185,7 @@ def _places(year: int, round_num: int, classification: RaceClassification) -> di
                 finish_position=driver.position,
                 status=driver.status,
                 laps_completed=driver.laps_completed,
+                reason=driver.reason,
             )
             for index, driver in enumerate(classification.drivers, start=1)
         }
@@ -323,6 +326,8 @@ def _driver_payload(code: str, team: str, rows: list[dict], place: _Place | None
         # far the car got. Both null until a classification is published.
         "status": None if place is None else place.status,
         "laps_completed": None if place is None else place.laps_completed,
+        # Why the car stopped (f1db), when it is published; null otherwise.
+        "reason": None if place is None else place.reason,
         # Went into the pits on its last lap and retired there: not a stop.
         # Set by the caller, which knows the pit sheet.
         "retired_in_pits": False,
@@ -449,6 +454,8 @@ def build_race_strategy(year: int, round_num: int) -> dict:
         # Where each driver's status and the row order came from; null when no
         # classification is published yet.
         "classification_source": classification.source,
+        # Safety car, VSC and red-flag periods as lap ranges; null when OpenF1 cannot say.
+        "neutralisations": race_neutralisations(year, round_num),
         "drivers": drivers,
         # Where the stop sheet came from; null when none is published.
         "stops_source": published.source,

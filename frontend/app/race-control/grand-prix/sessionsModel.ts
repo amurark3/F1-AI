@@ -43,11 +43,40 @@ interface SessionBase {
   name: string;
 }
 
-/** A session that produced a classification: practice, qualifying, a race. */
-export interface ClassificationSession extends SessionBase {
-  kind: "practice" | "qualifying" | "race";
+/** The qualifying parts, last first: a car's part is the last one it set a time in. */
+export type QualifyingPart = "q1" | "q2" | "q3";
+
+/** A practice row: who the car belonged to when a stand-in drove it. */
+export interface PracticeEntry extends SessionEntry {
+  stand_in_for: { driver_code: string; driver_name: string } | null;
+}
+
+/** A qualifying row, with the gap measured inside the part the car ran in. */
+export interface QualifyingEntry extends SessionEntry {
+  part: QualifyingPart | null;
+  /** Gap to the fastest lap of `part` ("+0.310"); null for that lap's owner and for a disqualified car. */
+  part_gap: string | null;
+  /** Disqualified cars that lifted this one into a part it did not run in. */
+  promoted_by: string[];
+}
+
+export interface PracticeSession extends SessionBase {
+  kind: "practice";
+  entries: PracticeEntry[];
+}
+
+export interface QualifyingSession extends SessionBase {
+  kind: "qualifying";
+  entries: QualifyingEntry[];
+}
+
+/** A race classification: the Results tab's story, not this payload's. */
+export interface RaceSession extends SessionBase {
+  kind: "race";
   entries: SessionEntry[];
 }
+
+export type ClassificationSession = PracticeSession | QualifyingSession | RaceSession;
 
 /**
  * A grid, which is an order rather than a classification.

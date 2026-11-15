@@ -8,8 +8,8 @@ import statistics
 import structlog
 
 from app.data.predictions.graded import graded_call
-from app.data.predictions.history import _load_prediction_history, record_actual_result
-from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, safe_number
+from app.data.predictions.history import _load_prediction_history, actuals_pending, record_actual_result
+from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, finished_codes, safe_number
 
 logger = structlog.get_logger()
 
@@ -71,6 +71,7 @@ def _evaluated_entries(history: dict) -> list[dict]:
                     "actual": actual,
                     "risk_predictions": snapshot.get("risk_predictions") or {},
                     "actual_incidents": entry.get("actual_incidents") or {},
+                    "actual_statuses": entry.get("actual_statuses") or {},
                     "generated_at": snapshot.get("generated_at") or entry.get("generated_at", ""),
                 }
             )
@@ -80,7 +81,7 @@ def _evaluated_entries(history: dict) -> list[dict]:
 def _backfill_actuals(history: dict) -> None:
     """Lazily load results for predictions that have none recorded yet."""
     for key, entry in history.items():
-        if not graded_call(entry).get("predicted_positions") or entry.get("actual_positions"):
+        if not graded_call(entry).get("predicted_positions") or not actuals_pending(entry):
             continue
         try:
             # Keys are stored as "(year,round)".
@@ -119,19 +120,21 @@ def _score_race(race: dict) -> RaceTally:
         code for code, risk in risks.items() if safe_number(risk.get("crash_risk_pct")) >= CRASH_RISK_THRESHOLD
     }
 
+    placed = finished_codes(common, race.get("actual_statuses") or {})
+
     return RaceTally(
         top3_correct=len(predicted_top3 & actual_top3),
         top3_possible=min(_TOP3, len(predicted_top3)),
         top10_correct=len(predicted_top10 & actual_top10),
         top10_possible=min(_TOP10, len(predicted_top10)),
         winner_correct=int(min(predicted, key=predicted.get) == min(actual, key=actual.get)),
-        exact_positions=sum(1 for code in common if predicted[code] == actual[code]),
-        drivers_compared=len(common),
+        exact_positions=sum(1 for code in placed if predicted[code] == actual[code]),
+        drivers_compared=len(placed),
         dnf_correct=len(predicted_dnfs & actual_dnfs),
         dnf_actual=len(actual_dnfs),
         crash_correct=len(predicted_crashes & actual_crashes),
         crash_actual=len(actual_crashes),
-        position_errors=tuple(abs(predicted[code] - actual[code]) for code in common),
+        position_errors=tuple(abs(predicted[code] - actual[code]) for code in placed),
     )
 
 

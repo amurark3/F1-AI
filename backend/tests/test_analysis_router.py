@@ -130,14 +130,14 @@ def test_each_endpoint_hands_the_builder_what_was_asked_for(client, monkeypatch)
 
     assert client.get("/analysis/2026/18/sessions").json()["name"] == "build_weekend"
     assert client.get("/analysis/2026/18/laps?session=SQ").json()["name"] == "build_lap_list"
-    client.get("/analysis/2026/18/track-map?driver=nor&lap=8")
-    client.get("/analysis/2026/18/compare?a=NOR&b=ver&lap_b=12&session=FP2")
+    client.get("/analysis/2026/18/track-map?driver=nor&lap=8&segment=2")
+    client.get("/analysis/2026/18/compare?a=NOR&b=ver&lap_b=12&session=FP2&segment=3")
     client.get("/analysis/2023/4/tyre-degradation?session=S")
 
     assert seen["build_weekend"] == (2026, 18)
     assert seen["build_lap_list"] == (SessionRef(2026, 18, "SQ"),)
-    assert seen["build_track_map"] == (SessionRef(2026, 18, "Q"), DriverLap("NOR", 8))
-    assert seen["build_comparison"] == (SessionRef(2026, 18, "FP2"), DriverLap("NOR", None), DriverLap("VER", 12))
+    assert seen["build_track_map"] == (SessionRef(2026, 18, "Q"), DriverLap("NOR", 8, 2))
+    assert seen["build_comparison"] == (SessionRef(2026, 18, "FP2"), DriverLap("NOR", None, 3), DriverLap("VER", 12, 3))
     assert seen["build_degradation"] == (SessionRef(2023, 4, "S"),)
 
 

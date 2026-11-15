@@ -7,12 +7,16 @@ what makes the weighting easy to reason about and to test.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 import statistics
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from app.data.predictions.incidents import _load_recent_incidents
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = structlog.get_logger()
 
@@ -22,6 +26,26 @@ logger = structlog.get_logger()
 # the same prediction the same way.
 DNF_RISK_THRESHOLD = 16
 CRASH_RISK_THRESHOLD = 10
+
+
+def finished_codes(codes: Iterable[str], statuses: dict) -> set[str]:
+    """The cars among ``codes`` that took a classified place.
+
+    A retirement, non-starter, disqualification or unclassified car is listed at
+    some place in the published order, but that place is not a finish, so place
+    metrics leave it out and the retirement is scored as a retirement call. An
+    entry that stored no status for a car (an older result) reads as finished, and
+    so does FastF1's lapped-finisher text ("+1 Lap") that results graded before
+    D1.8 still hold until ``scripts.regrade_actuals`` rewrites them.
+    """
+    return {code for code in codes if _finished(statuses.get(code, "Finished"))}
+
+
+_LAPPED = re.compile(r"\+\d+ Laps?")
+
+
+def _finished(status: str) -> bool:
+    return status == "Finished" or _LAPPED.fullmatch(status) is not None
 
 
 def _safe_mean(values: list[int | float], default: float = 10.0) -> float:

@@ -11,6 +11,7 @@ import httpx
 import pandas as pd
 import pytest
 
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.services import live_timing_client as client
 from app.services.live_timing import GAP_FEED_WINDOW, LAP_FEED_WINDOW
 
@@ -514,7 +515,7 @@ def test_get_json_treats_a_json_object_as_no_data():
 
 
 # --------------------------------------------------------------------------
-# _event_identity — round number to location, date and name via FastF1
+# _event_identity — round number to location, date and name via f1db
 # --------------------------------------------------------------------------
 
 
@@ -532,7 +533,7 @@ def _schedule_frame() -> pd.DataFrame:
 
 
 def test_event_identity_reads_the_round_from_the_schedule(monkeypatch):
-    monkeypatch.setattr(client.fastf1, "get_event_schedule", lambda **_kwargs: _schedule_frame())
+    monkeypatch.setattr(client, "season_schedule", lambda _year: _schedule_frame())
 
     location, event_date, name = client._event_identity(2026, 15)
 
@@ -541,18 +542,25 @@ def test_event_identity_reads_the_round_from_the_schedule(monkeypatch):
 
 
 def test_event_identity_is_none_for_a_round_not_on_the_calendar(monkeypatch):
-    monkeypatch.setattr(client.fastf1, "get_event_schedule", lambda **_kwargs: _schedule_frame())
+    monkeypatch.setattr(client, "season_schedule", lambda _year: _schedule_frame())
 
     assert client._event_identity(2026, 99) is None
 
 
-@pytest.mark.parametrize("error", [OSError("connection reset"), ValueError("bad year"), KeyError("RoundNumber")])
+@pytest.mark.parametrize(
+    "error",
+    [
+        OSError("connection reset"),
+        CalendarUnavailableError("f1db has no calendar for 2026 yet"),
+        KeyError("RoundNumber"),
+    ],
+)
 def test_event_identity_survives_a_schedule_failure(monkeypatch, error):
-    """A transient FastF1 failure must not take the socket down with it."""
+    """A calendar that cannot be read must not take the socket down with it."""
 
-    def _explode(**_kwargs):
+    def _explode(_year):
         raise error
 
-    monkeypatch.setattr(client.fastf1, "get_event_schedule", _explode)
+    monkeypatch.setattr(client, "season_schedule", _explode)
 
     assert client._event_identity(2026, 15) is None

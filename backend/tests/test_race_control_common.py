@@ -288,9 +288,9 @@ def test_find_driver_prefers_an_exact_code_over_an_earlier_substring_match():
 @pytest.mark.unit
 def test_completed_race_rounds_returns_the_round_numbers_and_the_full_calendar_size(monkeypatch):
     monkeypatch.setattr(
-        module.fastf1,
-        "get_event_schedule",
-        lambda **_kwargs: _schedule(
+        module,
+        "season_schedule",
+        lambda _year: _schedule(
             [
                 _race_row(1, _NOW - timedelta(days=30)),
                 _race_row(2, _NOW - timedelta(days=10)),
@@ -304,10 +304,10 @@ def test_completed_race_rounds_returns_the_round_numbers_and_the_full_calendar_s
 
 @pytest.mark.unit
 def test_completed_race_rounds_degrades_to_an_empty_season_when_the_calendar_fails(monkeypatch, capsys):
-    def _boom(**_kwargs):
+    def _boom(_year):
         raise ConnectionError("schedule unreachable")
 
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", _boom)
+    monkeypatch.setattr(module, "season_schedule", _boom)
 
     assert module.completed_race_rounds(2026) == ([], 0)
     assert "race_control.completed_rounds.failed" in capsys.readouterr().out

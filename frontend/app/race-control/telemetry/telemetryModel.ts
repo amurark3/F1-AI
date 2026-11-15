@@ -63,14 +63,34 @@ export interface TimedLap {
   time: number | null;
   deleted: boolean;
   is_fastest: boolean;
+  /** Qualifying part (1-3) the lap began in; null outside the published windows. */
+  segment?: number | null;
+}
+
+export type SegmentGroup = "q3" | "out_q2" | "out_q1" | "disqualified";
+
+/** Qualifying only, when the segments are published. */
+export interface SegmentInfo {
+  available: boolean;
+  /** "Q1", "Q2", "Q3" (SQ1-SQ3 in sprint qualifying). */
+  labels: string[];
+  confirmed?: boolean;
+  notice: string | null;
 }
 
 export interface LapListDriver extends AnalysisDriver {
   best: number | null;
   laps: TimedLap[];
+  segment_bests?: Array<number | null>;
+  segment_reached?: number;
+  group?: SegmentGroup;
+  disqualified?: boolean;
+  classified?: number | null;
+  note?: string | null;
 }
 
 export interface LapListResponse extends AnalysisStatus {
+  segments?: SegmentInfo;
   drivers?: LapListDriver[];
 }
 

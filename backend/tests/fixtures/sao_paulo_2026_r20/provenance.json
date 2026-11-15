@@ -7,7 +7,18 @@
   "openf1_drivers_qualifying.json": "GET https://api.openf1.org/v1/drivers?session_key=11408",
   "f1db_v2026_20_camara.json": "f1db v2026.20.0 SQLite release (https://github.com/f1db/f1db/releases/download/v2026.20.0/f1db-sqlite.zip): driver, race_data and season_entrant_driver rows for rafael-camara; its own 'source' says how",
   "openf1_session_result_qualifying.json": "GET https://api.openf1.org/v1/session_result?session_key=11408, captured 2026-11-14T04:55:03Z for P0b.10 (R20 post-qualifying recompute refused); unedited apart from JSON indentation. Car 51 (Câmara) is P13.",
-  "../mexico_2026_r19/openf1_session_result_qualifying.json": "GET https://api.openf1.org/v1/session_result?session_key=11400 (Mexico City 2026 qualifying), captured 2026-11-14T04:55:03Z for P0b.10; unedited apart from JSON indentation. Car 30 (Lawson, disqualified from qualifying by FIA document 57) has no position."
+  "../mexico_2026_r19/openf1_session_result_qualifying.json": "GET https://api.openf1.org/v1/session_result?session_key=11400 (Mexico City 2026 qualifying), captured 2026-11-14T04:55:03Z for P0b.10; unedited apart from JSON indentation. Car 30 (Lawson, disqualified from qualifying by FIA document 57) has no position.",
+  "openf1_drivers_race.json": "GET https://api.openf1.org/v1/drivers?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_session_result_race.json": "GET https://api.openf1.org/v1/session_result?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_pit_race.json": "GET https://api.openf1.org/v1/pit?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_stints_race.json": "GET https://api.openf1.org/v1/stints?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_race_control_race.json": "GET https://api.openf1.org/v1/race_control?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_weather_race.json": "GET https://api.openf1.org/v1/weather?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_team_radio_race.json": "GET https://api.openf1.org/v1/team_radio?session_key=11412 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_laps_race_first3.json": "GET https://api.openf1.org/v1/laps?session_key=11412&lap_number<=3 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
+  "openf1_laps_practice3.json": "GET https://api.openf1.org/v1/laps?session_key=11407 (Practice 3) captured 2026-11-14 for D1.6. Columns trimmed to driver_number, lap_number, lap_duration, is_pit_out_lap, date_start (the only ones the reader uses); every row kept (478).",
+  "openf1_drivers_practice3.json": "GET https://api.openf1.org/v1/drivers?session_key=11407 captured 2026-11-14 for D1.6; unedited apart from JSON indentation.",
+  "openf1_race_control_practice3.json": "GET https://api.openf1.org/v1/race_control?session_key=11407 captured 2026-11-14 for D1.6; unedited apart from JSON indentation. Deletes car 51 (1:34.799) and car 3 (1:52.648) for track limits."
  },
  "notes": "Unedited apart from JSON indentation. Jolpica now codes Câmara CAM, but the FastF1 results production loaded for R20 qualifying had no Abbreviation for him (STATUS.md log, 2026-11-08), so the tests blank that one cell to NaN the way pandas hands it over. openf1_sessions.json and openf1_drivers_practice1.json predate this file (captured 2 Nov 2026; see tests/roster_support.py)."
 }

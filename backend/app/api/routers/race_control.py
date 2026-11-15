@@ -15,6 +15,7 @@ from app.services.race_control import (
     build_overview_shell,
     build_overview_strategy,
     build_overview_weather,
+    build_round_circuit,
 )
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
@@ -23,6 +24,7 @@ from app.services.race_control_debriefs import build_race_debrief
 from app.services.race_control_standings import build_intel, build_teams
 from app.services.race_glance import build_race_glance
 from app.services.race_grid import build_starting_grid
+from app.services.race_results import build_race_results
 from app.services.race_strategy_board import build_race_strategy
 from app.services.weekend_sessions import build_weekend_sessions
 
@@ -75,6 +77,37 @@ async def get_overview_circuit(year: int) -> dict:
             "lap_record": None,
             "map": None,
             **client_error("api.race_control_overview_circuit.error", exc, year=year),
+        }
+
+
+@router.get("/circuit/{year}/{round_num}")
+async def get_round_circuit(year: int, round_num: int) -> dict:
+    """The given round's circuit map, f1db record and lap record."""
+    try:
+        return await asyncio.to_thread(build_round_circuit, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "record": None,
+            "lap_record": None,
+            "map": None,
+            **client_error("api.race_control_circuit.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/results/{year}/{round_num}")
+async def get_race_results(year: int, round_num: int) -> dict:
+    """The round's official race classification, and its sprint's, with whether each is final."""
+    try:
+        return await asyncio.to_thread(build_race_results, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            "race": None,
+            "sprint": None,
+            **client_error("api.race_control_results.error", exc, year=year, round=round_num),
         }
 
 

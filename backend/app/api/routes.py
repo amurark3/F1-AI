@@ -5,7 +5,6 @@ Assembles every endpoint of the F1 AI backend onto one router:
 
   POST /api/chat                       — Streaming AI chat with tool orchestration
   GET  /api/schedule/{year}            — Full season calendar with UTC session times
-  GET  /api/race/{year}/{round_num}    — Enriched race detail (circuit, results, qualifying)
   GET  /api/standings/drivers/{year}   — World Drivers' Championship standings
   GET  /api/standings/constructors/{year} — World Constructors' Championship standings
   GET  /api/race-control/power-units/{year} — Power-unit element usage and penalties per car
@@ -34,7 +33,6 @@ import structlog
 
 from app.api.compare import router as compare_router
 from app.api.live.websocket import router as live_router
-from app.api.race_detail import router as race_detail_router
 from app.api.routers.analysis import router as analysis_router
 from app.api.routers.champions import router as champions_router
 from app.api.routers.chat import router as chat_router
@@ -60,7 +58,6 @@ router.include_router(season_router)
 router.include_router(champions_router)
 router.include_router(profiles_router)
 router.include_router(readiness_router)
-router.include_router(race_detail_router)
 router.include_router(compare_router)
 router.include_router(live_router)
 

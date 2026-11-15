@@ -21,10 +21,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Literal
 
-from fastf1.ergast import Ergast
-from fastf1.exceptions import ErgastError
 import structlog
 
+from app.data import jolpica
 from app.data.identity import resolve_team_name, season_directory
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.session_entries import load_weekend_entry_list
@@ -32,8 +31,6 @@ from app.utils.ttl_cache import TtlCache
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
-
-    from fastf1.ergast.interface import ErgastMultiResponse
 
     from app.data.standings_rounds import RoundPoints
     from app.data.standings_table import Table
@@ -49,9 +46,9 @@ CheckStatus = Literal["agrees", "disagrees", "unavailable"]
 # A feed's points by driver code and by f1db team name.
 Reported = tuple[dict[str, float], dict[str, float]]
 
-# A feed's answer can be missing a field or be unreadable; FastF1 raises
-# ErgastError for a bad answer and requests' errors are OSErrors.
-_FEED_ERRORS = (OpenF1UnavailableError, ErgastError, OSError, KeyError, TypeError, ValueError)
+# A feed's answer can be missing a field or be unreadable; Jolpica's client
+# raises JolpicaUnavailableError for every failure, our own hourly cap included.
+_FEED_ERRORS = (OpenF1UnavailableError, jolpica.JolpicaUnavailableError, OSError, KeyError, TypeError, ValueError)
 
 
 @dataclass(frozen=True)
@@ -131,18 +128,12 @@ def _openf1_reported(year: int, last: RoundPoints) -> Reported:
     )
 
 
-def _records(response: ErgastMultiResponse) -> list[dict]:
-    """The rows of the one standings list asked for; empty before Jolpica publishes the round."""
-    return response.content[0].to_dict("records") if response.content else []
-
-
 def _jolpica_reported(year: int, round_num: int) -> Reported:
-    ergast = Ergast()
-    drivers = _records(ergast.get_driver_standings(season=year, round=round_num))
-    teams = _records(ergast.get_constructor_standings(season=year, round=round_num))
+    drivers = jolpica.driver_standings(year, round_num)
+    teams = jolpica.constructor_standings(year, round_num)
     return (
-        {str(row["driverCode"]): float(row["points"]) for row in drivers},
-        {_team_key(year, str(row["constructorName"])): float(row["points"]) for row in teams},
+        {row["driverCode"]: row["points"] for row in drivers},
+        {_team_key(year, row["constructorName"]): row["points"] for row in teams},
     )
 
 

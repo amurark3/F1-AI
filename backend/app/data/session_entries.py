@@ -167,8 +167,8 @@ def load_weekend_entry_list(year: int, round_num: int) -> WeekendEntryList:
     try:
         with new_client() as client:
             result = _read_weekend(client, year, round_num)
-    # The calendar lookup reaches FastF1's schedule backend, which raises
-    # ValueError/KeyError for a bad season and OSError for a network failure.
+    # The calendar lookup reads f1db, which raises CalendarUnavailableError (a
+    # ValueError) for a season it does not hold.
     except (OpenF1UnavailableError, ValueError, KeyError, OSError) as exc:
         logger.warning("entry_list.openf1_unavailable", year=year, round=round_num, error=str(exc))
         result = UNAVAILABLE

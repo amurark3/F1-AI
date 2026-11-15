@@ -6,6 +6,7 @@ SESSION_PATTERN = r"^(FP1|FP2|FP3|SQ|S|Q|R)$"
 RACE_SESSION_PATTERN = r"^(S|R)$"
 DRIVER_PATTERN = r"^[A-Za-z]{3}$"
 MAX_LAP = 200
+SEGMENTS = 3
 
 
 class SessionQuery(BaseModel):
@@ -19,6 +20,8 @@ class TrackMapQuery(SessionQuery):
 
     driver: str = Field(pattern=DRIVER_PATTERN)
     lap: int | None = Field(None, ge=1, le=MAX_LAP)
+    # Qualifying: the default lap is the fastest valid one inside this segment (1-3).
+    segment: int | None = Field(None, ge=1, le=SEGMENTS)
 
 
 class CompareQuery(SessionQuery):
@@ -28,6 +31,8 @@ class CompareQuery(SessionQuery):
     b: str = Field(pattern=DRIVER_PATTERN)
     lap_a: int | None = Field(None, ge=1, le=MAX_LAP)
     lap_b: int | None = Field(None, ge=1, le=MAX_LAP)
+    # Qualifying: each default lap is that driver's fastest valid one inside this segment (1-3).
+    segment: int | None = Field(None, ge=1, le=SEGMENTS)
 
 
 class DegradationQuery(BaseModel):

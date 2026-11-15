@@ -1,88 +1,43 @@
 "use client";
 
 import { teamLabel } from "@/app/ui/names/names";
+import { Segmented } from "@/app/ui/Segmented";
 
-import { rcFont } from "../components/RaceControlPrimitives";
-
+import { groupDrivers, groupLaps, noTimeReason, segmentBest, type SegmentChoice } from "./qualifyingSegments";
 import { formatLapTime } from "./telemetryModel";
 
-import type { LapListDriver, WeekendSession } from "./telemetryModel";
+import type { LapListDriver, TimedLap } from "./telemetryModel";
 
-const LABEL = "font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#7F8797]";
-const SELECT = "min-w-0 rounded border border-[#1E2633] bg-[#0A0E16] px-2 py-1.5 font-mono text-xs text-white";
+const LABEL = "font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-rc-ink-3";
+const SELECT = "min-w-0 rounded border border-rc-line bg-rc-hero px-2 py-1.5 font-mono text-xs text-rc-ink";
 
-export function YearPicker({
-  years,
-  value,
-  onChange,
-}: {
-  years: number[];
-  value: number;
-  onChange: (year: number) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2">
-      <span className={LABEL}>Season</span>
-      <select
-        className={SELECT}
-        value={value}
-        onChange={(event) => {
-          onChange(Number(event.target.value));
-        }}
-      >
-        {years.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+/** What a driver's option says: their best in the part (or session), or why there is none. */
+function timeText(driver: LapListDriver, choice: SegmentChoice | null): string {
+  const best = segmentBest(driver, choice?.segment ?? null);
+  if (best !== null) return formatLapTime(best);
+  return choice === null ? "no valid lap" : noTimeReason(driver, choice);
 }
 
-/** One button per session the round runs; sessions not yet started are disabled. */
-export function SessionPicker({
-  sessions,
-  value,
-  allowed,
+/** Q1 · Q2 · Q3 (SQ1-SQ3), or the backend's notice when the parts are not published. */
+export function SegmentPicker({
+  choice,
+  notice,
   onChange,
 }: {
-  sessions: WeekendSession[];
-  value: string | null;
-  allowed: (code: string) => boolean;
-  onChange: (code: string) => void;
+  choice: SegmentChoice | null;
+  notice: string | null | undefined;
+  onChange: (segment: number) => void;
 }) {
-  const offered = sessions.filter((session) => allowed(session.code));
-  if (offered.length === 0) {
-    return <p className="font-mono text-xs text-[#6F7789]">No session of this kind on this weekend.</p>;
-  }
+  if (choice === null) return notice ? <p className="font-mono text-xs text-rc-ink-3">{notice}</p> : null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Session">
-      <span className={`${LABEL} mr-1`}>Session</span>
-      {offered.map((session) => {
-        const selected = session.code === value;
-        return (
-          <button
-            key={session.code}
-            type="button"
-            disabled={!session.started}
-            aria-pressed={selected}
-            title={session.started ? session.name : `${session.name} has not started yet`}
-            onClick={() => {
-              onChange(session.code);
-            }}
-            className={`rounded border px-2.5 py-1 font-mono text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-              selected
-                ? "border-[#3987E5] bg-[#3987E5]/15 text-white"
-                : "border-[#1E2633] text-[#A8AFBF] hover:bg-white/[0.04]"
-            }`}
-            style={rcFont}
-          >
-            {session.name}
-          </button>
-        );
-      })}
-    </div>
+    <Segmented
+      label="Qualifying part"
+      value={String(choice.segment)}
+      onChange={(value) => {
+        onChange(Number(value));
+      }}
+      options={choice.labels.map((label, index) => ({ value: String(index + 1), label }))}
+    />
   );
 }
 
@@ -91,11 +46,14 @@ export function DriverPicker({
   drivers,
   value,
   onChange,
+  segments = null,
 }: {
   label: string;
   drivers: LapListDriver[];
   value: string | null;
   onChange: (code: string) => void;
+  /** The qualifying part on show; groups the drivers by how far they got. */
+  segments?: SegmentChoice | null;
 }) {
   return (
     <label className="flex min-w-0 items-center gap-2">
@@ -108,12 +66,21 @@ export function DriverPicker({
         }}
       >
         {value === null && <option value="">Choose a driver</option>}
-        {drivers.map((driver) => (
-          <option key={driver.code} value={driver.code}>
-            {driver.code} · {teamLabel({ name: driver.team }, "name")} ·{" "}
-            {driver.best === null ? "no valid lap" : formatLapTime(driver.best)}
-          </option>
-        ))}
+        {groupDrivers(drivers, segments).map((group) => {
+          const options = group.drivers.map((driver) => (
+            <option key={driver.code} value={driver.code}>
+              {driver.code} · {teamLabel({ name: driver.team }, "name")} · {timeText(driver, segments)}
+              {driver.note ? ` · ${driver.note}` : ""}
+            </option>
+          ));
+          return group.heading === null ? (
+            options
+          ) : (
+            <optgroup key={group.key} label={group.heading}>
+              {options}
+            </optgroup>
+          );
+        })}
       </select>
     </label>
   );
@@ -124,10 +91,13 @@ export function LapPicker({
   driver,
   value,
   onChange,
+  segments = null,
 }: {
   driver: LapListDriver | undefined;
   value: number | null;
   onChange: (lap: number | null) => void;
+  /** The qualifying part on show; groups the laps under Q1 / Q2 / Q3. */
+  segments?: SegmentChoice | null;
 }) {
   if (!driver) return null;
   return (
@@ -140,15 +110,30 @@ export function LapPicker({
           onChange(event.target.value === "" ? null : Number(event.target.value));
         }}
       >
-        <option value="">Fastest valid lap</option>
-        {driver.laps.map((lap) => (
-          <option key={lap.number} value={lap.number}>
-            Lap {lap.number} · {formatLapTime(lap.time)}
-            {lap.deleted ? " · deleted" : ""}
-            {lap.is_fastest ? " · fastest" : ""}
-          </option>
-        ))}
+        <option value="">
+          {segments ? `${segments.labels[segments.segment - 1]} · fastest valid lap` : "Fastest valid lap"}
+        </option>
+        {groupLaps(driver.laps, segments?.labels ?? null).map((group) => {
+          const options = group.laps.map((lap) => <LapOption key={lap.number} lap={lap} />);
+          return group.heading === null ? (
+            options
+          ) : (
+            <optgroup key={group.heading} label={group.heading}>
+              {options}
+            </optgroup>
+          );
+        })}
       </select>
     </label>
+  );
+}
+
+function LapOption({ lap }: { lap: TimedLap }) {
+  return (
+    <option value={lap.number}>
+      Lap {lap.number} · {formatLapTime(lap.time)}
+      {lap.deleted ? " · deleted" : ""}
+      {lap.is_fastest ? " · fastest" : ""}
+    </option>
   );
 }

@@ -12,28 +12,28 @@ just the shapes. The risks worth guarding:
   the most places.
 * **A missing grid slot must disable the comparison, not default to zero.**
   Pit-lane starts arrive as grid 0/NaN.
-* **Names are f1db's.** FastF1 writes "Andrea Kimi Antonelli" and "RB F1 Team";
-  the classification, and every sentence built from it, prints "Kimi
-  Antonelli" and "Racing Bulls" under the same keys, and FastF1's own words
-  when f1db cannot be read.
+* **A retirement is never a place.** A car that did not finish has no
+  ``position`` and reads "DNF (Engine)", whatever the source lists it at.
+* **Names are f1db's.** The classification, and every sentence built from it,
+  prints "Kimi Antonelli" and "Racing Bulls".
 
-FastF1 is mocked at the ``get_event_schedule`` / ``get_session`` boundary; the
-frames themselves are real pandas so the coercion paths are exercised.
+No FastF1 request is made: the classification is f1db's (Mexico City 2026,
+``fixtures/f1db_race_results``, five retirements), OpenF1's until f1db holds the
+race. The calendar (``season_schedule``) is stubbed with real pandas rows.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-import sqlite3
 
 import pandas as pd
 import pytest
-import structlog
 
-from app.data import f1db_source
-from app.services import race_control_debriefs as module
+from app.services import race_control_debriefs as module, race_results
 from app.services.race_control_debriefs import DebriefSections
-from tests.identity_support import mexico_fastf1_results
+from tests.fastf1_guard import no_fastf1  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("no_fastf1")
 
 _NOW = datetime.now(UTC).replace(tzinfo=None)
 
@@ -63,17 +63,6 @@ def _result_row(
     }
 
 
-class _FakeSession:
-    """Stand-in for the object ``fastf1.get_session`` returns."""
-
-    def __init__(self, results: pd.DataFrame):
-        self.results = results
-        self.load_kwargs: dict | None = None
-
-    def load(self, **kwargs) -> None:
-        self.load_kwargs = kwargs
-
-
 def _schedule(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
@@ -90,26 +79,15 @@ def _event(round_number: int, race_time: datetime | None, *, name: str = "Monaco
     }
 
 
-def _stub_fastf1(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    schedule: pd.DataFrame,
-    session: _FakeSession | None = None,
-) -> list[tuple]:
-    """Serve a fixed schedule and race session; returns recorded session calls."""
-    requested: list[tuple] = []
+def _stub_calendar(monkeypatch: pytest.MonkeyPatch, schedule: pd.DataFrame) -> list[int]:
+    """Serve a fixed schedule; returns the years it was asked for."""
+    requested: list[int] = []
 
-    def _get_event_schedule(year: int, include_testing: bool) -> pd.DataFrame:
-        requested.append(("schedule", year, include_testing))
+    def _season_schedule(year: int) -> pd.DataFrame:
+        requested.append(year)
         return schedule
 
-    def _get_session(year: int, round_num: int, identifier: str) -> _FakeSession:
-        requested.append(("session", year, round_num, identifier))
-        assert session is not None, "session load was not expected"
-        return session
-
-    monkeypatch.setattr(module.fastf1, "get_event_schedule", _get_event_schedule)
-    monkeypatch.setattr(module.fastf1, "get_session", _get_session)
+    monkeypatch.setattr(module, "season_schedule", _season_schedule)
     return requested
 
 
@@ -247,8 +225,8 @@ def test_a_lone_retirement_uses_singular_wording():
 
 @pytest.mark.unit
 def test_lapped_finishers_are_not_treated_as_reliability_problems():
-    """ "+1 Lap" is a normal classified finish, not an incident."""
-    results = [_result_row("VER", position=15, grid=15, status="+1 Lap")]
+    """A lapped car is classified "Finished" (its laps down are a gap, not a status): not an incident."""
+    results = [_result_row("VER", position=15, grid=15, status="Finished")]
 
     assert not any("non-standard" in line for line in module.build_debrief_takeaways(results, []))
 
@@ -495,24 +473,33 @@ def test_a_mover_without_a_full_name_is_named_by_code_in_the_notes():
 # load_race_classification
 # ---------------------------------------------------------------------------
 
+MEXICO = _event(19, _NOW - timedelta(days=2), name="Mexican Grand Prix")
+GRID = {"VER": 3, "HAM": 1, "ANT": 2, "LIN": None}
+
+
+@pytest.fixture
+def mexico(race_results_f1db, monkeypatch: pytest.MonkeyPatch):
+    """f1db's Mexico City 2026 race, two days on, with a hand-set grid (a pit-lane start for Lindblad)."""
+    _stub_calendar(monkeypatch, _schedule([MEXICO]))
+    monkeypatch.setattr(race_results, "openf1_session_result", lambda *_args: ([], {}))
+    monkeypatch.setattr(module, "official_grid", lambda _year, _round: GRID)
+
 
 @pytest.mark.unit
-def test_an_unknown_round_returns_an_error_without_touching_the_session(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    calls = _stub_fastf1(monkeypatch, schedule=_schedule([_event(1, _NOW - timedelta(days=7))]))
+def test_an_unknown_round_returns_an_error_without_reading_a_classification(monkeypatch: pytest.MonkeyPatch):
+    asked = _stub_calendar(monkeypatch, _schedule([_event(1, _NOW - timedelta(days=7))]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: pytest.fail("a result was read"))
 
     result = module.load_race_classification(2024, 99)
 
     assert result == {"error": "Round 99 not found for 2024", "race_results": [], "podium": []}
-    assert [call[0] for call in calls] == ["schedule"]
+    assert asked == [2024]
 
 
 @pytest.mark.unit
-def test_a_race_still_in_the_future_returns_the_event_shell_only(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    calls = _stub_fastf1(monkeypatch, schedule=_schedule([_event(3, _NOW + timedelta(days=2))]))
+def test_a_race_still_in_the_future_returns_the_event_shell_only(monkeypatch: pytest.MonkeyPatch):
+    _stub_calendar(monkeypatch, _schedule([_event(3, _NOW + timedelta(days=2))]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: pytest.fail("a result was read"))
 
     result = module.load_race_classification(2024, 3)
 
@@ -523,172 +510,81 @@ def test_a_race_still_in_the_future_returns_the_event_shell_only(
         "race_results": [],
         "podium": [],
     }
-    assert [call[0] for call in calls] == ["schedule"]
 
 
 @pytest.mark.unit
-def test_a_race_inside_the_three_hour_window_is_not_yet_classified(
-    monkeypatch: pytest.MonkeyPatch,
-):
+def test_a_race_inside_the_three_hour_window_is_not_yet_classified(monkeypatch: pytest.MonkeyPatch):
     """The result is only read three hours after lights out, not at lights out."""
-    _stub_fastf1(monkeypatch, schedule=_schedule([_event(3, _NOW - timedelta(hours=1))]))
+    _stub_calendar(monkeypatch, _schedule([_event(3, _NOW - timedelta(hours=1))]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: pytest.fail("a result was read"))
 
     assert module.load_race_classification(2024, 3)["race_results"] == []
 
 
 @pytest.mark.unit
 def test_an_event_with_no_race_session_date_is_never_loaded(monkeypatch: pytest.MonkeyPatch):
-    _stub_fastf1(monkeypatch, schedule=_schedule([_event(3, None)]))
+    _stub_calendar(monkeypatch, _schedule([_event(3, None)]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: pytest.fail("a result was read"))
 
     assert module.load_race_classification(2024, 3)["race_results"] == []
 
 
 @pytest.mark.unit
-def test_a_completed_race_is_read_in_finishing_order_with_a_top_three_podium(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session = _FakeSession(
-        pd.DataFrame(
-            [
-                {
-                    "Position": 3.0,
-                    "Abbreviation": "LEC",
-                    "FirstName": "Charles",
-                    "LastName": "Leclerc",
-                    "TeamName": "Ferrari",
-                    "GridPosition": 4.0,
-                    "Points": 15.0,
-                    "Status": "Finished",
-                },
-                {
-                    "Position": 1.0,
-                    "Abbreviation": "VER",
-                    "FirstName": "Max",
-                    "LastName": "Verstappen",
-                    "TeamName": "Red Bull",
-                    "GridPosition": 2.0,
-                    "Points": 25.0,
-                    "Status": "Finished",
-                },
-                {
-                    "Position": 2.0,
-                    "Abbreviation": "NOR",
-                    "FirstName": "Lando",
-                    "LastName": "Norris",
-                    "TeamName": "McLaren",
-                    "GridPosition": 1.0,
-                    "Points": 18.0,
-                    "Status": "Finished",
-                },
-                {
-                    "Position": 4.0,
-                    "Abbreviation": "PIA",
-                    "FirstName": "Oscar",
-                    "LastName": "Piastri",
-                    "TeamName": "McLaren",
-                    "GridPosition": 3.0,
-                    "Points": 12.0,
-                    "Status": "Finished",
-                },
-            ]
-        )
-    )
-    calls = _stub_fastf1(
-        monkeypatch,
-        schedule=_schedule([_event(3, _NOW - timedelta(days=1))]),
-        session=session,
-    )
+def test_a_race_no_source_holds_yet_returns_the_event_shell(monkeypatch: pytest.MonkeyPatch):
+    _stub_calendar(monkeypatch, _schedule([_event(3, _NOW - timedelta(days=1))]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: None)
 
     result = module.load_race_classification(2024, 3)
 
-    assert [row["driver"] for row in result["race_results"]] == ["VER", "NOR", "LEC", "PIA"]
-    assert [row["driver"] for row in result["podium"]] == ["VER", "NOR", "LEC"]
-    assert result["race_results"][0] == {
+    assert (result["race_results"], result["podium"], "final" in result) == ([], [], False)
+
+
+@pytest.mark.integration
+def test_mexico_is_read_from_f1db_in_finishing_order_with_a_podium_and_provenance(mexico):
+    result = module.load_race_classification(2026, 19)
+
+    rows = result["race_results"]
+    assert [row["driver"] for row in rows][:4] == ["VER", "HAM", "ANT", "LEC"]
+    assert [row["driver"] for row in result["podium"]] == ["VER", "HAM", "ANT"]
+    assert rows[0] == {
         "position": 1,
         "driver": "VER",
         "full_name": "Max Verstappen",
         "team": "Red Bull",
-        "grid": 2,
+        "grid": 3,
         "points": 25.0,
         "status": "Finished",
     }
-    assert calls[-1] == ("session", 2024, 3, "R")
-    # Telemetry, laps and weather are the expensive loads and are not needed here.
-    assert session.load_kwargs == {"telemetry": False, "laps": False, "weather": False}
+    assert result["final"] is True
+    assert result["sources"][0]["source"] == "f1db"
+
+
+@pytest.mark.integration
+def test_retirements_have_no_place_a_reason_and_stay_off_the_podium(mexico):
+    rows = module.load_race_classification(2026, 19)["race_results"]
+
+    retired = [row for row in rows if row["status"] != "Finished"]
+    assert [(row["driver"], row["position"], row["status"]) for row in retired] == [
+        ("LIN", None, "DNF (Collision)"),
+        ("BEA", None, "DNF (Collision damage)"),
+        ("BOT", None, "DNF (Accident)"),
+        ("STR", None, "DNF (Engine)"),
+        ("ALO", None, "DNF (Engine)"),
+    ]
+    assert set(rows[-1]) == {"position", "driver", "full_name", "team", "grid", "points", "status"}
+
+
+@pytest.mark.integration
+def test_a_pit_lane_start_and_a_car_the_grid_does_not_list_record_no_grid_slot(mexico):
+    rows = {row["driver"]: row for row in module.load_race_classification(2026, 19)["race_results"]}
+
+    assert (rows["LIN"]["grid"], rows["LEC"]["grid"]) == (None, None)
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("grid_value", [0.0, float("nan")])
-def test_a_pit_lane_start_records_no_grid_slot(monkeypatch: pytest.MonkeyPatch, grid_value: float):
-    session = _FakeSession(
-        pd.DataFrame(
-            [
-                {
-                    "Position": 1.0,
-                    "Abbreviation": "VER",
-                    "FirstName": "Max",
-                    "LastName": "Verstappen",
-                    "TeamName": "Red Bull",
-                    "GridPosition": grid_value,
-                    "Points": 25.0,
-                    "Status": "Finished",
-                }
-            ]
-        )
-    )
-    _stub_fastf1(
-        monkeypatch,
-        schedule=_schedule([_event(3, _NOW - timedelta(days=1))]),
-        session=session,
-    )
-
-    result = module.load_race_classification(2024, 3)
-
-    assert result["race_results"][0]["grid"] is None
-
-
-@pytest.mark.unit
-def test_an_unclassified_car_keeps_a_null_position_and_stays_off_the_podium(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session = _FakeSession(
-        pd.DataFrame(
-            [
-                {
-                    "Position": 1.0,
-                    "Abbreviation": "VER",
-                    "FirstName": "Max",
-                    "LastName": "Verstappen",
-                    "TeamName": "Red Bull",
-                    "GridPosition": 1.0,
-                    "Points": 25.0,
-                    "Status": "Finished",
-                },
-                {
-                    "Position": float("nan"),
-                    "Abbreviation": "LAW",
-                    "FirstName": "Liam",
-                    "LastName": "Lawson",
-                    "TeamName": "RB",
-                    "GridPosition": 12.0,
-                    "Points": 0.0,
-                    "Status": "Engine",
-                },
-            ]
-        )
-    )
-    _stub_fastf1(
-        monkeypatch,
-        schedule=_schedule([_event(3, _NOW - timedelta(days=1))]),
-        session=session,
-    )
-
-    result = module.load_race_classification(2024, 3)
-
-    lawson = result["race_results"][-1]
-    assert lawson["position"] is None
-    assert lawson["status"] == "Engine"
-    assert [row["driver"] for row in result["podium"]] == ["VER"]
+def test_a_status_with_no_reason_reads_as_the_status_alone():
+    assert module._status_text({"status": "DSQ", "reason": None}) == "DSQ"
+    assert module._status_text({"status": "DNF", "reason": "Engine"}) == "DNF (Engine)"
 
 
 # ---------------------------------------------------------------------------
@@ -790,73 +686,29 @@ def test_a_debrief_for_an_unraced_round_says_so_without_inventing_sections(
 
 
 # ---------------------------------------------------------------------------
-# Names: f1db's driver and team names under FastF1's keys
+# Names and the debrief built from the real classification
 # ---------------------------------------------------------------------------
 
-CLASSIFICATION_ROW_KEYS = {"position", "driver", "full_name", "team", "grid", "points", "status"}
-
-
-def _stub_mexico(monkeypatch: pytest.MonkeyPatch) -> None:
-    """FastF1's Mexico City race (2026 R19), with the real spellings it carried."""
-    _stub_fastf1(
-        monkeypatch,
-        schedule=_schedule([_event(19, _NOW - timedelta(days=2), name="Mexico City Grand Prix")]),
-        session=_FakeSession(pd.DataFrame(mexico_fastf1_results())),
-    )
-
 
 @pytest.mark.integration
-def test_the_classification_prints_f1dbs_driver_and_team_names(identity_f1db, monkeypatch: pytest.MonkeyPatch):
-    _stub_mexico(monkeypatch)
-
-    rows = module.load_race_classification(2026, 19)["race_results"]
-
-    assert [(row["full_name"], row["team"]) for row in rows] == [
-        ("Max Verstappen", "Red Bull"),
-        ("Kimi Antonelli", "Mercedes"),
-        ("Liam Lawson", "Racing Bulls"),
-        ("Ryō Hirakawa", "Haas"),
-        ("Carlos Sainz Jr.", "Williams"),
-        ("Nico Hülkenberg", "Audi"),
-        ("Sergio Pérez", "Cadillac"),
-    ]
-
-
-@pytest.mark.integration
-def test_the_classification_keeps_fastf1s_codes_and_every_key(identity_f1db, monkeypatch: pytest.MonkeyPatch):
-    """Hirakawa's car resolves by its number, and f1db's code fills his missing abbreviation (never NaN)."""
-    _stub_mexico(monkeypatch)
-
-    rows = module.load_race_classification(2026, 19)["race_results"]
-
-    assert all(set(row) == CLASSIFICATION_ROW_KEYS for row in rows)
-    assert [row["driver"] for row in rows] == ["VER", "ANT", "LAW", "HIR", "SAI", "HUL", "PER"]
-
-
-@pytest.mark.integration
-def test_the_debrief_sentences_name_drivers_and_teams_as_f1db_does(identity_f1db, monkeypatch: pytest.MonkeyPatch):
-    _stub_mexico(monkeypatch)
-
+def test_the_debrief_sentences_name_drivers_and_teams_as_f1db_does(mexico):
     debrief = module.build_race_debrief(2026, 19)
 
-    assert [row["full_name"] for row in debrief["podium"]] == ["Max Verstappen", "Kimi Antonelli"]
-    assert debrief["podium_cause"][1]["full_name"] == "Kimi Antonelli"
-    assert debrief["takeaways"][1] == (
-        "Liam Lawson gained 13 positions from the grid, the clearest strategy or execution gain."
-    )
-    assert {row["team"] for row in debrief["constructor_impact"]} == {"Red Bull", "Mercedes", "Racing Bulls"}
+    assert [row["full_name"] for row in debrief["podium"]] == ["Max Verstappen", "Lewis Hamilton", "Kimi Antonelli"]
+    assert debrief["headline"] == "Max Verstappen won from P3, gaining 2 places against the starting grid."
+    assert {row["team"] for row in debrief["constructor_impact"]} >= {"Red Bull", "Ferrari", "Mercedes"}
 
 
 @pytest.mark.integration
-def test_an_unreadable_f1db_prints_fastf1s_own_names_and_logs_why(monkeypatch: pytest.MonkeyPatch):
-    def connect() -> None:
-        raise sqlite3.OperationalError("unable to open database file")
+def test_the_debrief_lists_every_retirement_with_its_reason_and_carries_its_source(mexico):
+    debrief = module.build_race_debrief(2026, 19)
 
-    monkeypatch.setattr(f1db_source, "connect", connect)
-    _stub_mexico(monkeypatch)
-
-    with structlog.testing.capture_logs() as logs:
-        rows = module.load_race_classification(2026, 19)["race_results"]
-
-    assert (rows[1]["full_name"], rows[2]["team"]) == ("Andrea Kimi Antonelli", "RB F1 Team")
-    assert {log["event"] for log in logs} == {"canonical_names.f1db_unreadable"}
+    assert [row["status"] for row in debrief["reliability_watch"]] == [
+        "DNF (Collision)",
+        "DNF (Collision damage)",
+        "DNF (Accident)",
+        "DNF (Engine)",
+        "DNF (Engine)",
+    ]
+    assert debrief["final"] is True
+    assert debrief["sources"][0]["source"] == "f1db"

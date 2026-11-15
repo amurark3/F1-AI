@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import fastf1
 from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
 from app.api.tools.standings_facts import freshness_line, title_line
 from app.data.current_standings import current_standings
+from app.data.f1db_calendar import season_schedule
 from app.services.race_control.table_reach import constructors_reach, drivers_reach
 
 logger = structlog.get_logger()
@@ -86,7 +86,7 @@ def get_constructor_standings(year: int) -> str:
 def _naive_utc(value: object) -> pd.Timestamp:
     """Drop the timezone from an event date so it compares against a naive now.
 
-    FastF1 returns ``EventDate`` as a tz-naive ``datetime64[ns]``. Comparing that
+    f1db's calendar gives ``EventDate`` as a tz-naive ``datetime64[ns]``. Comparing that
     against a tz-aware ``datetime`` raises, and the raise is swallowed by the
     tool's except clause — every row would be reported as a fetch failure.
     """
@@ -95,11 +95,7 @@ def _naive_utc(value: object) -> pd.Timestamp:
 
 
 def _weekend_format(event_format: object) -> str:
-    """Sprint or Standard, from FastF1's ``EventFormat``.
-
-    FastF1 has spelled the sprint format three ways since 2021 — ``sprint``,
-    ``sprint_shootout`` and ``sprint_qualifying`` — so match the prefix.
-    """
+    """Sprint or Standard, from the calendar's ``EventFormat`` ("sprint" or "conventional")."""
     return "Sprint" if str(event_format).startswith("sprint") else "Standard"
 
 
@@ -114,7 +110,7 @@ def get_season_schedule(year: int) -> str:
     """
     logger.info("tool.season_schedule", year=year)
     try:
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+        schedule = season_schedule(year)
         today = datetime.now(UTC).replace(tzinfo=None)
 
         output = [f"### F1 Season Schedule ({year})"]
@@ -125,7 +121,7 @@ def get_season_schedule(year: int) -> str:
         last_completed = "None"
 
         for _, row in schedule.iterrows():
-            race_date = _naive_utc(row["EventDate"])  # FastF1 provides this as a Timestamp
+            race_date = _naive_utc(row["EventDate"])  # a naive Timestamp: race day
             gp_name = row["EventName"]
             round_num = row["RoundNumber"]
 

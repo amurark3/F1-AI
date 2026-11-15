@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 from app.data import f1db_pitstops, race_stints as stints_module
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.f1db_pitstops import race_pit_stops
 from app.data.openf1.sessions import ScheduledSession
 from app.data.pit_sheet import PitSheet
@@ -468,8 +469,12 @@ def test_a_race_still_ahead_is_not_asked_about_again_within_the_retry_window(fak
 
 @pytest.mark.parametrize(
     ("race_start", "calendar_error"),
-    [(None, None), (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable"))],
-    ids=["no start time", "calendar unreachable"],
+    [
+        (None, None),
+        (datetime(2024, 5, 26, 13, tzinfo=UTC), OSError("calendar unreachable")),
+        (datetime(2024, 5, 26, 13, tzinfo=UTC), CalendarUnavailableError("f1db has no calendar for 2026 yet")),
+    ],
+    ids=["no start time", "calendar unreachable", "season not in f1db"],
 )
 def test_an_unknown_race_start_does_not_hide_a_stored_race(fake_fastf1, race_start, calendar_error):
     fake_fastf1["race_start"] = race_start
@@ -504,6 +509,7 @@ def board(monkeypatch):
     monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
     monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: NO_CLASSIFICATION)
+    monkeypatch.setattr(race_strategy_board, "race_neutralisations", lambda y, r: [])
     return state
 
 

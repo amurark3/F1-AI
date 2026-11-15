@@ -10,11 +10,11 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-import fastf1
 import httpx
 import structlog
 
 from app.config import OPENF1_HTTP_TIMEOUT_SECONDS
+from app.data.f1db_calendar import season_schedule
 from app.services.live_timing import (
     GAP_FEED_WINDOW,
     LAP_FEED_WINDOW,
@@ -84,21 +84,22 @@ async def _get_json(client: httpx.AsyncClient, path: str, params: dict) -> list 
     return payload if isinstance(payload, list) else None
 
 
-# A round's circuit location, scheduled date and event name, as FastF1 has it.
+# A round's circuit location, race day and event name, as f1db's calendar has them.
 EventIdentity = tuple[str, datetime, str]
 
 
 def _event_identity(year: int, round_num: int) -> EventIdentity | None:
-    """Resolve a round to its circuit location, date and name via FastF1.
+    """Resolve a round to its circuit location, race day and name from f1db's calendar.
 
     Blocking — callers wrap this in a thread.
     """
-    # OSError covers requests.RequestException, which subclasses it — FastF1
-    # reaches the network here and a transient failure must not kill the socket.
+    # f1db raises CalendarUnavailableError (a ValueError) for a season it does
+    # not hold, and OSError when a missing file cannot be fetched; neither may
+    # kill the socket.
     try:
-        schedule = fastf1.get_event_schedule(year=year, include_testing=False)
+        schedule = season_schedule(year)
     except (ValueError, KeyError, OSError) as exc:
-        logger.warning("fastf1.schedule_failed", year=year, error=str(exc))
+        logger.warning("calendar.unavailable", year=year, error=str(exc))
         return None
 
     matches = schedule[schedule["RoundNumber"] == round_num]
@@ -138,7 +139,7 @@ async def _weekend_sessions(
     if not meetings:
         return None
 
-    meeting = match_meeting(meetings, location, event_date)
+    meeting = match_meeting(meetings, event_date)
     if meeting is None:
         logger.warning("openf1.meeting_unmatched", year=year, round=round_num, location=location)
         return None

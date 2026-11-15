@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import structlog
 
-from app.data.canonical_names import CODE_UNRESOLVED
+from app.data.canonical_names import CODE_UNRESOLVED, driver_identity, team_display_name
 from app.data.f1db_grid import GridSlot, starting_grid
+from app.data.jolpica import QUALIFYING_SOURCE, JolpicaUnavailableError, provisional_grid
 from app.data.predictions import load_qualifying
 
 logger = structlog.get_logger()
@@ -74,7 +75,7 @@ def _provisional_row(driver: dict) -> dict:
     The penalty fields are absent rather than zero: nothing here has been
     checked against a grid sheet, and a zero would read as "no penalty". A
     driver no source could code keeps their slot with an empty code and
-    ``code_unresolved`` set (:func:`app.data.predictions.sessions._classified_row`).
+    ``code_unresolved`` set (:func:`app.data.predictions.openf1_qualifying.order_row`).
     """
     position = driver.get("position")
     return {
@@ -90,6 +91,25 @@ def _provisional_row(driver: dict) -> dict:
         "places_lost": None,
         CODE_UNRESOLVED: bool(driver.get(CODE_UNRESOLVED)),
     }
+
+
+def _jolpica_row(year: int, row: dict) -> dict:
+    """A Jolpica qualifying row shaped like a grid row, named the way f1db names it."""
+    driver = driver_identity(year, code=row["driverCode"], name=row["driverName"])
+    return {
+        **_provisional_row({"position": row["position"], "driver_code": row["driverCode"]}),
+        "driver_name": driver.name,
+        "team": team_display_name(year, row["constructorName"]),
+    }
+
+
+def _jolpica_qualifying(year: int, round_num: int) -> list[dict]:
+    """Jolpica's qualifying order as grid rows; empty when it has none or cannot be read."""
+    try:
+        return [_jolpica_row(year, row) for row in provisional_grid(year, round_num)]
+    except JolpicaUnavailableError as exc:
+        logger.warning("race_grid.jolpica_unavailable", year=year, round=round_num, error=str(exc))
+        return []
 
 
 def _empty(year: int, round_num: int) -> dict:
@@ -120,14 +140,15 @@ def _from_official(year: int, round_num: int, slots: tuple[GridSlot, ...]) -> di
     }
 
 
-def _from_qualifying(year: int, round_num: int, drivers: list[dict]) -> dict:
+def _from_qualifying(year: int, round_num: int, rows: list[dict], source_detail: str) -> dict:
     return {
         "year": year,
         "round": round_num,
         "available": True,
         "provisional": True,
         "source": SOURCE_QUALIFYING,
-        "grid": [_provisional_row(driver) for driver in drivers],
+        "source_detail": source_detail,
+        "grid": rows,
         "penalties": [],
         "warnings": [PROVISIONAL_WARNING],
     }
@@ -140,10 +161,17 @@ def build_starting_grid(year: int, round_num: int) -> dict:
         logger.info("race_grid.official", year=year, round=round_num, slots=len(slots))
         return _from_official(year, round_num, slots)
 
+    jolpica_rows = _jolpica_qualifying(year, round_num)
+    if jolpica_rows:
+        logger.info("race_grid.provisional", year=year, round=round_num, drivers=len(jolpica_rows), source="jolpica")
+        return _from_qualifying(year, round_num, jolpica_rows, QUALIFYING_SOURCE)
+
     qualifying = load_qualifying(year, round_num)
     if qualifying:
-        logger.info("race_grid.provisional", year=year, round=round_num, drivers=len(qualifying))
-        return _from_qualifying(year, round_num, qualifying)
+        logger.info("race_grid.provisional", year=year, round=round_num, drivers=len(qualifying), source="openf1")
+        return _from_qualifying(
+            year, round_num, [_provisional_row(driver) for driver in qualifying], "openf1-qualifying"
+        )
 
     logger.info("race_grid.unavailable", year=year, round=round_num)
     return _empty(year, round_num)

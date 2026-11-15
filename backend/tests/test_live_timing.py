@@ -56,7 +56,7 @@ def test_parse_iso_returns_none_for_unusable_input(value):
 # --------------------------------------------------------------------------
 
 # Mirrors the real 2026 OpenF1 payload: it carries an April Bahrain and Saudi
-# Arabian round that FastF1's schedule omits, so OpenF1's ordering runs two
+# Arabian round that f1db's calendar omits, so OpenF1's ordering runs two
 # ahead. Indexing by round number lands on Belgium when asked for the Dutch GP.
 MEETINGS_2026 = [
     {
@@ -92,38 +92,19 @@ MEETINGS_2026 = [
 ]
 
 
-def test_match_meeting_resolves_by_circuit_location():
-    match = match_meeting(MEETINGS_2026, "Zandvoort", _utc(2026, 8, 23))
-    assert match["meeting_key"] == 1292
-
-
-def test_match_meeting_ignores_case_and_padding():
-    match = match_meeting(MEETINGS_2026, "  zandvoort ", _utc(2026, 8, 23))
+def test_match_meeting_resolves_by_the_race_date():
+    match = match_meeting(MEETINGS_2026, _utc(2026, 8, 23))
     assert match["meeting_key"] == 1292
 
 
 def test_match_meeting_does_not_shift_when_calendars_disagree():
     """Regression: the Dutch GP must never resolve to the Belgian GP.
 
-    FastF1 numbers the Dutch GP round 12; OpenF1's meeting list holds it at
+    f1db numbers the Dutch GP round 12; OpenF1's meeting list holds it at
     index 14. Any positional lookup returns Spa here.
     """
-    match = match_meeting(MEETINGS_2026, "Zandvoort", _utc(2026, 8, 23))
+    match = match_meeting(MEETINGS_2026, _utc(2026, 8, 23))
     assert match["meeting_name"] == "Dutch Grand Prix"
-    assert match["meeting_name"] != "Belgian Grand Prix"
-
-
-def test_match_meeting_falls_back_to_the_event_date_window():
-    renamed = [
-        {
-            "meeting_key": 1292,
-            "meeting_name": "Dutch Grand Prix",
-            "location": "Circuit Zandvoort",
-            "date_start": "2026-08-21T10:30:00+00:00",
-        }
-    ]
-    match = match_meeting(renamed, "Zandvoort", _utc(2026, 8, 23))
-    assert match["meeting_key"] == 1292
 
 
 # OpenF1's real 2024 calendar opens with testing at the Bahrain GP's location.
@@ -135,30 +116,26 @@ MEETINGS_2024_SAKHIR = [
 
 def test_match_meeting_picks_the_grand_prix_over_testing_at_the_same_circuit():
     """Regression: Bahrain 2023-2025 resolved to pre-season testing, which has no race."""
-    match = match_meeting(MEETINGS_2024_SAKHIR, "Sakhir", _utc(2024, 3, 2))
+    match = match_meeting(MEETINGS_2024_SAKHIR, _utc(2024, 3, 2))
     assert match["meeting_name"] == "Bahrain Grand Prix"
 
 
-def test_match_meeting_without_a_date_keeps_the_first_meeting_at_the_location():
-    assert match_meeting(MEETINGS_2024_SAKHIR, "Sakhir")["meeting_key"] == 1228
+def test_match_meeting_takes_the_nearest_of_two_meetings_in_the_window():
+    close = [{**MEETINGS_2024_SAKHIR[0], "date_start": "2024-02-27"}, MEETINGS_2024_SAKHIR[1]]
+    assert match_meeting(close, _utc(2024, 3, 2))["meeting_key"] == 1229
 
 
-def test_match_meeting_prefers_a_dated_meeting_over_an_undated_one():
+def test_match_meeting_skips_an_undated_meeting():
     undated = [{"meeting_key": 1, "location": "Sakhir"}, MEETINGS_2024_SAKHIR[1]]
-    assert match_meeting(undated, "Sakhir", _utc(2024, 3, 2))["meeting_key"] == 1229
+    assert match_meeting(undated, _utc(2024, 3, 2))["meeting_key"] == 1229
 
 
 def test_match_meeting_rejects_a_date_outside_the_weekend_window():
-    assert match_meeting(MEETINGS_2026, "Nowhere", _utc(2026, 5, 30)) is None
+    assert match_meeting(MEETINGS_2026, _utc(2026, 5, 30)) is None
 
 
 def test_match_meeting_returns_none_for_an_empty_calendar():
-    assert match_meeting([], "Zandvoort", _utc(2026, 8, 23)) is None
-
-
-def test_match_meeting_without_a_location_match_or_a_date_finds_nothing():
-    """No date means no window to fall back on — not a guess at the nearest."""
-    assert match_meeting(MEETINGS_2026, "Nowhere") is None
+    assert match_meeting([], _utc(2026, 8, 23)) is None
 
 
 # --------------------------------------------------------------------------

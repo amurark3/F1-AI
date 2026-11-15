@@ -11,8 +11,8 @@ import {
 import { GrandPrixHub } from "./GrandPrixHub";
 import { resolveDefaultRace } from "./predictionHelpers";
 
-import type { DriversResponse, GrandPrixSeed } from "./GrandPrixView";
 import type { StartingGridResponse } from "./gridModel";
+import type { DriversResponse, GrandPrixSeed } from "./hubSeed";
 import type { PredictionsResponse } from "./predictionModel";
 import type { WeekendSessionsResponse } from "./sessionsModel";
 import type { Metadata } from "next";

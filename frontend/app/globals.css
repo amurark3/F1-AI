@@ -16,6 +16,15 @@
   --f1-sector-best: #be3aff;
   --f1-sector-pb: #00cc00;
   --f1-sector-slow: #fff200;
+  /* Tyre compounds, the sidewall colours a stint chart is read by. Data marks only. */
+  --f1-tyre-soft: #e8002d;
+  --f1-tyre-medium: #f5c542;
+  --f1-tyre-hard: #e7e9ee;
+  --f1-tyre-inter: #00a550;
+  --f1-tyre-wet: #3671c6;
+  --f1-tyre-ultrasoft: #c64bc6; /* pre-2019 compounds still in historical data */
+  --f1-tyre-hypersoft: #ff8fa6;
+  --f1-tyre-unknown: #4a5261; /* a stint whose compound was never recorded */
   --background: #07090d;
   --foreground: #f0f0f0;
   --surface: #0d111b;
@@ -53,6 +62,11 @@
   --color-f1-purple: #be3aff;
   --color-f1-green: #00cc00;
   --color-f1-yellow: #fff200;
+  --color-f1-tyre-soft: var(--f1-tyre-soft);
+  --color-f1-tyre-medium: var(--f1-tyre-medium);
+  --color-f1-tyre-hard: var(--f1-tyre-hard);
+  --color-f1-tyre-inter: var(--f1-tyre-inter);
+  --color-f1-tyre-wet: var(--f1-tyre-wet);
 
   /* Redesign palette exposed to Tailwind: bg-rc-hero, text-rc-ink-2, text-rc-gold, bg-rc-gain … */
   --color-rc-hero: var(--rc-hero);

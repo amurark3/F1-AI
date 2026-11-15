@@ -1,4 +1,13 @@
-import { DIRECTORY_2026, READY, TEAMS_2026 } from "../../test/fixtures";
+import {
+  DIRECTORY_2026,
+  GRIDS_2026,
+  MEXICO_CITY_2026,
+  PREDICTION_REVIEW_R19,
+  RACE_RESULTS_2026,
+  READY,
+  TEAMS_2026,
+  WEEKEND_SESSIONS_2026,
+} from "../../test/fixtures";
 
 import type { Page, Route } from "@playwright/test";
 
@@ -17,7 +26,7 @@ const CORS_HEADERS = { "access-control-allow-origin": "*" };
 
 const NOT_FOUND = 404;
 
-function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
+export function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
   return route.fulfill({ status, json: body, headers: CORS_HEADERS });
 }
 
@@ -34,4 +43,31 @@ export async function mockBackend(page: Page): Promise<void> {
   // Pages ask for the calendar year's season; the fixture is 2026's table.
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));
+  // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
+    const round = route.request().url().split("/").pop();
+    const body = round === "2" ? RACE_RESULTS_2026.sprintWeekend : RACE_RESULTS_2026.mexicoCity;
+    return fulfillJson(route, body);
+  });
+  // The Weekend tab's circuit and the Stints tab's chart: Mexico City.
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/circuit/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.circuit),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/stints/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.strategy),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/glance/2026/*`, (route) =>
+    fulfillJson(route, MEXICO_CITY_2026.glance),
+  );
+  // The Sessions and Grid tabs: Mexico City's qualifying (with its disqualification) and official grid.
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/sessions/2026/*`, (route) =>
+    fulfillJson(route, WEEKEND_SESSIONS_2026.mexicoCity),
+  );
+  await page.route(`${E2E_API_ORIGIN}/api/race-control/grid/2026/*`, (route) =>
+    fulfillJson(route, GRIDS_2026.mexicoCityOfficial),
+  );
+  // The Predictions tab: Mexico City's stored after-qualifying call, with its review.
+  await page.route(`${E2E_API_ORIGIN}/api/predictions/2026/*/snapshot*`, (route) =>
+    fulfillJson(route, PREDICTION_REVIEW_R19),
+  );
 }

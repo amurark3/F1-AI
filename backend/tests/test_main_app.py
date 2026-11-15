@@ -1,4 +1,4 @@
-"""Tests for ``main`` — the ASGI entry point, its wiring and its prefetch loop.
+"""Tests for ``main`` — the ASGI entry point, its wiring and its background loops.
 
 Nothing in this module has business logic, which is exactly why it is risky: a
 router that is not mounted, a CORS origin list that does not match the deployed
@@ -13,16 +13,15 @@ Two hazards shape how these tests are written:
   therefore bracketed by an exact ``os.environ`` snapshot/restore, and every
   reload goes through ``reloaded_main`` which does the same. Without that, this
   file would hand real credentials to the entire suite.
-* **The lifespan starts an endless prefetch loop.** It is never allowed to run:
-  ``_prefetch_race_details`` is stubbed wherever the lifespan is exercised, and
-  where the loop itself is under test ``asyncio.sleep`` is replaced with a stub
-  that escapes it after a fixed number of turns.
+* **The lifespan starts endless loops.** Where a loop itself is under test
+  ``asyncio.sleep`` is replaced with a stub that escapes it after a fixed number
+  of turns. Where the lifespan runs for real, the loops are cancelled on exit.
 """
 
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import UTC, datetime
 import importlib
 import os
 import time
@@ -42,29 +41,14 @@ import main  # noqa: E402
 os.environ.clear()
 os.environ.update(_ENV_BEFORE_IMPORT)
 
-from app.api import race_detail  # noqa: E402
-
 
 class _LoopEscape(BaseException):
-    """Breaks out of the endless prefetch loop.
+    """Breaks out of an endless background loop.
 
     Derived from ``BaseException`` on purpose: the loop body catches
     ``Exception`` around everything, so an ordinary error would be swallowed and
     the loop would spin forever.
     """
-
-
-def _naive_now() -> pd.Timestamp:
-    return pd.Timestamp.now(tz="UTC").tz_localize(None)
-
-
-def _schedule_row(round_number: int, race_date: pd.Timestamp | None) -> dict:
-    """One schedule row with the Race in session slot 3, as FastF1 lays it out."""
-    row = {"RoundNumber": round_number}
-    for index in range(1, 6):
-        row[f"Session{index}"] = "Race" if index == 3 and race_date is not None else f"Practice {index}"
-        row[f"Session{index}DateUtc"] = race_date if index == 3 else _naive_now()
-    return row
 
 
 @pytest.fixture
@@ -83,15 +67,6 @@ def sleep_stub(monkeypatch):
         return delays
 
     return _install
-
-
-@pytest.fixture
-def detail_cache(monkeypatch) -> dict:
-    """Swap the process-wide race-detail cache and build registry for throwaway dicts."""
-    cache: dict = {}
-    monkeypatch.setattr(race_detail, "race_detail_cache", cache)
-    monkeypatch.setattr(race_detail, "race_detail_builds", {})
-    return cache
 
 
 @pytest.fixture
@@ -116,219 +91,83 @@ def reloaded_main(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Schedule row parsing
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_race_session_date_reads_the_slot_the_race_actually_occupies():
-    race_date = _naive_now() - timedelta(days=2)
-    row = pd.Series(_schedule_row(4, race_date))
-
-    assert main._race_session_date(row) == race_date.to_pydatetime()
-
-
-@pytest.mark.unit
-def test_a_weekend_with_no_race_session_has_no_date():
-    row = pd.Series(_schedule_row(4, race_date=None))
-
-    assert main._race_session_date(row) is None
-
-
-@pytest.mark.unit
-def test_an_undated_race_session_has_no_date():
-    # A future round on the calendar before its timings are published.
-    row = pd.Series(_schedule_row(4, race_date=pd.NaT))
-
-    assert main._race_session_date(row) is None
-
-
-# ---------------------------------------------------------------------------
-# Single-round prefetch
+# The self-improvement loop
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-async def test_prefetch_round_caches_a_detail_that_resolved_a_circuit(monkeypatch, detail_cache):
-    detail = {"circuit": {"name": "Suzuka"}, "results": []}
-    monkeypatch.setattr(race_detail, "build_race_detail", lambda year, rnd: detail)
-
-    await main._prefetch_round(2026, 5)
-
-    assert detail_cache == {(2026, 5): detail}
-
-
-@pytest.mark.integration
-async def test_prefetch_round_refuses_to_cache_a_detail_with_no_circuit(monkeypatch, detail_cache):
-    # A circuit-less detail is a failed build, and caching it would pin that
-    # failure in memory until the process restarts.
-    monkeypatch.setattr(race_detail, "build_race_detail", lambda year, rnd: {"circuit": None})
-
-    await main._prefetch_round(2026, 5)
-
-    assert detail_cache == {}
-
-
-@pytest.mark.integration
-async def test_a_slow_race_is_logged_and_waited_out_before_the_sweep_moves_on(monkeypatch, detail_cache):
-    # The worker thread cannot be stopped, so moving on at the deadline would
-    # only start the next race's FastF1 load beside this one.
-    detail = {"circuit": {"name": "Suzuka"}}
-
-    def _slow_build(year: int, rnd: int) -> dict:
-        time.sleep(0.2)
-        return detail
-
-    monkeypatch.setattr(main, "PREFETCH_RACE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(race_detail, "build_race_detail", _slow_build)
-
-    with structlog.testing.capture_logs() as logs:
-        await main._prefetch_round(2026, 5)
-
-    assert detail_cache == {(2026, 5): detail}
-    assert [entry["event"] for entry in logs] == ["prefetch.starting", "prefetch.slow", "prefetch.cached"]
-
-
-@pytest.mark.integration
-async def test_a_build_that_times_out_on_its_own_is_a_failure_not_a_slow_race(monkeypatch, detail_cache):
-    def _socket_timeout(year: int, rnd: int) -> dict:
-        raise TimeoutError("read timed out")
-
-    monkeypatch.setattr(race_detail, "build_race_detail", _socket_timeout)
-
-    with structlog.testing.capture_logs() as logs:
-        await main._prefetch_round(2026, 5)
-
-    events = [entry["event"] for entry in logs]
-    assert "prefetch.failed" in events
-    assert "prefetch.slow" not in events
-    assert detail_cache == {}
-
-
-@pytest.mark.integration
-async def test_the_sweep_joins_a_build_a_visitor_already_started(monkeypatch, detail_cache):
-    detail = {"circuit": {"name": "Suzuka"}}
-    calls: list[int] = []
-
-    def _build(year: int, rnd: int) -> dict:
-        calls.append(rnd)
-        return detail
-
-    monkeypatch.setattr(race_detail, "build_race_detail", _build)
-
-    visitor = race_detail.start_race_detail_build(2026, 5)
-    await main._prefetch_round(2026, 5)
-
-    assert calls == [5], "the sweep must not load a race a request is already loading"
-    assert await visitor == detail
-    assert detail_cache == {(2026, 5): detail}
-
-
-@pytest.mark.integration
-async def test_prefetch_round_logs_a_broken_race_and_lets_the_sweep_continue(monkeypatch, detail_cache):
-    def _explode(year: int, rnd: int) -> dict:
-        raise RuntimeError("upstream 503")
-
-    monkeypatch.setattr(race_detail, "build_race_detail", _explode)
-
-    with structlog.testing.capture_logs() as logs:
-        await main._prefetch_round(2026, 5)
-
-    assert detail_cache == {}
-    failure = next(entry for entry in logs if entry["event"] == "prefetch.failed")
-    assert failure["error"] == "upstream 503"
-
-
-# ---------------------------------------------------------------------------
-# The background sweep
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-async def test_the_sweep_only_prefetches_completed_uncached_rounds(monkeypatch, sleep_stub, detail_cache):
-    finished = _naive_now() - timedelta(days=1)
-    schedule = pd.DataFrame(
-        [
-            _schedule_row(1, finished),  # completed, but already cached
-            _schedule_row(2, race_date=None),  # no race session at all
-            _schedule_row(3, _naive_now() + timedelta(days=1)),  # still upcoming
-            _schedule_row(4, finished),  # completed and missing
-        ]
-    )
-    detail_cache[(_naive_now().year, 1)] = {"circuit": {}}
-    prefetched: list[tuple[int, int]] = []
-
-    monkeypatch.setattr(main.fastf1, "get_event_schedule", lambda year, include_testing: schedule)
-    monkeypatch.setattr(main, "_prefetch_round", lambda year, rnd: _record(prefetched, year, rnd))
-    _stub_self_improvement(monkeypatch, lambda year: {"reviewed": 0})
-    delays = sleep_stub(3)
-
-    with pytest.raises(_LoopEscape):
-        await main._prefetch_race_details()
-
-    assert prefetched == [(_naive_now().year, 4)]
-    # Startup delay, then the inter-race pause. Zero-length sleeps from the
-    # `to_thread` stub are incidental; the loop escapes before the sweep gap.
-    assert [delay for delay in delays if delay] == [
-        main.PREFETCH_STARTUP_DELAY,
-        main.PREFETCH_INTER_RACE_DELAY,
-    ]
-
-
-@pytest.mark.integration
-async def test_a_race_completed_within_the_three_hour_buffer_is_left_alone(monkeypatch, sleep_stub, detail_cache):
-    just_finished = _naive_now() - timedelta(hours=2)
-    schedule = pd.DataFrame([_schedule_row(1, just_finished)])
-    prefetched: list[tuple[int, int]] = []
-
-    monkeypatch.setattr(main.fastf1, "get_event_schedule", lambda year, include_testing: schedule)
-    monkeypatch.setattr(main, "_prefetch_round", lambda year, rnd: _record(prefetched, year, rnd))
-    _stub_self_improvement(monkeypatch, lambda year: {})
-    sleep_stub(2)
-
-    with pytest.raises(_LoopEscape):
-        await main._prefetch_race_details()
-
-    assert prefetched == [], "results are not final until the buffer has passed"
-
-
-@pytest.mark.integration
-async def test_an_unreachable_schedule_is_logged_and_the_sweep_is_rescheduled(monkeypatch, sleep_stub):
-    def _explode(year: int, include_testing: bool):
-        raise ConnectionError("fastf1 unreachable")
-
-    monkeypatch.setattr(main.fastf1, "get_event_schedule", _explode)
-    _stub_self_improvement(monkeypatch, lambda year: {})
+async def test_the_loop_waits_out_warm_up_then_runs_one_pass_per_interval(monkeypatch, sleep_stub):
+    passes: list[int] = []
+    _stub_self_improvement(monkeypatch, passes.append)
     delays = sleep_stub(2)
 
-    with structlog.testing.capture_logs() as logs, pytest.raises(_LoopEscape):
-        await main._prefetch_race_details()
+    with pytest.raises(_LoopEscape):
+        await main._self_improvement_loop()
 
-    assert [entry["event"] for entry in logs] == ["prefetch.loop_error"]
-    # The loop survives and still queues the next sweep rather than dying.
-    assert delays == [main.PREFETCH_STARTUP_DELAY, main.PREFETCH_INTERVAL]
+    assert passes == [datetime.now(UTC).year]
+    # Zero-length sleeps from the `to_thread` stub are incidental.
+    assert [delay for delay in delays if delay] == [main.PREFETCH_STARTUP_DELAY, main.PREFETCH_INTERVAL]
 
 
 @pytest.mark.integration
-async def test_a_failing_self_improvement_pass_does_not_break_prefetching(monkeypatch, sleep_stub):
+async def test_a_failing_self_improvement_pass_does_not_end_the_loop(monkeypatch, sleep_stub):
     def _explode(year: int) -> dict:
         raise RuntimeError("engine quota exhausted")
 
-    monkeypatch.setattr(main.fastf1, "get_event_schedule", lambda year, include_testing: pd.DataFrame([]))
     _stub_self_improvement(monkeypatch, _explode)
     delays = sleep_stub(2)
 
     with structlog.testing.capture_logs() as logs, pytest.raises(_LoopEscape):
-        await main._prefetch_race_details()
+        await main._self_improvement_loop()
 
     assert [entry["event"] for entry in logs] == ["self_improvement.loop_error"]
     assert delays == [main.PREFETCH_STARTUP_DELAY, main.PREFETCH_INTERVAL]
 
 
-def _record(sink: list[tuple[int, int]], year: int, round_num: int):
-    """Stand in for ``_prefetch_round``; the loop awaits whatever it returns."""
-    sink.append((year, round_num))
-    return asyncio.sleep(0)
+@pytest.mark.integration
+async def test_a_fresh_boot_and_one_loop_pass_load_no_fastf1_session(monkeypatch):
+    """D1.2: boot used to sweep race detail for every finished round.
+
+    That sweep cost about 358 FastF1 requests per start, 72 % of FastF1's 500/h
+    cap. The real lifespan and warm-up steps run here; only the f1db download and
+    the model load are stubbed, at their boundaries. Grading's own FastF1 read
+    (``record_actual_result``) moves in D1.8, so the pass is a recorder.
+    """
+    import fastf1
+
+    from app.data import f1db_source, predictions
+    from app.services import prediction_cache, readiness
+
+    fastf1_calls: list[str] = []
+    for entry_point in ("get_session", "get_event_schedule"):
+        monkeypatch.setattr(fastf1, entry_point, _fastf1_spy(fastf1_calls, entry_point))
+    passes: list[int] = []
+    _stub_self_improvement(monkeypatch, passes.append)
+    monkeypatch.setattr(main, "setup_logging", lambda: None)
+    monkeypatch.setattr(main, "PREFETCH_STARTUP_DELAY", 0)
+    monkeypatch.setattr(f1db_source, "sync_to_latest", lambda: None)
+    monkeypatch.setattr(predictions, "warm_model_cache", lambda: None)
+    monkeypatch.setattr(prediction_cache, "prediction_snapshot_cache", prediction_cache.PredictionSnapshotCache())
+    monkeypatch.setattr(readiness, "_state", readiness._INITIAL_STATE)
+
+    async with main.lifespan(main.app):
+        deadline = time.monotonic() + 10
+        while not (readiness.current_state().ready and passes):
+            assert time.monotonic() < deadline, "warm-up or the first pass never finished"
+            await asyncio.sleep(0.01)
+
+    assert passes == [datetime.now(UTC).year]
+    assert fastf1_calls == [], "boot or the loop reached FastF1"
+
+
+def _fastf1_spy(sink: list[str], entry_point: str):
+    """Record a call to a FastF1 entry point and refuse it."""
+
+    def _spy(*_args, **_kwargs):
+        sink.append(entry_point)
+        raise RuntimeError(f"fastf1.{entry_point} called")
+
+    return _spy
 
 
 def _stub_self_improvement(monkeypatch, replacement) -> None:
@@ -431,20 +270,20 @@ async def test_lifespan_runs_every_background_task_and_cancels_them_on_shutdown(
 
     monkeypatch.setattr(main, "setup_logging", lambda: events.append("logging.configured"))
     monkeypatch.setattr(main, "run_warmup", _make("warmup"))
-    monkeypatch.setattr(main, "_prefetch_race_details", _make("prefetch"))
+    monkeypatch.setattr(main, "_self_improvement_loop", _make("self_improvement"))
     monkeypatch.setattr(main, "_refresh_f1db_dataset", _make("f1db_refresh"))
 
     async with main.lifespan(main.app):
         await asyncio.sleep(0)  # hand control to the freshly created tasks
-        assert events == ["logging.configured", "warmup.started", "prefetch.started", "f1db_refresh.started"]
+        assert events == ["logging.configured", "warmup.started", "self_improvement.started", "f1db_refresh.started"]
 
     # Shutdown must reach every task: a surviving loop keeps the worker busy
     # long after the server has stopped answering.
-    assert events[-3:] == ["warmup.cancelled", "prefetch.cancelled", "f1db_refresh.cancelled"]
+    assert events[-3:] == ["warmup.cancelled", "self_improvement.cancelled", "f1db_refresh.cancelled"]
 
 
 @pytest.mark.integration
-def test_serving_through_the_asgi_lifespan_does_not_start_the_real_prefetch(monkeypatch):
+def test_serving_through_the_asgi_lifespan_does_not_start_the_real_loops(monkeypatch):
     started: list[str] = []
 
     async def _noop() -> None:
@@ -452,7 +291,7 @@ def test_serving_through_the_asgi_lifespan_does_not_start_the_real_prefetch(monk
 
     monkeypatch.setattr(main, "setup_logging", lambda: None)
     monkeypatch.setattr(main, "run_warmup", _noop)
-    monkeypatch.setattr(main, "_prefetch_race_details", _noop)
+    monkeypatch.setattr(main, "_self_improvement_loop", _noop)
     monkeypatch.setattr(main, "_refresh_f1db_dataset", _noop)
 
     with TestClient(main.app) as client:
@@ -529,7 +368,7 @@ def test_the_schedule_endpoint_serialises_its_list_through_the_assembled_app(cli
     """
     from app.api.routers import season as season_router
 
-    monkeypatch.setattr(season_router.fastf1, "get_event_schedule", lambda year, include_testing: pd.DataFrame())
+    monkeypatch.setattr(season_router, "season_schedule", lambda _year: pd.DataFrame())
 
     response = client.get("/api/schedule/2024")
 

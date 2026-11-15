@@ -1,116 +1,56 @@
-"use client";
-
-import { Gavel } from "lucide-react";
-
-import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
-import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 
 import { Panel } from "../components/RaceControlPrimitives";
 
-import { netMoveColor, netMoveLabel, penaltyLabel, qualifiedLabel, startLabel } from "./gridHelpers";
+import { lastSlot, penaltyNote } from "./gridHelpers";
 
 import type { StartingGridResponse } from "./gridModel";
 
-/** Header cell shared by the penalties table. */
-function Th({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
-  return <th className={align === "right" ? "px-4 py-3 text-right" : "px-4 py-3 text-left"}>{children}</th>;
-}
-
 /**
- * Every sanction applied to this round's grid.
- *
- * Deliberately has no "reason" column. The published grid sheet records how
- * many places a driver dropped, not the offence behind it, and there is no
- * source in this stack for the latter — a plausible-looking "gearbox change"
- * would be invented, not reported.
- */
-/**
- * What the empty state may claim, which depends entirely on what is known.
- *
- * "No penalties were applied" is a statement of fact about a published grid
- * sheet. Saying it for a round whose qualifying has not run — or whose sheet
- * is not in our dataset yet — asserts something nobody has checked.
+ * What the empty state may claim, which depends on what is known: "no penalties" is a
+ * statement about a published grid sheet, not about a round whose sheet is missing.
  */
 function emptyStateMessage(data?: StartingGridResponse): string {
   if (!data?.available) {
     return "Penalties are not known for this round yet. They are published with the starting grid, once qualifying has run.";
   }
   if (data.provisional) {
-    return "Penalties cannot be listed yet — the official grid sheet for this round is not in our dataset yet, so only the qualifying order is known.";
+    return "Penalties cannot be listed yet. The official grid sheet is not in our dataset, so only the qualifying order is known.";
   }
   return "No grid penalties were applied for this round. Every driver starts from the slot they qualified in.";
 }
 
+/**
+ * Every sanction on the grid, in the hub's words. The offence and its FIA document come with
+ * the document feed; f1db records the places dropped and nothing more, so none is invented.
+ */
 export function GridPenalties({ data }: { data?: StartingGridResponse }) {
   const penalties = data?.penalties ?? [];
+  const last = lastSlot(data?.grid ?? []);
 
   return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Grid penalties"
-        aside={
-          <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-            <Gavel className="h-3.5 w-3.5 text-[#F5C542]" />
-            {data?.available ? `${penalties.length} applied` : "not known yet"}
-          </span>
-        }
-        inset
-      />
-
+    <Panel as="section" className="p-5">
+      <PanelHeading eyebrow="Penalties applied" />
       {penalties.length === 0 ? (
-        <p className="p-4 text-sm leading-relaxed text-[#8E96A8]">{emptyStateMessage(data)}</p>
+        <p className="text-sm leading-relaxed text-rc-ink-3">{emptyStateMessage(data)}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] border-collapse text-left">
-            <thead className="bg-[#0F141E] font-mono text-[10px] uppercase tracking-[0.22em] text-[#6F7789]">
-              <tr className="border-b border-[#1E2633]">
-                <Th>Driver</Th>
-                <Th>Team</Th>
-                <Th align="right">Qualified</Th>
-                <Th align="right">Penalty</Th>
-                <Th align="right">Starts</Th>
-                <Th align="right">Net</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1E2633]">
-              {penalties.map((slot) => (
-                <tr key={slot.driver_code} className="bg-[#0D111B] text-sm text-[#B7BDCA] hover:bg-[#121825]">
-                  <td className="px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="h-5 w-[3px] rounded-full" style={{ background: getTeamColor(slot.team) }} />
-                      <span className="font-mono text-sm font-black uppercase tracking-[0.08em] text-white">
-                        {slot.driver_code}
-                      </span>
-                      <DriverName
-                        variant="last"
-                        code={slot.driver_code}
-                        name={slot.driver_name}
-                        className="truncate text-[#AEB5C5]"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-[#AEB5C5]">{slot.team ? <TeamName name={slot.team} /> : "-"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-[#8E96A8]">{qualifiedLabel(slot)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-[#F5C542]">{penaltyLabel(slot)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-white">{startLabel(slot)}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-bold ${netMoveColor(slot)}`}>
-                    {netMoveLabel(slot)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {penalties.length > 0 && (
-        <p className="border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#596173]">
-          &ldquo;Net&rdquo; is the slots actually dropped between qualifying and the grid, which is smaller than the
-          penalty whenever a driver ahead is also penalised. The offence behind each penalty is not published in this
-          data source and is not shown.
-        </p>
+        <ul>
+          {penalties.map((slot) => (
+            <li
+              key={slot.driver_code}
+              className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 border-b border-rc-line-soft py-2.5 text-sm"
+            >
+              <span className="text-rc-ink">
+                <DriverName variant="full" code={slot.driver_code} name={slot.driver_name} />{" "}
+                <span className="font-mono text-[11px] text-rc-ink-3">{slot.driver_code}</span>
+              </span>
+              <span className="text-right font-mono text-xs font-semibold text-rc-red-text">
+                {penaltyNote(slot, last)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </Panel>
   );

@@ -1,13 +1,4 @@
-import type {
-  DriverLookup,
-  DriverPrediction,
-  DriverStanding,
-  PredictionPhase,
-  RaceEvent,
-  RiskPrediction,
-} from "./predictionModel";
-
-const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+import type { DriverLookup, DriverPrediction, DriverStanding, PredictionPhase, RaceEvent } from "./predictionModel";
 
 export function confidenceMidpoint(prediction: DriverPrediction): number {
   return Math.round((prediction.confidence_low + prediction.confidence_high) / 2);
@@ -41,12 +32,6 @@ export function countdownTo(value?: string): string | null {
 export function raceSessionTime(race?: RaceEvent | null): string | undefined {
   if (!race?.sessions) return race?.date;
   return race.sessions.Race ?? race.sessions["Grand Prix"] ?? race.date;
-}
-
-export function phaseLabel(phase?: string | null): string {
-  if (phase === "post_qualifying") return "post-qualifying";
-  if (phase === "pre_qualifying") return "pre-qualifying";
-  return "no snapshot";
 }
 
 /** Tab heading for a phase. */
@@ -86,17 +71,6 @@ export function qualifyingHasRun(race: RaceEvent | null | undefined, now: number
   return start - 86400000 <= now;
 }
 
-export function pointsForPosition(position: number): number {
-  return POINTS_BY_POSITION[position - 1] ?? 0;
-}
-
-export function estimateWinPct(prediction: DriverPrediction): number {
-  const confidence = confidenceMidpoint(prediction);
-  const pos = Math.max(1, prediction.position);
-  const value = pos === 1 ? confidence * 0.62 : confidence * 0.45 * Math.pow(0.58, pos - 1);
-  return Math.max(0.1, Math.min(99, value));
-}
-
 export function estimatePodiumPct(prediction: DriverPrediction): number {
   const confidence = confidenceMidpoint(prediction);
   const pos = Math.max(1, prediction.position);
@@ -106,10 +80,6 @@ export function estimatePodiumPct(prediction: DriverPrediction): number {
 
 export function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
-}
-
-export function buildRiskLookup(rows: RiskPrediction[]): Record<string, RiskPrediction> {
-  return Object.fromEntries(rows.map((row) => [row.driver_code.toUpperCase(), row]));
 }
 
 export function modelStatusColor(status: string): string {
@@ -136,28 +106,6 @@ export function deltaColor(delta: number | null): string {
 export function deltaLabel(delta: number | null): string {
   if (delta == null) return "-";
   return delta > 0 ? `+${delta}` : String(delta);
-}
-
-/** Result-review badge colour: correct, evaluated-miss, or not scored. */
-export function reviewColor(winnerCorrect: boolean, evaluated: boolean): string {
-  if (winnerCorrect) return "#00FF78";
-  return evaluated ? "#E10600" : "#3671C6";
-}
-
-/** Circuit length line: kilometres when known, else lap count, else a dash. */
-export function circuitLengthLabel(circuit?: RaceEvent["circuit"]): string {
-  if (circuit?.length_km) return `${circuit.length_km} km`;
-  if (circuit?.laps) return `${circuit.laps} laps`;
-  return "-";
-}
-
-/** Result-review badge text: outcome when scored, otherwise the scored count. */
-export function reviewBadgeLabel(
-  review: { evaluated?: boolean; winner_correct?: boolean } | undefined,
-  racesEvaluated: number,
-): string {
-  if (!review?.evaluated) return `${racesEvaluated} scored predictions`;
-  return review.winner_correct ? "winner hit" : "winner miss";
 }
 
 /**

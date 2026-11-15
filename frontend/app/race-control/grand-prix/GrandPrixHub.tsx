@@ -2,8 +2,10 @@
 
 import { Suspense } from "react";
 
-import { GrandPrixView, type GrandPrixSeed } from "./GrandPrixView";
+import { GrandPrixView } from "./GrandPrixView";
 import { DEFAULT_HUB_URL, useHubUrlState } from "./useHubUrlState";
+
+import type { GrandPrixSeed } from "./hubSeed";
 
 function UrlBoundView({ seed }: { seed: GrandPrixSeed }) {
   return <GrandPrixView seed={seed} url={useHubUrlState()} />;

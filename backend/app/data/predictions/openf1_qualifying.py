@@ -11,8 +11,8 @@ timing for laps), and that is how production lost R20's post-qualifying call on
 * Since F1's live-timing archive went behind a login (2026-10-15), every FastF1
   session load sends about a dozen requests to it and its mirror that fail.
   Failures are never cached, so the next load sends them again.
-* After a boot, the prefetch sweep over the season's races spends about 360 of
-  the 500 in a few minutes, and each prediction compute about 60 more. R19's
+* After a boot, the race-detail prefetch sweep (removed in D1.2) spent about
+  360 of the 500 in a few minutes, and each prediction compute about 60 more. R19's
   qualifying load still fit; R20's, eleven seconds later, was refused. The call
   fell back to pre-qualifying, and the compute endpoint rightly refused to file
   it under the post-qualifying tab.
@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import structlog
 
 from app.data.canonical_names import CODE_UNRESOLVED, driver_identity, feed_number, team_display_name
@@ -41,10 +40,9 @@ logger = structlog.get_logger()
 
 OPENF1_SOURCE = "openf1"
 
-# The calendar lookup behind ``find_session`` is FastF1's schedule: ValueError or
-# KeyError for a season it cannot read, OSError for the network, and FastF1's
-# own request cap, which is how this order came to be needed.
-_LOOKUP_ERRORS = (OpenF1UnavailableError, RateLimitExceededError, ValueError, KeyError, OSError)
+# The calendar lookup behind ``find_session`` reads f1db: CalendarUnavailableError
+# (a ValueError) for a season it does not hold.
+_LOOKUP_ERRORS = (OpenF1UnavailableError, ValueError, KeyError, OSError)
 
 
 def _classified_position(row: dict) -> int | None:
@@ -66,7 +64,7 @@ def _entry_code(entry: EntryDriver | None) -> str | None:
     return entry.code if entry is not None and entry.code.isalpha() else None
 
 
-def _order_row(number: int, entry: EntryDriver | None, position: int, year: int) -> dict:
+def order_row(number: int, entry: EntryDriver | None, position: int, year: int) -> dict:
     """One classified car, coded like the FastF1 path: the feed's code, else f1db's, else labelled."""
     name = entry.name if entry is not None else None
     driver = driver_identity(year, code=_entry_code(entry), number=number, name=name)
@@ -98,11 +96,11 @@ def qualifying_order(rows: list[dict], entries: dict[int, EntryDriver], year: in
         if (position := _classified_position(row)) is not None
         and (number := feed_number(row.get("driver_number"))) is not None
     )
-    return [_order_row(number, entries.get(number), position, year) for position, number in placed]
+    return [order_row(number, entries.get(number), position, year) for position, number in placed]
 
 
-def load_openf1_qualifying(year: int, round_num: int) -> list[dict]:
-    """The round's qualifying order from OpenF1, or ``[]`` when OpenF1 cannot give one.
+def load_openf1_qualifying(year: int, round_num: int, code: str = "Q") -> list[dict]:
+    """The round's qualifying (or, with ``code="S"``, sprint) order from OpenF1, or ``[]`` when it cannot give one.
 
     Only a session that has ended and settled is read: mid-session the result
     is a running order. A result with no entry list is not trusted, since car
@@ -110,7 +108,7 @@ def load_openf1_qualifying(year: int, round_num: int) -> list[dict]:
     """
     try:
         with new_client() as client:
-            session = find_session(client, year, round_num, "Q")
+            session = find_session(client, year, round_num, code)
             if session is None or not session_ended(session):
                 return []
             rows = get_json(client, "session_result", {"session_key": session.session_key})

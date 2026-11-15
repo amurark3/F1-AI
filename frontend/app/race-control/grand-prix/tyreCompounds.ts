@@ -1,26 +1,29 @@
+import { f1 } from "@/app/ui/tokens";
+
 /**
  * Tyre compound colours, matching the sidewall markings used on track.
  *
  * These are the colours a viewer already reads a stint chart with, so they are
  * not negotiable design choices — a yellow bar means medium to anyone who
- * watches the sport, whatever the rest of the palette does.
+ * watches the sport, whatever the rest of the palette does. They live in the
+ * design tokens (`--f1-tyre-*`), read here for the SVG and inline styles.
  */
 
 const COMPOUND_COLORS: Record<string, string> = {
-  SOFT: "#E8002D",
-  MEDIUM: "#F5C542",
-  HARD: "#E7E9EE",
-  INTERMEDIATE: "#00A550",
-  WET: "#3671C6",
+  SOFT: f1.tyreSoft,
+  MEDIUM: f1.tyreMedium,
+  HARD: f1.tyreHard,
+  INTERMEDIATE: f1.tyreInter,
+  WET: f1.tyreWet,
   // Pre-2019 compound names still appear in historical data.
-  SUPERSOFT: "#E8002D",
-  ULTRASOFT: "#C64BC6",
-  HYPERSOFT: "#FF8FA6",
-  SUPERHARD: "#E7E9EE",
+  SUPERSOFT: f1.tyreSoft,
+  ULTRASOFT: f1.tyreUltrasoft,
+  HYPERSOFT: f1.tyreHypersoft,
+  SUPERHARD: f1.tyreHard,
 };
 
 /** Shown for a stint whose compound was never recorded. */
-export const UNKNOWN_COMPOUND_COLOR = "#4A5261";
+export const UNKNOWN_COMPOUND_COLOR = f1.tyreUnknown;
 
 /** Single-letter marker used inside a narrow stint bar. */
 const COMPOUND_INITIALS: Record<string, string> = {
@@ -53,11 +56,11 @@ export function compoundLabel(compound: string | null): string {
 /**
  * Text colour that stays readable on a compound's fill.
  *
- * Hard and intermediate are light enough that white text disappears on them.
+ * Hard and medium are light enough that white text disappears on them.
  */
 export function compoundTextColor(compound: string | null): string {
   const key = (compound ?? "").toUpperCase();
-  return key === "HARD" || key === "SUPERHARD" ? "#0D111B" : "#FFFFFF";
+  return key === "HARD" || key === "SUPERHARD" || key === "MEDIUM" ? "var(--surface)" : "var(--rc-ink)";
 }
 
 /** The compounds present in a race, in the order they should be listed. */

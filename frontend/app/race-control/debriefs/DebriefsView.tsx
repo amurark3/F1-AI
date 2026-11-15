@@ -9,6 +9,8 @@ import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { teamLabel } from "@/app/ui/names/names";
 import { TeamName } from "@/app/ui/names/TeamName";
+import { RacePicker } from "@/app/ui/race-picker/RacePicker";
+import { useSchedule } from "@/app/ui/race-picker/useSchedule";
 import { fetcher } from "@/app/utils/fetcher";
 
 import {
@@ -43,18 +45,8 @@ export interface DebriefSeed {
 export function DebriefsView({ seed }: { seed: DebriefSeed }) {
   const { year } = seed;
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const {
-    data: scheduleResponse,
-    error: scheduleError,
-    isLoading: scheduleLoading,
-    mutate: reloadSchedule,
-  } = useSWR<RaceEvent[] | { error: string }, Error>(`${API_BASE}/api/schedule/${year}`, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000,
-    ...seededWith(seed.schedule),
-  });
-
-  const races = useMemo(() => (Array.isArray(scheduleResponse) ? scheduleResponse : []), [scheduleResponse]);
+  const calendar = useSchedule(year, seed.schedule);
+  const { races } = calendar;
   const defaultRace = useMemo(() => resolveDefaultDebriefRace(races), [races]);
   const effectiveRound = selectedRound ?? defaultRace?.round ?? null;
   const selectedRace = races.find((race) => race.round === effectiveRound) ?? defaultRace;
@@ -76,9 +68,8 @@ export function DebriefsView({ seed }: { seed: DebriefSeed }) {
   );
 
   // A revalidation in the background is not "loading" — only an empty hook is.
-  const awaitingSchedule = awaitingFirstData(scheduleLoading, races.length > 0);
   const awaitingDebrief = awaitingFirstData(debriefLoading, data !== undefined);
-  const pageLoading = awaitingSchedule;
+  const pageLoading = calendar.pending;
 
   if (pageLoading) {
     return (
@@ -105,15 +96,14 @@ export function DebriefsView({ seed }: { seed: DebriefSeed }) {
       />
 
       <DebriefSelector
+        year={year}
         races={races}
         effectiveRound={effectiveRound}
-        selectedRace={selectedRace}
-        scheduleLoading={awaitingSchedule}
         debriefLoading={awaitingDebrief}
-        showScheduleError={Boolean(scheduleError) || (!awaitingSchedule && races.length === 0)}
+        showScheduleError={calendar.failed || races.length === 0}
         onSelectRound={setSelectedRound}
         onRefresh={() => void mutate()}
-        onReloadSchedule={() => void reloadSchedule()}
+        onReloadSchedule={calendar.retry}
       />
 
       <DebriefBody
@@ -130,10 +120,9 @@ export function DebriefsView({ seed }: { seed: DebriefSeed }) {
 }
 
 interface DebriefSelectorProps {
+  year: number;
   races: RaceEvent[];
   effectiveRound: number | null;
-  selectedRace: RaceEvent | null;
-  scheduleLoading: boolean;
   debriefLoading: boolean;
   showScheduleError: boolean;
   onSelectRound: (round: number) => void;
@@ -142,10 +131,9 @@ interface DebriefSelectorProps {
 }
 
 function DebriefSelector({
+  year,
   races,
   effectiveRound,
-  selectedRace,
-  scheduleLoading,
   debriefLoading,
   showScheduleError,
   onSelectRound,
@@ -153,52 +141,25 @@ function DebriefSelector({
   onReloadSchedule,
 }: DebriefSelectorProps) {
   return (
-    <Panel className="p-5 mb-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <label className="min-w-0 flex-1">
-          <span className="block text-xs font-black uppercase tracking-[0.18em] text-neutral-300 mb-2" style={rcFont}>
-            Grand Prix
-          </span>
-          <select
-            value={effectiveRound ?? ""}
-            onChange={(event) => onSelectRound(Number(event.target.value))}
-            disabled={scheduleLoading || races.length === 0}
-            className="h-12 w-full rounded-lg border border-white/12 bg-[#151817] px-3 text-base font-semibold text-white disabled:text-neutral-500"
-          >
-            <option value="">{scheduleLoading ? "Loading race calendar..." : "Select a completed race"}</option>
-            {races.map((race) => (
-              <option key={race.round} value={race.round}>
-                {race.name} ({race.status})
-              </option>
-            ))}
-          </select>
-          {selectedRace && (
-            <p className="mt-2 text-sm text-neutral-400">
-              {selectedRace.location} · {selectedRace.status}
-            </p>
-          )}
-        </label>
-
-        <button
-          onClick={onRefresh}
-          disabled={!effectiveRound || debriefLoading}
-          className="inline-flex h-12 w-full items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-5 text-sm font-black uppercase tracking-wider text-neutral-200 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:text-neutral-600 lg:mt-6 lg:w-[190px] lg:shrink-0"
-        >
-          {debriefLoading ? "Updating Review..." : "Refresh Review"}
-        </button>
-      </div>
+    <div className="mb-5 space-y-4">
+      <RacePicker year={year} races={races} selectedRound={effectiveRound} onSelectRound={onSelectRound} />
+      <button
+        onClick={onRefresh}
+        disabled={!effectiveRound || debriefLoading}
+        className="inline-flex h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-5 text-sm font-black uppercase tracking-wider text-neutral-200 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:text-neutral-600"
+      >
+        {debriefLoading ? "Updating Review..." : "Refresh Review"}
+      </button>
 
       {showScheduleError && (
-        <div className="mt-4">
-          <InlineNotice title="Race Calendar Unavailable" tone="error">
-            The race list could not be loaded. Refresh once the schedule feed is available.
-            <button onClick={onReloadSchedule} className="ml-2 font-bold text-white underline decoration-white/30">
-              Retry
-            </button>
-          </InlineNotice>
-        </div>
+        <InlineNotice title="Race Calendar Unavailable" tone="error">
+          The race list could not be loaded. Refresh once the schedule feed is available.
+          <button onClick={onReloadSchedule} className="ml-2 font-bold text-white underline decoration-white/30">
+            Retry
+          </button>
+        </InlineNotice>
       )}
-    </Panel>
+    </div>
   );
 }
 

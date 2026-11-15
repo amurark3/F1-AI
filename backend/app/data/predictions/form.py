@@ -6,24 +6,19 @@ grid-to-finish delta that captures how much overtaking a track allows.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import statistics
-from typing import TYPE_CHECKING
 
-import fastf1
 import structlog
 
-from app.data.canonical_names import fastf1_code
-from app.utils.fastf1_lock import FASTF1_LOCK
-
-if TYPE_CHECKING:
-    import pandas as pd
-
+from app.data.f1db_grid import starting_grid
+from app.data.f1db_results import race_results, race_schedule
 
 logger = structlog.get_logger()
 
-# Aliased to the process-wide lock: a per-module lock does not serialise
-# against the other modules sharing FastF1's SQLite cache.
-_fastf1_lock = FASTF1_LOCK
+# Past editions of a circuit that feed its history and grid-to-finish change.
+CIRCUIT_EDITIONS = 3
+FIRST_SEASON = 2018
 
 # (driver_code, year, current_round) -> list of recent finishing positions
 _recent_form_cache: dict[tuple[str, int, int], list[int]] = {}
@@ -34,11 +29,8 @@ _season_results_cache: dict[int, dict[int, dict[str, int]]] = {}
 # (year,) -> driver_code -> list of (round, sprint finishing position) this season
 _recent_sprint_form_cache: dict[tuple[int,], dict[str, list[tuple[int, int]]]] = {}
 
-# (circuit_key, year) -> dict of driver_code -> list of past positions
-_circuit_history_cache: dict[tuple[str, int], dict[str, list[int]]] = {}
-
-# (circuit_key,) -> dict of driver_code -> avg grid delta
-_grid_delta_cache: dict[tuple[str,], dict[str, float]] = {}
+# (circuit_id, year) -> the circuit's past editions, read from f1db
+_circuit_editions_cache: dict[tuple[str, int], CircuitEditions] = {}
 
 
 def _season_race_positions(year: int) -> dict[int, dict[str, int]]:
@@ -134,157 +126,92 @@ def _load_recent_sprint_form(year: int, current_round: int) -> dict[str, list[in
     return result
 
 
-def _find_round_for_location(year: int, location: str) -> int | None:
-    """Return the round number where ``location`` was held in ``year``.
+@dataclass(frozen=True)
+class CircuitEditions:
+    """A circuit's last editions as f1db has them.
 
-    Uses the FastF1 event schedule so the lookup is correct even when the
-    calendar order changes between seasons (e.g. Miami added in 2022, Las
-    Vegas in 2023, China returning in 2024).  Returns None if the location
-    was not on the calendar that year.
+    ``missing`` maps each year without a usable edition to why, so a gap is
+    reported rather than read as "nobody scored here".
     """
-    try:
-        schedule = fastf1.get_event_schedule(year, include_testing=False)
-        match = schedule[schedule["Location"].str.lower() == location.lower()]
-        if not match.empty:
-            return int(match.iloc[0]["RoundNumber"])
-    except Exception as exc:
-        logger.warning("predictions.round_lookup_failed", year=year, location=location, error=str(exc))
+
+    history: dict[str, list[int]]
+    deltas: dict[str, float]
+    missing: dict[int, str]
+
+
+def _edition_round(past_year: int, circuit_id: str) -> int | None:
+    """The round at which ``circuit_id`` hosted a Grand Prix in ``past_year``."""
+    for event in race_schedule(past_year):
+        if event["location"] == circuit_id:
+            return int(event["round"])
     return None
 
 
-def _finish_positions(results: pd.DataFrame, year: int) -> dict[str, int]:
-    """Driver code -> finishing position for one race of ``year``, skipping unusable rows.
+def _edition_deltas(past_year: int, past_round: int, finishes: dict[str, int]) -> dict[str, int]:
+    """Driver code -> places gained from the published grid; positive means gained.
 
-    The code is FastF1's, else f1db's (:func:`app.data.canonical_names.fastf1_code`).
-    A row with neither, or with a position that will not coerce to an int, is
-    missing data rather than a failure: it is dropped so the rest of the race
-    still contributes history.
+    A pit-lane start holds no grid slot (``position`` is ``None``) and is left
+    out: the notional gain from last on the grid would swamp the average.
     """
-    positions: dict[str, int] = {}
-    for _, row in results.iterrows():
-        code = fastf1_code(year, row)
-        position = row.get("Position")
-        if not code or position is None:
-            continue
-        try:
-            positions[code] = int(position)
-        except (ValueError, TypeError):
-            continue
-    return positions
+    return {
+        slot.driver_code: slot.position - finishes[slot.driver_code]
+        for slot in starting_grid(past_year, past_round)
+        if slot.position is not None and slot.driver_code in finishes
+    }
 
 
-def _grid_to_finish_deltas(results: pd.DataFrame, year: int) -> dict[str, int]:
-    """Driver code -> places gained for one race of ``year``; positive means places gained.
-
-    Codes are read as in :func:`_finish_positions`. Pit-lane starts (grid 0) are
-    excluded — the notional gain from last on the grid would swamp the average.
-    """
-    deltas: dict[str, int] = {}
-    for _, row in results.iterrows():
-        code = fastf1_code(year, row)
-        grid = row.get("GridPosition")
-        finish = row.get("Position")
-        if not code or grid is None or finish is None:
-            continue
-        try:
-            grid_position = int(grid)
-            finish_position = int(finish)
-        except (ValueError, TypeError):
-            continue
-        if grid_position > 0:
-            deltas[code] = grid_position - finish_position
-    return deltas
-
-
-def _load_circuit_history(year: int, _round_num: int, circuit_key: str) -> dict[str, list[int]]:
-    """Load driver results at this circuit for the last 3 editions.
-
-    Returns dict of driver_code -> list of finishing positions.
-    Looks up the correct round number for each past year so that calendar
-    changes (new venues, dropped venues, reordered rounds) don't cause the
-    wrong race to be loaded.
-    """
-    cache_key = (circuit_key, year)
-    if cache_key in _circuit_history_cache:
-        return _circuit_history_cache[cache_key]
-
+def _read_editions(year: int, circuit_id: str) -> tuple[CircuitEditions, bool]:
+    """Read the editions, and whether every one was answered by f1db."""
     history: dict[str, list[int]] = {}
-
-    for past_year in range(year - 1, max(year - 4, 2018), -1):
-        past_round = _find_round_for_location(past_year, circuit_key)
-        if past_round is None:
-            logger.debug(
-                "predictions.circuit_not_on_calendar",
-                circuit=circuit_key,
-                year=past_year,
-            )
-            continue
+    grid_deltas: dict[str, list[float]] = {}
+    missing: dict[int, str] = {}
+    answered = True
+    for past_year in range(year - 1, year - 1 - CIRCUIT_EDITIONS, -1):
+        if past_year < FIRST_SEASON:
+            break
         try:
-            with _fastf1_lock:
-                session = fastf1.get_session(past_year, past_round, "R")
-                session.load(telemetry=False, laps=False, weather=False)
-
-            results = session.results
-            if results is None or results.empty:
-                continue
-
-            for code, position in _finish_positions(results, past_year).items():
-                history.setdefault(code, []).append(position)
-
+            past_round = _edition_round(past_year, circuit_id)
+            finishes = {} if past_round is None else race_results(past_year, past_round)
+            deltas = {} if not finishes or past_round is None else _edition_deltas(past_year, past_round, finishes)
         except Exception as exc:
-            logger.debug(
-                "predictions.circuit_history_year_failed",
-                circuit=circuit_key,
-                year=past_year,
-                error=str(exc),
-            )
+            logger.warning("predictions.circuit_edition_unreadable", circuit=circuit_id, year=past_year, error=str(exc))
+            missing[past_year] = f"f1db could not be read: {exc}"
+            answered = False
             continue
+        if past_round is None:
+            missing[past_year] = "f1db has no Grand Prix at this circuit that season"
+        elif not finishes:
+            missing[past_year] = f"f1db has no race result for round {past_round}"
+        for code, position in finishes.items():
+            history.setdefault(code, []).append(position)
+        for code, delta in deltas.items():
+            grid_deltas.setdefault(code, []).append(delta)
+    averages = {code: statistics.mean(values) for code, values in grid_deltas.items()}
+    return CircuitEditions(history, averages, missing), answered
 
-    _circuit_history_cache[cache_key] = history
+
+def circuit_editions(year: int, circuit_id: str) -> CircuitEditions:
+    """The last three editions of ``circuit_id`` before ``year``, found by f1db's circuit id.
+
+    Every edition is a past season, so it ended before any cutoff a recompute
+    of ``year`` can have. Calendar moves (Miami added, China returning) cannot
+    point at the wrong race the way a round number would.
+
+    An answer is cached only when f1db answered for every edition and at least
+    one had a result: an unreadable f1db or a circuit with no history is read
+    again next time instead of being remembered as an empty answer.
+    """
+    key = (circuit_id, year)
+    cached = _circuit_editions_cache.get(key)
+    if cached is not None:
+        return cached
+    editions, answered = _read_editions(year, circuit_id)
+    if answered and editions.history:
+        _circuit_editions_cache[key] = editions
     logger.info(
         "predictions.circuit_history_loaded",
-        circuit=circuit_key,
-        years_loaded=len(history),
+        circuit=circuit_id,
+        drivers=len(editions.history),
+        missing_years=sorted(editions.missing),
     )
-    return history
-
-
-def _load_grid_to_finish_delta(year: int, _round_num: int, circuit_key: str) -> dict[str, float]:
-    """Compute average grid-to-finish position change at this circuit.
-
-    Positive = driver tends to gain positions; negative = loses positions.
-    Returns dict of driver_code -> avg delta (generic avg if driver has no data).
-    """
-    cache_key = (circuit_key,)
-    if cache_key in _grid_delta_cache:
-        return _grid_delta_cache[cache_key]
-
-    deltas: dict[str, list[float]] = {}
-
-    for past_year in range(year - 1, max(year - 4, 2018), -1):
-        past_round = _find_round_for_location(past_year, circuit_key)
-        if past_round is None:
-            continue
-        try:
-            with _fastf1_lock:
-                session = fastf1.get_session(past_year, past_round, "R")
-                session.load(telemetry=False, laps=False, weather=False)
-
-            results = session.results
-            if results is None or results.empty:
-                continue
-
-            for code, delta in _grid_to_finish_deltas(results, past_year).items():
-                deltas.setdefault(code, []).append(delta)
-
-        except Exception as exc:
-            logger.debug("predictions.circuit_history_year_failed", error=str(exc))
-            continue
-
-    # Compute averages
-    result: dict[str, float] = {}
-    for code, ds in deltas.items():
-        result[code] = statistics.mean(ds) if ds else 0.0
-
-    _grid_delta_cache[cache_key] = result
-    return result
+    return editions

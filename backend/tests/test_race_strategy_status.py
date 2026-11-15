@@ -66,11 +66,12 @@ def openf1_classification(*drivers: ClassifiedDriver) -> RaceClassification:
 
 @pytest.fixture
 def board(monkeypatch):
-    state = {"stints": (), "stops": (), "results": {}, "classification": NO_CLASSIFICATION}
+    state = {"stints": (), "stops": (), "results": {}, "classification": NO_CLASSIFICATION, "neutralisations": None}
     monkeypatch.setattr(race_strategy_board, "race_stints", lambda y, r: state["stints"])
     monkeypatch.setattr(race_strategy_board, "race_pit_sheet", lambda y, r: PitSheet("f1db-pit-stops", state["stops"]))
     monkeypatch.setattr(race_strategy_board, "race_results", lambda y, r: state["results"])
     monkeypatch.setattr(race_strategy_board, "race_classification", lambda y, r: state["classification"])
+    monkeypatch.setattr(race_strategy_board, "race_neutralisations", lambda y, r: state["neutralisations"])
     return state
 
 
@@ -331,3 +332,22 @@ def test_a_stop_carries_its_stationary_time_when_published(board):
 
 def test_one_suspension_entry_reads_in_the_singular():
     assert "1 pit-lane entry on" in race_strategy_board._suspension_note(1)
+
+
+def test_a_retirement_carries_its_reason_and_the_race_its_neutralised_laps(board):
+    board["stints"] = (stint("LIN", 1, 1, 58),)
+    board["classification"] = openf1_classification(
+        ClassifiedDriver(driver_code="LIN", position=None, status="dnf", laps_completed=58, reason="Collision")
+    )
+    board["neutralisations"] = [{"kind": "sc", "start_lap": 44, "end_lap": 44}]
+
+    payload = build_race_strategy(2026, 19)
+
+    assert rows_by_code(payload)["LIN"]["reason"] == "Collision"
+    assert payload["neutralisations"] == [{"kind": "sc", "start_lap": 44, "end_lap": 44}]
+
+
+def test_without_a_classification_there_is_no_reason(board):
+    board["stints"] = (stint("LIN", 1, 1, 58),)
+    assert rows_by_code(build_race_strategy(2026, 19))["LIN"]["reason"] is None
+    assert build_race_strategy(2026, 19)["neutralisations"] is None

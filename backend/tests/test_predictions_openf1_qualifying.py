@@ -21,12 +21,12 @@ from dataclasses import replace
 import json
 from typing import TYPE_CHECKING
 
-from fastf1.exceptions import RateLimitExceededError
 import httpx
 import pytest
 import structlog
 
 from app.data.canonical_names import CODE_UNRESOLVED
+from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.openf1.sessions import entry_list
 from app.data.predictions import openf1_qualifying as module
 from app.data.predictions.openf1_qualifying import load_openf1_qualifying, qualifying_order
@@ -270,13 +270,12 @@ def test_a_live_lockout_costs_the_openf1_order_only(openf1):
 @pytest.mark.parametrize(
     "error",
     [
-        pytest.param(RateLimitExceededError("any API: 500 calls/h"), id="fastf1-schedule-capped"),
-        pytest.param(ValueError("no 2026 schedule"), id="no-schedule"),
+        pytest.param(CalendarUnavailableError("f1db has no calendar for 2026 yet"), id="no-schedule"),
         pytest.param(OSError("unreachable"), id="network"),
     ],
 )
 def test_a_failed_calendar_lookup_costs_the_openf1_order_only(openf1, error):
-    """The meeting is found through FastF1's calendar, which FastF1's own request cap can refuse."""
+    """The meeting is found through f1db's calendar, which may not hold the season yet."""
     openf1["session"] = error
 
     assert load_openf1_qualifying(2026, 20) == []

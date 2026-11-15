@@ -27,6 +27,13 @@ OPENF1_HTTP_TIMEOUT_SECONDS = int(os.getenv("OPENF1_HTTP_TIMEOUT_SECONDS", "10")
 # free tier allows about three a second and answers a burst of ~20 with 429.
 OPENF1_MIN_REQUEST_GAP_SECONDS = float(os.getenv("OPENF1_MIN_REQUEST_GAP_SECONDS", "0.4"))
 
+# Kept OpenF1 answers (app/data/openf1/session_store.py): where the file backend
+# writes without DATABASE_URL, how long after a session ends its rows stay
+# provisional (late penalties), and how often provisional rows are refetched.
+OPENF1_STORE_DIR = os.getenv("OPENF1_STORE_DIR", "data/openf1_store")
+OPENF1_STORE_FINAL_AFTER_HOURS = int(os.getenv("OPENF1_STORE_FINAL_AFTER_HOURS", "24"))
+OPENF1_STORE_PROVISIONAL_TTL_MINUTES = int(os.getenv("OPENF1_STORE_PROVISIONAL_TTL_MINUTES", "30"))
+
 # ---------------------------------------------------------------------------
 # WebSocket settings
 # ---------------------------------------------------------------------------
@@ -71,18 +78,12 @@ SESSION_LOOKUP_INTERVAL = int(os.getenv("SESSION_LOOKUP_INTERVAL", "300"))
 MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "3"))
 
 # ---------------------------------------------------------------------------
-# Background prefetch settings
+# Background self-improvement loop (main.py); the names predate it.
 # ---------------------------------------------------------------------------
-# Delay after server start before beginning race detail prefetch (seconds)
+# Delay after server start before the first pass (seconds)
 PREFETCH_STARTUP_DELAY = int(os.getenv("PREFETCH_STARTUP_DELAY", "30"))
 
-# Timeout for a single race detail prefetch (seconds)
-PREFETCH_RACE_TIMEOUT_SECONDS = int(os.getenv("PREFETCH_RACE_TIMEOUT_SECONDS", "60"))
-
-# Pause between loading individual races during prefetch (seconds)
-PREFETCH_INTER_RACE_DELAY = int(os.getenv("PREFETCH_INTER_RACE_DELAY", "5"))
-
-# How often the prefetch loop runs (seconds) — default 30 minutes
+# How often the loop runs (seconds) — default 30 minutes
 PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
 
 # ---------------------------------------------------------------------------

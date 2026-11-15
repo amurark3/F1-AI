@@ -232,7 +232,6 @@ All endpoints are mounted under `/api`.
 | `GET`  | `/api/schedule/{year}`                    | Season calendar with UTC session times                       |
 | `GET`  | `/api/standings/drivers/{year}`           | WDC standings (f1db, Ergast fallback)                        |
 | `GET`  | `/api/standings/constructors/{year}`      | WCC standings                                                |
-| `GET`  | `/api/race/{year}/{round_num}`            | Enriched race + qualifying + sprint detail                   |
 | `GET`  | `/api/compare/{year}/{driver1}/{driver2}` | Season head-to-head comparison                               |
 | `WS`   | `/api/live/{year}/{round_num}`            | Real-time timing WebSocket                                   |
 | `GET`  | `/api/health`                             | Liveness probe                                               |
@@ -264,6 +263,8 @@ All endpoints are mounted under `/api`.
 | `GET`  | `/api/race-control/overview/{year}/shell`             | Schedule, standings, session state and championship stakes (no telemetry)                        |
 | `GET`  | `/api/race-control/overview/{year}/weather`           | Forecast for every session of the weekend, the race-day summary, and the risk register it grades |
 | `GET`  | `/api/race-control/overview/{year}/circuit`           | Circuit map (MultiViewer), layout facts, lap record and history at the circuit                   |
+| `GET`  | `/api/race-control/circuit/{year}/{round_num}`        | That round's circuit map, f1db record and lap record (empty parts for a round the season lacks)  |
+| `GET`  | `/api/race-control/results/{year}/{round_num}`        | Official race and sprint classification, `final` (f1db) or provisional (OpenF1), with DNF reasons and time penalties |
 | `GET`  | `/api/race-control/overview/{year}/predictions`       | Projected podium from the stored model snapshot                                                  |
 | `GET`  | `/api/race-control/overview/{year}/strategy`          | Baseline strategy context and workstreams                                                        |
 | `GET`  | `/api/race-control/teams/{year}`                      | All teams for a season                                                                           |
@@ -405,7 +406,7 @@ cd backend && source .venv/bin/activate && python mcp_server.py
 
 ```
 backend/
-├── main.py                   FastAPI entry point + CORS + warm-up + background prefetch
+├── main.py                   FastAPI entry point + CORS + warm-up + self-improvement loop
 ├── mcp_server.py             MCP server for Claude Desktop / Cursor
 ├── requirements*.txt         runtime, ingest, dev (tests/lint), train
 ├── app/
@@ -418,7 +419,6 @@ backend/
 │   │   │                     analysis, power_units, profiles, memory, readiness
 │   │   ├── tools/            16 LangChain tools + SQL result tallies
 │   │   ├── live/             live-timing WebSocket + connection manager
-│   │   ├── race_detail.py    race + qualifying + sprint detail
 │   │   ├── compare.py        season head-to-head
 │   │   ├── llm.py            chat engines, failover classification, rest periods
 │   │   ├── claim_check.py    checks driver↔team claims against tool results

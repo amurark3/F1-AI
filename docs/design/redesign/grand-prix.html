@@ -254,7 +254,7 @@
       /* ---------- Facts: one quiet row, the lead fact first ---------- */
       .facts {
         display: grid;
-        grid-template-columns: 1.4fr repeat(4, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         margin-top: 28px;
         border-top: 1px solid var(--line);
         border-bottom: 1px solid var(--line);
@@ -588,7 +588,7 @@
 <span class="month" style="left:74.83%">OCT</span>
 <span class="month" style="left:85.66%">NOV</span>
 <span class="month" style="left:96.15%">DEC</span>
-<div class="tip" style="left:85.66%"><span class="muted">R19 · Mexico City GP</span><br><b>Max Verstappen</b> won · Antonelli clinched the title</div>
+<div class="tip" style="left:85.66%;transform:translateX(-80%)"><span class="muted">R19 · Mexico City GP</span><br><b>Max Verstappen</b> won · Antonelli clinched the title</div>
         </div>
       </div>
     </div>
@@ -641,9 +641,6 @@
       </section>
 
       <section class="facts rise" style="animation-delay: 0.3s">
-        <div>
-          <span class="eyebrow">Last winner here</span><b>Lando Norris</b><small>McLaren · 2025</small>
-        </div>
         <div><span class="eyebrow">Lap</span><b>4.309<span class="unit">km</span></b></div>
         <div><span class="eyebrow">Laps</span><b>71</b></div>
         <div><span class="eyebrow">Distance</span><b>305.9<span class="unit">km</span></b></div>
@@ -654,6 +651,7 @@
         <a href="#" aria-selected="true">Weekend</a>
         <a href="#">Sessions</a>
         <a href="#">Grid</a>
+        <a href="#">Results</a>
         <a href="#">Stints</a>
         <a href="#">Predictions</a>
       </nav>

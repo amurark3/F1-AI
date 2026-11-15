@@ -14,6 +14,8 @@ Two things, both only ever published as free-text messages:
   own lap starts. A safety car or VSC ends at the next track-wide "TRACK CLEAR"
   or green flag. A red flag ends when the session is started again, not at the
   "TRACK CLEAR" sent seconds after the suspension (Monza 2026).
+* **Qualifying segments.** Each ``qualifying_phase`` runs from its first green
+  light ("PIT EXIT OPEN") to its chequered flag; a red flag stays inside it.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ _DELETION = re.compile(
     r"^CAR (?P<car>\d+) \([A-Z]+\) (?:TIME (?P<time>[\d:.]+) )?(?:LAP )?(?P<verb>DELETED|(?:WILL BE )?REINSTATED)"
 )
 _TRACK_GREEN = frozenset({"CLEAR", "GREEN"})
+SEGMENT_NUMBERS = (1, 2, 3)
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,25 @@ class Window:
         if start is None:
             raise ValueError(f"window without a start: {row!r}")
         return cls(kind=str(row["kind"]), start=start, end=parse_iso(row["end"]))
+
+
+@dataclass(frozen=True)
+class SegmentWindow:
+    """One qualifying segment (1-3) from its first green light to its chequered flag."""
+
+    number: int
+    start: datetime
+    end: datetime
+
+    def to_json(self) -> dict:
+        return {"number": self.number, "start": self.start.isoformat(), "end": self.end.isoformat()}
+
+    @classmethod
+    def from_json(cls, row: dict) -> SegmentWindow:
+        start, end = parse_iso(row["start"]), parse_iso(row["end"])
+        if start is None or end is None:
+            raise ValueError(f"segment window without both ends: {row!r}")
+        return cls(number=int(row["number"]), start=start, end=end)
 
 
 def _text(message: dict) -> str:
@@ -159,3 +181,20 @@ def neutralised_windows(messages: list[dict]) -> tuple[Window, ...]:
         end = next((later for later, closing in dated[index + 1 :] if _closes(kind, closing)), None)
         windows.append(Window(kind=kind, start=moment, end=end))
     return tuple(windows)
+
+
+def segment_windows(messages: list[dict]) -> tuple[SegmentWindow, ...]:
+    """Windows of segments 1-3, or none at all unless race control published all three."""
+    opened: dict[int, datetime] = {}
+    closed: dict[int, datetime] = {}
+    for moment, message in _dated(messages):
+        phase, flag = message.get("qualifying_phase"), str(message.get("flag") or "").upper()
+        if phase not in SEGMENT_NUMBERS or message.get("scope") != "Track":
+            continue
+        if flag == "GREEN" and "PIT EXIT OPEN" in _text(message):
+            opened.setdefault(phase, moment)
+        elif flag == "CHEQUERED":
+            closed.setdefault(phase, moment)
+    if not all(number in opened and number in closed and opened[number] < closed[number] for number in SEGMENT_NUMBERS):
+        return ()
+    return tuple(SegmentWindow(number, opened[number], closed[number]) for number in SEGMENT_NUMBERS)

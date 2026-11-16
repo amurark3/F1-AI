@@ -113,3 +113,12 @@ def season_standings(year: int) -> SeasonStandings:
             drivers = _table(conn, _DRIVER_QUERY, year)
             teams = _table(conn, _CONSTRUCTOR_QUERY, year)
     return SeasonStandings(drivers=drivers, teams=teams, meta=computed.meta())
+
+
+def neighbours(table: Mapping[str, Standing], entity_id: str) -> tuple[str | None, str | None]:
+    """The ids one place above and one below ``entity_id`` in ``table``; unranked has neither."""
+    mine = table.get(entity_id)
+    if mine is None or mine.position is None:
+        return None, None
+    by_position = {item.position: key for key, item in table.items()}
+    return by_position.get(mine.position - 1), by_position.get(mine.position + 1)

@@ -13,6 +13,14 @@
  *   `profiles.build_directory(2026)` (f1db v2026.19.0, round 19 confirmed), so
  *   each driver now carries f1db's `first_name` / `last_name` (P2.1); every
  *   other value is unchanged from the first capture.
+ * - `profile-pages-2026.json`: the P5.4 profile payloads, captured 2026-11-16
+ *   through the backend's own `profiles.build_*` functions on f1db v2026.20.0
+ *   (round 20, São Paulo, confirmed; before Las Vegas lands on 2026-11-22). Keys:
+ *   `teams_index` (`/teams`), `mercedes` and `red_bull` (`build_team_profile`),
+ *   `verstappen`, `hamilton`, `lawson`, `hirakawa` (`build_driver_profile`) and
+ *   `unknown_team` (`build_team_profile(2026, "lotus")`). `power_units` and
+ *   `intel_slug` are dropped (the pages read neither), and the later-round
+ *   lookup is stubbed so the table is f1db's own.
  * - `ready.json`: `GET /api/ready`, kept to the `ready`, `stage` and `detail`
  *   fields the warm-up probe reads.
  *
@@ -197,6 +205,7 @@ import type {
   SeasonDirectory,
   TeamProfile,
   TeamProfileResponse,
+  TeamsIndex,
 } from "@/app/race-control/profiles/profilesModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
@@ -223,6 +232,7 @@ import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
 import predictionReviewR19 from "./prediction-review-2026-r19.json";
+import profilePages2026 from "./profile-pages-2026.json";
 import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
@@ -243,6 +253,18 @@ export const TEAMS_2026 = teams2026 as TeamsResponse;
 export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;
+
+/** The Teams index, Team page and Driver page payloads (P5.4), as captured. Their `power_units` are dropped, which the types still require until P5.4b/c remove them. */
+export const PROFILE_PAGES_2026 = {
+  teams_index: profilePages2026.teams_index as TeamsIndex,
+  mercedes: profilePages2026.mercedes as unknown as TeamProfile,
+  red_bull: profilePages2026.red_bull as unknown as TeamProfile,
+  verstappen: profilePages2026.verstappen as unknown as DriverProfile,
+  hamilton: profilePages2026.hamilton as unknown as DriverProfile,
+  lawson: profilePages2026.lawson as unknown as DriverProfile,
+  hirakawa: profilePages2026.hirakawa as unknown as DriverProfile,
+  unknown_team: profilePages2026.unknown_team as TeamProfileResponse,
+};
 
 /** Team and driver profiles of 2026, kept to the fields `profilesModel` reads. */
 export const PROFILES_2026 = {

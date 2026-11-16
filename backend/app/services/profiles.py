@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from app.data.identity import season_directory
-from app.data.profiles import driver_season, team_season
+from app.data.profiles import driver_season, team_season, teams_index
 from app.data.profiles.results import rounds_label
 from app.data.profiles.standings import season_standings
 from app.services.power_units import build_power_units
@@ -143,3 +143,7 @@ def build_driver_profile(year: int, driver_id: str) -> dict:
     if season is None:
         return {"year": year, "status": "not_found", "driver": None}
     return {**season, "status": "ok", "power_units": _power_units(year, _driver_cars(driver_id))}
+
+
+def build_teams_index(year: int) -> dict:
+    return {**teams_index(year), "status": "ok"}

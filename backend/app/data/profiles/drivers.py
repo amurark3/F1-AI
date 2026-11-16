@@ -19,14 +19,15 @@ from app.data.profiles.results import (
     season_results,
     season_rounds,
 )
-from app.data.profiles.standings import Standing, season_standings
+from app.data.profiles.standings import Standing, neighbours, season_standings
 from app.data.profiles.teams import PODIUM_POSITIONS
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     import sqlite3
 
 _DRIVER_QUERY = """
-    SELECT d.id AS id, d.name AS name, d.abbreviation AS code,
+    SELECT d.id AS id, d.name AS name, d.last_name AS last_name, d.abbreviation AS code,
            d.permanent_number AS number, cty.name AS nationality
     FROM driver d
     LEFT JOIN country cty ON cty.id = d.nationality_country_id
@@ -37,8 +38,20 @@ _ENTRIES_QUERY = """
     SELECT DISTINCT sed.constructor_id AS id, c.name AS name
     FROM season_entrant_driver sed
     JOIN constructor c ON c.id = sed.constructor_id
-    WHERE sed.year = ? AND sed.driver_id = ? AND sed.test_driver = 0
+    WHERE sed.year = ? AND sed.driver_id = ?
+      AND (sed.test_driver = 0 OR EXISTS (
+          SELECT 1 FROM race_data rd JOIN race r ON r.id = rd.race_id
+          WHERE r.year = sed.year AND rd.driver_id = sed.driver_id
+            AND rd.constructor_id = sed.constructor_id
+            AND rd.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT')))
     ORDER BY c.name
+"""
+
+_NAMES_QUERY = """
+    SELECT DISTINCT d.id AS id, d.name AS name, d.last_name AS last_name, d.abbreviation AS code
+    FROM season_entrant_driver sed
+    JOIN driver d ON d.id = sed.driver_id
+    WHERE sed.year = ?
 """
 
 
@@ -53,6 +66,10 @@ class _Season:
     through: dict | None
     #: Which round the championship table is after, whether provisional, and its sources.
     table_meta: dict
+    #: Every driver's results of the year, to find the teammates.
+    everyone: tuple[Finish, ...]
+    table: Mapping[str, Standing]
+    names: Mapping[str, sqlite3.Row]
 
 
 def _races(season: _Season) -> list[Finish]:
@@ -91,9 +108,51 @@ def _stats(season: _Season) -> dict:
     }
 
 
+def _who(row: sqlite3.Row) -> dict:
+    return {"id": row["id"], "name": row["name"], "last_name": row["last_name"], "code": row["code"]}
+
+
+def _shared_races(season: _Season) -> list[Finish]:
+    """Race rows of other drivers for the same team in a round this driver raced."""
+    mine = {item.round: item for item in _races(season)}
+    return [
+        item
+        for item in season.everyone
+        if item.session == "race"
+        and item.driver_id != season.driver["id"]
+        and item.round in mine
+        and item.constructor_id == mine[item.round].constructor_id
+    ]
+
+
+def _teammates(season: _Season) -> list[dict]:
+    rounds: dict[str, list[int]] = {}
+    for item in _shared_races(season):
+        rounds.setdefault(item.driver_id, []).append(item.round)
+    ordered = sorted(rounds.items(), key=lambda pair: (-len(pair[1]), pair[1][0]))
+    return [
+        {**_who(season.names[driver_id]), "rounds": raced, "rounds_label": rounds_label(raced)}
+        for driver_id, raced in ordered
+    ]
+
+
+def _rivals(season: _Season) -> dict:
+    ahead, behind = neighbours(season.table, season.driver["id"])
+    return {
+        side: {**_who(season.names[key]), "position": season.table[key].position, "points": season.table[key].points}
+        if key
+        else None
+        for side, key in (("ahead", ahead), ("behind", behind))
+    }
+
+
 def _rounds(season: _Season) -> list[dict]:
     through = season.through["round"] if season.through else 0
     payload = []
+    # The first other driver to race for the same team that round is the teammate.
+    mates: dict[int, Finish] = {}
+    for item in _shared_races(season):
+        mates.setdefault(item.round, item)
     for info in season.rounds:
         finishes = {item.session: item for item in season.finishes if item.round == info.round}
         race = finishes.get("race")
@@ -109,6 +168,9 @@ def _rounds(season: _Season) -> list[dict]:
                 "team_id": either.constructor_id if either else None,
                 "race": race.as_dict() if race else None,
                 "sprint": sprint.as_dict() if sprint else None,
+                "teammate": {"driver_id": mates[info.round].driver_id, "race": mates[info.round].as_dict()}
+                if info.round in mates
+                else None,
             }
         )
     return payload
@@ -126,6 +188,7 @@ def _payload(season: _Season) -> dict:
         "driver": {
             "id": driver["id"],
             "name": driver["name"],
+            "last_name": driver["last_name"],
             "code": driver["code"],
             "number": latest.number if latest and latest.number is not None else as_int(driver["number"]),
             "nationality": driver["nationality"],
@@ -139,6 +202,8 @@ def _payload(season: _Season) -> dict:
         },
         "stats": _stats(season),
         "teams": teams,
+        "rivals": _rivals(season),
+        "teammates": _teammates(season),
         "wins": [
             {"round": item.round, "name": names[item.round].name, "short_name": names[item.round].short_name}
             for item in races
@@ -166,6 +231,9 @@ def driver_season(year: int, driver_id: str) -> dict | None:
             rounds=rounds,
             finishes=season_results(conn, year, driver_id=driver_id),
             standing=standings.drivers.get(driver_id),
+            everyone=season_results(conn, year),
+            table=standings.drivers,
+            names={row["id"]: row for row in conn.execute(_NAMES_QUERY, (year,)).fetchall()},
             through=results_through(conn, year, rounds),
             table_meta=standings.meta,
         )

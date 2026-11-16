@@ -38,6 +38,13 @@ def test_directory_returns_the_service_payload(client, monkeypatch):
 
 
 @pytest.mark.unit
+def test_teams_index_returns_the_service_payload(client, monkeypatch):
+    monkeypatch.setattr(router_module, "build_teams_index", lambda year: {"year": year, "status": "ok"})
+
+    assert client.get("/profiles/2026/teams").json() == {"year": 2026, "status": "ok"}
+
+
+@pytest.mark.unit
 def test_team_returns_the_service_payload(client, monkeypatch):
     monkeypatch.setattr(router_module, "build_team_profile", lambda year, team_id: {"team": {"id": team_id}})
 
@@ -56,10 +63,11 @@ def test_driver_returns_the_service_payload(client, monkeypatch):
     ("path", "service", "key"),
     [
         ("/profiles/2026/directory", "build_directory", "teams"),
+        ("/profiles/2026/teams", "build_teams_index", "teams"),
         ("/profiles/2026/teams/red-bull", "build_team_profile", "team"),
         ("/profiles/2026/drivers/max-verstappen", "build_driver_profile", "driver"),
     ],
-    ids=["directory", "team", "driver"],
+    ids=["directory", "teams-index", "team", "driver"],
 )
 def test_a_service_failure_answers_200_with_a_safe_error(client, monkeypatch, path, service, key):
     monkeypatch.setattr(router_module, service, _boom)

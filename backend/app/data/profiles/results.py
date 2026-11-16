@@ -32,7 +32,8 @@ _RESULTS_QUERY = """
     SELECT r.round AS round, rd.type AS type, rd.driver_id AS driver_id,
            rd.constructor_id AS constructor_id, rd.driver_number AS number,
            rd.position_number AS position, rd.position_text AS position_text,
-           rd.race_grid_position_number AS grid, rd.race_points AS points,
+           rd.race_grid_position_number AS grid, rd.race_grid_position_text AS grid_text,
+           rd.race_points AS points,
            rd.race_positions_gained AS positions_gained,
            rd.race_reason_retired AS reason_retired,
            rd.race_fastest_lap AS fastest_lap, rd.race_pole_position AS pole
@@ -53,6 +54,18 @@ _LATEST_RESULT_QUERY = """
 
 # Not starting is not a retirement, though f1db records a reason for both.
 _NOT_A_RETIREMENT = frozenset({"DNS", "DSQ", "DNQ", "DNPQ", "EX"})
+
+FinishStatus = Literal["finished", "dnf", "dns", "dsq", "nc", "dnq", "ex"]
+
+_STATES: dict[str, FinishStatus] = {
+    "DNF": "dnf",
+    "DNS": "dns",
+    "DSQ": "dsq",
+    "NC": "nc",
+    "DNQ": "dnq",
+    "DNPQ": "dnq",
+    "EX": "ex",
+}
 
 
 @dataclass(frozen=True)
@@ -81,16 +94,28 @@ class Finish:
     reason_retired: str | None
     fastest_lap: bool
     pole: bool
+    #: f1db's grid text is "PL" for a pit-lane start, which has no grid number.
+    pit_lane: bool
 
     @property
     def retired(self) -> bool:
         return self.reason_retired is not None and self.position_text not in _NOT_A_RETIREMENT
 
+    @property
+    def status(self) -> FinishStatus:
+        """What the car did, whatever f1db classified: a classified retirement is still a DNF."""
+        if self.retired:
+            return "dnf"
+        return _STATES.get(self.position_text) or ("finished" if self.position is not None else "nc")
+
     def as_dict(self) -> dict:
         payload = asdict(self)
         for key in ("round", "session", "driver_id", "constructor_id"):
             payload.pop(key)
-        return payload
+        status = self.status
+        # f1db credits a classified retiree with places; a car that did not finish gains none.
+        payload["positions_gained"] = self.positions_gained if status == "finished" else None
+        return {**payload, "status": status}
 
 
 def season_rounds(conn: sqlite3.Connection, year: int) -> tuple[RoundInfo, ...]:
@@ -130,6 +155,7 @@ def season_results(
             reason_retired=row["reason_retired"],
             fastest_lap=bool(row["fastest_lap"]),
             pole=bool(row["pole"]),
+            pit_lane=row["grid_text"] == "PL",
         )
         for row in rows
     )

@@ -19,6 +19,7 @@ from app.services.profiles import (
     build_directory,
     build_driver_profile,
     build_team_profile,
+    build_teams_index,
 )
 from app.services.race_glance import build_race_glance
 
@@ -102,6 +103,14 @@ def test_directory_is_the_season_directory_with_a_status(profiles_f1db):
     assert payload["status"] == "ok"
     assert payload["year"] == 2027
     assert [driver["id"] for driver in payload["drivers"]] == ["max-verstappen"]
+
+
+@pytest.mark.integration
+def test_teams_index_is_the_data_payload_with_a_status(profiles_f1db):
+    payload = build_teams_index(2026)
+
+    assert payload["status"] == "ok"
+    assert [team["id"] for team in payload["teams"]] == ["red-bull", "ferrari", "cadillac"]
 
 
 @pytest.mark.integration

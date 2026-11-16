@@ -13,7 +13,12 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path
 
 from app.api.errors import client_error
-from app.services.profiles import build_directory, build_driver_profile, build_team_profile
+from app.services.profiles import (
+    build_directory,
+    build_driver_profile,
+    build_team_profile,
+    build_teams_index,
+)
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -43,6 +48,21 @@ async def get_directory(year: Year) -> dict:
             "drivers": [],
             "teams": [],
             **client_error("api.profiles.directory_error", exc, year=year),
+        }
+
+
+@router.get("/{year}/teams")
+async def get_teams_index(year: Year) -> dict:
+    """Every team of the season in championship order, with its drivers' points for it."""
+    _check_year(year)
+    try:
+        return await asyncio.to_thread(build_teams_index, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "status": "error",
+            "teams": [],
+            **client_error("api.profiles.teams_error", exc, year=year),
         }
 
 

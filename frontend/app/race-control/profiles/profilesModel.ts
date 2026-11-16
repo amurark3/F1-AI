@@ -49,6 +49,12 @@ export interface SeasonDirectory extends Partial<StandingsFreshness> {
   error?: string;
 }
 
+/**
+ * What a car did. A classified retirement is still `dnf` (f1db may give it a
+ * place and places gained; we show the status code and no gain).
+ */
+export type FinishStatus = "finished" | "dnf" | "dns" | "dsq" | "nc" | "dnq" | "ex";
+
 /** One car's classification in one race or sprint. */
 export interface Finish {
   number: number | null;
@@ -60,6 +66,9 @@ export interface Finish {
   reason_retired: string | null;
   fastest_lap: boolean;
   pole: boolean;
+  status: FinishStatus;
+  /** Started from the pit lane (`grid` is then null). */
+  pit_lane: boolean;
 }
 
 export type RoundStatus = "complete" | "pending";
@@ -91,7 +100,20 @@ export interface MissingProfile {
   error_id?: string;
 }
 
+/** The entity one place above or below in a championship table. */
+export interface Rivals<R> {
+  ahead: R | null;
+  behind: R | null;
+}
+
 // --- Team ------------------------------------------------------------------
+
+export interface TeamRival {
+  id: string;
+  name: string;
+  position: number | null;
+  points: number;
+}
 
 export interface TeamSummary {
   id: string;
@@ -103,11 +125,14 @@ export interface TeamSummary {
   wins: number;
   podiums: number;
   poles: number;
+  /** The engine manufacturer, e.g. "Red Bull Ford"; null when f1db names none. */
+  power_unit: string | null;
 }
 
 export interface TeamDriver {
   id: string;
   name: string;
+  last_name: string;
   code: string | null;
   number: number | null;
   /** Started the team's latest race. */
@@ -142,6 +167,7 @@ export interface TeamProfile extends StandingsFreshness {
   year: number;
   status: "ok";
   team: TeamSummary;
+  rivals: Rivals<TeamRival>;
   drivers: TeamDriver[];
   wins: TeamWin[];
   rounds: TeamRound[];
@@ -155,9 +181,29 @@ export type TeamProfileResponse = TeamProfile | MissingProfile;
 
 // --- Driver ----------------------------------------------------------------
 
+export interface DriverRival {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  position: number | null;
+  points: number;
+}
+
+/** Another driver who raced for the same team in a round this driver raced. */
+export interface Teammate {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  rounds: number[];
+  rounds_label: string;
+}
+
 export interface DriverSummary {
   id: string;
   name: string;
+  last_name: string;
   code: string | null;
   number: number | null;
   nationality: string | null;
@@ -190,6 +236,8 @@ export interface DriverRound extends RoundRef {
   team_id: string | null;
   race: Finish | null;
   sprint: Finish | null;
+  /** The teammate's race that round; null when this driver did not race or had none. */
+  teammate: { driver_id: string; race: Finish } | null;
 }
 
 export interface CarShare {
@@ -212,6 +260,9 @@ export interface DriverProfile extends StandingsFreshness {
   standing: { position: number | null; points: number };
   stats: DriverStats;
   teams: DriverTeamSpell[];
+  rivals: Rivals<DriverRival>;
+  /** Ordered by rounds together, the main teammate first. */
+  teammates: Teammate[];
   wins: RoundRef[];
   rounds: DriverRound[];
   results_through: ResultsThrough | null;
@@ -219,6 +270,38 @@ export interface DriverProfile extends StandingsFreshness {
 }
 
 export type DriverProfileResponse = DriverProfile | MissingProfile;
+
+// --- Teams index -----------------------------------------------------------
+
+export interface TeamsIndexDriver {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  /** Race and sprint points scored for this team. */
+  points: number;
+  rounds: number[];
+  rounds_label: string;
+}
+
+export interface TeamsIndexTeam {
+  id: string;
+  name: string;
+  full_name: string;
+  color: string;
+  position: number | null;
+  points: number;
+  drivers: TeamsIndexDriver[];
+}
+
+export interface TeamsIndex extends StandingsFreshness {
+  year: number;
+  status: "ok";
+  teams: TeamsIndexTeam[];
+  results_through: ResultsThrough | null;
+}
+
+export type TeamsIndexResponse = TeamsIndex | MissingProfile;
 
 // --- Helpers ---------------------------------------------------------------
 

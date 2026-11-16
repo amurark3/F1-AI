@@ -3,6 +3,7 @@ import {
   GRIDS_2026,
   MEXICO_CITY_2026,
   PREDICTION_REVIEW_R19,
+  PROFILE_PAGES_2026,
   RACE_RESULTS_2026,
   READY,
   TEAMS_2026,
@@ -43,6 +44,10 @@ export async function mockBackend(page: Page): Promise<void> {
   // Pages ask for the calendar year's season; the fixture is 2026's table.
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));
+  // The Teams index (its own path, so it does not shadow a team's `/teams/{id}`).
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/teams`, (route) =>
+    fulfillJson(route, PROFILE_PAGES_2026.teams_index),
+  );
   // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
   await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
     const round = route.request().url().split("/").pop();

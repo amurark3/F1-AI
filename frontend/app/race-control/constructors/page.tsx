@@ -1,10 +1,9 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-import { teamHref } from "@/app/lib/entityLinks";
-import { getDirectory } from "@/app/lib/server/profiles";
 import { currentSeason } from "@/app/lib/server/raceControl";
 
-import { ConstructorsIndex } from "./ConstructorsIndex";
+import { TeamsIndexSeed } from "./TeamsIndexSeed";
+import { TeamsIndexView } from "./TeamsIndexView";
 
 import type { Metadata } from "next";
 
@@ -12,18 +11,17 @@ import type { Metadata } from "next";
 export const revalidate = 900;
 
 export const metadata: Metadata = {
-  title: "F1 Teams & Drivers | F1 AI",
+  title: "F1 Teams | F1 AI",
   description:
-    "Every Formula 1 team and driver of the season: line-ups, race wins, each driver's finish in every round, and power-unit usage from FIA documents.",
+    "Every Formula 1 team of the season in championship order, with its drivers and how its points split between them.",
 };
 
-/** Opens on the constructor championship leader; the team dropdown moves from there. */
-export default async function ConstructorsPage() {
+/** Nothing here waits on the backend: the view paints its skeleton and the seed streams in. */
+export default function ConstructorsPage() {
   const year = currentSeason();
-  const directory = await getDirectory(year);
-  const leader = directory?.teams[0]?.id;
-  if (leader) {
-    redirect(teamHref(leader));
-  }
-  return <ConstructorsIndex year={year} />;
+  return (
+    <Suspense fallback={<TeamsIndexView year={year} seed={null} />}>
+      <TeamsIndexSeed year={year} />
+    </Suspense>
+  );
 }

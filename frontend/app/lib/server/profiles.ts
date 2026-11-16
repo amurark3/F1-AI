@@ -4,6 +4,7 @@ import type {
   DriverProfileResponse,
   SeasonDirectory,
   TeamProfileResponse,
+  TeamsIndexResponse,
 } from "@/app/race-control/profiles/profilesModel";
 
 import { fetchFromBackend } from "./backend";
@@ -18,6 +19,14 @@ import { REVALIDATE } from "./revalidate";
 export const getDirectory = cache((year: number): Promise<SeasonDirectory | null> => {
   return fetchFromBackend<SeasonDirectory>(`/api/profiles/${year}/directory`, {
     revalidate: REVALIDATE.ENTRY_LIST,
+    tags: ["profiles", `profiles:${year}`],
+  });
+});
+
+/** Every team of the season with its drivers' points for it; moves once per race weekend. */
+export const getTeamsIndex = cache((year: number): Promise<TeamsIndexResponse | null> => {
+  return fetchFromBackend<TeamsIndexResponse>(`/api/profiles/${year}/teams`, {
+    revalidate: REVALIDATE.STANDINGS,
     tags: ["profiles", `profiles:${year}`],
   });
 });

@@ -17,6 +17,7 @@ from app.services.race_control import (
     build_overview_weather,
     build_round_circuit,
 )
+from app.services.race_control.progression import build_standings_progression
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
@@ -163,6 +164,19 @@ async def get_drivers(year: int) -> dict:
         return await asyncio.to_thread(get_driver_options, year)
     except Exception as exc:
         return {"year": year, "drivers": [], **client_error("api.race_control_drivers.error", exc, year=year)}
+
+
+@router.get("/standings/{year}/progression")
+async def get_standings_progression(year: int) -> dict:
+    """Every round's drivers' and constructors' table, and the round each title was clinched."""
+    try:
+        return await asyncio.to_thread(build_standings_progression, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "rounds": [],
+            **client_error("api.race_control_standings_progression.error", exc, year=year),
+        }
 
 
 @router.get("/grid/{year}/{round_num}")

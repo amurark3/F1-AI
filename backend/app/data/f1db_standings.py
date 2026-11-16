@@ -174,6 +174,57 @@ def standings_round(year: int) -> int | None:
         return _latest_round(conn, year) or None
 
 
+def standings_by_round(year: int) -> tuple[dict[int, dict[str, tuple]], dict[int, dict[str, tuple]]]:
+    """f1db's published tables of ``year``: ``{round: {key: (points, position)}}`` for drivers and for teams.
+
+    Drivers are keyed by code and teams by name, the keys ``f1db_table`` uses. A
+    sprint counts inside its weekend's round.
+    """
+    with connect() as conn:
+        drivers = conn.execute(
+            """
+            SELECT r.round, d.abbreviation, rds.points, rds.position_number
+            FROM race_driver_standing rds
+            JOIN race r ON r.id = rds.race_id
+            JOIN driver d ON d.id = rds.driver_id
+            WHERE r.year = ? AND d.abbreviation IS NOT NULL
+            """,
+            (year,),
+        ).fetchall()
+        teams = conn.execute(
+            """
+            SELECT r.round, con.name, rcs.points, rcs.position_number
+            FROM race_constructor_standing rcs
+            JOIN race r ON r.id = rcs.race_id
+            JOIN constructor con ON con.id = rcs.constructor_id
+            WHERE r.year = ?
+            """,
+            (year,),
+        ).fetchall()
+    return _by_round(drivers), _by_round(teams)
+
+
+def _by_round(rows: list[sqlite3.Row]) -> dict[int, dict[str, tuple]]:
+    table: dict[int, dict[str, tuple]] = {}
+    for round_num, key, points, position in rows:
+        table.setdefault(round_num, {})[key] = (points, position)
+    return table
+
+
+def championship_deciders(year: int) -> tuple[int | None, int | None]:
+    """The rounds f1db flags as deciding the drivers' and the constructors' title; ``None`` where unflagged."""
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT MIN(CASE WHEN drivers_championship_decider THEN round END),
+                   MIN(CASE WHEN constructors_championship_decider THEN round END)
+            FROM race WHERE year = ?
+            """,
+            (year,),
+        ).fetchone()
+    return row[0], row[1]
+
+
 def driver_standings_detailed(year: int) -> list[dict]:
     """Rich latest-round driver standings for the UI.
 

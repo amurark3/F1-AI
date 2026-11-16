@@ -13,7 +13,31 @@
 .fchip em{font:500 9px/1 var(--mono);font-style:normal;color:var(--ink-3)}.fchip.p1{background:var(--gold);color:#1a1400;border-color:var(--gold)}.fchip.p1 em{color:#3a2f00}.fchip.pod{border-color:rgb(255 201 60/.5)}.fchip.dnf{color:var(--red-text);border-color:rgb(255 70 85/.5)}
 .h2h{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-top:12px}.h2h b{font:800 54px/1 var(--display)}.h2h .vs{font:600 11px/1 var(--mono);color:var(--ink-3)}
 .hbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px}
-.pcols{display:grid;grid-template-columns:repeat(19,1fr);gap:6px;height:120px;align-items:end;border-bottom:1px solid var(--line)}.pcol{height:100%;display:flex;align-items:flex-end}.pcol b{width:100%;border-radius:2px 2px 0 0;transform-origin:bottom}</style>
+.pcols{display:grid;grid-template-columns:repeat(19,1fr);gap:6px;height:120px;align-items:end;border-bottom:1px solid var(--line)}.pcol{height:100%;display:flex;align-items:flex-end}.pcol b{width:100%;border-radius:2px 2px 0 0;transform-origin:bottom}
+/* Power units: the Power Units page's allocation grammar, cut down to this page's car(s). */
+.pu .scroll{overflow-x:auto;margin:0 -24px;padding:0 24px}
+.pu .mtx{min-width:780px}
+.mtx td{padding:11px 14px 11px 0;white-space:nowrap}
+.mtx th .muted{font-weight:500;letter-spacing:.04em}
+.mtx td.num{font:inherit;font-family:var(--mono)} /* driver.html's hero also uses .num */
+.mtx td.go{width:20px;padding-right:0;text-align:right;color:var(--ink-3);font-family:var(--mono)}
+.mtx a.who{color:var(--ink)}
+.mtx a.who em{font:500 11px/1 var(--mono);font-style:normal;color:var(--ink-3)}
+.mtx tr:hover td.go{color:var(--ink)}
+.pips{display:inline-flex;gap:3px;vertical-align:middle}
+.pips i{width:8px;height:16px;border-radius:1px;border:1px solid color-mix(in srgb,var(--ink-3) 55%,transparent)} /* an unused slot stays visible */
+.pips i.u{background:var(--ink-2);border-color:var(--ink-2)}
+.pips i.o{background:var(--red);border-color:var(--red)}
+.pips i.u + i.o{margin-left:3px} /* the wider gap is where the allocation ends */
+.cnt{margin-left:8px;font:500 11px/1 var(--mono);color:var(--ink-3);vertical-align:middle}
+.cnt.over{color:var(--red-text)}
+.pu-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;margin-top:16px}
+.pu-foot .legend{margin-top:0}
+.pu-foot .legend .pips i{height:12px}
+.pu-foot a{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.pu-foot a:hover{color:var(--ink)}
+@media (max-width:600px){.pu .mtx th:first-child,.pu .mtx td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);padding-right:12px}}
+</style>
   </head>
   <body>
     <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html" aria-current="page">Teams</a><a href="power-units.html">Power Units</a><a href="engineer.html">AI Engineer</a><a href="#">More ▾</a></nav><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
@@ -44,6 +68,14 @@
       <div class="legend"><span><i style="background:#ffc93c"></i>Win</span><span><i style="background:#e8002d"></i>Points</span></div></figure>
   </div>
   <p class="note">Source: f1db v2026.19.0 via /api/profiles · names from the f1db driver table</p>
+</section>
+<section class="block">
+<div class="section-head"><span class="idx">02</span><h2>Power unit</h2><span class="aside eyebrow">Elements used against the season’s allocation</span></div>
+<figure class="panel card pu"><p class="eyebrow">Allocation by car</p><h3>Car #44 has used its full allocation of every element</h3><p class="sub">No grid penalties · counted from the FIA’s documents through R19 Mexico City</p>
+<div class="scroll"><table class="tbl mtx"><thead><tr><th>Car</th><th>ICE <span class="muted">/4</span></th><th>TC <span class="muted">/4</span></th><th>EXH <span class="muted">/4</span></th><th>MGU-K <span class="muted">/3</span></th><th>ES <span class="muted">/3</span></th><th>PU-CE <span class="muted">/3</span></th><th>PU-ANC <span class="muted">/6</span></th><th class="num">Grid places</th><th></th></tr></thead><tbody>
+<tr><td><a class="who" href="power-units.html"><i style="background:#e8002d"></i><span style="font:800 18px var(--display);color:var(--ink)">#44</span> Ferrari <em>R1–19</em></a></td><td><span class="pips" role="img" aria-label="4 of 4 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="4 of 4 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="4 of 4 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="3 of 3 used"><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">3</span></td><td><span class="pips" role="img" aria-label="3 of 3 used"><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">3</span></td><td><span class="pips" role="img" aria-label="3 of 3 used"><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">3</span></td><td><span class="pips" role="img" aria-label="6 of 6 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">6</span></td><td class="num" style="color:var(--ink-3)">—</td><td class="go" aria-hidden="true">→</td></tr>
+</tbody></table></div>
+<div class="pu-foot"><div class="legend"><span><span class="pips"><i class="u"></i></span>Used</span><span><span class="pips"><i></i></span>Unused</span><span><span class="pips"><i class="o"></i></span>Beyond the allocation</span></div><a href="power-units.html">Car #44 in full: every part and FIA document →</a></div></figure>
 </section>
     </main>
   </body>

@@ -287,6 +287,30 @@
           transform: scaleY(0);
         }
       }
+    
+/* Power units: the Power Units page's allocation grammar, cut down to this page's car(s). */
+.pu .scroll{overflow-x:auto;margin:0 -24px;padding:0 24px}
+.pu .mtx{min-width:780px}
+.mtx td{padding:11px 14px 11px 0;white-space:nowrap}
+.mtx th .muted{font-weight:500;letter-spacing:.04em}
+.mtx td.num{font:inherit;font-family:var(--mono)} /* driver.html's hero also uses .num */
+.mtx td.go{width:20px;padding-right:0;text-align:right;color:var(--ink-3);font-family:var(--mono)}
+.mtx a.who{color:var(--ink)}
+.mtx a.who em{font:500 11px/1 var(--mono);font-style:normal;color:var(--ink-3)}
+.mtx tr:hover td.go{color:var(--ink)}
+.pips{display:inline-flex;gap:3px;vertical-align:middle}
+.pips i{width:8px;height:16px;border-radius:1px;border:1px solid color-mix(in srgb,var(--ink-3) 55%,transparent)} /* an unused slot stays visible */
+.pips i.u{background:var(--ink-2);border-color:var(--ink-2)}
+.pips i.o{background:var(--red);border-color:var(--red)}
+.pips i.u + i.o{margin-left:3px} /* the wider gap is where the allocation ends */
+.cnt{margin-left:8px;font:500 11px/1 var(--mono);color:var(--ink-3);vertical-align:middle}
+.cnt.over{color:var(--red-text)}
+.pu-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;margin-top:16px}
+.pu-foot .legend{margin-top:0}
+.pu-foot .legend .pips i{height:12px}
+.pu-foot a{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.pu-foot a:hover{color:var(--ink)}
+@media (max-width:600px){.pu .mtx th:first-child,.pu .mtx td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);padding-right:12px}}
     </style>
   </head>
   <body>
@@ -477,6 +501,15 @@
           <div class="cols-x"><span>R1</span><span>R2</span><span>R3</span><span>R4</span><span>R5</span><span>R6</span><span>R7</span><span>R8</span><span>R9</span><span>R10</span><span>R11</span><span>R12</span><span>R13</span><span>R14</span><span>R15</span><span>R16</span><span>R17</span><span>R18</span><span>R19</span></div>
         </figure>
       </section>
+<section>
+<div class="section-head"><span class="idx">03</span><h2>Power units</h2><span class="aside eyebrow">Elements used against the season’s allocation</span></div>
+<figure class="panel card pu"><p class="eyebrow">Allocation by car</p><h3>Both cars are past the allocation: 90 grid places lost</h3><p class="sub">Counted from the FIA’s documents through R19 Mexico City</p>
+<div class="scroll"><table class="tbl mtx"><thead><tr><th>Car</th><th>ICE <span class="muted">/4</span></th><th>TC <span class="muted">/4</span></th><th>EXH <span class="muted">/4</span></th><th>MGU-K <span class="muted">/3</span></th><th>ES <span class="muted">/3</span></th><th>PU-CE <span class="muted">/3</span></th><th>PU-ANC <span class="muted">/6</span></th><th class="num">Grid places</th><th></th></tr></thead><tbody>
+<tr><td><a class="who" href="power-units.html"><i style="background:#27f4d2"></i><span style="font:800 18px var(--display);color:var(--ink)">#12</span> Antonelli</a></td><td><span class="pips" role="img" aria-label="5 of 4 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">5</span></td><td><span class="pips" role="img" aria-label="3 of 4 used"><i class="u"></i><i class="u"></i><i class="u"></i><i></i></span><span class="cnt" aria-hidden="true">3</span></td><td><span class="pips" role="img" aria-label="3 of 4 used"><i class="u"></i><i class="u"></i><i class="u"></i><i></i></span><span class="cnt" aria-hidden="true">3</span></td><td><span class="pips" role="img" aria-label="2 of 3 used"><i class="u"></i><i class="u"></i><i></i></span><span class="cnt" aria-hidden="true">2</span></td><td><span class="pips" role="img" aria-label="4 of 3 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="4 of 3 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="6 of 6 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i></span><span class="cnt" aria-hidden="true">6</span></td><td class="num" style="color:var(--red-text)">30</td><td class="go" aria-hidden="true">→</td></tr>
+<tr><td><a class="who" href="power-units.html"><i style="background:#27f4d2"></i><span style="font:800 18px var(--display);color:var(--ink)">#63</span> Russell</a></td><td><span class="pips" role="img" aria-label="5 of 4 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">5</span></td><td><span class="pips" role="img" aria-label="5 of 4 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">5</span></td><td><span class="pips" role="img" aria-label="5 of 4 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">5</span></td><td><span class="pips" role="img" aria-label="4 of 3 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="4 of 3 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="4 of 3 used, 1 beyond the allocation"><i class="u"></i><i class="u"></i><i class="u"></i><i class="o"></i></span><span class="cnt over" aria-hidden="true">4</span></td><td><span class="pips" role="img" aria-label="5 of 6 used"><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i class="u"></i><i></i></span><span class="cnt" aria-hidden="true">5</span></td><td class="num" style="color:var(--red-text)">60</td><td class="go" aria-hidden="true">→</td></tr>
+</tbody></table></div>
+<div class="pu-foot"><div class="legend"><span><span class="pips"><i class="u"></i></span>Used</span><span><span class="pips"><i></i></span>Unused</span><span><span class="pips"><i class="o"></i></span>Beyond the allocation</span></div><a href="power-units.html">All 22 cars and every FIA document →</a></div></figure>
+</section>
       <div style="height: 96px"></div>
     </main>
   </body>

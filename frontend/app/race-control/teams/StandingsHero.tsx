@@ -52,20 +52,21 @@ function Meta({ model }: { model: HeroModel }) {
 
 function HeroBody({ year, table, model }: { year: number; table: ChampionshipTable; model: HeroModel }) {
   return (
-    <div className="grid items-end gap-10 border-b border-rc-line pb-9 lg:grid-cols-[auto_minmax(0,1fr)]">
+    // The mockup's `auto 1fr auto`: the tiles take their own column, so the name gets the room in the middle.
+    <div className="grid items-end gap-10 border-b border-rc-line pb-9 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
       <p className="font-display text-[clamp(120px,15vw,220px)] font-extrabold leading-[0.8] tabular-nums">
         {model.figure}
-        <span className="ml-[0.1em] text-[0.2em]">pts</span>
+        <span className="ml-[0.15em] text-[0.2em] font-bold tracking-[0.04em] text-rc-ink-3">pts</span>
       </p>
       <PageHero
         eyebrow={<span className="text-rc-gold">{model.eyebrow}</span>}
         title={<Leader table={table} model={model} />}
         accent={rc.gold}
         meta={<Meta model={model} />}
-        aside={<Tiles model={model} />}
       >
         <ClinchHeroLine year={year} table={table} fallback={model.line} />
       </PageHero>
+      <Tiles model={model} />
     </div>
   );
 }

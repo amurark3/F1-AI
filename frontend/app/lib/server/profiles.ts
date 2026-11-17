@@ -39,10 +39,10 @@ export const getTeamProfile = cache((year: number, teamId: string): Promise<Team
   });
 });
 
-/** A driver's season. It still carries power-unit usage (until P5.4c), which moves through a race weekend, so it refreshes on that clock. */
+/** A driver's season: results and points only, so it refreshes on the standings' clock. */
 export const getDriverProfile = cache((year: number, driverId: string): Promise<DriverProfileResponse | null> => {
   return fetchFromBackend<DriverProfileResponse>(`/api/profiles/${year}/drivers/${encodeURIComponent(driverId)}`, {
-    revalidate: REVALIDATE.POWER_UNITS,
+    revalidate: REVALIDATE.STANDINGS,
     tags: ["profiles", `profiles:${year}`, `profiles:driver:${driverId}`],
   });
 });

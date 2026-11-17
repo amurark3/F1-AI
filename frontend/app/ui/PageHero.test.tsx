@@ -68,6 +68,30 @@ describe("PageHero", () => {
     expect(screen.getByText("P1 · 630 points").parentElement).toHaveClass("mt-8");
   });
 
+  it("sets a lead column (a driver's car number) before the title on a three-column band", () => {
+    const { container } = render(
+      <PageHero band accent={MERCEDES} title="Lewis Hamilton" lead={<b>44</b>} aside={<p>Last five</p>}>
+        <p>P4</p>
+      </PageHero>,
+    );
+
+    expect(container.firstElementChild).toHaveClass(
+      "lg:grid-cols-[auto_minmax(0,1fr)_auto]",
+      "lg:items-end",
+      "gap-x-9",
+    );
+    expect(screen.getByText("44").parentElement).toHaveClass("px-6", "pt-6", "sm:px-9", "lg:pb-9");
+    const aside = screen.getByText("Last five").parentElement;
+    expect(aside).toHaveClass("p-6", "sm:p-9");
+    expect(aside).not.toHaveClass("lg:border-l");
+    expect(aside).not.toHaveClass("border-t");
+  });
+
+  it("keeps the three columns with a lead and no aside", () => {
+    const { container } = render(<PageHero band title="Cadillac" lead={<b>11</b>} />);
+    expect(container.firstElementChild).toHaveClass("lg:grid-cols-[auto_minmax(0,1fr)_auto]");
+  });
+
   it("sets the aside beside the title on a plain hero too, such as the circuit map", () => {
     const { container } = render(<PageHero title="São Paulo Grand Prix" aside={<figure>Map</figure>} />);
 

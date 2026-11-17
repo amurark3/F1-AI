@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { DIRECTORY_2026, PROFILES_2026, TEAMS_2026 } from "@/test/fixtures";
+import { DIRECTORY_2026, PROFILE_PAGES_2026, TEAMS_2026 } from "@/test/fixtures";
 
 import {
-  championshipPoints,
   formatPoints,
-  freshnessLine,
   isDriverProfile,
   isTeamProfile,
   ordinalPosition,
   profilesUrl,
   resolveDriverId,
   resolveTeamId,
+  type DriverProfileResponse,
 } from "./profilesModel";
 
-const { haas, hulkenberg, unknownTeam, hirakawa } = PROFILES_2026;
+const { mercedes, hamilton, unknown_team: unknownTeam } = PROFILE_PAGES_2026;
+const unknownDriver: DriverProfileResponse = { year: 2026, status: "not_found" };
 
 describe("profilesUrl", () => {
   it("builds a season's profiles route", () => {
@@ -26,35 +26,25 @@ describe("profilesUrl", () => {
 
 describe("profile guards", () => {
   it("accept an ok answer and refuse a not-found or missing one", () => {
-    expect(isTeamProfile(haas)).toBe(true);
+    expect(isTeamProfile(mercedes)).toBe(true);
     expect(isTeamProfile(unknownTeam)).toBe(false);
     expect(isTeamProfile(undefined)).toBe(false);
-    expect(isDriverProfile(hulkenberg)).toBe(true);
-    expect(isDriverProfile(hirakawa)).toBe(false);
+    expect(isDriverProfile(hamilton)).toBe(true);
+    expect(isDriverProfile(unknownDriver)).toBe(false);
     expect(isDriverProfile(null)).toBe(false);
   });
 });
 
 describe("points and positions", () => {
   it("prints whole points plainly and half points to one place", () => {
-    expect(formatPoints(haas.team.points)).toBe("31");
+    expect(formatPoints(mercedes.team.points)).toBe("652");
     // A literal probe: half points, as a shortened race awards them.
     expect(formatPoints(12.5)).toBe("12.5");
   });
 
   it("prints a championship place, or a dash for none", () => {
-    expect(ordinalPosition(hulkenberg.standing.position)).toBe("P15");
+    expect(ordinalPosition(hamilton.standing.position)).toBe("P4");
     expect(ordinalPosition(null)).toBe("—");
-  });
-
-  it("says how fresh the championship points are when the payload does", () => {
-    expect(championshipPoints(haas.team.points, haas)).toBe("31 pts · after round 19 · confirmed");
-    expect(championshipPoints(hulkenberg.standing.points, {})).toBe("13 pts");
-  });
-
-  it("names the last round with results, or says there are none yet", () => {
-    expect(freshnessLine(hulkenberg.results_through, hulkenberg.year)).toBe("Results through R19 Mexican Grand Prix");
-    expect(freshnessLine(null, 2027)).toBe("No 2027 results published yet");
   });
 });
 
@@ -69,8 +59,9 @@ describe("resolving feed names to this season's pages", () => {
   });
 
   it("finds a team by id, name or alias, and nobody for a substring", () => {
-    expect(resolveTeamId(DIRECTORY_2026, { id: haas.team.id })).toBe("haas");
-    expect(resolveTeamId(DIRECTORY_2026, { name: haas.team.full_name })).toBe("haas");
+    const haas = DIRECTORY_2026.teams.find((team) => team.id === "haas");
+    expect(resolveTeamId(DIRECTORY_2026, { id: "haas" })).toBe("haas");
+    expect(resolveTeamId(DIRECTORY_2026, { name: haas?.full_name })).toBe("haas");
     expect(resolveTeamId(DIRECTORY_2026, { name: "RB F1 Team" })).toBe("racing-bulls");
     expect(resolveTeamId(DIRECTORY_2026, { name: "Haas F1" })).toBeNull();
     expect(resolveTeamId(undefined, { name: "Haas" })).toBeNull();

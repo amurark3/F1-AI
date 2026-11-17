@@ -5,14 +5,12 @@
  * Everything here is a function of the payload — no fetching, no React — so
  * server and client components can both use it.
  *
- * Power-unit usage belongs to the car (FIA B8.2.7). A driver's page therefore
- * carries whole cars, plus the rounds that were theirs and who else drove them.
+ * Power-unit usage belongs to the car (FIA B8.2.7), so no profile carries it:
+ * the pages read it from the power-units endpoint (`CarAllocations`).
  */
 
-import { standingsLabel, type StandingsFreshness } from "@/app/lib/standingsFreshness";
+import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
 import { findDirectoryDriver, findDirectoryTeam } from "@/app/ui/names/names";
-
-import type { DocumentRef, ElementInfo, PowerUnitCar } from "../power-units/powerUnitsModel";
 
 export interface DirectoryDriver {
   id: string;
@@ -82,14 +80,6 @@ export interface RoundRef {
 export interface ResultsThrough {
   round: number;
   name: string;
-}
-
-export interface ProfilePowerUnits<C> {
-  available: boolean;
-  reason: string | null;
-  as_of: (DocumentRef & { round: number }) | null;
-  elements: ElementInfo[];
-  cars: C[];
 }
 
 /** Every non-ok answer: an unknown id, or a backend that failed. */
@@ -237,19 +227,6 @@ export interface DriverRound extends RoundRef {
   teammate: { driver_id: string; race: Finish } | null;
 }
 
-export interface CarShare {
-  id: string;
-  name: string;
-  rounds: number[];
-  rounds_label: string;
-}
-
-export interface DriverCar extends PowerUnitCar {
-  /** The rounds this driver raced this car. */
-  driver_rounds: number[];
-  shared_with: CarShare[];
-}
-
 export interface DriverProfile extends StandingsFreshness {
   year: number;
   status: "ok";
@@ -263,7 +240,6 @@ export interface DriverProfile extends StandingsFreshness {
   wins: RoundRef[];
   rounds: DriverRound[];
   results_through: ResultsThrough | null;
-  power_units: ProfilePowerUnits<DriverCar>;
 }
 
 export type DriverProfileResponse = DriverProfile | MissingProfile;
@@ -320,17 +296,6 @@ export function formatPoints(points: number): string {
 
 export function ordinalPosition(position: number | null): string {
   return position === null ? "—" : `P${position}`;
-}
-
-/** "382 pts · after round 19 · provisional": championship points and how fresh the table is. */
-export function championshipPoints(points: number, freshness: Partial<StandingsFreshness>): string {
-  const label = standingsLabel(freshness);
-  return label ? `${formatPoints(points)} pts · ${label}` : `${formatPoints(points)} pts`;
-}
-
-/** "Results through R18 United States Grand Prix", or a plain "no results yet". */
-export function freshnessLine(through: ResultsThrough | null, year: number): string {
-  return through ? `Results through R${through.round} ${through.name}` : `No ${year} results published yet`;
 }
 
 // --- Resolving names from other feeds --------------------------------------

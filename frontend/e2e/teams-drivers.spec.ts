@@ -115,3 +115,64 @@ test.describe("the Team page", () => {
     expect(width).toBeLessThanOrEqual(PHONE.width);
   });
 });
+
+test.describe("the Driver page", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route(`${E2E_API_ORIGIN}/api/race-control/power-units/*`, (route) =>
+      fulfillJson(route, ALLOCATION_RESPONSE),
+    );
+  });
+
+  test("reads Verstappen's retirement as DNF and gains and loses no places for it", async ({ page }) => {
+    await page.goto("/race-control/drivers/max-verstappen");
+
+    await expect(page.getByRole("heading", { level: 1, name: "Max Verstappen" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 3, name: "Verstappen gained 53 places over the season" }),
+    ).toBeVisible();
+    const columns = page.getByRole("list", { name: "Places gained or lost by round" }).getByRole("listitem");
+    await expect(columns.nth(8)).toContainText("DNF");
+    await expect(page.locator("main")).not.toContainText("−13");
+  });
+
+  test("states the teammate battle and the rule that counts it", async ({ page }) => {
+    await page.goto("/race-control/drivers/max-verstappen");
+
+    await expect(
+      page.getByRole("heading", { level: 3, name: "Verstappen finished ahead 14 times in 17" }),
+    ).toBeVisible();
+    await expect(page.getByText(/A retirement or disqualification counts as finishing behind/)).toBeVisible();
+  });
+
+  test("loads a driver who raced once, as a stand-in", async ({ page }) => {
+    await page.goto("/race-control/drivers/ryo-hirakawa");
+
+    await expect(page.getByRole("heading", { level: 1, name: "Ryō Hirakawa" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Scored in 1 of 1 race" })).toBeVisible();
+  });
+
+  test("shows the power unit in car terms, and keeps the page when it fails", async ({ page }) => {
+    await page.goto("/race-control/drivers/lewis-hamilton");
+    await expect(page.getByRole("heading", { level: 2, name: "Power unit" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 3, name: "Car #44 has used its full allocation of every element" }),
+    ).toBeVisible();
+
+    await page.route(`${E2E_API_ORIGIN}/api/race-control/power-units/*`, (route) =>
+      fulfillJson(route, { detail: "boom" }, 500),
+    );
+    await page.reload();
+    await expect(page.getByText("Power units unavailable", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Lewis Hamilton" })).toBeVisible();
+  });
+
+  test("does not scroll sideways on a phone", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await page.goto("/race-control/drivers/liam-lawson");
+    await expect(page.getByRole("heading", { level: 1, name: "Liam Lawson" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Power unit" })).toBeVisible();
+
+    const width = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(width).toBeLessThanOrEqual(PHONE.width);
+  });
+});

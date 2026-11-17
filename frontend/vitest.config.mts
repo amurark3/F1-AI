@@ -63,18 +63,12 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/WeekendPanels.tsx",
   "app/race-control/grand-prix/WeekendSchedule.tsx",
   "app/race-control/grand-prix/weekendTabModel.ts",
-  // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
-  // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
-  // P5.4a/b: the Teams index, the Team page and the rest of constructors/. The [driver] page
-  // joins as P5.4c rebuilds it; the profiles files the Team page needs are listed one by one
-  // until then (finishes, MissingProfile, the power-unit card).
+  // P5.4: the Teams index, the Team and Driver pages, everything shared under profiles/, and the
+  // old team URL's redirect.
   "app/race-control/constructors/**",
-  "app/race-control/profiles/carAllocationsModel.ts",
-  "app/race-control/profiles/CarAllocations.tsx",
-  "app/race-control/profiles/finishes.ts",
-  "app/race-control/profiles/MissingProfile.tsx",
-  "app/race-control/profiles/EntityLinks.tsx",
-  "app/race-control/profiles/profilesModel.ts",
+  "app/race-control/drivers/**",
+  "app/race-control/profiles/**",
+  "app/race-control/teams/[team]/page.tsx",
   "app/race-control/weekend/**",
   // P4.4a: the Telemetry Lab toolbar and the speed map. P4.4b adds the head-to-head cards. The
   // tyre-wear files stay off: P4.4c rebuilds them.

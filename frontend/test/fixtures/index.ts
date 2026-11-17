@@ -208,7 +208,6 @@ import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strateg
 import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
 import type {
   DriverProfile,
-  DriverProfileResponse,
   SeasonDirectory,
   TeamProfile,
   TeamProfileResponse,
@@ -242,7 +241,6 @@ import overviewWeather2026 from "./overview-weather-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
 import predictionReviewR19 from "./prediction-review-2026-r19.json";
 import profilePages2026 from "./profile-pages-2026.json";
-import profiles2026 from "./profiles-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
 import glance2026 from "./race-glance-2026-r19.json";
@@ -265,24 +263,16 @@ export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;
 
-/** The Teams index, Team page and Driver page payloads (P5.4), as captured. The drivers' `power_units` are dropped, which `DriverProfile` still requires until P5.4c removes it, so they are cast through `unknown`. */
+/** The Teams index, Team page and Driver page payloads (P5.4), as captured. */
 export const PROFILE_PAGES_2026 = {
   teams_index: profilePages2026.teams_index as TeamsIndex,
   mercedes: profilePages2026.mercedes as TeamProfile,
   red_bull: profilePages2026.red_bull as TeamProfile,
-  verstappen: profilePages2026.verstappen as unknown as DriverProfile,
-  hamilton: profilePages2026.hamilton as unknown as DriverProfile,
-  lawson: profilePages2026.lawson as unknown as DriverProfile,
-  hirakawa: profilePages2026.hirakawa as unknown as DriverProfile,
+  verstappen: profilePages2026.verstappen as DriverProfile,
+  hamilton: profilePages2026.hamilton as DriverProfile,
+  lawson: profilePages2026.lawson as DriverProfile,
+  hirakawa: profilePages2026.hirakawa as DriverProfile,
   unknown_team: profilePages2026.unknown_team as TeamProfileResponse,
-};
-
-/** Team and driver profiles of 2026, kept to the fields `profilesModel` reads. */
-export const PROFILES_2026 = {
-  haas: profiles2026.haas_team as TeamProfile,
-  hulkenberg: profiles2026.hulkenberg_driver as DriverProfile,
-  unknownTeam: profiles2026.unknown_team as TeamProfileResponse,
-  hirakawa: profiles2026.hirakawa_driver as DriverProfileResponse,
 };
 
 /** One row of OpenF1's `drivers` list, as the feed spells it. */

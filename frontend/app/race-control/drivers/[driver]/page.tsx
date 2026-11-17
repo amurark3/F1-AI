@@ -1,11 +1,10 @@
-import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
-import { getDirectory, getDriverProfile } from "@/app/lib/server/profiles";
+import { getDirectory } from "@/app/lib/server/profiles";
 import { currentSeason } from "@/app/lib/server/raceControl";
 import { driverLabel, teamLabel } from "@/app/ui/names/names";
 
-import { isDriverProfile } from "../../profiles/profilesModel";
-
+import { SeededDriverView } from "./DriverSeed";
 import { DriverView } from "./DriverView";
 
 import type { Metadata } from "next";
@@ -14,8 +13,8 @@ interface DriverPageProps {
   params: Promise<{ driver: string }>;
 }
 
-/** Carries power-unit usage, which the FIA updates through a race weekend. */
-export const revalidate = 300;
+/** Follows the championship table, which moves once per race weekend. */
+export const revalidate = 900;
 
 /**
  * Prerender every driver who raced this season, by f1db driver id.
@@ -27,31 +26,34 @@ export async function generateStaticParams(): Promise<Array<{ driver: string }>>
   return (directory?.drivers ?? []).map((driver) => ({ driver: driver.id }));
 }
 
+/** Reads only the directory, which the page and its static params share, so metadata never waits on the profile. */
 export async function generateMetadata({ params }: DriverPageProps): Promise<Metadata> {
   const { driver: driverId } = await params;
   const year = currentSeason();
-  const profile = await getDriverProfile(year, driverId);
-  if (!isDriverProfile(profile)) {
-    return { title: "Teams & Drivers | F1 AI" };
+  const directory = await getDirectory(year);
+  const driver = directory?.drivers.find((entry) => entry.id === driverId);
+  if (!driver) {
+    return { title: "F1 Drivers | F1 AI" };
   }
-  const { driver } = profile;
-  const name = driverLabel({ name: driver.name, code: driver.code, id: driver.id, year }, "full");
-  const team = teamLabel({ id: driver.team_id, name: driver.team_name, year }, "name");
+  const name = driverLabel(
+    { name: driver.name, lastName: driver.last_name, code: driver.code, id: driver.id, year },
+    "full",
+  );
+  const team = directory?.teams.find((entry) => entry.id === driver.team_id);
+  const teamName = team ? teamLabel({ id: team.id, name: team.name, year }, "name") : "its team";
   return {
     title: `${name} — ${year} F1 Season | F1 AI`,
-    description: `${name}'s ${year} Formula 1 season with ${team}: race wins, the result of every round, and the power-unit usage of the car they drive.`,
+    description: `${name}'s ${year} Formula 1 season with ${teamName}: form, the result of every round, the teammate battle, points per race and power-unit usage from FIA documents.`,
   };
 }
 
+/** Nothing here waits on the backend: the section paints its skeleton at once and its seed streams in. */
 export default async function DriverPage({ params }: DriverPageProps) {
   const { driver: driverId } = await params;
   const year = currentSeason();
-  const profile = await getDriverProfile(year, driverId);
-
-  // Only a backend that answered "not found" proves the URL wrong.
-  if (profile?.status === "not_found") {
-    notFound();
-  }
-
-  return <DriverView driverId={driverId} year={year} initial={profile} />;
+  return (
+    <Suspense fallback={<DriverView year={year} driverId={driverId} seed={null} />}>
+      <SeededDriverView year={year} driverId={driverId} />
+    </Suspense>
+  );
 }

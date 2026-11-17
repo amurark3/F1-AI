@@ -57,6 +57,17 @@ export async function mockBackend(page: Page): Promise<void> {
     };
     return fulfillJson(route, known[id] ?? { year: 2026, status: "not_found", team: null });
   });
+  // A driver's season by f1db id; any other id is a driver the season does not have.
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/drivers/*`, (route) => {
+    const id = route.request().url().split("/").pop() ?? "";
+    const known: Record<string, unknown> = {
+      "max-verstappen": PROFILE_PAGES_2026.verstappen,
+      "lewis-hamilton": PROFILE_PAGES_2026.hamilton,
+      "liam-lawson": PROFILE_PAGES_2026.lawson,
+      "ryo-hirakawa": PROFILE_PAGES_2026.hirakawa,
+    };
+    return fulfillJson(route, known[id] ?? { year: 2026, status: "not_found", driver: null });
+  });
   // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
   await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
     const round = route.request().url().split("/").pop();

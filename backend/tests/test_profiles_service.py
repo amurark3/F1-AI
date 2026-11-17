@@ -1,12 +1,9 @@
 """Tests for app.services.profiles and app.services.race_glance.
 
 The f1db side runs against the seeded profiles dataset; the power-unit payload
-is a fixture, because what is under test is how cars are chosen for a page:
-
-* a team page shows its own cars, in car-number order;
-* a driver page shows every car the driver raced, the rounds that were theirs,
-  and who else raced it (FIA B8.2.7: usage belongs to the car);
-* a power-unit failure degrades to a reason without taking the page down.
+is a fixture. Neither profile carries power units (the pages read them from the
+power-units endpoint); the race glance does, and a failure there degrades to a
+reason without taking the glance down.
 """
 
 from __future__ import annotations
@@ -124,57 +121,12 @@ def test_team_profile_is_the_season_with_a_status_and_no_power_units(profiles_f1
 
 
 @pytest.mark.integration
-def test_driver_profile_shows_the_car_with_their_rounds_and_who_shared_it(profiles_f1db, power_units):
-    cars = build_driver_profile(2026, "isack-hadjar")["power_units"]["cars"]
-
-    assert [item["seat_id"] for item in cars] == ["red-bull-6"]
-    assert cars[0]["driver_rounds"] == [1, 3]
-    assert cars[0]["shared_with"] == [{"id": "liam-lawson", "name": "Liam Lawson", "rounds": [2], "rounds_label": "R2"}]
-
-
-@pytest.mark.integration
-def test_a_stand_in_sees_the_regular_drivers_car(profiles_f1db, power_units):
-    cars = build_driver_profile(2026, "liam-lawson")["power_units"]["cars"]
-
-    assert cars[0]["seat_id"] == "red-bull-6"
-    assert cars[0]["driver_rounds"] == [2]
-    assert cars[0]["shared_with"][0]["rounds_label"] == "R1, R3"
-
-
-@pytest.mark.integration
-def test_a_car_raced_by_one_driver_is_shared_with_nobody(profiles_f1db, power_units):
-    cars = build_driver_profile(2026, "max-verstappen")["power_units"]["cars"]
-
-    assert [item["seat_id"] for item in cars] == ["red-bull-1"]
-    assert cars[0]["shared_with"] == []
-
-
-@pytest.mark.integration
-def test_a_season_without_power_unit_data_says_why(profiles_f1db, power_units):
-    power_units({"available": False, "reason": "No FIA documents for 2026 yet.", "cars": []})
-
-    section = build_driver_profile(2026, "max-verstappen")["power_units"]
-
-    assert section == {
-        "available": False,
-        "reason": "No FIA documents for 2026 yet.",
-        "as_of": None,
-        "elements": [],
-        "cars": [],
-    }
-
-
-@pytest.mark.integration
-def test_a_power_unit_failure_leaves_the_rest_of_the_page_standing(profiles_f1db, monkeypatch):
-    monkeypatch.setattr(profiles, "build_power_units", _boom)
-
+def test_driver_profile_is_the_season_with_a_status_and_no_power_units(profiles_f1db):
     payload = build_driver_profile(2026, "isack-hadjar")
 
     assert payload["status"] == "ok"
     assert payload["driver"]["id"] == "isack-hadjar"
-    assert payload["power_units"]["available"] is False
-    # The client sees a plain reason, never the exception text.
-    assert payload["power_units"]["reason"] == POWER_UNITS_FAILED
+    assert "power_units" not in payload
 
 
 @pytest.mark.integration
@@ -213,6 +165,17 @@ def test_glance_lists_the_rounds_decisions_by_car_naming_who_raced_it(profiles_f
 @pytest.mark.integration
 def test_glance_for_a_round_without_decisions_is_an_empty_list(profiles_f1db, power_units):
     assert build_race_glance(2026, 3)["power_units"] == {"available": True, "reason": None, "decisions": []}
+
+
+@pytest.mark.integration
+def test_glance_says_why_a_season_has_no_power_unit_data(profiles_f1db, power_units):
+    power_units({"available": False, "reason": "No FIA documents for 2026 yet.", "cars": []})
+
+    assert build_race_glance(2026, 2)["power_units"] == {
+        "available": False,
+        "reason": "No FIA documents for 2026 yet.",
+        "decisions": [],
+    }
 
 
 @pytest.mark.integration

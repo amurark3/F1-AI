@@ -50,6 +50,8 @@ const LEAD = {
   columns: "lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-end gap-x-9",
   lead: "px-6 pt-6 sm:px-9 lg:pb-9",
   body: "p-6 sm:p-9 lg:pl-0",
+  /** driver.html's size: the car number takes the room the band title would. */
+  title: "text-[clamp(48px,6vw,92px)]",
 } as const;
 
 /** Each line rises in on entrance, a beat after the one above; the rule then draws out from the left. */
@@ -94,7 +96,11 @@ export function PageHero({
       {hasLead && <div className={`min-w-0 ${LEAD.lead}`}>{lead}</div>}
       <div className={`min-w-0 ${hasLead ? LEAD.body : layout.body}`}>
         {eyebrow != null && <p className={`${EYEBROW} ${RISE}`}>{eyebrow}</p>}
-        <h1 className={`${DISPLAY} ${layout.title} mt-3.5 text-rc-ink ${RISE} [animation-delay:60ms]`}>{title}</h1>
+        <h1
+          className={`${DISPLAY} ${hasLead ? LEAD.title : layout.title} mt-3.5 text-rc-ink ${RISE} [animation-delay:60ms]`}
+        >
+          {title}
+        </h1>
         <div
           aria-hidden="true"
           data-hero-rule=""

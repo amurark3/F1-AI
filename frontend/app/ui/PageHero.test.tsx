@@ -85,6 +85,8 @@ describe("PageHero", () => {
     expect(aside).toHaveClass("p-6", "sm:p-9");
     expect(aside).not.toHaveClass("lg:border-l");
     expect(aside).not.toHaveClass("border-t");
+    // The car number takes the room, so the name steps down to driver.html's size and stays on one line.
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass("text-[clamp(48px,6vw,92px)]");
   });
 
   it("keeps the three columns with a lead and no aside", () => {

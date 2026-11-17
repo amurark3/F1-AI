@@ -61,7 +61,7 @@ export function ClinchAside({ year, table }: ClinchLineProps) {
   );
 }
 
-/** One team's or driver's own clause, after their standing sentence. Sits in a block, not a `<p>`. */
+/** One team's or driver's own clause, after their standing sentence: inline, so it can sit in that sentence's `<p>`. */
 export function EntrantClinch({ year, table, entrant }: ClinchLineProps & { entrant: ClinchEntrant }) {
   const state = useClinch(year);
   const title = state.data?.[table];
@@ -71,7 +71,7 @@ export function EntrantClinch({ year, table, entrant }: ClinchLineProps & { entr
     <>
       {" "}
       <span className="motion-safe:animate-fade-up">{text}</span>
-      {state.status === "stale" && <StaleMark state={state} className="mt-1" />}
+      {state.status === "stale" && <StaleMark state={state} as="span" className="mt-1" />}
     </>
   );
 }

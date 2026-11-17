@@ -2,6 +2,8 @@ import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
 import { PageHero } from "@/app/ui/PageHero";
 
+import { EntrantClinch } from "../../clinch/ClinchText";
+
 import { formGuide, standingLine } from "./driverModel";
 import { FormGuide } from "./FormGuide";
 
@@ -55,7 +57,12 @@ export function DriverHero({ profile }: { profile: DriverProfile }) {
       title={
         <DriverName name={driver.name} lastName={driver.last_name} code={driver.code} id={driver.id} year={year} />
       }
-      meta={standingLine(profile)}
+      meta={
+        <>
+          {standingLine(profile)}
+          <EntrantClinch year={year} table="drivers" entrant={{ name: driver.name, code: driver.code }} />
+        </>
+      }
       aside={chips.length === 0 ? undefined : <FormGuide chips={chips} />}
     >
       {profile.teams.length > 1 ? (

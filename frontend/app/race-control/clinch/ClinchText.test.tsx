@@ -163,11 +163,11 @@ describe("EntrantClinch", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("keeps the clause and says it could not refresh", () => {
+  it("keeps the clause and says it could not refresh, inline so it can sit in a sentence's paragraph", () => {
     given("stale", afterRound20);
     render(<EntrantClinch year={2026} table="constructors" entrant={MERCEDES} />);
 
     expect(screen.getByText("Clinched in São Paulo with three races to spare.")).toBeInTheDocument();
-    expect(screen.getByText("Couldn't refresh")).toBeInTheDocument();
+    expect(screen.getByText("Couldn't refresh").parentElement?.tagName).toBe("SPAN");
   });
 });

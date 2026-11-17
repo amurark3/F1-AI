@@ -99,6 +99,14 @@ describe("StaleMark", () => {
     expect(screen.getByText("Couldn't refresh")).toHaveAttribute("title", "Could not reach the server.");
   });
 
+  it("is a paragraph by default and a span inside running text", () => {
+    const { container, rerender } = render(<StaleMark state={state("stale")} />);
+    expect(container.firstElementChild?.tagName).toBe("P");
+
+    rerender(<StaleMark state={state("stale")} as="span" />);
+    expect(container.firstElementChild?.tagName).toBe("SPAN");
+  });
+
   it("leaves the reason off when there is none", () => {
     render(<StaleMark state={state("stale")} />);
 

@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
+import { CLINCH_2026, DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -11,7 +11,12 @@ import { DriverHero } from "./DriverHero";
 const { hamilton, lawson, verstappen } = PROFILE_PAGES_2026;
 
 beforeEach(() => {
-  server.use(http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026 as never)));
+  server.use(
+    http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026 as never)),
+    http.get(apiUrl("/api/race-control/standings/:year/clinch"), () =>
+      HttpResponse.json(CLINCH_2026.afterRound20 as never),
+    ),
+  );
 });
 
 describe("DriverHero", () => {

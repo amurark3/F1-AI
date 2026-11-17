@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
-import { DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
+import { CLINCH_2026, DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
 import { ALLOCATION_RESPONSE } from "@/test/fixtures/powerUnitsAllocation";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
@@ -24,6 +24,9 @@ beforeEach(() => {
   server.use(
     http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026 as never)),
     http.get(apiUrl("/api/race-control/power-units/:year"), () => HttpResponse.json(ALLOCATION_RESPONSE as never)),
+    http.get(apiUrl("/api/race-control/standings/:year/clinch"), () =>
+      HttpResponse.json(CLINCH_2026.afterRound20 as never),
+    ),
   );
 });
 
@@ -39,6 +42,20 @@ describe("DriverView", () => {
     expect(screen.getByRole("heading", { level: 3, name: "Scored in 19 of 20 races" })).toBeInTheDocument();
     expect(document.querySelector(".h-\\[760px\\]")).not.toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 2, name: "Power unit" })).toBeInTheDocument();
+  });
+
+  it("adds the champion's clinch clause to the standing line, and none for a driver already out of it", async () => {
+    // The clause matches a driver by code, so Hamilton's captured season stands in for the champion's.
+    const champion = { ...hamilton, driver: { ...hamilton.driver, code: "ANT" } };
+    const { unmount } = renderWithProviders(<DriverView year={2026} driverId="kimi-antonelli" seed={champion} />);
+
+    const clause = await screen.findByText("Clinched in Mexico City with four races to spare.");
+    expect(clause.closest("p")).toHaveTextContent(/^P4 in the championship .* Clinched in Mexico City/);
+    unmount();
+
+    renderWithProviders(<DriverView year={2026} driverId="lewis-hamilton" seed={hamilton} />);
+    expect(await screen.findByRole("heading", { level: 2, name: "Power unit" })).toBeInTheDocument();
+    expect(screen.queryByText(/clinch/i)).not.toBeInTheDocument();
   });
 
   it("shows a skeleton while unseeded, then the driver", async () => {

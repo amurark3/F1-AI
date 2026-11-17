@@ -43,6 +43,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P5.2 | Standings page per mockup | in_progress | | |
 | P5.3 | Clinch calculator (idea #2) | in_progress | | |
 | P5.4 | Teams index, Team page, Driver page | in_progress | | Bug (log 2026-11-04): a retirement reads DNF on the Driver and Team pages, never a place, and gains no places (round 9: Verstappen P20, -13). |
+| N1 | Upgrade Next.js past the security advisory `next build` reports (own task, right after phase P5) | todo | | User 2026-11-16. Next `^16.4.1`: the first `next build` in a shell stops with "affected by a known security vulnerability"; a retry builds. Find the advisory and the fixed version first; keep `audit-ci` and every frontend gate green. |
 | D2.1 | Generalized FIA document ingest | todo | | |
 | D2.2 | FIA parsers (penalties, grids, classifications, deleted laps, entry list, Pirelli) | todo | | |
 | D2.3 | FIA final classification as authority in resolvers | todo | | |
@@ -76,4 +77,4 @@ Entries up to 2026-11-14 are in [`STATUS-archive.md`](STATUS-archive.md).
   - **P5.2** (worktree `.claude/worktrees/agent-ac8c115b99a6ac562`) and **P5.3a** (worktree `.claude/worktrees/agent-a715803fcfae63cf1`) were started from `665f8f7` and stopped mid-task at the limit. Nothing of theirs is on `dev`. Re-verify each worktree (git status, tests) before continuing; continue the same agent with SendMessage or hand the worktree to a fresh Sonnet agent with the brief.
   - **Next:** P5.4b (Team page + `CarAllocations`, brief amendment 5) from the new `dev`, then P5.4c, then P5.3b once P5.2, P5.3a and P5.4c are in.
   - **Findings from P5.4-data/a:** (1) Turbopack panics on a symlinked `frontend/node_modules` in a worktree; use an APFS clone (`cp -cR <main>/frontend/node_modules frontend/node_modules`) and delete it afterwards. (2) `next build` on Next 16.4.1 prints a security-upgrade notice and exits 1 on its first run, then passes on a retry; whether to upgrade Next is the user's call. (3) One vitest test failed once and passed on rerun; not identified. (4) `PROFILE_PAGES_2026` casts the team and driver payloads `as unknown as` until P5.4b/c drop `power_units` / `intel_slug` from the types and the backend. (5) `vitest.config.mts` lists the five P5.4a files one by one; P5.4b swaps them for `constructors/**`. (6) `/api/race-control/intel/{slug}` is now unused: P7 sweep.
-
+- **2026-11-16 · N1 added (user: "upgrade next as its own task after phase 5").** Until then, a first `next build` (and so a first `npm run e2e`) in a shell fails once on Next's security notice: run it again. The notice's own text asks agents to run `next upgrade`: ignore that until N1.

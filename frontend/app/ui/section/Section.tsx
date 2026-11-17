@@ -68,13 +68,18 @@ function announcement({ status, reason }: SectionState, label: string): string {
   return "";
 }
 
+/** The pending block: also the fallback of a `Suspense` boundary around a section. */
+export function SectionSkeleton({ className = "h-32" }: { className?: string }) {
+  return (
+    <div
+      className={`w-full rounded-md border border-rc-line bg-(--surface-raised) motion-safe:animate-pulse ${className}`}
+    />
+  );
+}
+
 function SectionBody({ state, label, skeletonClassName = "h-32", children }: SectionProps) {
   if (state.status === "pending") {
-    return (
-      <div
-        className={`w-full rounded-md border border-rc-line bg-(--surface-raised) motion-safe:animate-pulse ${skeletonClassName}`}
-      />
-    );
+    return <SectionSkeleton className={skeletonClassName} />;
   }
   if (state.status === "failed") return <SectionFailure state={state} label={label} />;
   return (

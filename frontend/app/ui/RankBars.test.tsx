@@ -147,4 +147,12 @@ describe("RankBars", () => {
     expect(first).toHaveClass("grid-cols-subgrid", "col-span-full", "min-h-8.5", "border-rc-line-soft");
     expect(fillOf(first).parentElement).toHaveClass("h-3.5");
   });
+
+  it("sets a tag after the name and detail", () => {
+    render(<RankBars items={[{ ...DRIVERS[0], tag: <span>Champion</span> }, DRIVERS[1]]} label="Drivers" />);
+
+    const [first, second] = rows("Drivers");
+    expect(first).toHaveTextContent("Kimi Antonelli ANTChampion");
+    expect(second).not.toHaveTextContent("Champion");
+  });
 });

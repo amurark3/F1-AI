@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 test("the Barlow Condensed display face resolves and loads", async ({ page }) => {
   await page.goto("/race-control/teams");
-  await expect(page.getByRole("heading", { name: "Championship Standings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Drivers' order" })).toBeVisible();
 
   // The token and the components' older `var(--font-barlow, …)` form both
   // resolve to Barlow, not to their fallbacks.

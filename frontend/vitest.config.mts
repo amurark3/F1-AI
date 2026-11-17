@@ -28,7 +28,6 @@ const COVERAGE_INCLUDE = [
   "app/race-control/components/CommandCenterPanels.tsx",
   "app/race-control/components/Disclosure.tsx",
   "app/race-control/components/RaceControlPrimitives.tsx",
-  "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
   // P0b.7: the "vs grid" helper.
   "app/race-control/grand-prix/gridDelta.ts",
@@ -124,6 +123,9 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/useHubData.ts",
   "app/race-control/grand-prix/useHubUrlState.ts",
   "app/race-control/grand-prix/usePredictionWorkspace.ts",
+  // P5.2: the Standings page (route kept at /race-control/teams) and the old /standings redirect.
+  "app/race-control/teams/**",
+  "app/standings/page.tsx",
 ];
 
 /** Every metric must reach this in every included file. */

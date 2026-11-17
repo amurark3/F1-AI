@@ -1,24 +1,33 @@
-import { currentSeason, getTeams } from "@/app/lib/server/raceControl";
+import { currentSeason, getOverviewSegment, getStandingsProgression, getTeams } from "@/app/lib/server/raceControl";
 
-import { TeamsView } from "./TeamsView";
+import { StandingsView } from "./StandingsView";
 
+import type { OverviewShell } from "../components/CommandCenterPanels";
 import type { Metadata } from "next";
 
 /**
  * Standings move once per race weekend, so a 15-minute window keeps the
- * prerendered table current without putting the backend in the request path.
+ * prerendered page current without putting the backend in the request path.
  */
 export const revalidate = 900;
 
 export const metadata: Metadata = {
   title: "F1 Championship Standings | F1 AI",
   description:
-    "Current Formula 1 Drivers' and Constructors' Championship standings, with points gaps, win counts, and team operating profiles.",
+    "Current Formula 1 Drivers' and Constructors' Championship standings, with points gaps, win counts, and the title race round by round.",
 };
 
-export default async function TeamsPage() {
+/** Awaits nothing: the promises go to the sections, which take them up behind their own boundaries. */
+export default function StandingsPage() {
   const year = currentSeason();
-  const initialTeams = await getTeams(year);
-
-  return <TeamsView year={year} initialTeams={initialTeams} />;
+  return (
+    <StandingsView
+      year={year}
+      seeds={{
+        teams: getTeams(year),
+        shell: getOverviewSegment<OverviewShell>(year, "/shell"),
+        progression: getStandingsProgression(year),
+      }}
+    />
+  );
 }

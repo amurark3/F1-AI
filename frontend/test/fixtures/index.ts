@@ -21,6 +21,12 @@
  *   `unknown_team` (`build_team_profile(2026, "lotus")`). `power_units` and
  *   `intel_slug` are dropped (the pages read neither), and the later-round
  *   lookup is stubbed so the table is f1db's own.
+ * - `standings-progression-2026.json`: `GET /api/race-control/standings/2026/progression`
+ *   (P5.2), as served, captured on 16 Nov 2026 through the backend's own
+ *   `progression.build_standings_progression(2026)` on a copy of f1db v2026.20.0
+ *   cut back to round 19 (rounds 20+ removed, version file `v2026.19.0`, no
+ *   OpenF1 round added), so it matches `teams-2026.json`: 19 rounds, none
+ *   provisional, Antonelli's title clinched in round 19.
  * - `ready.json`: `GET /api/ready`, kept to the `ready`, `stage` and `detail`
  *   fields the warm-up probe reads.
  *
@@ -207,6 +213,7 @@ import type {
   TeamProfileResponse,
   TeamsIndex,
 } from "@/app/race-control/profiles/profilesModel";
+import type { StandingsProgression } from "@/app/race-control/teams/standingsModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
 import type { HeroRace } from "@/app/race-control/weekend/WeekendHero";
@@ -243,6 +250,7 @@ import ready from "./ready.json";
 import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
+import standingsProgression2026 from "./standings-progression-2026.json";
 import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
@@ -250,6 +258,7 @@ import weekendSessions2026 from "./weekend-sessions-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
+export const STANDINGS_PROGRESSION_2026 = standingsProgression2026 as StandingsProgression;
 export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;

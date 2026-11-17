@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -65,7 +65,8 @@ describe("CarAllocations on a team page", () => {
     const first = within(rows[0]);
     expect(first.getByRole("rowheader")).toHaveTextContent("#12");
     expect(first.getByRole("link")).toHaveAttribute("href", "/race-control/power-units/12");
-    expect(first.getByText("Antonelli")).toBeInTheDocument();
+    // The surname comes from the season directory, which answers after the table paints.
+    expect(await first.findByText("Antonelli")).toBeInTheDocument();
   });
 
   it("says each element in words on its pips, and prints the count", async () => {
@@ -154,7 +155,7 @@ describe("CarAllocations on a team page", () => {
     };
     renderCard(MERCEDES, { ...ALLOCATION_RESPONSE, cars: [shared] });
 
-    expect(await screen.findByRole("rowheader")).toHaveTextContent("#12Antonelli / Russell");
+    await waitFor(() => expect(screen.getByRole("rowheader")).toHaveTextContent("#12Antonelli / Russell"));
   });
 
   it("prints a count with no allocation as plain pips", async () => {

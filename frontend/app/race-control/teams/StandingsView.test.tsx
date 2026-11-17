@@ -3,7 +3,13 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
-import { DIRECTORY_2026, OVERVIEW_SEGMENTS_2026, STANDINGS_PROGRESSION_2026, TEAMS_2026 } from "@/test/fixtures";
+import {
+  CLINCH_2026,
+  DIRECTORY_2026,
+  OVERVIEW_SEGMENTS_2026,
+  STANDINGS_PROGRESSION_2026,
+  TEAMS_2026,
+} from "@/test/fixtures";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -43,6 +49,9 @@ describe("StandingsView", () => {
       http.get(TEAMS_URL, () => HttpResponse.json(TEAMS_2026)),
       http.get(SHELL_URL, () => HttpResponse.json(OVERVIEW_SEGMENTS_2026.shell)),
       http.get(PROGRESSION_URL, () => HttpResponse.json(STANDINGS_PROGRESSION_2026)),
+      http.get(apiUrl("/api/race-control/standings/:year/clinch"), () =>
+        HttpResponse.json(CLINCH_2026.afterRound19 as never),
+      ),
     );
   });
 
@@ -65,6 +74,7 @@ describe("StandingsView", () => {
       await screen.findByRole("heading", { name: "Antonelli led from Suzuka and never gave it back" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Kimi Antonelli" })).toBeInTheDocument();
+    expect(await screen.findByText("Mercedes can clinch in São Paulo")).toBeInTheDocument();
   });
 
   it("links the names to their pages once the directory is in", async () => {

@@ -13,6 +13,7 @@ import { StatTile } from "@/app/ui/StatTile";
 import { rc } from "@/app/ui/tokens";
 import { EYEBROW } from "@/app/ui/typography";
 
+import { ClinchHeroLine } from "../clinch/ClinchText";
 import { useSeasonDirectory } from "../profiles/EntityLinks";
 
 import { heroModel, type HeroModel } from "./standingsModel";
@@ -49,7 +50,7 @@ function Meta({ model }: { model: HeroModel }) {
   );
 }
 
-function HeroBody({ table, model }: { table: ChampionshipTable; model: HeroModel }) {
+function HeroBody({ year, table, model }: { year: number; table: ChampionshipTable; model: HeroModel }) {
   return (
     <div className="grid items-end gap-10 border-b border-rc-line pb-9 lg:grid-cols-[auto_minmax(0,1fr)]">
       <p className="font-display text-[clamp(120px,15vw,220px)] font-extrabold leading-[0.8] tabular-nums">
@@ -63,8 +64,7 @@ function HeroBody({ table, model }: { table: ChampionshipTable; model: HeroModel
         meta={<Meta model={model} />}
         aside={<Tiles model={model} />}
       >
-        {/* P5.3b: ClinchHeroLine replaces this line when the clinch endpoint has a sentence; this stays as its fallback. */}
-        <p className="max-w-[46ch] text-[17px] text-rc-ink-2 text-pretty">{model.line}</p>
+        <ClinchHeroLine year={year} table={table} fallback={model.line} />
       </PageHero>
     </div>
   );
@@ -93,7 +93,7 @@ export function StandingsHero({ year, seeds }: { year: number; seeds: StandingsS
       </div>
       <div className="mt-[18px]">
         {model ? (
-          <HeroBody table={table} model={model} />
+          <HeroBody year={year} table={table} model={model} />
         ) : (
           <PageHero title="Standings" meta="No round has paid points yet." />
         )}

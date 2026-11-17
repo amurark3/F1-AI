@@ -30,10 +30,10 @@ export function TeamHero({ profile, clinch }: TeamHeroProps) {
         <b className="font-display text-[76px] font-extrabold leading-[0.9] text-rc-ink">
           {team.position === null ? "—" : `P${team.position}`}
         </b>
-        <span className="max-w-[26ch] text-[15px] text-rc-ink-2">
+        <div className="max-w-[26ch] text-[15px] text-rc-ink-2">
           {standingLine(profile)}
           {clinch}
-        </span>
+        </div>
       </div>
     </PageHero>
   );

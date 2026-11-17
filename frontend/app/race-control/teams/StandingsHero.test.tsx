@@ -4,7 +4,13 @@ import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
-import { DIRECTORY_2026, OVERVIEW_SEGMENTS_2026, STANDINGS_PROGRESSION_2026, TEAMS_2026 } from "@/test/fixtures";
+import {
+  CLINCH_2026,
+  DIRECTORY_2026,
+  OVERVIEW_SEGMENTS_2026,
+  STANDINGS_PROGRESSION_2026,
+  TEAMS_2026,
+} from "@/test/fixtures";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -45,7 +51,12 @@ function tile(label: string): HTMLElement {
 describe("StandingsHero", () => {
   beforeEach(() => {
     vi.mocked(useServerStatus).mockReturnValue({ status: "ready" } as ServerState);
-    server.use(http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026)));
+    server.use(
+      http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026)),
+      http.get(apiUrl("/api/race-control/standings/:year/clinch"), () =>
+        HttpResponse.json(CLINCH_2026.afterRound19 as never),
+      ),
+    );
   });
 
   it("is the champion's hero once the title is won", async () => {
@@ -55,7 +66,9 @@ describe("StandingsHero", () => {
     expect(screen.getByText("2026 World Champion")).toBeInTheDocument();
     expect(screen.getByText("380")).toBeInTheDocument();
     expect(screen.getByText("Mercedes · 9 wins from 19 races")).toBeInTheDocument();
-    expect(await screen.findByText("119 points clear of Verstappen after round 19.")).toBeInTheDocument();
+    expect((await screen.findByText("Provisionally clinched in Mexico City")).parentElement).toHaveTextContent(
+      "Provisionally clinched in Mexico City with four races to spare: 119 points clear, and only 100 left to win.",
+    );
     expect(within(tile("Fight for second")).getByText("16")).toBeInTheDocument();
     expect(within(tile("Constructors")).getByText("126")).toBeInTheDocument();
     expect(within(tile("Races left")).getByText("4")).toBeInTheDocument();
@@ -71,9 +84,18 @@ describe("StandingsHero", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Mercedes" })).toBeInTheDocument();
     expect(screen.getByText("Constructors' leader")).toBeInTheDocument();
-    expect(screen.getByText("126 points clear of Ferrari after round 19.")).toBeInTheDocument();
+    expect(await screen.findByText("Mercedes clinch in São Paulo if they outscore Ferrari by 3.")).toBeInTheDocument();
     expect(within(tile("Rivals in reach")).getByText("1")).toBeInTheDocument();
     expect(within(tile("Drivers")).getByText("Antonelli clinched · 100 left")).toBeInTheDocument();
+  });
+
+  it("prints the plain lead line when the clinch calculator cannot be read", async () => {
+    server.use(
+      http.get(apiUrl("/api/race-control/standings/:year/clinch"), () => new HttpResponse(null, { status: 500 })),
+    );
+    await renderHero();
+
+    expect(await screen.findByText("119 points clear of Verstappen after round 19.")).toBeInTheDocument();
   });
 
   it("claims no title, and shows no stakes tiles, when the shell is missing and no clinch is known", async () => {

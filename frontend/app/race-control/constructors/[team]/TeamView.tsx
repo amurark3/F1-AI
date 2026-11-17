@@ -6,6 +6,7 @@ import { useSection } from "@/app/ui/section/useSection";
 import { SectionHead } from "@/app/ui/SectionHead";
 import { SourceBadge } from "@/app/ui/SourceBadge";
 
+import { EntrantClinch } from "../../clinch/ClinchText";
 import { CarAllocations } from "../../profiles/CarAllocations";
 import { MissingProfile } from "../../profiles/MissingProfile";
 import { isTeamProfile, profilesUrl, type TeamProfile, type TeamProfileResponse } from "../../profiles/profilesModel";
@@ -21,7 +22,10 @@ function TeamSeason({ profile }: { profile: TeamProfile }) {
   const through = profile.results_through;
   return (
     <div>
-      <TeamHero profile={profile} />
+      <TeamHero
+        profile={profile}
+        clinch={<EntrantClinch year={profile.year} table="constructors" entrant={{ name: profile.team.name }} />}
+      />
       <TeamKpis profile={profile} />
       <section className="pt-16">
         <SectionHead

@@ -5,6 +5,8 @@ import { Suspense, use } from "react";
 import { Section, SectionSkeleton } from "@/app/ui/section/Section";
 import { SectionHead } from "@/app/ui/SectionHead";
 
+import { ClinchAside } from "../clinch/ClinchText";
+
 import { ConstructorsColumns } from "./ConstructorsColumns";
 import { DriversSection } from "./DriversSection";
 import { StandingsHero } from "./StandingsHero";
@@ -46,8 +48,12 @@ export function StandingsView({ year, seeds }: { year: number; seeds: StandingsS
       </section>
 
       <section aria-labelledby="constructors">
-        {/* P5.3b: the clinch calculator's line goes in this SectionHead's aside. */}
-        <SectionHead index={2} id="constructors" title="Constructors" />
+        <SectionHead
+          index={2}
+          id="constructors"
+          title="Constructors"
+          aside={<ClinchAside year={year} table="constructors" />}
+        />
         <Suspense fallback={<SectionSkeleton className="h-[230px]" />}>
           <ConstructorsColumns year={year} seeds={seeds} />
         </Suspense>

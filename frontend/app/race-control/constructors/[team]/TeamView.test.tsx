@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
-import { DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
+import { CLINCH_2026, DIRECTORY_2026, PROFILE_PAGES_2026 } from "@/test/fixtures";
 import { ALLOCATION_RESPONSE } from "@/test/fixtures/powerUnitsAllocation";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
@@ -24,6 +24,9 @@ beforeEach(() => {
   server.use(
     http.get(apiUrl("/api/profiles/:year/directory"), () => HttpResponse.json(DIRECTORY_2026 as never)),
     http.get(apiUrl("/api/race-control/power-units/:year"), () => HttpResponse.json(ALLOCATION_RESPONSE as never)),
+    http.get(apiUrl("/api/race-control/standings/:year/clinch"), () =>
+      HttpResponse.json(CLINCH_2026.afterRound20 as never),
+    ),
   );
 });
 
@@ -38,6 +41,7 @@ describe("TeamView", () => {
     expect(document.querySelector(".h-\\[720px\\]")).not.toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 2, name: "Power units" })).toBeInTheDocument();
     expect(screen.getByText("Race result by round · through R20")).toBeInTheDocument();
+    expect(await screen.findByText("Clinched in São Paulo with three races to spare.")).toBeInTheDocument();
   });
 
   it("leaves the aside off the heat grid's head when no results are published", async () => {

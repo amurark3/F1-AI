@@ -80,7 +80,8 @@ describe("PageHero", () => {
       "lg:items-end",
       "gap-x-9",
     );
-    expect(screen.getByText("44").parentElement).toHaveClass("px-6", "pt-6", "sm:px-9", "lg:pb-9");
+    // The grid gap alone separates the number from the name, as in driver.html.
+    expect(screen.getByText("44").parentElement).toHaveClass("px-6", "pt-6", "sm:px-9", "lg:pb-9", "lg:pr-0");
     const aside = screen.getByText("Last five").parentElement;
     expect(aside).toHaveClass("p-6", "sm:p-9");
     expect(aside).not.toHaveClass("lg:border-l");

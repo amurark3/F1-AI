@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 
+import type { ChampionshipTable } from "@/app/lib/clinch";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
 import { PageHero } from "@/app/ui/PageHero";
@@ -16,8 +17,6 @@ import { useSeasonDirectory } from "../profiles/EntityLinks";
 
 import { heroModel, type HeroModel } from "./standingsModel";
 import { useProgression, useShell, useTeams, type StandingsSeeds } from "./useStandingsSections";
-
-import type { ChampionshipTable } from "../weekend/weekendModel";
 
 const OPTIONS = [
   { value: "drivers", label: "Drivers" },

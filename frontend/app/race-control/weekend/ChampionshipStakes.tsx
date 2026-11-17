@@ -3,6 +3,7 @@
 import { Crown, Swords, Trophy } from "lucide-react";
 import { useState } from "react";
 
+import type { ChampionshipTable } from "@/app/lib/clinch";
 import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
@@ -11,7 +12,7 @@ import { TeamName } from "@/app/ui/names/TeamName";
 import { Panel, rcFont } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
-import { clinchLine, formatPoints, reachLine, type ChampionshipTable, type ClinchTone } from "./weekendModel";
+import { clinchLine, formatPoints, reachLine, type ClinchTone } from "./weekendModel";
 
 import type { ChampionshipStakes as Stakes, Contender, TableStakes } from "./weekendTypes";
 

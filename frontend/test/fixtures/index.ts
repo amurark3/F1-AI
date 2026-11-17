@@ -197,6 +197,7 @@
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
+import type { ClinchResponse } from "@/app/lib/clinch";
 import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
@@ -231,6 +232,7 @@ import championStats from "./champions-stats.json";
 import circuitMaps from "./circuit-maps.json";
 import circuitRecords from "./circuit-records.json";
 import circuitRound2026 from "./circuit-round-2026-r19.json";
+import clinch2026 from "./clinch-2026.json";
 import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
 import overviewPredictions2026 from "./overview-predictions-2026.json";
@@ -439,4 +441,14 @@ export const MEXICO_CITY_2026 = {
   circuit: circuitRound2026 as unknown as RoundCircuit,
   strategy: raceStrategy2026 as unknown as RaceStrategyResponse,
   glance: glance2026,
+};
+
+/**
+ * `GET /api/race-control/standings/2026/clinch`. `after_round_19` is the morning
+ * after Mexico City (provisional); `after_round_20` is the backend's own
+ * `build_clinch(2026)` on f1db v2026.20.0 (14 Nov 2026), before Las Vegas.
+ */
+export const CLINCH_2026 = {
+  afterRound19: clinch2026.after_round_19 as unknown as ClinchResponse,
+  afterRound20: clinch2026.after_round_20 as unknown as ClinchResponse,
 };

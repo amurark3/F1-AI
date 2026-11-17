@@ -22,6 +22,7 @@ const COVERAGE_INCLUDE = [
   "app/home/HomeHero.tsx",
   "app/home/HomeSections.tsx",
   "app/home/motifs.tsx",
+  "app/lib/clinch.ts",
   "app/lib/standingsFreshness.ts",
   "app/ui/**",
   "app/race-control/components/BaselineStrategyPanel.tsx",

@@ -183,10 +183,16 @@
       "rivals_alive": 1,
       "decided": false,
       "clinch": {
-        "rival": "Ferrari",
-        "margin_needed": 4.0,
         "possible": true,
-        "rivals_in_play": 1
+        "needs": [
+          {
+            "name": "Ferrari",
+            "code": null,
+            "team": "Ferrari",
+            "margin": 3.0,
+            "countback": false
+          }
+        ]
       }
     }
   }

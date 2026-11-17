@@ -5,9 +5,9 @@
  * `clinched`).
  */
 
+import type { ChampionshipTable } from "@/app/lib/clinch";
 import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
-import type { ChampionshipTable } from "@/app/race-control/weekend/weekendModel";
 import type { ChampionshipStakes } from "@/app/race-control/weekend/weekendTypes";
 import { driverLabel, teamLabel, type NameDirectory } from "@/app/ui/names/names";
 

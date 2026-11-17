@@ -160,7 +160,7 @@ describe("clinchLine", () => {
   it("quotes the margin the leader must outscore the rival by", () => {
     expect(clinchLine(tableOf(SAO_PAULO_2026.stakes.constructors), "São Paulo", "constructors")).toEqual({
       tone: "possible",
-      text: "Mercedes clinches in São Paulo by outscoring Ferrari by 4+ pts.",
+      text: "Mercedes clinch in São Paulo if they outscore Ferrari by 3.",
     });
   });
 
@@ -168,7 +168,7 @@ describe("clinchLine", () => {
     // After round 18: 365 to Russell's 242 with 100 left after Mexico City.
     expect(clinchLine(tableOf(STAKES_2026.afterRound18.drivers), "Mexico City", "drivers")).toEqual({
       tone: "possible",
-      text: "Kimi Antonelli clinches in Mexico City unless George Russell outscores them by 23+ pts.",
+      text: "Kimi Antonelli clinches in Mexico City unless George Russell outscores them by 24 or more, or Lewis Hamilton outscores them by 25 or more.",
     });
   });
 

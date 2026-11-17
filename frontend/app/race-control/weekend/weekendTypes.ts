@@ -6,6 +6,7 @@
  * the championship stakes on `/shell`.
  */
 
+import type { ClinchNeed } from "@/app/lib/clinch";
 import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
 import type { CircuitMapData } from "@/app/ui/outlinePath";
 
@@ -120,11 +121,9 @@ export interface Contender {
 }
 
 export interface Clinch {
-  rival: string;
-  /** The points the leader must outscore the rival by here; zero or less means "unless outscored". */
-  margin_needed: number;
   possible: boolean;
-  rivals_in_play: number;
+  /** Every rival still able to beat the leader, the hardest first. */
+  needs: ClinchNeed[];
 }
 
 export interface TableStakes {

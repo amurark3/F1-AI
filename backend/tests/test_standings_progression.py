@@ -18,65 +18,26 @@ from app.api.routers import race_control as rc_router
 from app.data import f1db_source
 from app.data.f1db_calendar import CalendarUnavailableError
 from app.services.race_control import progression, table_reach
+from tests.progression_support import EARLIER, earlier_rounds_feeds
 from tests.roster_support import F1DB_2026, load
 from tests.standings_support import (
     AFTER_ROUND_19,
     BASE_AND_ROUND_19,
-    SEASON,
     Feeds,
-    event,
     f1db_only,
-    mexico_feeds,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
-SPRINT_ROUNDS = (2, 4, 5, 9, 12, 17)
-EARLIER = load(F1DB_2026 / "standings_by_round.json")
 ROUND_18 = load(F1DB_2026 / "standings_r18.json")
-
-
-def _earlier_event(round_num: int) -> dict:
-    return {
-        **event(18),
-        "round": round_num,
-        "name": f"Round {round_num} Grand Prix",
-        "location": f"Venue {round_num}, Country",
-        "is_sprint": round_num in SPRINT_ROUNDS,
-    }
-
-
-SEASON_ALL = [_earlier_event(n) for n in range(1, 18)] + SEASON
-
-
-def _install_earlier_rounds(path: Path) -> None:
-    """Rounds 1-17 of f1db's published tables, and the decider columns the real schema has."""
-    with closing(sqlite3.connect(path)) as conn:
-        conn.executemany(
-            "INSERT INTO race_driver_standing (race_id, driver_id, position_number, points) VALUES (?, ?, ?, ?)",
-            EARLIER["driver_standings"],
-        )
-        conn.executemany(
-            "INSERT INTO race_constructor_standing (race_id, constructor_id, position_number, points) "
-            "VALUES (?, ?, ?, ?)",
-            EARLIER["constructor_standings"],
-        )
-        conn.execute("ALTER TABLE race ADD COLUMN drivers_championship_decider INTEGER")
-        conn.execute("ALTER TABLE race ADD COLUMN constructors_championship_decider INTEGER")
-        conn.commit()
 
 
 @pytest.fixture
 def feeds(tmp_path, monkeypatch) -> Iterator[Feeds]:
-    for module in (progression, table_reach):
-        monkeypatch.setattr(module, "season_events", lambda _year: SEASON_ALL)
-    for opened in mexico_feeds(tmp_path, monkeypatch):
-        _install_earlier_rounds(f1db_source.DB_PATH)
-        yield opened
+    yield from earlier_rounds_feeds(tmp_path, monkeypatch, (progression, table_reach))
 
 
 def _no_calendar(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -92,10 +92,149 @@
       "rivals_alive": 20,
       "decided": false,
       "clinch": {
-        "rival": "Kimi Antonelli",
-        "margin_needed": 559.0,
         "possible": false,
-        "rivals_in_play": 20
+        "needs": [
+          {
+            "name": "Kimi Antonelli",
+            "code": "ANT",
+            "team": "Mercedes",
+            "margin": 559.0,
+            "countback": false
+          },
+          {
+            "name": "Charles Leclerc",
+            "code": "LEC",
+            "team": "Ferrari",
+            "margin": 556.0,
+            "countback": false
+          },
+          {
+            "name": "Lewis Hamilton",
+            "code": "HAM",
+            "team": "Ferrari",
+            "margin": 553.0,
+            "countback": false
+          },
+          {
+            "name": "Lando Norris",
+            "code": "NOR",
+            "team": "McLaren",
+            "margin": 551.0,
+            "countback": false
+          },
+          {
+            "name": "Max Verstappen",
+            "code": "VER",
+            "team": "Red Bull",
+            "margin": 549.0,
+            "countback": false
+          },
+          {
+            "name": "Oliver Bearman",
+            "code": "BEA",
+            "team": "Haas",
+            "margin": 547.0,
+            "countback": false
+          },
+          {
+            "name": "Arvid Lindblad",
+            "code": "LIN",
+            "team": "Racing Bulls",
+            "margin": 545.0,
+            "countback": false
+          },
+          {
+            "name": "Gabriel Bortoleto",
+            "code": "BOR",
+            "team": "Audi",
+            "margin": 543.0,
+            "countback": false
+          },
+          {
+            "name": "Pierre Gasly",
+            "code": "GAS",
+            "team": "Alpine",
+            "margin": 542.0,
+            "countback": false
+          },
+          {
+            "name": "Esteban Ocon",
+            "code": "OCO",
+            "team": "Haas",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Alexander Albon",
+            "code": "ALB",
+            "team": "Williams",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Liam Lawson",
+            "code": "LAW",
+            "team": "Racing Bulls",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Franco Colapinto",
+            "code": "COL",
+            "team": "Alpine",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Carlos Sainz Jr.",
+            "code": "SAI",
+            "team": "Williams",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Sergio Pérez",
+            "code": "PER",
+            "team": "Cadillac",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Isack Hadjar",
+            "code": "HAD",
+            "team": "Red Bull",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Oscar Piastri",
+            "code": "PIA",
+            "team": "McLaren",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Nico Hülkenberg",
+            "code": "HUL",
+            "team": "Audi",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Fernando Alonso",
+            "code": "ALO",
+            "team": "Aston Martin",
+            "margin": 541.0,
+            "countback": false
+          },
+          {
+            "name": "Valtteri Bottas",
+            "code": "BOT",
+            "team": "Cadillac",
+            "margin": 541.0,
+            "countback": false
+          }
+        ]
       }
     },
     "constructors": {
@@ -169,10 +308,79 @@
       "rivals_alive": 10,
       "decided": false,
       "clinch": {
-        "rival": "Ferrari",
-        "margin_needed": 963.0,
         "possible": false,
-        "rivals_in_play": 10
+        "needs": [
+          {
+            "name": "Ferrari",
+            "code": null,
+            "team": "Ferrari",
+            "margin": 963.0,
+            "countback": false
+          },
+          {
+            "name": "McLaren",
+            "code": null,
+            "team": "McLaren",
+            "margin": 946.0,
+            "countback": false
+          },
+          {
+            "name": "Red Bull",
+            "code": null,
+            "team": "Red Bull",
+            "margin": 944.0,
+            "countback": false
+          },
+          {
+            "name": "Haas",
+            "code": null,
+            "team": "Haas",
+            "margin": 942.0,
+            "countback": false
+          },
+          {
+            "name": "Racing Bulls",
+            "code": null,
+            "team": "Racing Bulls",
+            "margin": 940.0,
+            "countback": false
+          },
+          {
+            "name": "Audi",
+            "code": null,
+            "team": "Audi",
+            "margin": 938.0,
+            "countback": false
+          },
+          {
+            "name": "Alpine",
+            "code": null,
+            "team": "Alpine",
+            "margin": 937.0,
+            "countback": false
+          },
+          {
+            "name": "Williams",
+            "code": null,
+            "team": "Williams",
+            "margin": 936.0,
+            "countback": false
+          },
+          {
+            "name": "Cadillac",
+            "code": null,
+            "team": "Cadillac",
+            "margin": 936.0,
+            "countback": false
+          },
+          {
+            "name": "Aston Martin",
+            "code": null,
+            "team": "Aston Martin",
+            "margin": 936.0,
+            "countback": false
+          }
+        ]
       }
     }
   },
@@ -260,10 +468,23 @@
       "rivals_alive": 2,
       "decided": false,
       "clinch": {
-        "rival": "George Russell",
-        "margin_needed": -22.0,
         "possible": true,
-        "rivals_in_play": 0
+        "needs": [
+          {
+            "name": "George Russell",
+            "code": "RUS",
+            "team": "Mercedes",
+            "margin": -23.0,
+            "countback": false
+          },
+          {
+            "name": "Lewis Hamilton",
+            "code": "HAM",
+            "team": "Ferrari",
+            "margin": -24.0,
+            "countback": false
+          }
+        ]
       }
     },
     "constructors": {
@@ -337,10 +558,16 @@
       "rivals_alive": 1,
       "decided": false,
       "clinch": {
-        "rival": "Ferrari",
-        "margin_needed": 40.0,
         "possible": true,
-        "rivals_in_play": 1
+        "needs": [
+          {
+            "name": "Ferrari",
+            "code": null,
+            "team": "Ferrari",
+            "margin": 39.0,
+            "countback": false
+          }
+        ]
       }
     }
   }

@@ -94,7 +94,10 @@ def test_after_round_19_the_constructors_title_is_still_open(feeds):
     assert [(row["name"], row["points"]) for row in teams["contenders"][:2]] == [("Mercedes", 630), ("Ferrari", 504)]
     assert (teams["max_available"], teams["rivals_alive"], teams["decided"]) == (172, 1, False)
     # Round 20 is worth 43 to a team, leaving 129: Mercedes settle it there by outscoring Ferrari by 4.
-    assert teams["clinch"] == {"rival": "Ferrari", "margin_needed": 4, "possible": True, "rivals_in_play": 1}
+    assert teams["clinch"] == {
+        "possible": True,
+        "needs": [{"name": "Ferrari", "code": None, "team": "Ferrari", "margin": 3, "countback": False}],
+    }
 
 
 def test_the_championship_block_is_the_top_five_after_round_19(feeds):

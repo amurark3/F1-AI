@@ -17,6 +17,7 @@ from app.services.race_control import (
     build_overview_weather,
     build_round_circuit,
 )
+from app.services.race_control.clinch import build_clinch
 from app.services.race_control.progression import build_standings_progression
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
@@ -227,6 +228,20 @@ async def get_race_strategy(year: int, round_num: int) -> dict:
             "drivers": [],
             "stops": [],
             **client_error("api.race_control_stints.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/standings/{year}/clinch")
+async def get_clinch(year: int) -> dict:
+    """What each championship hangs on: decided (where) or what the leader must do at the next event."""
+    try:
+        return await asyncio.to_thread(build_clinch, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "drivers": None,
+            "constructors": None,
+            **client_error("api.race_control_clinch.error", exc, year=year),
         }
 
 

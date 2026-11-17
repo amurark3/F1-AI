@@ -1,88 +1,77 @@
 "use client";
 
-import useSWR from "swr";
-
 import { API_BASE } from "@/app/constants/api";
-import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
-import { PanelHeading } from "@/app/ui/PanelHeading";
-import { fetcher } from "@/app/utils/fetcher";
+import { Section } from "@/app/ui/section/Section";
+import { useSection } from "@/app/ui/section/useSection";
+import { SectionHead } from "@/app/ui/SectionHead";
+import { SourceBadge } from "@/app/ui/SourceBadge";
 
-import { Panel } from "../../components/RaceControlPrimitives";
-import { PowerUnitsSection } from "../../profiles/PowerUnitCards";
-import { CumulativePointsChart } from "../../profiles/ProfileCharts";
-import {
-  isTeamProfile,
-  profilesUrl,
-  type SeasonDirectory,
-  type TeamProfile,
-  type TeamProfileResponse,
-} from "../../profiles/profilesModel";
-import { ProfileLoading, ProfileNotFound, ProfileUnavailable } from "../../profiles/ProfileStates";
+import { CarAllocations } from "../../profiles/CarAllocations";
+import { MissingProfile } from "../../profiles/MissingProfile";
+import { isTeamProfile, profilesUrl, type TeamProfile, type TeamProfileResponse } from "../../profiles/profilesModel";
 
-import { ChampionshipPicture } from "./ChampionshipPicture";
-import { TeamHeader } from "./TeamHeader";
-import { TeamLineUp, TeamWins } from "./TeamLineUp";
-import { TeamResultsGrid } from "./TeamResultsGrid";
+import { PointsByWeekend } from "./PointsByWeekend";
+import { TeamHeatGrid } from "./TeamHeatGrid";
+import { TeamHero } from "./TeamHero";
+import { TeamKpis } from "./TeamKpis";
 
-export interface TeamSeed {
-  year: number;
-  profile: TeamProfileResponse | null;
-  directory: SeasonDirectory | null;
-}
+const REFRESH = { revalidateOnFocus: false, dedupingInterval: 180_000 };
 
-const SWR_OPTIONS = { revalidateOnFocus: false, dedupingInterval: 180000 } as const;
-
-function PointsPanel({ profile }: { profile: TeamProfile }) {
-  const data = profile.rounds
-    .filter((round) => round.cumulative_points !== null)
-    .map((round) => ({ label: `R${round.round}`, name: round.short_name, points: round.cumulative_points ?? 0 }));
-  if (data.length < 2) return null;
-  return (
-    <Panel as="section" className="mb-5">
-      <PanelHeading eyebrow="Points through the season" inset />
-      <div className="p-3">
-        <CumulativePointsChart data={data} color={profile.team.color} />
-      </div>
-    </Panel>
-  );
-}
-
-function TeamPage({ profile, directory }: { profile: TeamProfile; directory: SeasonDirectory | undefined }) {
+function TeamSeason({ profile }: { profile: TeamProfile }) {
+  const through = profile.results_through;
   return (
     <div>
-      <TeamHeader profile={profile} teams={directory?.teams ?? []} />
-      <div className="grid gap-x-5 xl:grid-cols-2">
-        <TeamLineUp profile={profile} />
-        <TeamWins profile={profile} />
-      </div>
-      <PointsPanel profile={profile} />
-      <TeamResultsGrid profile={profile} />
-      <PowerUnitsSection section={profile.power_units} color={profile.team.color} />
-      <ChampionshipPicture slug={profile.intel_slug} color={profile.team.color} />
+      <TeamHero profile={profile} />
+      <TeamKpis profile={profile} />
+      <section className="pt-16">
+        <SectionHead
+          index={1}
+          title="Every finish"
+          aside={through ? `Race result by round · through R${through.round}` : "Race result by round"}
+        />
+        <TeamHeatGrid profile={profile} />
+      </section>
+      <section className="pt-16">
+        <SectionHead index={2} title="Points by weekend" />
+        <PointsByWeekend profile={profile} />
+      </section>
+      <CarAllocations year={profile.year} scope={{ kind: "team", teamId: profile.team.id }} />
+      <SourceBadge freshness={profile} className="mt-10" />
     </div>
   );
 }
 
-export function TeamView({ teamId, seed }: { teamId: string; seed: TeamSeed }) {
-  const { year } = seed;
-  const { data, error, isLoading, mutate } = useSWR<TeamProfileResponse, Error>(
-    profilesUrl(API_BASE, year, `teams/${encodeURIComponent(teamId)}`),
-    fetcher,
-    { ...SWR_OPTIONS, ...seededWith(seed.profile) },
-  );
-  const { data: directory } = useSWR<SeasonDirectory, Error>(profilesUrl(API_BASE, year, "directory"), fetcher, {
-    ...SWR_OPTIONS,
-    ...seededWith(seed.directory),
-  });
+interface TeamViewProps {
+  year: number;
+  teamId: string;
+  /** The server render's answer; null renders the skeleton and fetches in the browser. */
+  seed: TeamProfileResponse | null;
+}
 
-  if (awaitingFirstData(isLoading, data !== undefined)) {
-    return <ProfileLoading what="team" />;
-  }
-  if (isTeamProfile(data)) {
-    return <TeamPage profile={data} directory={directory} />;
-  }
-  if (data?.status === "not_found") {
-    return <ProfileNotFound what="team" backHref="/race-control/constructors" backLabel="All teams" />;
-  }
-  return <ProfileUnavailable onRetry={() => void mutate()} errorId={error ? undefined : data?.error_id} />;
+/** The team's season: one section on `/api/profiles/{year}/teams/{id}`, with the power units on their own endpoint. */
+export function TeamView({ year, teamId, seed }: TeamViewProps) {
+  const state = useSection<TeamProfileResponse>(profilesUrl(API_BASE, year, `teams/${encodeURIComponent(teamId)}`), {
+    seed,
+    config: REFRESH,
+  });
+  const { data } = state;
+  return (
+    <Section
+      state={state}
+      label={isTeamProfile(data) ? `${data.team.name} season` : "Team season"}
+      skeletonClassName="h-[720px]"
+    >
+      {isTeamProfile(data) ? (
+        <TeamSeason profile={data} />
+      ) : (
+        <MissingProfile
+          year={year}
+          what="team"
+          id={teamId}
+          backHref="/race-control/constructors"
+          backLabel="All teams"
+        />
+      )}
+    </Section>
+  );
 }

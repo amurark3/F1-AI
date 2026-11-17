@@ -1,9 +1,9 @@
-"""Team and driver pages: an f1db season profile plus the car's power-unit usage.
+"""Team and driver pages: an f1db season profile, plus a driver's power-unit usage.
 
-Power-unit usage belongs to the car, not the driver (FIA B8.2.7). A team page
-shows each of its cars; a driver page shows every car the driver raced, marks
-which rounds were theirs, and names whoever else raced it — a stand-in's parts
-come out of the regular driver's allocation.
+Power-unit usage belongs to the car, not the driver (FIA B8.2.7). The team page
+reads it from its own endpoint; a driver page still shows every car the driver
+raced, marks which rounds were theirs, and names whoever else raced it — a
+stand-in's parts come out of the regular driver's allocation.
 
 The power-unit payload is the slowest and least certain input, so a failure
 there leaves the rest of the page standing with a plain reason in its place.
@@ -20,7 +20,6 @@ from app.data.profiles import driver_season, team_season, teams_index
 from app.data.profiles.results import rounds_label
 from app.data.profiles.standings import season_standings
 from app.services.power_units import build_power_units
-from app.services.race_control_common import team_slug
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -55,13 +54,6 @@ def _power_units(year: int, select: Callable[[list[dict]], list[dict]]) -> dict:
         "elements": payload["elements"],
         "cars": select(payload["cars"]),
     }
-
-
-def _team_cars(team_id: str) -> Callable[[list[dict]], list[dict]]:
-    def select(cars: list[dict]) -> list[dict]:
-        return sorted((car for car in cars if car["team_id"] == team_id), key=lambda car: car["car_number"])
-
-    return select
 
 
 def _shared_with(car: dict, driver_id: str) -> list[dict]:
@@ -129,13 +121,7 @@ def build_team_profile(year: int, team_id: str) -> dict:
     season = team_season(year, team_id)
     if season is None:
         return {"year": year, "status": "not_found", "team": None}
-    return {
-        **season,
-        "status": "ok",
-        # The slug the intel service keys teams by, derived the same way.
-        "intel_slug": team_slug(season["team"]["name"]),
-        "power_units": _power_units(year, _team_cars(team_id)),
-    }
+    return {**season, "status": "ok"}
 
 
 def build_driver_profile(year: int, driver_id: str) -> dict:

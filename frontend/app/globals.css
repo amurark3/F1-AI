@@ -46,6 +46,8 @@
   --rc-gold: #ffc93c; /* wins, titles, the leader */
   --rc-blue: #4c8dff; /* upcoming, info */
   --rc-gain: #00d66b; /* positions gained only; not the DRS green */
+  --rc-silver: #c9ced8; /* P2 finishes only */
+  --rc-bronze: #c98b52; /* P3 finishes only */
 }
 
 @theme inline {
@@ -81,6 +83,8 @@
   --color-rc-gold: var(--rc-gold);
   --color-rc-blue: var(--rc-blue);
   --color-rc-gain: var(--rc-gain);
+  --color-rc-silver: var(--rc-silver);
+  --color-rc-bronze: var(--rc-bronze);
 
   /* Animation shorthands */
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;

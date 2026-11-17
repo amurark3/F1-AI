@@ -24,6 +24,7 @@ The `design-director` skill (`.claude/skills/design-director/`) applies to new p
   - `--rc-gold` = wins, titles, the leader
   - `--rc-blue` = upcoming, info
   - `--rc-gain` = positions gained, and nothing else (not the DRS green)
+  - `--rc-silver` / `--rc-bronze` = P2 / P3 finishes only
   - team colors = data only
 - **Timing colors carry F1 meaning:**
   - `--f1-sector-best` (purple) = fastest overall

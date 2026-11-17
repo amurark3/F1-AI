@@ -263,11 +263,11 @@ export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;
 
-/** The Teams index, Team page and Driver page payloads (P5.4), as captured. Their `power_units` are dropped, which the types still require until P5.4b/c remove them. */
+/** The Teams index, Team page and Driver page payloads (P5.4), as captured. The drivers' `power_units` are dropped, which `DriverProfile` still requires until P5.4c removes it, so they are cast through `unknown`. */
 export const PROFILE_PAGES_2026 = {
   teams_index: profilePages2026.teams_index as TeamsIndex,
-  mercedes: profilePages2026.mercedes as unknown as TeamProfile,
-  red_bull: profilePages2026.red_bull as unknown as TeamProfile,
+  mercedes: profilePages2026.mercedes as TeamProfile,
+  red_bull: profilePages2026.red_bull as TeamProfile,
   verstappen: profilePages2026.verstappen as unknown as DriverProfile,
   hamilton: profilePages2026.hamilton as unknown as DriverProfile,
   lawson: profilePages2026.lawson as unknown as DriverProfile,

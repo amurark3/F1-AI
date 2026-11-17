@@ -34,6 +34,15 @@ describe("SectionHead", () => {
     expect(caption.closest(".mt-14")).not.toBeNull();
   });
 
+  it("lets a caption that does not fit drop under the title rather than squeeze it away", () => {
+    const { container } = render(
+      <SectionHead index={3} title="Power units" aside="Elements used against the season's allocation" />,
+    );
+
+    expect(container.firstElementChild).toHaveClass("flex-wrap", "gap-y-2");
+    expect(screen.getByText(/^Elements used/).parentElement).not.toHaveClass("shrink-0");
+  });
+
   it("renders any other aside as given, at another heading level", () => {
     render(<SectionHead index={3} as="h3" title="Stakes" aside={<button type="button">Teams</button>} />);
 

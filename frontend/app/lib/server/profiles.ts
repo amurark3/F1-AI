@@ -31,18 +31,15 @@ export const getTeamsIndex = cache((year: number): Promise<TeamsIndexResponse | 
   });
 });
 
-/**
- * A constructor's season. It carries power-unit usage, which moves through a
- * race weekend, so it refreshes on that clock rather than the standings'.
- */
+/** A constructor's season: results and points only, so it refreshes on the standings' clock. */
 export const getTeamProfile = cache((year: number, teamId: string): Promise<TeamProfileResponse | null> => {
   return fetchFromBackend<TeamProfileResponse>(`/api/profiles/${year}/teams/${encodeURIComponent(teamId)}`, {
-    revalidate: REVALIDATE.POWER_UNITS,
+    revalidate: REVALIDATE.STANDINGS,
     tags: ["profiles", `profiles:${year}`, `profiles:team:${teamId}`],
   });
 });
 
-/** A driver's season, refreshed on the same clock as the team page. */
+/** A driver's season. It still carries power-unit usage (until P5.4c), which moves through a race weekend, so it refreshes on that clock. */
 export const getDriverProfile = cache((year: number, driverId: string): Promise<DriverProfileResponse | null> => {
   return fetchFromBackend<DriverProfileResponse>(`/api/profiles/${year}/drivers/${encodeURIComponent(driverId)}`, {
     revalidate: REVALIDATE.POWER_UNITS,

@@ -43,6 +43,10 @@ export const rc = {
   blue: "#4c8dff",
   /** Positions gained, only. Not the DRS green. */
   gain: "#00d66b",
+  /** P2 finishes, only. */
+  silver: "#c9ced8",
+  /** P3 finishes, only. */
+  bronze: "#c98b52",
 } as const;
 
 /**

@@ -172,9 +172,6 @@ export interface TeamProfile extends StandingsFreshness {
   wins: TeamWin[];
   rounds: TeamRound[];
   results_through: ResultsThrough | null;
-  /** The key the rival-intel endpoint knows this team by. */
-  intel_slug: string;
-  power_units: ProfilePowerUnits<PowerUnitCar>;
 }
 
 export type TeamProfileResponse = TeamProfile | MissingProfile;

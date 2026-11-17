@@ -48,6 +48,15 @@ export async function mockBackend(page: Page): Promise<void> {
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/teams`, (route) =>
     fulfillJson(route, PROFILE_PAGES_2026.teams_index),
   );
+  // A team's season by f1db id; any other id is a team the season does not have.
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/teams/*`, (route) => {
+    const id = route.request().url().split("/").pop() ?? "";
+    const known: Record<string, unknown> = {
+      mercedes: PROFILE_PAGES_2026.mercedes,
+      "red-bull": PROFILE_PAGES_2026.red_bull,
+    };
+    return fulfillJson(route, known[id] ?? { year: 2026, status: "not_found", team: null });
+  });
   // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
   await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
     const round = route.request().url().split("/").pop();

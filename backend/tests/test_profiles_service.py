@@ -114,20 +114,13 @@ def test_teams_index_is_the_data_payload_with_a_status(profiles_f1db):
 
 
 @pytest.mark.integration
-def test_team_profile_carries_its_own_cars_in_number_order(profiles_f1db, power_units):
+def test_team_profile_is_the_season_with_a_status_and_no_power_units(profiles_f1db):
     payload = build_team_profile(2026, "red-bull")
 
     assert payload["status"] == "ok"
     assert payload["team"]["id"] == "red-bull"
-    assert [item["seat_id"] for item in payload["power_units"]["cars"]] == ["red-bull-1", "red-bull-6"]
-    assert payload["power_units"]["available"] is True
-    assert payload["power_units"]["as_of"] == {"round": 3, "title": "Doc 50"}
-    assert payload["power_units"]["elements"] == PAYLOAD["elements"]
-
-
-@pytest.mark.integration
-def test_team_profile_names_the_intel_slug_the_way_intel_keys_teams(profiles_f1db, power_units):
-    assert build_team_profile(2026, "red-bull")["intel_slug"] == "red-bull"
+    assert "power_units" not in payload
+    assert "intel_slug" not in payload
 
 
 @pytest.mark.integration
@@ -160,7 +153,7 @@ def test_a_car_raced_by_one_driver_is_shared_with_nobody(profiles_f1db, power_un
 def test_a_season_without_power_unit_data_says_why(profiles_f1db, power_units):
     power_units({"available": False, "reason": "No FIA documents for 2026 yet.", "cars": []})
 
-    section = build_team_profile(2026, "red-bull")["power_units"]
+    section = build_driver_profile(2026, "max-verstappen")["power_units"]
 
     assert section == {
         "available": False,

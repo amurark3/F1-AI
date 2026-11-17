@@ -25,6 +25,7 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 7. **Write discoveries down immediately** in the `STATUS.md` log: surprising data, decisions, gotchas. The next session can't read your mind.
 8. **Blocked?** Set the task to `blocked`, write why and what was tried, then stop or move to an independent task. Don't improvise scope that isn't in this plan. If the plan is wrong, record the proposed change in the log and ask the user.
 9. **Subagents.** Give a subagent the task ID, its Accept list and its Verify commands. Check its claims yourself (files exist, tests pass) before marking anything `done`.
+   - **Briefs only for page-sized tasks (user, 2026-11-16).** A task that builds or rebuilds a whole page, or spans backend and frontend, gets a planner-written brief (`<id>-brief.md`) and a cheaper agent to execute it. A small task (one endpoint, one component, one parser, a bug fix) gets no brief and no agent: the coordinator does it inline from this plan's Accept and Verify lists.
 10. **Keep diffs small.** A task should be one coherent change, so an interruption loses little. Split a task that grows, using IDs like `P4.3a` / `P4.3b`, and record the split in `STATUS.md`.
 
 **Git flow** (matches the repo):
@@ -86,7 +87,8 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
   - Keep `requests==2.33.1`.
   - Never add a per-module FastF1 lock; use `app/utils/fastf1_lock.py`.
 - **Running locally:**
-  - Start uvicorn with `DATABASE_URL=` and `SENTRY_DSN=` blank, because `.env` points at production Supabase.
+  - `backend/.env` holds no production credentials (user, 2026-11-16), so a plain local uvicorn uses the file store. Never put `DATABASE_URL` or `SENTRY_DSN` back in it.
+  - Production values live in the untracked `backend/.env.production`, which nothing loads by default. A script that must run against production opts in: `.venv/bin/dotenv -f .env.production run -- python -m scripts.<name>`. Only the user's production steps do this.
   - After `next dev`, delete the untracked `frontend/AGENTS.md` it writes.
 - **Accuracy rules** (`docs/DATA_SOURCES.md` §"Accuracy rules"):
   - Never infer finish status from laps or stints.
@@ -973,9 +975,10 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
 
 ## Phase P9 — Coverage completion
 
-- Cover what's left: hooks (`useChat`, `useLiveTiming` with a mock WebSocket, `useVoice`), lib, utils, chat components, LocalTime, and the root configs (`next.config.ts`, `instrumentation*`, `sentry.*`).
-- Switch the coverage include to `app/**` plus the root TypeScript files.
-- **Accept:** `npm run test:coverage` reports 100/100/100/100 per file, and CI enforces it. **PR.**
+- Cover what's left: hooks (`useChat`, `useLiveTiming` with a mock WebSocket, `useVoice`), lib, utils, chat components, LocalTime.
+- Switch the coverage include to `app/**`.
+- **Config files stay outside the gate (user, 2026-11-16):** `next.config.ts`, `instrumentation*` and `sentry.*` hold no behaviour a test can prove. The backend's 100% gate on data logic is unchanged.
+- **Accept:** `npm run test:coverage` reports 100/100/100/100 per file across `app/**`, and CI enforces it. **PR.**
 
 ---
 
@@ -992,8 +995,9 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P6 → P7 → P8 → P9`
+`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.4 → P7.3 → P6 → P7 (rest) → P8 → P9`
 
+- **Ordered by season value, not by page (user, 2026-11-16).** While race weekends are still running, work that only matters on a live weekend goes first: the clinch calculator (P5.3), the FIA ingest and live feed (D2, then P7.4) and the Command Center (P7.3). Pages about finished races and past seasons (P6, P8) and coverage (P9) lose nothing by waiting for the off-season. Inside D2, the parsers the feed needs (penalties, grids, deleted laps) come before the rest. Each PR still carries whole tasks; a phase split across PRs is fine.
 - P0c was added on 2026-11-08 as P0 (user) and runs first: P0b.1's Open-Meteo diagnosis belongs on the new host.
 - P0b was added on 2026-11-06 and runs before P3 (bugs first). P3.6 depends on P0b.3's section kit.
 - D1 runs before P3.2 (user, 2026-11-13). D1.6 needs D1.4; D1.7 needs D1.3. D1.1 and D1.2 touch different files and may run in parallel worktrees.

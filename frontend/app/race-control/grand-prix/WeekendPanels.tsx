@@ -32,14 +32,28 @@ function WeekendStakes({ year, race }: { year: number; race: RaceEvent }) {
   return <ChampionshipStakes stakes={shell.data.stakes} venue={race.location.split(",")[0]} />;
 }
 
-function WeekendBody({ year, race }: { year: number; race: RaceEvent }) {
-  const circuit = useSection<RoundCircuit>(`${API_BASE}/api/race-control/circuit/${year}/${race.round}`, {
-    config: SWR_OPTIONS,
-  });
+function useRoundCircuit(year: number, round: number) {
+  return useSection<RoundCircuit>(`${API_BASE}/api/race-control/circuit/${year}/${round}`, { config: SWR_OPTIONS });
+}
+
+/**
+ * The Weekend tab's head, drawn above the tabs in place of the one-line race
+ * header (`grand-prix.html`): the hero, then the circuit's four figures.
+ */
+export function WeekendTop({ year, race, totalRounds }: { year: number; race: RaceEvent; totalRounds: number }) {
+  const circuit = useRoundCircuit(year, race.round);
   return (
     <div className="space-y-4">
-      <WeekendHero year={year} race={race} circuit={circuit} />
+      <WeekendHero year={year} race={race} circuit={circuit} totalRounds={totalRounds} />
       <WeekendFacts record={circuit.data?.record} />
+    </div>
+  );
+}
+
+function WeekendBody({ year, race }: { year: number; race: RaceEvent }) {
+  const circuit = useRoundCircuit(year, race.round);
+  return (
+    <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
         <WeekendSchedule sessions={race.sessions ?? {}} />
         <Section state={circuit} label="Circuit history" skeletonClassName="h-[300px]" className="h-full">
@@ -53,8 +67,8 @@ function WeekendBody({ year, race }: { year: number; race: RaceEvent }) {
 }
 
 /**
- * The event itself: the next session (or the winner), the circuit, when each
- * session starts, who won here before and what is at stake.
+ * The Weekend tab below the tabs: when each session starts, who won here
+ * before and what is at stake. The hero sits above the tabs (`WeekendTop`).
  *
  * Reads the schedule and the circuit, so it renders on a weekend the
  * prediction model has never been run for.

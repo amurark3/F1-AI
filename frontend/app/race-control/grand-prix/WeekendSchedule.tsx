@@ -30,8 +30,13 @@ export function WeekendSchedule({ sessions }: { sessions: Record<string, string>
             <li key={name} className="flex items-baseline justify-between gap-4 py-2.5 text-sm">
               <span className={`font-semibold ${state === "done" ? "text-rc-ink-3" : "text-rc-ink"}`}>{name}</span>
               <span className="flex items-baseline gap-3 font-mono text-xs text-rc-ink-2">
-                <LocalTime value={startsAt} style="day" fallback="date TBC" />
-                <LocalTime value={startsAt} style="time" fallback="time TBC" />
+                {/* Spans: LocalTime is bare text, and two text runs merge into one flex item with no gap. */}
+                <span>
+                  <LocalTime value={startsAt} style="day" fallback="date TBC" />
+                </span>
+                <span>
+                  <LocalTime value={startsAt} style="time" fallback="time TBC" />
+                </span>
                 <span className={`w-10 text-right text-[10px] uppercase tracking-[0.14em] ${STATE_TONE[state]}`}>
                   {STATE_WORD[state]}
                 </span>

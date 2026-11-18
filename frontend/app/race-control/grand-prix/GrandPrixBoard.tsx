@@ -17,7 +17,7 @@ import { PredictionSection } from "./PredictionSection";
 import { ResultsTab } from "./ResultsTab";
 import { SessionsTab } from "./SessionsTab";
 import { StintChart } from "./StintChart";
-import { WeekendPanel } from "./WeekendPanels";
+import { WeekendPanel, WeekendTop } from "./WeekendPanels";
 
 import type { StartingGridResponse } from "./gridModel";
 import type {
@@ -169,7 +169,11 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         onSelectRound={props.onSelectRound}
       />
 
-      <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />
+      {activeTab === "weekend" && props.selectedRace ? (
+        <WeekendTop year={props.year} race={props.selectedRace} totalRounds={props.schedule.length} />
+      ) : (
+        <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />
+      )}
 
       <Tabs
         items={HUB_TABS}

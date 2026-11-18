@@ -12,9 +12,11 @@ import { TeamName } from "@/app/ui/names/TeamName";
 import { nextUp } from "@/app/ui/nextUp";
 import { Section } from "@/app/ui/section/Section";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
-import { EYEBROW } from "@/app/ui/typography";
+import { DISPLAY, EYEBROW } from "@/app/ui/typography";
 import { useClock } from "@/app/ui/useClock";
 
+import { STATUS_LABELS } from "./HubHeader";
+import { StateTag, type StateTone } from "./StateTag";
 import { raceWinner, type RoundCircuit } from "./weekendTabModel";
 
 import type { RaceEvent } from "./predictionModel";
@@ -86,7 +88,7 @@ function MapFigure({ circuit, name }: { circuit: RoundCircuit | undefined; name:
     );
   }
   return (
-    <figure className="flex h-full flex-col">
+    <figure className="flex h-full flex-col rounded-md border border-rc-line bg-rc-hero p-5 sm:p-[22px]">
       <div className="min-h-[240px] flex-1">
         <CircuitMap map={circuit.map} name={name} />
       </div>
@@ -97,25 +99,56 @@ function MapFigure({ circuit, name }: { circuit: RoundCircuit | undefined; name:
   );
 }
 
+const STATUS_TONES: Record<string, StateTone> = { upcoming: "blue", in_progress: "red", live: "red" };
+
+/** "Las Vegas, United States" → city and country; the calendar may carry the city alone. */
+function placeParts(location: string): { city: string; country: string | null } {
+  const [city, ...rest] = location.split(", ");
+  return { city, country: rest.length > 0 ? rest.join(", ") : null };
+}
+
 /**
- * The weekend's hero band: what is next (or who won) beside the circuit.
- * Once the race is classified the countdown gives way to the winner and a
+ * The Weekend tab's hero (`grand-prix.html`), above the tabs: the round, the
+ * race in display type, the circuit, and what is next (or who won) beside the
+ * map. Once the race is classified the countdown gives way to the winner and a
  * link to Results; the tab does not print results itself.
  */
 export function WeekendHero({
   year,
   race,
   circuit,
+  totalRounds,
 }: {
   year: number;
   race: RaceEvent;
   circuit: SectionResult<RoundCircuit>;
+  totalRounds: number;
 }) {
-  const name = circuit.data?.record?.name ?? race.circuit?.circuit_name ?? race.location;
+  const { city, country } = placeParts(race.location);
+  const name = circuit.data?.record?.name ?? race.circuit?.circuit_name ?? city;
   return (
-    <section className="grid gap-6 rounded-md border border-rc-line bg-rc-hero p-5 sm:p-7 lg:grid-cols-[5fr_6fr]">
-      <div className="flex flex-col justify-between gap-6">
-        <p className={EYEBROW}>{name}</p>
+    <section className="grid gap-8 lg:grid-cols-[5fr_6fr]">
+      <div className="flex flex-col justify-between gap-9">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className={EYEBROW}>
+              Round {race.round} / {totalRounds}
+              {country ? ` · ${country}` : ""}
+            </p>
+            <StateTag tone={STATUS_TONES[race.status] ?? "neutral"}>
+              {STATUS_LABELS[race.status] ?? race.status}
+            </StateTag>
+          </div>
+          {/* A no-break space keeps "Grand Prix" on one line when the name wraps. */}
+          <h1 className={`${DISPLAY} mt-3.5 text-[clamp(48px,5.6vw,84px)] text-rc-ink`}>
+            {race.name.replace(" Prix", "\u00a0Prix")}
+          </h1>
+          <div aria-hidden="true" className="my-[22px] h-[3px] w-24 origin-left bg-f1-red motion-safe:animate-fill-x" />
+          <p className="text-[15px] text-rc-ink-2">
+            {name}
+            {name === city ? "" : ` · ${city}`}
+          </p>
+        </div>
         {race.status === "completed" ? (
           <Winner year={year} round={race.round} />
         ) : (

@@ -54,7 +54,8 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl): GrandPrixBoard
     drivers: season.drivers,
     driversError: season.driversFailed,
     onSelectRound: (round) => {
-      url.update({ round });
+      // A new round starts over on Weekend; a tab carried across rounds was the inconsistency.
+      url.update({ round, tab: null, view: null });
       clearComputeError();
     },
     onReloadSchedule: season.reloadSchedule,

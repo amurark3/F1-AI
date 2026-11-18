@@ -8,8 +8,6 @@
 
 import type { GrandPrixTab } from "@/app/lib/entityLinks";
 
-import { isLiveRace, qualifyingHasRun } from "./predictionHelpers";
-
 import type { RaceEvent } from "./predictionModel";
 
 export type HubTab = GrandPrixTab;
@@ -61,26 +59,6 @@ export function hubQuery(selection: HubSelection): string {
   if (selection.tab !== null) query.set("tab", selection.tab);
   if (selection.view !== null) query.set("view", selection.view);
   return query.toString();
-}
-
-function anySessionStarted(race: RaceEvent, now: number): boolean {
-  return Object.values(race.sessions ?? {}).some((value) => {
-    const start = new Date(value).getTime();
-    return !Number.isNaN(start) && start <= now;
-  });
-}
-
-/**
- * The section a round opens on when the URL names none: wherever the weekend
- * has got to. Read from the calendar, not from what has loaded, so the tab
- * does not jump as each section's data arrives.
- */
-export function defaultHubTab(race: RaceEvent | null, now: number = Date.now()): HubTab {
-  if (!race) return "weekend";
-  if (race.status === "completed") return "results";
-  if (qualifyingHasRun(race, now)) return "grid";
-  if (isLiveRace(race.status) || anySessionStarted(race, now)) return "sessions";
-  return "weekend";
 }
 
 /** After the race, the prediction opens on how it scored; before, on the call itself. */

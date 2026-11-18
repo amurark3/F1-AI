@@ -31,9 +31,15 @@ test("?tab=results shows the classification, and a retirement reads DNF, never a
   ]);
 });
 
-test("a finished round with no ?tab= opens on Results", async ({ page }) => {
+test("every round opens on Weekend, a finished one too, and changing round starts over there", async ({ page }) => {
   await page.goto("/race-control/grand-prix?round=19");
 
-  await expect(page.getByRole("tab", { name: "Results", selected: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Weekend", selected: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Mexico City Grand/ })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Results" }).click();
   await expect(page.getByRole("heading", { name: /Verstappen wins/ })).toBeVisible();
+  await page.getByRole("button", { name: "Previous round" }).click();
+  await expect(page).toHaveURL(/round=18$/);
+  await expect(page.getByRole("tab", { name: "Weekend", selected: true })).toBeVisible();
 });

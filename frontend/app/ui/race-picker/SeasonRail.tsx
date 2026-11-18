@@ -11,7 +11,8 @@ const BAR: Record<TickState, string> = {
   awaiting: "h-[22px] w-1.5 border border-rc-ink-3",
   upcoming: "h-3 w-1.5 bg-rc-dim",
 };
-const SELECTED_BAR = "h-[38px] w-[7px] bg-f1-red";
+/** Taller, never recoloured: a won round keeps its team's colour, any other reads white. Red would read as Ferrari. */
+const SELECTED_BAR = "h-[38px] w-[7px]";
 const TIP_ALIGN = { start: "translate-x-0", center: "-translate-x-1/2", end: "-translate-x-full" } as const;
 /** Below this distance along the rail the selected round's label would sit on the key, so the key moves right. */
 const KEY_SPAN = 25;
@@ -30,8 +31,8 @@ function Tick({ tick, index, id, selected }: { tick: RailTick; index: number; id
       className="absolute bottom-0 flex h-full w-3.5 -translate-x-1/2 cursor-pointer items-end justify-center"
     >
       <span
-        className={`rounded-[1px] ${selected ? SELECTED_BAR : BAR[tick.state]}`}
-        style={tick.color !== null && !selected ? { backgroundColor: tick.color } : undefined}
+        className={`rounded-[1px] ${selected ? `${SELECTED_BAR} ${tick.color === null ? "bg-rc-ink" : ""}` : BAR[tick.state]}`}
+        style={tick.color === null ? undefined : { backgroundColor: tick.color }}
       />
     </span>
   );
@@ -94,7 +95,7 @@ export function SeasonRail({ rail, year, selected, onSelect }: SeasonRailProps) 
         <span
           aria-hidden="true"
           style={{ left: `${current.left}%` }}
-          className="absolute -top-0.5 -translate-x-1/2 font-mono text-[10px] font-semibold leading-none tracking-[0.1em] text-rc-red-text"
+          className="absolute -top-0.5 -translate-x-1/2 font-mono text-[10px] font-semibold leading-none tracking-[0.1em] text-rc-ink"
         >
           R{current.race.round}
         </span>

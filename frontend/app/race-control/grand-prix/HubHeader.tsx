@@ -8,7 +8,7 @@ import { raceSessionTime } from "./predictionHelpers";
 
 import type { RaceEvent } from "./predictionModel";
 
-const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
   upcoming: "Upcoming",
   in_progress: "Race weekend",

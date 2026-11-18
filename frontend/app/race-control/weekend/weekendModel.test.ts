@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { rc } from "@/app/ui/tokens";
 import { SAO_PAULO_2026, SESSION_WEATHER_2026, STAKES_2026 } from "@/test/fixtures";
 
 import {
-  ambienceFor,
   clinchLine,
   compassPoint,
   formatPoints,
@@ -30,18 +30,18 @@ function tableOf(stakes: TableStakes | null): TableStakes {
 const SAO_PAULO_ROWS = SAO_PAULO_2026.weather.sessions;
 
 describe("rainColor", () => {
-  it("bands São Paulo's captured rain chances as dry, mixed and likely wet", () => {
-    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Practice 1").rain_probability_pct)).toBe("#00FF78");
-    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Race").rain_probability_pct)).toBe("#FFF200");
-    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Qualifying").rain_probability_pct)).toBe("#4C8DFF");
+  it("bands São Paulo's captured rain chances into the four tokens: dry, mixed and likely wet", () => {
+    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Practice 1").rain_probability_pct)).toBe(rc.ink3);
+    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Race").rain_probability_pct)).toBe(rc.ink2);
+    expect(rainColor(forecastOf(SAO_PAULO_ROWS, "Qualifying").rain_probability_pct)).toBe(rc.blue);
   });
 
-  it("starts the mixed band at 20% and the wet band at 50%", () => {
-    expect([19, 20, 49, 50].map(rainColor)).toEqual(["#00FF78", "#FFF200", "#FFF200", "#4C8DFF"]);
+  it("starts the mid band at 20% and the wet band at 50%", () => {
+    expect([19, 20, 49, 50].map(rainColor)).toEqual([rc.ink3, rc.ink2, rc.ink2, rc.blue]);
   });
 
   it("greys out a session with no rain reading", () => {
-    expect(rainColor(SESSION_WEATHER_2026.blankHour.rain_probability_pct)).toBe("#3A4254");
+    expect(rainColor(SESSION_WEATHER_2026.blankHour.rain_probability_pct)).toBe(rc.dim);
   });
 });
 
@@ -58,32 +58,6 @@ describe("compassPoint", () => {
   it("has no point for a missing or unreadable bearing", () => {
     expect(compassPoint(SESSION_WEATHER_2026.blankHour.wind_direction_deg)).toBeNull();
     expect(compassPoint(Number.NaN)).toBeNull();
-  });
-});
-
-describe("ambienceFor", () => {
-  it.each([
-    ["clear", true, "sun"],
-    ["partly_cloudy", null, "sun"],
-    ["clear", false, "night"],
-    ["partly_cloudy", false, "night"],
-    ["cloudy", false, "cloud"],
-    ["fog", true, "cloud"],
-    ["drizzle", true, "rain"],
-    ["rain", null, "rain"],
-    ["storm", true, "storm"],
-    ["snow", true, "snow"],
-    ["unknown", null, "none"],
-  ] as const)("gives %s (day: %s) the %s backdrop", (condition, isDay, ambience) => {
-    expect(ambienceFor(condition, isDay)).toBe(ambience);
-  });
-
-  it("reads Singapore's evening sessions as night only under a clear sky", () => {
-    const rows = SESSION_WEATHER_2026.singaporeDone.sessions;
-    const sprintQualifying = forecastOf(rows, "Sprint Qualifying");
-    const race = forecastOf(rows, "Race");
-    expect(ambienceFor(sprintQualifying.condition, sprintQualifying.is_day)).toBe("night");
-    expect(ambienceFor(race.condition, race.is_day)).toBe("cloud");
   });
 });
 

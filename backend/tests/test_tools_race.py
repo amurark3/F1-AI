@@ -159,7 +159,7 @@ def test_the_classification_is_f1dbs_and_says_it_is_final(mexico_race):
     table = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
 
     lines = table.splitlines()
-    assert lines[:2] == ["### Race Classification: Mexico 2026", "*(Source: f1db, the FIA final classification)*"]
+    assert lines[:2] == ["### Race Classification: Mexico 2026", "*(Source: the FIA final classification)*"]
     assert _row(table, "VER") == "| 🏆 1 | Max Verstappen (VER) | Red Bull | 3 | ⬆️2 | 2:20:28.772 | 25 |"
     assert _row(table, "HAM") == "| 2 | Lewis Hamilton (HAM) | Ferrari | 1 | ⬇️1 | +0.799 | 18 |"
 

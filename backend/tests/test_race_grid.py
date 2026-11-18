@@ -29,6 +29,7 @@ from app.services.race_grid import (
     SOURCE_QUALIFYING,
     build_starting_grid,
 )
+from tests.fia_documents_support import MEXICO_2026, held, hold
 from tests.sao_paulo_2026_support import add_camara_to_f1db, r20_openf1_qualifying
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -95,6 +96,69 @@ def test_clean_round_reports_no_penalties_and_no_warning(sources):
 
     assert payload["penalties"] == []
     assert payload["warnings"] == []
+
+
+def test_the_fia_grid_attaches_each_cars_rulings_to_f1dbs_sheet(sources, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+    sources["official"] = (slot("GAS", 9, 9), slot("VER", 5, 4, penalty_positions=1))
+
+    payload = build_starting_grid(2026, 19)
+
+    rows = {row["driver_code"]: row for row in payload["grid"]}
+    assert rows["VER"]["reasons"] == [
+        {"ruling": "1 place grid penalty", "reason": "Causing a collision", "document": 33}
+    ]
+    assert rows["GAS"]["reasons"] == []
+    assert (payload["source"], payload["fia_document"]["number"]) == (SOURCE_OFFICIAL_GRID, 67)
+    # The offence is known, so the "f1db has no offence" note goes.
+    assert payload["warnings"] == []
+
+
+def test_before_f1db_the_fia_final_grid_answers_with_every_reason(sources, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+
+    payload = build_starting_grid(2026, 19)
+
+    assert (payload["source"], payload["provisional"], payload["warnings"]) == (race_grid.SOURCE_FIA_GRID, False, [])
+    assert payload["fia_document"] == {
+        "number": 67,
+        "final": True,
+        "url": MEXICO_2026["Doc 67 - Final Starting Grid"]["url"],
+    }
+    assert [row["driver_code"] for row in payload["grid"][:5]] == ["HAM", "RUS", "LEC", "ANT", "VER"]
+    assert len(payload["grid"]) == 22
+    penalties = {row["driver_code"]: row for row in payload["penalties"]}
+    assert list(penalties) == ["VER", "BOT", "LAW"]
+    facts = ("position", "qualifying_position", "penalty_positions", "places_lost", "pit_lane")
+    assert [tuple(penalties[code][fact] for fact in facts) for code in penalties] == [
+        (5, 4, 1, 1, False),
+        # Last of the 21 who qualified: fifty places cost nothing.
+        (21, 21, 50, 0, False),
+        # Disqualified from qualifying, then sent to the pit lane.
+        (None, None, 1, None, True),
+    ]
+    assert [reason["document"] for reason in penalties["LAW"]["reasons"]] == [58, 34, 65]
+    assert penalties["BOT"]["reasons"][0]["reason"] == "Additional power unit elements have been used"
+
+
+def test_a_provisional_fia_grid_is_labelled_provisional(sources, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path, [held(title) for title in MEXICO_2026 if title != "Doc 67 - Final Starting Grid"])
+
+    payload = build_starting_grid(2026, 19)
+
+    assert (payload["source"], payload["provisional"]) == (race_grid.SOURCE_FIA_GRID, True)
+    assert payload["warnings"] == [race_grid.FIA_PROVISIONAL_WARNING]
+    lawson = payload["grid"][-1]
+    # Before the parc fermé decision, Lawson still held slot 22.
+    assert (lawson["driver_code"], lawson["position"], lawson["pit_lane"]) == ("LAW", 22, False)
+
+
+def test_an_fia_grid_without_its_qualifying_classification_knows_no_places_lost(sources, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path, [held("Doc 67 - Final Starting Grid"), held("Doc 37 - Revised Entry List")])
+
+    rows = {row["driver_code"]: row for row in build_starting_grid(2026, 19)["grid"]}
+
+    assert (rows["VER"]["qualifying_position"], rows["VER"]["places_lost"]) == (None, None)
 
 
 def test_qualifying_stands_in_before_the_grid_sheet_is_published(sources):

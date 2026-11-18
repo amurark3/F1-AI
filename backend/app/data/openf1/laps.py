@@ -6,7 +6,8 @@ leaves the start of a race's first lap undated and the time of an in- or
 out-lap blank, so both are optional.
 
 OpenF1 has no flag for a deleted lap. ``deleted`` is set from race control's
-messages by :mod:`app.data.openf1.race_control`.
+messages by :mod:`app.data.openf1.race_control` and from the FIA's deleted-lap
+sheets by :mod:`app.data.openf1.session_laps`.
 """
 
 from __future__ import annotations

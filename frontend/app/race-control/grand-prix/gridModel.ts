@@ -8,7 +8,21 @@
  */
 
 /** Which source answered, and therefore what the panel may claim. */
-export type GridSource = "official_grid" | "qualifying_classification" | "unavailable";
+export type GridSource = "official_grid" | "fia_starting_grid" | "qualifying_classification" | "unavailable";
+
+/** One FIA ruling on a car's grid slot: what was decided, why, and the stewards' document behind it. */
+export interface GridReason {
+  ruling: string;
+  reason: string | null;
+  document: number | null;
+}
+
+/** The FIA starting grid the order or the reasons were read from. */
+export interface FiaGridDocument {
+  number: number | null;
+  final: boolean;
+  url: string;
+}
 
 export interface GridSlot {
   driver_code: string;
@@ -33,6 +47,8 @@ export interface GridSlot {
    * "held position".
    */
   places_lost: number | null;
+  /** The FIA's rulings on this car, notes first; empty or absent when the FIA grid is not held. */
+  reasons?: GridReason[];
   /**
    * True when no source could give this qualifier a driver code: the slot
    * keeps its place with `driver_code` empty. Nothing may be matched to it.
@@ -46,13 +62,15 @@ export interface StartingGridResponse {
   /** False before qualifying has run: there is no grid and no stand-in for one. */
   available: boolean;
   /**
-   * True when the order is the qualifying classification rather than the
-   * published grid sheet, so no penalty has been applied to it.
+   * True when the order can still change: the qualifying classification standing in
+   * for the grid (no penalty applied to it), or the FIA's provisional starting grid.
    */
   provisional: boolean;
   source: GridSource;
   /** Which feed a provisional order came from ("jolpica-qualifying"); absent on an official grid. */
   source_detail?: string;
+  /** The FIA starting grid read for this round, or null when the store holds none. */
+  fia_document?: FiaGridDocument | null;
   grid: GridSlot[];
   /** The subset of `grid` carrying a sanction. */
   penalties: GridSlot[];

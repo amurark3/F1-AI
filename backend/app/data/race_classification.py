@@ -7,16 +7,16 @@ no stop after it looked like the last one of a finished race.
 
 **Where it comes from, in order** (``docs/DATA_SOURCES.md``, "Source of truth"):
 
-1. OpenF1 ``session_result``. Published minutes after the flag, with ``dnf``,
+1. The FIA final classification (:mod:`app.data.fia_documents.results`), the
+   authority, once its document is in the store: about an hour after the flag.
+2. OpenF1 ``session_result``. Published minutes after the flag, with ``dnf``,
    ``dns`` and ``dsq`` flags and laps completed per car. On the morning after
    Mexico 2026 it matched FIA document 86, the final classification, including
    the post-race penalties.
-2. Jolpica's results, through :mod:`app.data.jolpica`. It applies post-race
+3. Jolpica's results, through :mod:`app.data.jolpica`. It applies post-race
    penalties late (it still had Piastri 7th that morning), so it only answers
    when OpenF1 cannot: while a live session locks OpenF1, or for a race OpenF1
    does not cover.
-
-The FIA final classification takes over as the authority in task D2.3.
 
 A result can change after it is first published, as penalties land, so an
 answer is kept for :data:`CLASSIFICATION_TTL_SECONDS` and then read again. No
@@ -27,16 +27,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import math
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import structlog
 
 from app.data.canonical_names import F1DB_READ_ERRORS
 from app.data.f1db_race_results import result_rows
+from app.data.fia_documents.results import FIA_FINAL_SOURCE, FinalClassification, final_classification
 from app.data.jolpica import JolpicaUnavailableError, race_results as jolpica_results
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.openf1.sessions import EntryDriver, entry_list, find_session, session_ended
 from app.utils.ttl_cache import TtlCache
+
+if TYPE_CHECKING:
+    from app.data.fia_documents.parsers.classifications import ClassifiedEntry
 
 logger = structlog.get_logger()
 
@@ -110,6 +114,30 @@ def openf1_status(row: dict) -> ClassificationStatus:
     if row.get("dnf"):
         return "dnf"
     return "finished" if row.get("position") is not None else "not_classified"
+
+
+def fia_status(entry: ClassifiedEntry) -> ClassificationStatus:
+    """An FIA classification row's status; a car that retired reads ``dnf``, classified or not."""
+    if entry.status == "disqualified":
+        return "dsq"
+    if entry.status == "did_not_start":
+        return "dns"
+    if entry.reason == "DNF":
+        return "dnf"
+    return "finished" if entry.status == "classified" else "not_classified"
+
+
+def classification_from_fia(year: int, final: FinalClassification) -> tuple[ClassifiedDriver, ...]:
+    """The FIA final classification's rows, in the FIA's order. A car f1db cannot name keeps its number."""
+    return tuple(
+        ClassifiedDriver(
+            driver_code=final.driver(year, entry.car, entry.driver).code or str(entry.car),
+            position=entry.position,
+            status=fia_status(entry),
+            laps_completed=entry.laps,
+        )
+        for entry in final.classification.entries
+    )
 
 
 def _published_order(driver: ClassifiedDriver) -> tuple[bool, int, bool, int]:
@@ -220,6 +248,16 @@ def _with_reasons(year: int, round_num: int, drivers: tuple[ClassifiedDriver, ..
     return tuple(replace(driver, reason=reasons.get(driver.driver_code)) for driver in drivers)
 
 
+def _first_published(year: int, round_num: int) -> tuple[str, tuple[ClassifiedDriver, ...]]:
+    final = final_classification(year, round_num, "race")
+    if final is not None:
+        return FIA_FINAL_SOURCE, classification_from_fia(year, final)
+    drivers = _openf1_classification(year, round_num)
+    if drivers:
+        return OPENF1_SOURCE, drivers
+    return JOLPICA_SOURCE, _jolpica_classification(year, round_num)
+
+
 def race_classification(year: int, round_num: int) -> RaceClassification:
     """The race's classification, from the first source that publishes one.
 
@@ -232,11 +270,7 @@ def race_classification(year: int, round_num: int) -> RaceClassification:
     if cached is not None:
         return cached
 
-    drivers = _openf1_classification(year, round_num)
-    source = OPENF1_SOURCE
-    if not drivers:
-        drivers = _jolpica_classification(year, round_num)
-        source = JOLPICA_SOURCE
+    source, drivers = _first_published(year, round_num)
     result = (
         RaceClassification(source=source, drivers=_with_reasons(year, round_num, drivers))
         if drivers

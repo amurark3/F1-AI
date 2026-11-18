@@ -33,16 +33,19 @@ export function Disclosure({
     <details
       open={defaultOpen}
       onToggle={(event) => onOpenChange?.(event.currentTarget.open)}
-      className={`group min-w-0 overflow-hidden rounded-md border border-[#1E2633] bg-[#0D111B] ${className}`}
+      className={`group min-w-0 overflow-hidden rounded-md border border-rc-line bg-(--surface) ${className}`}
     >
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 bg-[#101520] px-4 py-2 focus-visible:-outline-offset-2 [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-[#B7BDCA]">
-          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" aria-hidden="true" />
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-5 py-2 focus-visible:-outline-offset-2 [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-rc-ink-2">
+          <ChevronRight
+            className="h-3.5 w-3.5 text-rc-ink-3 transition-transform group-open:rotate-90"
+            aria-hidden="true"
+          />
           {title}
         </span>
-        {hint && <span className="text-xs text-[#6F7789]">{hint}</span>}
+        {hint && <span className="text-xs text-rc-ink-3">{hint}</span>}
       </summary>
-      <div className="border-t border-[#1E2633] p-4">{children}</div>
+      <div className="border-t border-rc-line px-5 py-1">{children}</div>
     </details>
   );
 }

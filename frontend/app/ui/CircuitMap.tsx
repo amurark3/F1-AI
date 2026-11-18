@@ -13,7 +13,7 @@ import {
   outlinePath,
   type CircuitMapData,
 } from "./outlinePath";
-import { f1, rc } from "./tokens";
+import { f1, font, rc } from "./tokens";
 
 /** Seconds the marker takes to lap the outline. */
 const LAP_SECONDS = 9;
@@ -111,7 +111,7 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
         </g>
       )}
 
-      <g fontFamily="var(--font-geist-mono, monospace)" fontWeight={700} fontSize={fontSize} textAnchor="middle">
+      <g fontFamily={font.mono} fontWeight={600} fontSize={fontSize} textAnchor="middle">
         {labels.map((corner, index) => (
           <g
             key={corner.label}

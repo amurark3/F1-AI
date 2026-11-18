@@ -20,6 +20,7 @@ from app.data import standings_rounds
 from app.data.current_standings import current_standings
 from app.data.f1db_calendar import CalendarUnavailableError
 from app.data.openf1.sessions import OpenF1Session
+from tests.fia_documents_support import hold
 from tests.roster_support import MEXICO, MEXICO_QUALIFYING, MEXICO_RACE, drivers_route, load, mexico_drivers, weekend
 from tests.standings_support import MEXICO_ROUND, Feeds, mexico_feeds, route_error
 
@@ -95,6 +96,32 @@ def test_every_round_past_f1db_counts_in_order_until_one_has_not_run(feeds):
     assert standings.as_of_round == 20
     assert {row.key: row.points for row in standings.drivers}["VER"] == 286
     assert [source["round"] for source in standings.sources if source["role"] == "points"] == [19, 20]
+
+
+def test_the_fia_final_classification_scores_a_round_before_openf1_publishes(feeds, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+    feeds.routes["session_result"] = []
+
+    standings = current_standings(2026)
+
+    assert (standings.as_of_round, standings.provisional) == (19, True)
+    by_code = {row.key: row.points for row in standings.drivers}
+    assert (by_code["VER"], by_code["HIR"]) == (261, 1)
+    points = [source for source in standings.sources if source["role"] == "points"]
+    assert points == [{"source": "fia-final-classification", "role": "points", "round": 19, "sessions": ["R"]}]
+    assert "session_result" not in feeds.fakes[0].paths()
+
+
+def test_a_sprint_without_its_fia_final_classification_scores_from_openf1(feeds, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+    feeds.weekends[MEXICO_ROUND] = (*weekend(MEXICO), sprint_session())
+    sprint = [{"driver_number": 3, "position": 1, "points": 8.0}]
+    feeds.routes["session_result"] = results_by_session({SPRINT_KEY: sprint})
+
+    standings = current_standings(2026)
+
+    assert {row.key: row.points for row in standings.drivers}["VER"] == 269
+    assert standings.sources[1]["source"] == "openf1-session-result"
 
 
 def test_a_round_whose_race_has_not_ended_is_not_counted(feeds):

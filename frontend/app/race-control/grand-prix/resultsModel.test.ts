@@ -75,6 +75,17 @@ describe("provenanceNote", () => {
     );
   });
 
+  it("names the FIA's document when the classification is read from it", () => {
+    const fromFia: SessionResult = {
+      ...MEXICO,
+      sources: [{ source: "fia-final-classification", role: "classification", document: 86 }],
+    };
+    expect(provenanceNote(fromFia)).toBe("Classification: FIA final classification, document 86 · final");
+    expect(
+      provenanceNote({ ...fromFia, sources: [{ source: "fia-final-classification", role: "classification" }] }),
+    ).toBe("Classification: FIA final classification · final");
+  });
+
   it("says provisional until the FIA's final lands, and prints a source it does not know as sent", () => {
     const provisional: SessionResult = {
       ...MEXICO,

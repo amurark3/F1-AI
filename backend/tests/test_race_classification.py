@@ -14,21 +14,25 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
 
 from app.data import race_classification as module
 from app.data.f1db_calendar import CalendarUnavailableError
+from app.data.fia_documents.results import FIA_FINAL_SOURCE
 from app.data.jolpica import JolpicaUnavailableError
 from app.data.race_classification import (
     ClassifiedDriver,
     RaceClassification,
     classification_from_jolpica,
     classification_from_openf1,
+    fia_status,
     race_classification,
 )
 from app.utils.ttl_cache import TtlCache
+from tests.fia_documents_support import hold
 from tests.openf1_support import make_session, serve
 
 pytestmark = pytest.mark.unit
@@ -271,6 +275,34 @@ def test_openf1_answers_first(sources):
     assert result.source == module.OPENF1_SOURCE
     assert result.drivers[6].driver_code == "LAW"
     assert sources["jolpica_calls"] == 0
+
+
+def test_the_fia_final_classification_answers_before_openf1(sources, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+
+    result = race_classification(2026, 19)
+
+    assert result.source == FIA_FINAL_SOURCE
+    assert [driver.driver_code for driver in result.drivers[6:10]] == ["LAW", "BOR", "HAD", "HIR"]
+    assert by_code(result.drivers)["PIA"].position == 13
+    lindblad = by_code(result.drivers)["LIN"]
+    assert (lindblad.position, lindblad.status, lindblad.laps_completed) == (None, "dnf", 58)
+    assert sources["openf1"].paths() == []
+
+
+@pytest.mark.parametrize(
+    ("status", "reason", "expected"),
+    [
+        ("classified", None, "finished"),
+        ("classified", "DNF", "dnf"),
+        ("not_classified", "DNF", "dnf"),
+        ("not_classified", None, "not_classified"),
+        ("disqualified", None, "dsq"),
+        ("did_not_start", None, "dns"),
+    ],
+)
+def test_each_fia_status_reads_as_its_status(status, reason, expected):
+    assert fia_status(SimpleNamespace(status=status, reason=reason)) == expected
 
 
 def test_jolpica_answers_when_openf1_has_no_result(sources):

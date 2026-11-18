@@ -1,7 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { rc } from "@/app/ui/tokens";
 import { STRATEGY_2026 } from "@/test/fixtures";
 
 import { compoundColor } from "../grand-prix/tyreCompounds";
@@ -19,14 +18,13 @@ function present<T>(value: T | null | undefined, what: string): T {
 /** The confidence pill beside the plan's title. */
 function confidencePill(): HTMLElement {
   const heading = screen.getByRole("heading", { name: "Base race plan" });
-  return present(heading.parentElement?.nextElementSibling as HTMLElement | null, "confidence pill");
+  return present(heading.parentElement?.nextElementSibling?.firstElementChild as HTMLElement | null, "confidence tag");
 }
 
 /** A measured figure as [value, detail], found by its label. */
 function stat(label: string): [string | null | undefined, string | null | undefined] {
-  const card = present(screen.getByText(label).closest("div.rounded-lg"), `${label} stat`);
-  const lines = card.querySelectorAll("p");
-  return [lines[1]?.textContent, lines[2]?.textContent];
+  const card = present(screen.getByText(label).parentElement, `${label} stat`);
+  return [card.querySelector("p.font-display")?.textContent, card.querySelector("p.mt-1")?.textContent];
 }
 
 /** Where the stint bar puts a lap, as the share of the race the panel draws. */
@@ -43,17 +41,16 @@ describe("BaselineStrategyPanel", () => {
     render(<BaselineStrategyPanel context={SAO_PAULO} />);
 
     expect(confidencePill()).toHaveTextContent("medium confidence");
-    expect(confidencePill()).toHaveStyle({ color: rc.ink2 });
+    expect(confidencePill()).toHaveClass("text-rc-ink-3");
     expect(screen.getByText("17 finishers · 2025 edition · previous regulations")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Medium–Soft–Medium two-stop: 5 of 17 finishers ran it at the 2025 São Paulo Grand Prix (previous regulations), the winner among them. Soft–Medium–Medium two-stop was as common. 13 of 17 finishers stopped twice. First stops: median L21, middle half L17–L30.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("2025 São Paulo Grand Prix · previous regulations · 17 finishers")).toBeInTheDocument();
-    expect(
-      screen.getByText("OpenF1 stints · Jolpica pit stops · OpenF1 classification · OpenF1 pit-lane times"),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^2025 São Paulo Grand Prix · previous regulations · 17 finishers/)).toHaveTextContent(
+      "OpenF1 stints · Jolpica pit stops · OpenF1 classification · OpenF1 pit-lane times",
+    );
     // No wet race on the 3 Nov forecast (21%), so no rain note.
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
   });
@@ -104,7 +101,7 @@ describe("BaselineStrategyPanel", () => {
     const { container } = render(<BaselineStrategyPanel context={STRATEGY_2026.madringNoEdition} />);
 
     expect(confidencePill()).toHaveTextContent("no plan");
-    expect(confidencePill()).toHaveStyle({ color: rc.ink3 });
+    expect(confidencePill()).toHaveClass("text-rc-ink-3");
     expect(screen.getByText(/^No baseline plan: this circuit has no completed race since 2023/)).toBeInTheDocument();
     expect(container.querySelector("[data-stint]")).not.toBeInTheDocument();
     expect(screen.queryByText("Pit lane")).not.toBeInTheDocument();
@@ -128,7 +125,7 @@ describe("BaselineStrategyPanel", () => {
         event_name: null,
         previous_regulations: false,
         sample_size: null,
-        sources: [],
+        sources: undefined,
       },
       plan: { ...SAO_PAULO_PLAN, total_laps: 0, stints: [] },
       alternatives: undefined,
@@ -138,7 +135,7 @@ describe("BaselineStrategyPanel", () => {
     };
     const { container } = render(<BaselineStrategyPanel context={thin} />);
 
-    expect(confidencePill()).toHaveStyle({ color: rc.blue });
+    expect(confidencePill()).toHaveClass("text-rc-blue", "border-rc-blue");
     expect(screen.getByText("2025 edition · 0 finishers")).toBeInTheDocument();
     // A set changed under a red flag leaves no stop lap to draw the sequence on.
     expect(container.querySelector("[data-stint]")).not.toBeInTheDocument();

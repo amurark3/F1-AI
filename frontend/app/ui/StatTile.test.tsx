@@ -15,6 +15,12 @@ function MercedesRow() {
 }
 
 describe("StatTile", () => {
+  it("sets the label's id when given one, so a wrapper can be named by it", () => {
+    render(<StatTile label="Lap" value="4.309" labelId="lap-label" />);
+
+    expect(screen.getByText("Lap")).toHaveAttribute("id", "lap-label");
+  });
+
   it("shows a label, the figure in display type, its unit and a caption", () => {
     render(<StatTile label="Lap" value="4.309" unit="km" sub="Interlagos" className="p-4" />);
 

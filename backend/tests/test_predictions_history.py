@@ -20,13 +20,14 @@ boundary — the namespace these functions resolve the names in.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 
 import pytest
 
+from app.data.fia_documents.results import FIA_FINAL_SOURCE
 from app.data.predictions import history as history_module
 from app.data.predictions.history import (
     ACTUAL_RESULT_RETRY_SECONDS,
@@ -599,6 +600,22 @@ def test_a_read_a_day_later_that_differs_replaces_the_result_and_it_stays_provis
         True,
     )
     assert entry["predicted_positions"] == graded_before
+
+
+@pytest.mark.unit
+def test_a_result_read_from_the_fia_final_classification_is_final_at_once(store, feed):
+    save_prediction(YEAR, ROUND, _predictions())
+    feed(replace(_r19_openf1(), source=FIA_FINAL_SOURCE))
+
+    record_actual_result(YEAR, ROUND)
+
+    entry = store.document[KEY]
+    assert (entry["actual_positions"]["PIA"], entry["actual_source"], entry["actual_provisional"]) == (
+        13,
+        FIA_FINAL_SOURCE,
+        False,
+    )
+    assert actuals_pending(entry) is False
 
 
 @pytest.mark.unit

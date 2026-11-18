@@ -91,6 +91,12 @@ describe("DriverName", () => {
     expect(code.parentElement).toHaveAttribute("title", "Carlos Sainz Jr.");
   });
 
+  it("prints a code that is also the whole name once", () => {
+    renderWithProviders(<DriverName variant="codeLast" name="VER" code="VER" year={2023} />);
+
+    expect(screen.getAllByText("VER")).toHaveLength(1);
+  });
+
   it("reads nothing more when the payload sends both the surname and the code", () => {
     const directory = serveDirectory();
     renderWithProviders(<DriverName variant="codeLast" name="Ryō Hirakawa" lastName="Hirakawa" code="HIR" />);

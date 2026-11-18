@@ -8,7 +8,7 @@ import { SAO_PAULO_2026 } from "@/test/fixtures";
 import { CircuitMap } from "./CircuitMap";
 import { LABEL_HALO_EM } from "./cornerLabels";
 import { circuitCornerLabels, outlinePath, type CircuitMapData } from "./outlinePath";
-import { f1, rc } from "./tokens";
+import { f1, font, rc } from "./tokens";
 
 import type * as FramerMotion from "framer-motion";
 
@@ -66,6 +66,8 @@ describe("CircuitMap", () => {
     expect(labels[0].parentElement).toHaveStyle({ animationDelay: "1.6s" });
     expect(labels[1].parentElement?.getAttribute("style")).toMatch(/animation-delay: 1\.65\d*s/);
     expect(labels[0].parentElement?.parentElement).toHaveAttribute("font-size", String(840 / 42));
+    expect(labels[0].parentElement?.parentElement).toHaveAttribute("font-family", font.mono);
+    expect(labels[0].parentElement?.parentElement).toHaveAttribute("font-weight", "600");
     // Both clear the track beside their apex, so neither needs a leader.
     expect(container.querySelectorAll("line")).toHaveLength(0);
   });

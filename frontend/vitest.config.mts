@@ -121,6 +121,9 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/usePredictionWorkspace.ts",
   // P5.2: the Standings page (moved to /race-control/standings in P3.2).
   "app/race-control/standings/**",
+  // P7.3: the Command Center view and the timing tower.
+  "app/race-control/CommandCenterView.tsx",
+  "app/race-control/components/LiveTimingTower.tsx",
 ];
 
 /** Every metric must reach this in every included file. */

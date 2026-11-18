@@ -9,31 +9,20 @@
  *
  * No client boundary: a pure function of its props.
  */
-import { rc } from "@/app/ui/tokens";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+import { StatTile, StatTiles } from "@/app/ui/StatTile";
+import { EYEBROW } from "@/app/ui/typography";
 
+import { StateTag } from "../grand-prix/StateTag";
 import { compoundColor } from "../grand-prix/tyreCompounds";
 
-import { Panel, StatusPill, rcFont } from "./RaceControlPrimitives";
+import { Panel } from "./RaceControlPrimitives";
 
-import type { PlanConfidence, StrategyContext, StrategyPlan, StrategySource } from "./CommandCenterPanels";
+import type { StrategyContext, StrategyPlan, StrategySource } from "./CommandCenterPanels";
 
-const CONFIDENCE_COLORS: Record<PlanConfidence, string> = { high: rc.blue, medium: rc.ink2, low: rc.ink3 };
 const NO_CONTEXT = "The baseline plan has not arrived yet.";
 
 const stopsLabel = (stops: number): string => `${stops} stop${stops === 1 ? "" : "s"}`;
-
-/** A measured figure with what it is measured over. */
-function MeasuredStat({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded-lg border border-rc-line bg-white/[0.03] p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-rc-ink-3">{label}</p>
-      <p className="mt-1 text-lg font-black text-white" style={rcFont}>
-        {value}
-      </p>
-      <p className="text-[11px] text-rc-ink-3">{detail}</p>
-    </div>
-  );
-}
 
 /** The headline sequence across the edition's laps, one band per stint, split on the median stop laps. */
 function SequenceTimeline({ plan }: { plan: StrategyPlan }) {
@@ -44,9 +33,7 @@ function SequenceTimeline({ plan }: { plan: StrategyPlan }) {
   return (
     <div>
       <div className="mb-4 flex items-center gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rc-ink-3" style={rcFont}>
-          Stint plan
-        </p>
+        <p className={EYEBROW}>Stint plan</p>
         <span className="h-px flex-1 bg-rc-line" />
         <p className="font-mono text-[10px] text-rc-ink-3">
           {plan.drivers.length} of {plan.finishers} finishers ran it
@@ -60,14 +47,12 @@ function SequenceTimeline({ plan }: { plan: StrategyPlan }) {
             className="absolute -translate-x-1/2 whitespace-nowrap"
             style={{ left: `${share(stint.end_lap)}%` }}
           >
-            <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
-              L{stint.end_lap}
-            </span>
+            <span className="font-mono text-[10px] font-semibold text-rc-ink-2">L{stint.end_lap}</span>
           </div>
         ))}
       </div>
 
-      <div className="relative h-12 w-full overflow-hidden rounded-lg border border-rc-line bg-white/[0.02]">
+      <div className="relative h-12 w-full overflow-hidden rounded border border-rc-line">
         {plan.stints.map((stint, index) => {
           const color = compoundColor(stint.compound);
           const left = share(stint.start_lap - 1);
@@ -92,7 +77,7 @@ function SequenceTimeline({ plan }: { plan: StrategyPlan }) {
         {stops.map((stint) => (
           <div
             key={`stop-${stint.end_lap}`}
-            className="absolute inset-y-0 w-[2px] bg-white/80"
+            className="absolute inset-y-0 w-[2px] bg-rc-ink"
             style={{ left: `${share(stint.end_lap)}%` }}
           />
         ))}
@@ -116,13 +101,17 @@ function PlanSource({ source }: { source: StrategySource }) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const sources = source.sources ?? [];
   return (
-    <div className="mt-4 rounded-lg border border-rc-line bg-white/[0.025] px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-rc-ink-2">{edition}</p>
-      {source.sources && source.sources.length > 0 && (
-        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-rc-ink-3">{source.sources.join(" · ")}</p>
+    <p className="mt-3.5 font-mono text-[10px] uppercase leading-[1.6] tracking-[0.1em] text-rc-ink-3">
+      {edition}
+      {sources.length > 0 && (
+        <>
+          <br />
+          {sources.join(" · ")}
+        </>
       )}
-    </div>
+    </p>
   );
 }
 
@@ -134,31 +123,30 @@ function MeasuredGrid({ context, source }: { context: StrategyContext; source: S
   const first = context.first_stop;
   const finishers = source.sample_size ?? 0;
   return (
-    <div className="mt-6 border-t border-rc-line pt-6">
-      <div className="mb-3 flex items-center gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rc-ink-3" style={rcFont}>
-          Measured in {source.edition_year}
-        </p>
+    <div className="mb-3.5 mt-6">
+      <div className="mb-3.5 flex items-center gap-3">
+        <p className={EYEBROW}>Measured in {source.edition_year}</p>
         <span className="h-px flex-1 bg-rc-line" />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MeasuredStat
+      <StatTiles>
+        <StatTile
           label="Pit lane"
-          value={pitLane === null ? "—" : `${pitLane}s`}
-          detail={pitLane === null ? "Not published" : `Median of ${pitStops} stops, entry to exit`}
+          value={pitLane ?? "—"}
+          unit={pitLane === null ? undefined : "s"}
+          sub={pitLane === null ? "Not published" : `Median of ${pitStops} stops, entry to exit`}
         />
-        <MeasuredStat
+        <StatTile
           label="Stops"
           value={top ? String(top.stops) : "—"}
-          detail={top ? `${top.drivers} of ${finishers} finishers` : "Not published"}
+          sub={top ? `${top.drivers} of ${finishers} finishers` : "Not published"}
         />
-        <MeasuredStat
+        <StatTile
           label="First stop"
           value={first ? `L${first.median_lap}` : "—"}
-          detail={first ? `Middle half L${first.p25_lap}–L${first.p75_lap}` : "No finisher stopped"}
+          sub={first ? `Middle half L${first.p25_lap}–L${first.p75_lap}` : "No finisher stopped"}
         />
-        <MeasuredStat label="Sample" value={String(finishers)} detail="Classified finishers" />
-      </div>
+        <StatTile label="Sample" value={String(finishers)} sub="Classified finishers" />
+      </StatTiles>
     </div>
   );
 }
@@ -167,20 +155,17 @@ function MeasuredGrid({ context, source }: { context: StrategyContext; source: S
 function PlanHeader({ call }: { call: StrategyContext["primary_call"] | undefined }) {
   const confidence = call?.confidence ?? null;
   return (
-    <div className="mb-5 flex items-start justify-between gap-3">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-rc-ink-2" style={rcFont}>
-          Baseline strategy
-        </p>
-        <h2 className="mt-1 text-2xl font-semibold text-white" style={rcFont}>
-          {call?.title ?? "Base race plan"}
-        </h2>
-        {call?.confidence_basis && <p className="mt-1 font-mono text-[10px] text-rc-ink-3">{call.confidence_basis}</p>}
-      </div>
-      <StatusPill color={confidence ? CONFIDENCE_COLORS[confidence] : rc.ink3}>
-        {confidence ? `${confidence} confidence` : "no plan"}
-      </StatusPill>
-    </div>
+    <PanelHeading
+      as="h2"
+      eyebrow="Baseline strategy"
+      title={call?.title ?? "Base race plan"}
+      sub={call?.confidence_basis ?? undefined}
+      aside={
+        <StateTag tone={confidence === "high" ? "blue" : "neutral"}>
+          {confidence ? `${confidence} confidence` : "no plan"}
+        </StateTag>
+      }
+    />
   );
 }
 
@@ -201,8 +186,7 @@ export function BaselineStrategyPanel({ context }: { context: StrategyContext | 
   const plan = context?.plan;
 
   return (
-    <Panel className="h-full p-6">
-      <div className="-mx-6 -mt-6 mb-6 h-[2px] bg-f1-red" />
+    <Panel className="h-full p-5 sm:p-6">
       <PlanHeader call={context?.primary_call} />
 
       {context?.rain_branch && (
@@ -214,7 +198,9 @@ export function BaselineStrategyPanel({ context }: { context: StrategyContext | 
         </p>
       )}
 
-      <p className="max-w-4xl text-base leading-relaxed text-rc-ink-2">{context?.primary_call.summary ?? NO_CONTEXT}</p>
+      <p className="max-w-[70ch] text-[15px] leading-relaxed text-rc-ink-2">
+        {context?.primary_call.summary ?? NO_CONTEXT}
+      </p>
 
       {measured && <PlanSource source={measured} />}
 

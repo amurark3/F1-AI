@@ -15,7 +15,9 @@ HTTP is served by ``httpx.MockTransport``; the network is blocked.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -29,7 +31,12 @@ from app.data.openf1.race_context import (
 )
 from app.data.openf1.session_laps import SessionLaps, load_session_laps
 from app.data.openf1.telemetry import PADDING_SECONDS, LapTrace, load_lap_trace, merge_samples
+from app.services.analysis.lap_selection import fastest_valid_lap
+from tests.fia_documents_support import MEXICO_2026, held, hold
 from tests.openf1_support import NOR, T0, VER, fresh_cache, iso, make_lap, make_session, make_session_laps, serve
+
+if TYPE_CHECKING:
+    from app.data.fia_documents.document import SourceDocument
 
 pytestmark = pytest.mark.unit
 
@@ -96,6 +103,37 @@ def test_an_empty_lap_list_is_not_kept(session_openf1):
 
     assert load_session_laps(2026, 18, "Q").laps == ()
     assert cache.get(laps_module.SESSION_LAPS_KIND, "2026:18:Q", laps_module.SESSION_LAPS_VERSION) is None
+
+
+def _fia_sheet(*rows: str) -> SourceDocument:
+    """A qualifying deleted-lap sheet for car 1, one printed row per lap."""
+    lines = [f"{n} 19 1 Lando Norris McLaren 15:0{n}:00 {lap_time}" for n, lap_time in enumerate(rows, 1)]
+    text = "\n".join(
+        ["Session Qualifying", "Fact The F1 Cars below did not use the track at turn 19.", "No. Turn Car", *lines]
+    )
+    return dataclasses.replace(held(next(iter(MEXICO_2026))), title="Doc 48 - Qualifying Deleted Lap Times", text=text)
+
+
+def test_the_fias_deleted_lap_sheet_strikes_a_lap_race_control_missed(session_openf1, monkeypatch, tmp_path):
+    _fake, cache = session_openf1(make_session(ended=True))
+    hold(monkeypatch, tmp_path, [_fia_sheet("1:34.539", "PIT", "1:40.000")], round_number=18)
+
+    loaded = load_session_laps(2026, 18, "Q")
+    again = load_session_laps(2026, 18, "Q")
+
+    assert [(lap.number, lap.deleted) for lap in loaded.laps] == [(1, False), (2, True), (3, True)]
+    assert fastest_valid_lap(loaded.laps) is None
+    # Kept as OpenF1 published it, so a sheet that lands after the session is kept still counts.
+    kept = cache.get(laps_module.SESSION_LAPS_KIND, "2026:18:Q", laps_module.SESSION_LAPS_VERSION)
+    assert [lap["deleted"] for lap in kept["laps"]] == [False, True, False]
+    assert again == loaded
+
+
+def test_a_deleted_lap_sheet_for_another_session_strikes_nothing(session_openf1, monkeypatch, tmp_path):
+    session_openf1(make_session("R"))
+    hold(monkeypatch, tmp_path, [_fia_sheet("1:34.539")], round_number=18)
+
+    assert [lap.deleted for lap in load_session_laps(2026, 18, "R").laps] == [False, True, False]
 
 
 def test_a_round_without_the_session_loads_nothing(session_openf1):

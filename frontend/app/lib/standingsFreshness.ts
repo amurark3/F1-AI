@@ -37,6 +37,7 @@ export function standingsLabel(freshness: Partial<StandingsFreshness> | null | u
 const SOURCE_NAMES: Record<string, string> = {
   f1db: "f1db",
   "openf1-session-result": "OpenF1 session results",
+  "fia-final-classification": "FIA final classification",
   "openf1-championship": "OpenF1 championship table",
   "jolpica-standings": "Jolpica standings",
 };

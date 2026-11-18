@@ -35,7 +35,7 @@ function renderSaoPaulo(overrides: Partial<Parameters<typeof WeekendHero>[0]> = 
 
 /** The countdown's cells as "unit value", e.g. "days 03". */
 function countdown(): string[] {
-  return ["days", "hrs", "min", "sec"].map((unit) => {
+  return ["days", "hrs", "min"].map((unit) => {
     const cell = screen.getByText(unit).parentElement;
     return `${unit} ${cell?.firstElementChild?.textContent}`;
   });
@@ -54,8 +54,8 @@ describe("WeekendHero", () => {
   it("introduces São Paulo: the round, country, status, circuit, dates and weather", () => {
     renderSaoPaulo();
 
-    expect(screen.getByText("Round 20 / 23 · Brazil")).toBeInTheDocument();
-    expect(screen.getByText("Upcoming")).toHaveStyle({ color: "#4C8DFF" });
+    expect(screen.getByText("Command Center · Round 20 / 23 · Brazil")).toBeInTheDocument();
+    expect(screen.getByText("Upcoming")).toHaveClass("border-rc-blue", "text-rc-blue");
     expect(screen.getByRole("heading", { level: 1, name: "São Paulo Grand Prix" })).toBeInTheDocument();
     expect(screen.getByText("Autódromo José Carlos Pace · São Paulo")).toBeInTheDocument();
     const first = formatLocal("2026-11-06T15:30:00Z", "weekday", "—");
@@ -67,21 +67,28 @@ describe("WeekendHero", () => {
     expect(screen.getByText("Lap record")).toBeInTheDocument();
   });
 
+  it("sets the title in the kit's display type, with no glow orb or streak bar", () => {
+    const { container } = renderSaoPaulo();
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass("font-display");
+    expect(container.innerHTML).not.toMatch(/blur-3xl|animate-streak|bg-gradient/);
+  });
+
   it("says when the session weather was fetched while it is the stored forecast", () => {
     renderSaoPaulo({ forecastAsOf: "as of 14:05 UTC" });
 
     expect(screen.getByText("Forecast as of 14:05 UTC")).toBeInTheDocument();
   });
 
-  it("counts down to the next session a second at a time", () => {
+  it("counts down to the next session, a minute at a time", () => {
     renderSaoPaulo();
 
-    expect(screen.getByText("Practice 1")).toHaveClass("text-[#FF4655]");
-    expect(countdown()).toEqual(["days 03", "hrs 07", "min 40", "sec 00"]);
+    expect(screen.getByText("Practice 1")).toHaveClass("text-rc-blue");
+    expect(countdown()).toEqual(["days 03", "hrs 07", "min 40"]);
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(countdown()).toEqual(["days 03", "hrs 07", "min 39", "sec 59"]);
+    expect(countdown()).toEqual(["days 03", "hrs 07", "min 39"]);
   });
 
   it("shows the session on track as live", () => {
@@ -104,8 +111,8 @@ describe("WeekendHero", () => {
       <WeekendHero race={race} totalRounds={totalRounds} circuit={circuit} circuitLoading={false} forecast={[]} />,
     );
 
-    expect(html).toContain('Next · <span class="text-[#FF4655]">—</span>');
-    expect(html.match(/>--</g)).toHaveLength(4);
+    expect(html).toContain('Next · <span class="text-rc-blue">session</span>');
+    expect(html.match(/>--</g)).toHaveLength(3);
     expect(html).toContain("Fri, Nov 6<!-- --> → <!-- -->Sun, Nov 8");
     expect(html).not.toContain("Weather by session");
   });
@@ -133,8 +140,8 @@ describe("WeekendHero", () => {
       />,
     );
 
-    expect(screen.getByText("Round 2 · USA")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toHaveStyle({ color: "#7F8797" });
+    expect(screen.getByText("Command Center · Round 2 · USA")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toHaveClass("text-rc-ink-3");
     // f1db names the circuit after its town, so the town is not repeated.
     expect(screen.getByText("Long Beach")).toBeInTheDocument();
     expect(screen.getByText("Circuit map unavailable")).toBeInTheDocument();
@@ -154,7 +161,7 @@ describe("WeekendHero", () => {
   it("leaves out what the schedule does not give: country, session times", () => {
     renderSaoPaulo({ race: { ...race, country: null, sessions: {} } });
 
-    expect(screen.getByText("Round 20 / 23")).toBeInTheDocument();
+    expect(screen.getByText("Command Center · Round 20 / 23")).toBeInTheDocument();
     expect(screen.queryByText(/→/)).not.toBeInTheDocument();
     expect(screen.getByText("Weekend complete")).toBeInTheDocument();
   });
@@ -162,12 +169,12 @@ describe("WeekendHero", () => {
   it("shows a status it has no label for as sent", () => {
     renderSaoPaulo({ race: { ...race, status: "postponed" } });
 
-    expect(screen.getByText("postponed")).toHaveStyle({ color: "#7F8797" });
+    expect(screen.getByText("postponed")).toHaveClass("text-rc-ink-3");
   });
 
   it("marks a weekend in progress as live", () => {
     renderSaoPaulo({ race: { ...race, status: "in_progress" } });
 
-    expect(screen.getByText("Weekend live")).toHaveStyle({ color: "#FF4655" });
+    expect(screen.getByText("Weekend live")).toHaveClass("border-rc-red-text", "text-rc-red-text");
   });
 });

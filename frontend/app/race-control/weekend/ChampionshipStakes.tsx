@@ -1,6 +1,5 @@
 "use client";
 
-import { Crown, Swords, Trophy } from "lucide-react";
 import { useState } from "react";
 
 import type { ChampionshipTable } from "@/app/lib/clinch";
@@ -8,8 +7,10 @@ import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+import { Segmented } from "@/app/ui/Segmented";
 
-import { Panel, rcFont } from "../components/RaceControlPrimitives";
+import { Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
 
 import { clinchLine, formatPoints, reachLine, type ClinchTone } from "./weekendModel";
@@ -18,39 +19,17 @@ import type { ChampionshipStakes as Stakes, Contender, TableStakes } from "./wee
 
 type Table = ChampionshipTable;
 
-const TONE: Record<ClinchTone, { color: string; icon: typeof Trophy }> = {
-  decided: { color: "#00FF78", icon: Trophy },
-  possible: { color: "#FFF200", icon: Crown },
-  open: { color: "#4C8DFF", icon: Swords },
+/** Gold when the title is decided or decidable this weekend, blue while it is open. */
+const TONE: Record<ClinchTone, string> = {
+  decided: "border-rc-gold/35 bg-rc-gold/[0.06]",
+  possible: "border-rc-gold/35 bg-rc-gold/[0.06]",
+  open: "border-rc-blue/35 bg-rc-blue/[0.06]",
 };
 
-function TableToggle({ table, onChange }: { table: Table; onChange: (table: Table) => void }) {
-  const options: Array<{ value: Table; label: string }> = [
-    { value: "drivers", label: "Drivers" },
-    { value: "constructors", label: "Teams" },
-  ];
-  return (
-    <div
-      className="inline-flex rounded-md border border-white/10 bg-black/30 p-0.5"
-      role="group"
-      aria-label="Championship"
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={table === option.value}
-          onClick={() => onChange(option.value)}
-          className={`rounded px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
-            table === option.value ? "bg-white/10 text-white" : "text-[#7F8797] hover:text-white"
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+const TABLE_OPTIONS: Array<{ value: Table; label: string }> = [
+  { value: "drivers", label: "Drivers" },
+  { value: "constructors", label: "Teams" },
+];
 
 function ContenderName({ contender, table }: { contender: Contender; table: Table }) {
   if (table === "constructors") {
@@ -62,7 +41,7 @@ function ContenderName({ contender, table }: { contender: Contender; table: Tabl
   }
   return (
     <DriverLink code={contender.code} name={contender.name}>
-      <DriverName name={contender.name} code={contender.code} />
+      <DriverName variant="codeLast" name={contender.name} code={contender.code} />
     </DriverLink>
   );
 }
@@ -70,42 +49,51 @@ function ContenderName({ contender, table }: { contender: Contender; table: Tabl
 interface ContenderBarProps {
   contender: Contender;
   leaderPoints: number;
+  reach: number | null;
   table: Table;
   index: number;
 }
 
-function ContenderBar({ contender, leaderPoints, table, index }: ContenderBarProps) {
-  const color = getTeamColor(contender.team);
+function ContenderBar({ contender, leaderPoints, reach, table, index }: ContenderBarProps) {
   // The backend sends a table only once a round has scored, so the leader always has points.
   const width = Math.max(2, (contender.points / leaderPoints) * 100);
   return (
-    <li className={contender.alive ? "" : "opacity-40"}>
-      <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="w-5 shrink-0 font-mono text-[#7F8797]">P{contender.position}</span>
-          <span className="truncate font-bold text-white">
+    <li className={contender.alive ? "" : "opacity-60"}>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2.5 text-[13px]">
+        <span className="flex min-w-0 items-baseline gap-2.5">
+          <span className="w-[22px] shrink-0 font-mono text-[11px] text-rc-ink-3">P{contender.position}</span>
+          <span className="truncate font-semibold text-rc-ink">
             <ContenderName contender={contender} table={table} />
           </span>
           {!contender.alive && (
-            <span className="shrink-0 rounded-sm bg-white/10 px-1 font-mono text-[9px] uppercase tracking-wider text-[#AEB6C6]">
+            <span className="shrink-0 rounded-sm bg-white/[0.08] px-1.5 py-[3px] font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-rc-ink-2">
               out
             </span>
           )}
         </span>
-        <span className="shrink-0 font-mono text-[#AEB6C6]">
+        <span className="shrink-0 font-mono text-[13px] font-semibold text-rc-ink">
           {formatPoints(contender.points)}
-          {contender.gap > 0 && <span className="ml-1.5 text-[#6F7789]">−{formatPoints(contender.gap)}</span>}
+          {contender.gap > 0 && (
+            <span className="ml-1.5 font-medium text-rc-ink-3">−{formatPoints(contender.gap)}</span>
+          )}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="relative h-2.5 rounded-full bg-white/[0.04]">
         <div
-          className="h-full origin-left rounded-full motion-safe:animate-fill-x"
+          className="absolute inset-y-0 left-0 origin-left rounded-full motion-safe:animate-fill-x"
           style={{
             width: `${width}%`,
-            background: `linear-gradient(90deg, ${color}99, ${color})`,
+            background: getTeamColor(contender.team),
             animationDelay: `${index * 0.08}s`,
           }}
         />
+        {reach !== null && (
+          <span
+            aria-hidden="true"
+            className="absolute -inset-y-1 border-l border-dashed border-rc-ink/55"
+            style={{ left: `${reach}%` }}
+          />
+        )}
       </div>
     </li>
   );
@@ -113,46 +101,24 @@ function ContenderBar({ contender, leaderPoints, table, index }: ContenderBarPro
 
 function StakesTable({ stakes, table, venue }: { stakes: TableStakes; table: Table; venue: string }) {
   const headline = clinchLine(stakes, venue, table);
-  const tone = TONE[headline.tone];
   const reach = reachLine(stakes);
-  const Icon = tone.icon;
   return (
     <>
-      <div
-        className="mb-4 flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-sm leading-snug text-white"
-        style={{ borderColor: `${tone.color}55`, background: `${tone.color}12` }}
-      >
-        <Icon
-          className={`mt-0.5 h-4 w-4 shrink-0 ${headline.tone === "possible" ? "motion-safe:animate-pulse" : ""}`}
-          style={{ color: tone.color }}
-          aria-hidden="true"
-        />
-        <p>{headline.text}</p>
-      </div>
-      <div className="relative">
-        {reach !== null && (
-          <div
-            className="pointer-events-none absolute inset-y-0 z-10 border-l border-dashed border-[#FF4655]/70"
-            style={{ left: `${reach}%` }}
-            aria-hidden="true"
-          >
-            <span className="absolute -top-4 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] uppercase tracking-wider text-[#FF4655]">
-              max reach
-            </span>
-          </div>
-        )}
-        <ol className="space-y-3 pt-1">
-          {stakes.contenders.map((contender, index) => (
-            <ContenderBar
-              key={contender.name}
-              contender={contender}
-              leaderPoints={stakes.leader.points}
-              table={table}
-              index={index}
-            />
-          ))}
-        </ol>
-      </div>
+      <p className={`mb-5 rounded-md border px-3.5 py-3 text-sm leading-snug text-rc-ink ${TONE[headline.tone]}`}>
+        {headline.text}
+      </p>
+      <ol className="space-y-3.5 pt-1">
+        {stakes.contenders.map((contender, index) => (
+          <ContenderBar
+            key={contender.name}
+            contender={contender}
+            leaderPoints={stakes.leader.points}
+            reach={reach}
+            table={table}
+            index={index}
+          />
+        ))}
+      </ol>
     </>
   );
 }
@@ -162,28 +128,26 @@ export function ChampionshipStakes({ stakes, venue }: { stakes: Stakes | null | 
   const current = stakes?.[table] ?? null;
   const freshness = standingsLabel(stakes);
   return (
-    <Panel className="flex h-full flex-col p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7F8797]" style={rcFont}>
-            Title fight
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>
-            What&apos;s at stake
-          </h2>
-        </div>
-        <TableToggle table={table} onChange={setTable} />
-      </div>
+    <Panel className="flex h-full flex-col p-5 sm:p-6">
+      <PanelHeading
+        as="h2"
+        eyebrow="Title fight"
+        title="What's at stake"
+        aside={<Segmented label="Championship" options={TABLE_OPTIONS} value={table} onChange={setTable} />}
+      />
       {current ? (
         <StakesTable stakes={current} table={table} venue={venue} />
       ) : (
-        <p className="text-sm text-[#7F8797]">Standings will appear once the season&apos;s first result is in.</p>
+        <p className="text-sm text-rc-ink-3">Standings will appear once the season&apos;s first result is in.</p>
       )}
       {stakes && (
-        <p className="mt-auto pt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[#6F7789]">
+        <p className="mt-auto pt-4 font-mono text-[10px] uppercase leading-[1.6] tracking-[0.1em] text-rc-ink-3">
           {freshness ? `Standings ${freshness} · ` : ""}
           {stakes.races_left} races · {stakes.sprints_left} sprints to count
           {current ? ` · ${formatPoints(current.max_available)} pts max` : ""}
+          {current && reachLine(current) !== null
+            ? " · dashed mark = the leader's total less the points left: a bar short of it can no longer catch the leader"
+            : ""}
         </p>
       )}
     </Panel>

@@ -55,6 +55,11 @@ describe("sourceLine", () => {
     ]);
   });
 
+  it("names the FIA final classification as a round's points source", () => {
+    const line = sourceLine({ source: "fia-final-classification", role: "points", round: 21, sessions: ["R"] });
+    expect(line).toBe("Points: FIA final classification, round 21 (race)");
+  });
+
   it("lists a sprint weekend's sessions in the order sent", () => {
     const line = sourceLine({ source: "openf1-session-result", role: "points", round: 20, sessions: ["S", "R"] });
     expect(line).toBe("Points: OpenF1 session results, round 20 (sprint, race)");

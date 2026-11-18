@@ -1,5 +1,8 @@
 """Every lap of a session, with deletions applied and neutralised periods attached.
 
+Deletions come from race control's messages and, once they land, the FIA's
+deleted-lap sheets, so every "fastest lap" pick made from these laps skips them.
+
 This is the measured base of the Telemetry Lab: the picker lists these laps,
 the track map and the comparison pick from them, and tyre degradation reads a
 race's laps from here. One load is four OpenF1 requests after the session is
@@ -9,11 +12,12 @@ kept in :mod:`app.data.analysis_cache` and never asked for again.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import structlog
 
 from app.data.analysis_cache import analysis_cache
+from app.data.fia_documents.results import fia_deleted_laps
 from app.data.openf1.client import get_json, new_client
 from app.data.openf1.laps import Lap, laps_from_openf1
 from app.data.openf1.qualifying_result import ResultRow, result_rows
@@ -21,6 +25,8 @@ from app.data.openf1.race_control import (
     SegmentWindow,
     Window,
     deleted_laps,
+    lap_by_time,
+    lap_seconds,
     neutralised_windows,
     segment_windows,
     standing_deletions,
@@ -33,6 +39,17 @@ logger = structlog.get_logger()
 SESSION_LAPS_KIND = "session_laps"
 SESSION_LAPS_VERSION = 2
 QUALIFYING_CODES = frozenset({"Q", "SQ"})
+# App session code -> the session as the FIA's deleted-lap sheets print it.
+# shortcut: the sprint names are assumed (no sprint weekend in the store yet); check them against one.
+FIA_SESSION_NAMES = {
+    "FP1": "Free Practice 1",
+    "FP2": "Free Practice 2",
+    "FP3": "Free Practice 3",
+    "SQ": "Sprint Qualifying",
+    "S": "Sprint",
+    "Q": "Qualifying",
+    "R": "Race",
+}
 
 
 @dataclass(frozen=True)
@@ -126,6 +143,25 @@ def _fetch(year: int, round_num: int, code: str) -> SessionLaps | None:
     )
 
 
+def _with_fia_deletions(loaded: SessionLaps) -> SessionLaps:
+    """The laps with the FIA's deleted-lap sheets applied over race control's messages.
+
+    A sheet names a lap by its time, as race control does. Its "PIT" and "OUT"
+    rows carry none, and neither lap is ever a fastest one, so they mark nothing.
+    """
+    rows = fia_deleted_laps(loaded.year, loaded.round, FIA_SESSION_NAMES[loaded.session.code])
+    deleted = {
+        (lap.driver, lap.number)
+        for row in rows
+        if row.lap_time is not None
+        and (lap := lap_by_time(list(loaded.laps_of(row.car)), lap_seconds(row.lap_time))) is not None
+    }
+    if not deleted:
+        return loaded
+    laps = tuple(lap.marked_deleted() if (lap.driver, lap.number) in deleted else lap for lap in loaded.laps)
+    return replace(loaded, laps=laps)
+
+
 def load_session_laps(year: int, round_num: int, code: str) -> SessionLaps | None:
     """The session's laps; None when the round has no such session.
 
@@ -135,11 +171,12 @@ def load_session_laps(year: int, round_num: int, code: str) -> SessionLaps | Non
     key = _cache_key(year, round_num, code)
     kept = analysis_cache.get(SESSION_LAPS_KIND, key, SESSION_LAPS_VERSION)
     if kept is not None:
-        return SessionLaps.from_json(kept)
+        return _with_fia_deletions(SessionLaps.from_json(kept))
     loaded = _fetch(year, round_num, code)
     if loaded is None:
         return None
+    # Kept as OpenF1 published it: an FIA sheet that lands later still applies on the next load.
     if loaded.laps and loaded.drivers and session_ended(loaded.session):
         analysis_cache.put(SESSION_LAPS_KIND, key, SESSION_LAPS_VERSION, loaded.to_json())
     logger.info("openf1.session_laps.loaded", year=year, round=round_num, session=code, laps=len(loaded.laps))
-    return loaded
+    return _with_fia_deletions(loaded)

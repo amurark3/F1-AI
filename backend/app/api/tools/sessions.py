@@ -21,8 +21,8 @@ NO_TIME = "-"
 def source_line(final: bool) -> str:
     """Which source the table is read from, and whether it is the final classification."""
     if final:
-        return "*(Source: f1db, the FIA final classification)*"
-    return "*(Source: OpenF1, provisional until f1db publishes the final classification)*"
+        return "*(Source: the FIA final classification)*"
+    return "*(Source: OpenF1, provisional until the FIA final classification is published)*"
 
 
 def driver_label(name: str, code: str) -> str:

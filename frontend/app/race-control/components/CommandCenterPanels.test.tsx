@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { f1, rc } from "@/app/ui/tokens";
 import { RISK_REGISTERS_2026 } from "@/test/fixtures";
 
 import { RiskRegisterPanel } from "./CommandCenterPanels";
@@ -17,10 +18,10 @@ describe("RiskRegisterPanel", () => {
         "Race-day forecast (Open-Meteo): 21% peak rain probability in the race window — keep the dry/wet crossover branch ready.",
       ),
     ).toBeInTheDocument();
-    expect(cards[0]).toHaveStyle({ borderLeft: "3px solid #FFF200", animationDelay: "0s" });
+    expect(cards[0]).toHaveStyle({ borderLeftColor: rc.ink2, animationDelay: "0s" });
     expect(within(cards[1]).getByText("Rival offset plans")).toBeInTheDocument();
-    expect(cards[1]).toHaveStyle({ borderLeft: "3px solid #00FF78", animationDelay: "0.08s" });
-    expect(within(cards[1]).getByText("Low")).toHaveStyle({ color: "#00FF78" });
+    expect(cards[1]).toHaveStyle({ borderLeftColor: rc.line, animationDelay: "0.08s" });
+    expect(within(cards[1]).getByText("Low")).toHaveClass("text-rc-ink-3");
   });
 
   it("marks a street circuit's safety-car exposure High, and a race with no forecast yet Medium with why", () => {
@@ -28,10 +29,10 @@ describe("RiskRegisterPanel", () => {
 
     const [street, weather] = screen.getAllByRole("listitem");
     expect(within(street).getByText("Safety car exposure")).toBeInTheDocument();
-    expect(street).toHaveStyle({ borderLeft: "3px solid #FF4655" });
-    expect(within(street).getByText("High")).toHaveStyle({ color: "#FF4655" });
+    expect(street).toHaveStyle({ borderLeftColor: f1.red });
+    expect(within(street).getByText("High")).toHaveClass("text-rc-red-text");
     expect(within(weather).getByText("Race-day forecast unavailable")).toBeInTheDocument();
-    expect(within(weather).getByText("Medium")).toHaveStyle({ color: "#FFF200" });
+    expect(within(weather).getByText("Medium")).toHaveClass("text-rc-ink-2");
     expect(within(weather).getByText(/^The race-day forecast opens on 7 Nov\./)).toBeInTheDocument();
     expect(within(weather).queryByText(/%/)).not.toBeInTheDocument();
     expect(screen.queryByText("No risks graded for this weekend.")).not.toBeInTheDocument();

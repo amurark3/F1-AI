@@ -15,6 +15,7 @@ from app.data import race_classification as classification_module
 from app.data.f1db_grid import GridSlot
 from app.services import race_results as module
 from app.services.race_results import build_race_results, clock
+from tests.fia_documents_support import MEXICO_2026, hold
 from tests.openf1_support import make_session, serve
 
 pytestmark = pytest.mark.unit
@@ -200,6 +201,46 @@ def test_before_f1db_has_the_race_openf1_answers_provisional(openf1):
     assert rows["HAM"]["gap"] == "+0.799"
     assert race["changed_after_flag"] == []
     assert race["fastest_lap"] is None
+
+
+def test_before_f1db_has_the_race_the_fia_final_classification_answers_final(openf1, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path, round_number=21)
+
+    from_fia = build_race_results(2026, 21)["race"]
+    from_f1db = build_race_results(2026, 19)["race"]
+
+    assert (from_fia["final"], from_fia["sources"]) == (
+        True,
+        [
+            {
+                "source": "fia-final-classification",
+                "role": "classification",
+                "document": 86,
+                "url": MEXICO_2026["Doc 86 - Final Race Classification"]["url"],
+            }
+        ],
+    )
+
+    # f1db mirrors document 86: the same table, less the retirement reasons only f1db has. Display names
+    # resolve through f1db's directory, which this f1db lacks (test_identity covers the FIA's team names).
+    def same(rows: list[dict]) -> list[dict]:
+        return [{**row, "driver_name": None, "team": None, "reason": None} for row in rows]
+
+    assert same(from_fia["classification"]) == same(from_f1db["classification"])
+
+    def changes(race: dict) -> list[dict]:
+        return [{**row, "moved_up": same(row["moved_up"])} for row in same(race["changed_after_flag"])]
+
+    assert changes(from_fia) == changes(from_f1db)
+    assert same([from_fia["fastest_lap"]]) == same([from_f1db["fastest_lap"]])
+
+
+def test_the_fia_time_and_gap_columns_read_as_f1dbs():
+    assert module._millis("2:20:28.772") == 8_428_772
+    assert module._millis(None) is None
+    assert module._fia_gap("1:02.345") == ("+1:02.345", None)
+    assert module._fia_gap("1 LAP") == ("+1 lap", 1)
+    assert module._fia_gap(None) == (None, None)
 
 
 def test_openf1_retirements_have_no_place_and_no_reason(openf1):

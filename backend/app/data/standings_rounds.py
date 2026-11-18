@@ -1,10 +1,11 @@
-"""Each round's points since f1db's last release, from OpenF1 ``session_result``.
+"""Each round's points since f1db's last release, from the FIA final classification.
 
 f1db publishes a round's results and standings about 10 hours after the race,
-sometimes days. Until it does, a later round's points come from OpenF1
-``session_result``, which matched FIA document 86, the final classification,
-points included, on the morning after Mexico 2026. The FIA final
-classification takes over in task D2.3.
+sometimes days. Until it does, a later round's points come from the FIA final
+classification (:mod:`app.data.fia_documents.results`), the authority, once
+the ingest has collected it. Before that a session's points come from OpenF1
+``session_result``, which matched FIA document 86, points included, on the
+morning after Mexico 2026.
 
 * **A round counts as a whole, once its race has ended.** Its sprint, if it
   had one, counts with it, never alone, so the table always reads "after
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.fia_documents.results import FIA_FINAL_SOURCE, final_classification
 from app.data.identity import resolve_team_name
 from app.data.openf1.client import OpenF1UnavailableError, get_json, new_client
 from app.data.openf1.sessions import session_ended, weekend_sessions
@@ -46,6 +48,8 @@ logger = structlog.get_logger()
 
 # Points-paying sessions, in running order: a sprint is run before its race.
 POINTS_SESSIONS = ("S", "R")
+FIA_SESSIONS = {"S": "sprint", "R": "race"}
+OPENF1_SOURCE = "openf1-session-result"
 # No season has had this many rounds; bounds the look-ahead past f1db.
 MAX_ROUNDS = 30
 RACE = "R"
@@ -60,6 +64,8 @@ class RoundPoints:
     #: Session codes counted, in running order: ``("R",)`` or ``("S", "R")``.
     sessions: tuple[str, ...]
     scores: tuple[Score, ...]
+    #: :data:`FIA_FINAL_SOURCE` when every session's points came from the FIA, else OpenF1's.
+    source: str = OPENF1_SOURCE
 
 
 class UnusableRoundError(Exception):
@@ -97,10 +103,30 @@ def _session_scores(
     return tuple(scores)
 
 
-def _published(client: httpx.Client, sessions: tuple[OpenF1Session, ...]) -> tuple[list[dict], ...] | None:
-    """Each session's result, or ``None`` while any of them is unpublished."""
-    results = tuple(get_json(client, "session_result", {"session_key": session.session_key}) for session in sessions)
-    return results if all(results) else None
+def _fia_rows(year: int, round_num: int, session_code: str) -> list[dict] | None:
+    """The session's FIA final classification as ``session_result``-shaped rows; ``None`` until it lands."""
+    final = final_classification(year, round_num, FIA_SESSIONS[session_code])
+    if final is None:
+        return None
+    # The final classification prints no zero: a car past P10 scored nothing.
+    return [
+        {"driver_number": entry.car, "position": entry.position, "points": entry.points or 0}
+        for entry in final.classification.entries
+    ]
+
+
+def _published(
+    client: httpx.Client, year: int, round_num: int, sessions: tuple[OpenF1Session, ...]
+) -> tuple[tuple[list[dict], ...], str] | None:
+    """Each session's result and the source they came from, or ``None`` while any of them is unpublished."""
+    fia = tuple(_fia_rows(year, round_num, session.code) for session in sessions)
+    results = tuple(
+        rows if rows is not None else get_json(client, "session_result", {"session_key": session.session_key})
+        for session, rows in zip(sessions, fia, strict=True)
+    )
+    if not all(results):
+        return None
+    return results, FIA_FINAL_SOURCE if all(rows is not None for rows in fia) else OPENF1_SOURCE
 
 
 def round_points(client: httpx.Client, year: int, round_num: int) -> RoundPoints | None:
@@ -110,9 +136,10 @@ def round_points(client: httpx.Client, year: int, round_num: int) -> RoundPoints
     if race is None or not session_ended(race):
         return None
     counted = tuple(by_code[code] for code in POINTS_SESSIONS if code in by_code)
-    results = _published(client, counted)
-    if results is None:
+    published = _published(client, year, round_num, counted)
+    if published is None:
         return None
+    results, source = published
     entries = load_weekend_entry_list(year, round_num)
     if not entries.available:
         return None
@@ -127,6 +154,7 @@ def round_points(client: httpx.Client, year: int, round_num: int) -> RoundPoints
         race_session_key=race.session_key,
         sessions=tuple(session.code for session in counted),
         scores=scores,
+        source=source,
     )
 
 

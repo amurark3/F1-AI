@@ -37,7 +37,7 @@ describe("PodiumPanel", () => {
       "68% conf.",
       "56% conf.",
     ]);
-    expect(await screen.findByRole("link", { name: "Andrea Kimi Antonelli" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Antonelli" })).toHaveAttribute(
       "href",
       "/race-control/drivers/kimi-antonelli",
     );
@@ -52,7 +52,7 @@ describe("PodiumPanel", () => {
 
     expect(screen.getByText("The podium appears once the race model has inputs for this weekend.")).toBeInTheDocument();
     expect(screen.queryByText(/% conf\.$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Full predicted order" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Full predicted order →" })).toHaveAttribute(
       "href",
       "/race-control/grand-prix",
     );

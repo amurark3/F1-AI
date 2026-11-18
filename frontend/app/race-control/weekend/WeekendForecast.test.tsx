@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { useReducedMotion } from "framer-motion";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { rc } from "@/app/ui/tokens";
 import { SAO_PAULO_2026, SESSION_WEATHER_2026 } from "@/test/fixtures";
 
 import { WeekendForecast } from "./WeekendForecast";
@@ -31,11 +32,11 @@ function readings(name: string): string[] {
 }
 
 function chips(): string[] {
-  return [...document.querySelectorAll(".rounded-full.border.px-3")].map((chip) => chip.textContent);
+  return [...document.querySelectorAll("p.mb-4.flex > span")].map((chip) => chip.textContent);
 }
 
 function railFillWidth(): string | undefined {
-  return document.querySelector<HTMLElement>(".from-\\[\\#00FF78\\]")?.style.width;
+  return document.querySelector<HTMLElement>(".origin-left.bg-rc-ink-3")?.style.width;
 }
 
 describe("WeekendForecast", () => {
@@ -79,7 +80,7 @@ describe("WeekendForecast", () => {
     const practice = card("Practice 1");
     expect(within(practice).getByText("°C").parentElement).toHaveTextContent("25°C");
     expect(within(practice).getByText("Overcast")).toBeInTheDocument();
-    expect(within(practice).getByText("12%")).toHaveStyle({ color: "#00FF78" });
+    expect(within(practice).getByText("12%")).toHaveStyle({ color: rc.ink3 });
     expect(readings("Practice 1")).toEqual(["Wind 4SE", "Track ~30°", "Humidity 65%"]);
     // The arrow points where the wind goes: 115° + 180°.
     expect(practice.querySelector<HTMLElement>("dd .inline-flex")?.style.transform).toBe("rotate(295deg)");
@@ -87,17 +88,16 @@ describe("WeekendForecast", () => {
     expect(within(card("Qualifying")).getByText("· 0.4 mm")).toBeInTheDocument();
   });
 
-  it("sets each card's backdrop from its sky, and frames the race", () => {
-    render(<WeekendForecast weather={SAO_PAULO} />);
+  it("frames the race with a red rule, and draws no backdrop, glow or dimming", () => {
+    const { container } = render(<WeekendForecast weather={SAO_PAULO} />);
 
-    expect(card("Practice 2").querySelector(".bg-\\[\\#FFC93C\\]\\/20")).toBeInTheDocument();
-    expect(card("Practice 1").querySelector(".from-\\[\\#97A3B8\\]\\/\\[0\\.09\\]")).toBeInTheDocument();
-    const storm = card("Qualifying");
-    expect(storm.querySelector(".wx-rain-streaks")).toBeInTheDocument();
-    expect(storm.querySelector(".motion-safe\\:animate-wx-flash")).toBeInTheDocument();
-    expect(card("Race")).toHaveClass("border-[#E10600]/50");
-    expect(card("Race").querySelector("p")).toHaveClass("text-[#FF4655]");
-    expect(card("Practice 1")).not.toHaveClass("opacity-75");
+    expect(card("Race")).toHaveClass("border-t-2", "border-t-f1-red");
+    expect(card("Race").querySelector("p")).toHaveClass("text-rc-ink");
+    expect(card("Practice 1")).not.toHaveClass("border-t-2", "opacity-75");
+    expect(card("Practice 1").querySelector("p")).toHaveClass("text-rc-ink-2");
+    expect(container.querySelector(".wx-rain-streaks, .pointer-events-none, .blur-2xl")).toBeNull();
+    expect(container.innerHTML).not.toMatch(/box-shadow|shadow-\[/);
+    expect(within(card("Qualifying")).getByText("80%")).toHaveStyle({ color: rc.blue });
   });
 
   it("marks Mexico City's race live and the sessions before it done", () => {
@@ -105,20 +105,9 @@ describe("WeekendForecast", () => {
 
     expect(within(card("Race")).getByText("Live").querySelector(".rounded-full")).toBeInTheDocument();
     expect(screen.getAllByText("Done · model")).toHaveLength(4);
-    expect(card("Qualifying")).toHaveClass("opacity-75");
-    expect(card("Race")).not.toHaveClass("opacity-75");
+    expect(card("Qualifying")).not.toHaveClass("opacity-75");
     expect(railFillWidth()).toBe("100%");
-    // Light drizzle: rain streaks, no lightning.
-    expect(card("Race").querySelector(".wx-rain-streaks")).toBeInTheDocument();
-    expect(card("Race").querySelector(".motion-safe\\:animate-wx-flash")).not.toBeInTheDocument();
     expect(within(card("Race")).getByText("· 0.1 mm")).toBeInTheDocument();
-  });
-
-  it("puts stars over Singapore's clear evening session", () => {
-    render(<WeekendForecast weather={SESSION_WEATHER_2026.singaporeDone} />);
-
-    expect(card("Sprint Qualifying").querySelectorAll("span.motion-safe\\:animate-wx-twinkle")).toHaveLength(4);
-    expect(card("Race").querySelectorAll("span.motion-safe\\:animate-wx-twinkle")).toHaveLength(0);
   });
 
   it("says when each Las Vegas forecast opens, with nothing to sum up yet", () => {
@@ -128,7 +117,6 @@ describe("WeekendForecast", () => {
     expect(within(card("Practice 1")).getByText("Forecast opens Nov 05")).toBeInTheDocument();
     expect(within(card("Race")).getByText("Forecast opens Nov 07")).toBeInTheDocument();
     expect(screen.getByText("Forecasts open 15 days before each session.")).toBeInTheDocument();
-    expect(card("Race").querySelector(".pointer-events-none")).not.toBeInTheDocument();
   });
 
   it("says plainly when a weekend is older than the forecast archive", () => {
@@ -152,7 +140,6 @@ describe("WeekendForecast", () => {
     expect(within(race).getByText("Unclassified")).toBeInTheDocument();
     expect(readings("Race")).toEqual(["Wind —", "Track —", "Humidity —"]);
     expect(race.querySelector("dd .inline-flex")).not.toBeInTheDocument();
-    expect(race.querySelector(".pointer-events-none")).not.toBeInTheDocument();
     expect(chips()).toEqual(["Race day: Unclassified", "Wettest: Qualifying 80%", "23–27°C across the weekend"]);
   });
 

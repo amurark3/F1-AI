@@ -48,7 +48,7 @@ export function DriverName({ variant = "full", className, ...identity }: DriverN
       title={title(driverLabel(identity, variant, directory))}
     >
       <span>{last}</span>
-      {code && <span className="font-mono text-[11px] font-medium text-rc-ink-3">{code}</span>}
+      {code && code !== last && <span className="font-mono text-[11px] font-medium text-rc-ink-3">{code}</span>}
     </span>
   );
 }

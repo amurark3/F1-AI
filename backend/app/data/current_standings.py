@@ -7,8 +7,9 @@ after Mexico, OpenF1's and Jolpica's were both wrong. So, per
 ``docs/DATA_SOURCES.md`` ("Standings rule"):
 
 1. **Base:** f1db's table after its last round (``f1db_standings``).
-2. **Later rounds:** each round's points from OpenF1 ``session_result``
-   (``standings_rounds``), added and re-ordered (``standings_table``).
+2. **Later rounds:** each round's points from the FIA final classification,
+   or OpenF1 ``session_result`` until it lands (``standings_rounds``), added
+   and re-ordered (``standings_table``).
 3. **Provisional** until f1db publishes those rounds itself.
 4. **Cross-checked** against OpenF1 ``championship_*`` and Jolpica
    (``standings_cross_check``); the computed value is always the one served.
@@ -40,7 +41,6 @@ from app.utils.ttl_cache import TtlCache
 logger = structlog.get_logger()
 
 F1DB_SOURCE = "f1db"
-POINTS_SOURCE = "openf1-session-result"
 # A provisional table can still move as post-race penalties land; a confirmed
 # one is re-read sooner so a race that has just ended is picked up.
 PROVISIONAL_TTL_SECONDS = 30 * 60
@@ -134,7 +134,7 @@ def _sources(
         else ()
     )
     added = tuple(
-        {"source": POINTS_SOURCE, "role": "points", "round": points.round, "sessions": list(points.sessions)}
+        {"source": points.source, "role": "points", "round": points.round, "sessions": list(points.sessions)}
         for points in rounds
     )
     return (*base, *added, *(check.as_source() for check in checks))

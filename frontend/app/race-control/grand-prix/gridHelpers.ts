@@ -84,6 +84,15 @@ export function penaltyNote(slot: GridSlot, last: number): string | null {
   return `${label} \u00b7 cost nothing${slot.position === last ? ", already at the back" : ""}`;
 }
 
+/** Why the car starts where it does, from the FIA's rulings: "Causing a collision · doc 33". Null when none is known. */
+export function reasonNote(slot: GridSlot): string | null {
+  const parts = (slot.reasons ?? []).map((item) => {
+    const why = item.reason ?? item.ruling;
+    return item.document === null ? why : `${why} \u00b7 doc ${item.document}`;
+  });
+  return parts.length > 0 ? parts.join("; ") : null;
+}
+
 /** Places gained and the penalised cars that gave them: those that qualified ahead and start behind. */
 export function promotedNote(slot: GridSlot, slots: GridSlot[]): { places: number; by: string[] } | null {
   if (slot.places_lost === null || slot.places_lost >= 0) return null;
@@ -104,24 +113,45 @@ export function promotedNote(slot: GridSlot, slots: GridSlot[]): { places: numbe
 /** The headline: how many sanctions the grid carries, counted from the payload. */
 export function gridTitle(data?: StartingGridResponse): string | undefined {
   if (!data?.available || data.grid.length === 0) return undefined;
-  if (data.provisional) return "Qualifying order, before any penalty";
+  if (data.source === "qualifying_classification") return "Qualifying order, before any penalty";
   const count = data.penalties.length;
   if (count === 0) return "Every car starts where it qualified";
   return `${count} ${count === 1 ? "penalty" : "penalties"} on the grid`;
 }
 
-/** The note that ends the section: which source, and whether it is final. */
+/** Which sheet the order is: the FIA's own document, or f1db's copy of it. */
+function sheetNote(data: StartingGridResponse): string {
+  const sheet = data.fia_document;
+  if (data.source !== "fia_starting_grid" || !sheet) return "Grid: f1db, mirroring the FIA final starting grid";
+  const number = sheet.number === null ? "" : ` (doc ${sheet.number})`;
+  if (sheet.final) return `Grid: FIA final starting grid${number}`;
+  return `Grid: FIA provisional starting grid${number} \u00b7 the final grid replaces it`;
+}
+
+/** The stewards' documents behind the grid's rulings, in number order. */
+function decisions(data: StartingGridResponse): number[] {
+  const numbers = data.grid.flatMap((slot) => (slot.reasons ?? []).map((item) => item.document));
+  return [...new Set(numbers.filter((value): value is number => value !== null))].sort((a, b) => a - b);
+}
+
+/** The note that ends the section: which source, whether it is final, and where the reasons come from. */
 export function gridNote(data?: StartingGridResponse): string {
   if (!data?.available || data.grid.length === 0) return "No grid is published for this round yet.";
-  if (data.provisional) {
-    return `Order: the qualifying classification (${data.source_detail ?? "qualifying"}), provisional: no penalty is applied to it · the official grid replaces it once published`;
+  if (data.source === "qualifying_classification") {
+    return `Order: the qualifying classification (${data.source_detail ?? "qualifying"}), provisional: no penalty is applied to it \u00b7 the official grid replaces it once published`;
   }
-  return "Grid: f1db, mirroring the FIA final starting grid · f1db records the places dropped, never the offence behind them";
+  if (!data.fia_document) {
+    return `${sheetNote(data)} \u00b7 f1db records the places dropped, never the offence behind them`;
+  }
+  const documents = decisions(data);
+  const reasons = documents.length > 0 ? `reasons: FIA decisions ${documents.join(", ")}` : "no grid rulings published";
+  return `${sheetNote(data)} \u00b7 ${reasons}`;
 }
 
 /** Provenance line for the panel header, so the source is never implicit. */
 export function gridSourceLabel(source: GridSource): string {
   if (source === "official_grid") return "official grid sheet";
+  if (source === "fia_starting_grid") return "FIA starting grid";
   if (source === "qualifying_classification") return "qualifying order - provisional";
   return "not published";
 }

@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { rc } from "@/app/ui/tokens";
 import { SAO_PAULO_2026, SESSION_WEATHER_2026 } from "@/test/fixtures";
 
 import { SessionWeatherStrip } from "./SessionWeatherStrip";
@@ -21,9 +22,9 @@ describe("SessionWeatherStrip", () => {
       "Race17°21%",
     ]);
     expect(screen.getByRole("img", { name: "Thunderstorm" })).toBeInTheDocument();
-    expect(screen.getByText("80%")).toHaveStyle({ color: "#4C8DFF" });
-    expect(cells().at(-1)).toHaveClass("border-[#E10600]/50");
-    expect(cells()[0]).toHaveClass("border-white/10");
+    expect(screen.getByText("80%")).toHaveStyle({ color: rc.blue });
+    expect(cells().at(-1)).toHaveClass("border-t-2", "border-t-f1-red");
+    expect(cells()[0]).not.toHaveClass("border-t-2");
     expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
   });
 

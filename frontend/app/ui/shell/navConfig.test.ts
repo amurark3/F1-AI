@@ -42,7 +42,7 @@ describe("the nav lists", () => {
       "/race-control",
       "/race-control/grand-prix",
       "/race-control/telemetry",
-      "/race-control/teams",
+      "/race-control/standings",
       "/race-control/constructors",
       "/race-control/power-units",
       "/race-control/engineer",

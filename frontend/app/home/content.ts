@@ -59,7 +59,7 @@ export const TOOLS: ReadonlyArray<HomeLink & { motif: ToolMotif; wide?: boolean 
     motif: "traces",
   },
   {
-    href: "/race-control/teams",
+    href: "/race-control/standings",
     title: "Standings",
     description: "Both championships, and how the gap moved race by race.",
     motif: "standings",

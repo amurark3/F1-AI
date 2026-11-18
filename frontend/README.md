@@ -53,7 +53,7 @@ seven sections; Champions, Debriefs and Rulebook sit under "More". Below
 | `/race-control/engineer`                                     | Streaming AI race-engineer chat                                                                 |
 | `/race-control/grand-prix`                                   | Grand Prix Hub (`?round=&tab=&view=`), including predictions                                    |
 | `/race-control/telemetry`                                    | Telemetry Lab: speed map, head-to-head, tyre degradation                                        |
-| `/race-control/teams`                                        | Championship standings                                                                          |
+| `/race-control/standings`                                    | Championship standings                                                                          |
 | `/race-control/constructors/[team]`                          | Teams & Drivers: line-up, wins, PU usage                                                        |
 | `/race-control/drivers/[driver]`                             | Driver season: every result, car's PU                                                           |
 | `/race-control/power-units`                                  | Power-unit usage and grid penalties                                                             |
@@ -62,7 +62,7 @@ seven sections; Champions, Debriefs and Rulebook sit under "More". Below
 | `/race-control/rulebook`                                     | FIA regulation semantic search                                                                  |
 
 Older routes redirect: `/` and `/calendar` → `/race-control`; `/standings` →
-`/race-control/teams`; `/champions` → `/race-control/champions`; `/predictions`
+`/race-control/standings`; `/champions` → `/race-control/champions`; `/predictions`
 and `/race-control/predictions` → `/race-control/grand-prix`; `/consumer` →
 `/race-control/engineer`; `/race-control/intel` → `/race-control/constructors`;
 `/live` and `/race-control/live` → `/race-control`.

@@ -22,7 +22,7 @@ async function answerClinch(page: Page, body: unknown, status = 200): Promise<vo
 
 test("the Standings page says where one title was clinched and where the other can be", async ({ page }) => {
   await answerClinch(page, CLINCH_2026.afterRound19);
-  await page.goto("/race-control/teams");
+  await page.goto("/race-control/standings");
 
   await expect(page.getByText("Provisionally clinched in Mexico City", { exact: true })).toBeVisible();
   await expect(page.getByText("Mercedes can clinch in São Paulo", { exact: true })).toBeVisible();
@@ -37,7 +37,7 @@ test("a team page adds the team's own clause after its standing", async ({ page 
 
 test("the Standings page keeps its plain lead line when the calculator cannot be read", async ({ page }) => {
   await answerClinch(page, { detail: "boom" }, 500);
-  await page.goto("/race-control/teams");
+  await page.goto("/race-control/standings");
 
   await expect(page.getByText(/^119 points clear of .*Verstappen after round 19\.$/)).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Constructors" })).toBeVisible();

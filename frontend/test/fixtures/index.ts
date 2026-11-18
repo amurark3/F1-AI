@@ -21,7 +21,7 @@
  *   `unknown_team` (`build_team_profile(2026, "lotus")`). `power_units` and
  *   `intel_slug` are dropped (the pages read neither), and the later-round
  *   lookup is stubbed so the table is f1db's own.
- * - `standings-progression-2026.json`: `GET /api/race-control/standings/2026/progression`
+ * - `standings-progression-2026.json`: `GET /api/race-control/teams/2026/progression`
  *   (P5.2), as served, captured on 16 Nov 2026 through the backend's own
  *   `progression.build_standings_progression(2026)` on a copy of f1db v2026.20.0
  *   cut back to round 19 (rounds 20+ removed, version file `v2026.19.0`, no
@@ -213,8 +213,8 @@ import type {
   TeamProfileResponse,
   TeamsIndex,
 } from "@/app/race-control/profiles/profilesModel";
-import type { StandingsProgression } from "@/app/race-control/teams/standingsModel";
-import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
+import type { StandingsProgression } from "@/app/race-control/standings/standingsModel";
+import type { TeamsResponse } from "@/app/race-control/standings/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
 import type { HeroRace } from "@/app/race-control/weekend/WeekendHero";
 import type {
@@ -434,7 +434,7 @@ export const MEXICO_CITY_2026 = {
 };
 
 /**
- * `GET /api/race-control/standings/2026/clinch`. `after_round_19` is the morning
+ * `GET /api/race-control/teams/2026/clinch`. `after_round_19` is the morning
  * after Mexico City (provisional); `after_round_20` is the backend's own
  * `build_clinch(2026)` on f1db v2026.20.0 (14 Nov 2026), before Las Vegas.
  */

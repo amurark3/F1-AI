@@ -20,7 +20,7 @@ export const PRIMARY_NAV: readonly NavLink[] = [
   { href: "/race-control", label: "Race Control", exact: true },
   { href: "/race-control/grand-prix", label: "Grand Prix" },
   { href: "/race-control/telemetry", label: "Telemetry" },
-  { href: "/race-control/teams", label: "Standings" },
+  { href: "/race-control/standings", label: "Standings" },
   { href: "/race-control/constructors", label: "Teams", owns: ["/race-control/drivers"] },
   { href: "/race-control/power-units", label: "Power Units" },
   { href: "/race-control/engineer", label: "AI Engineer" },

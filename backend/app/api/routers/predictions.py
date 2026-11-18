@@ -3,12 +3,13 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from functools import partial
+import secrets
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 import structlog
 
 from app.api.errors import client_error
-from app.config import FASTF1_TIMEOUT_SECONDS
+from app.config import FASTF1_TIMEOUT_SECONDS, PREDICTIONS_ADMIN_KEY
 from app.data.predictions import (
     PHASE_POST_QUALIFYING,
     PHASE_PRE_QUALIFYING,
@@ -248,7 +249,13 @@ async def get_prediction_postmortem(year: int, round_num: int) -> dict:
     }
 
 
-@router.post("/predictions/{year}/{round_num}/compute")
+def require_admin_key(x_admin_key: str = Header("")) -> None:
+    """Refuse a compute unless it carries the owner's key; no key configured refuses all."""
+    if not PREDICTIONS_ADMIN_KEY or not secrets.compare_digest(x_admin_key, PREDICTIONS_ADMIN_KEY):
+        raise HTTPException(status_code=403, detail="Predictions are computed by the site owner only.")
+
+
+@router.post("/predictions/{year}/{round_num}/compute", dependencies=[Depends(require_admin_key)])
 async def compute_predictions(
     year: int,
     round_num: int,

@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +24,6 @@ import type { PredictionsResponse } from "./predictionModel";
 vi.mock("@/app/hooks/useServerStatus", () => ({ useServerStatus: vi.fn() }));
 
 const SNAPSHOT_URL = apiUrl("/api/predictions/2026/:round/snapshot");
-const COMPUTE_URL = apiUrl("/api/predictions/2026/:round/compute");
 const POST: PredictionsResponse = PREDICTION_REVIEW_R19;
 const PRE: PredictionsResponse = {
   ...POST,
@@ -136,61 +135,13 @@ describe("the Predictions tab (Mexico City)", () => {
     expect(await screen.findByText("Call against result")).toBeVisible();
   });
 
-  it("runs the model for the shown phase and swaps in the new snapshot", async () => {
-    const fresh = { ...POST, cache: { status: "stored", snapshot_id: "new", stored_at: "2026-11-14T10:00:00Z" } };
-    server.use(http.post(COMPUTE_URL, () => HttpResponse.json(fresh)));
-    const { user } = open("order");
-
-    await user.click(await screen.findByRole("button", { name: /run after qualifying/i }));
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /run after qualifying/i })).toBeEnabled());
-  });
-
-  it("waits for the stored snapshot when the run outlasts the request", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      const stored = { ...POST, cache: { status: "stored", snapshot_id: "later" } };
-      server.use(
-        http.post(COMPUTE_URL, () => HttpResponse.json({ ...POST, cache: { status: "computing" } })),
-        http.get(SNAPSHOT_URL, () => HttpResponse.json(stored)),
-      );
-      const { user } = open("order");
-
-      await user.click(await screen.findByRole("button", { name: /run after qualifying/i }));
-      expect(await screen.findByText("Running the after qualifying model")).toBeVisible();
-      await act(() => vi.advanceTimersByTimeAsync(5_000));
-
-      await waitFor(() => expect(screen.queryByText("Running the after qualifying model")).not.toBeInTheDocument());
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("shows a failed run inside the tab and lets the reader go on", async () => {
-    server.use(http.post(COMPUTE_URL, () => HttpResponse.json({ detail: "x" }, { status: 500 })));
-    const { user } = open("order");
-
-    await user.click(await screen.findByRole("button", { name: /run after qualifying/i }));
-
-    expect(await screen.findByText("Prediction request failed with 500")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /Overall/ }));
-    expect(screen.queryByText("Prediction request failed with 500")).not.toBeInTheDocument();
-  });
-
-  it("reports a run that returns no order as its own error", async () => {
-    server.use(http.post(COMPUTE_URL, () => HttpResponse.json({ predictions: [], error: "No qualifying data" })));
-    const { user } = open("order", seed({ snapshots: { pre_qualifying: PRE, post_qualifying: null } }));
-
-    await user.click(await screen.findByRole("button", { name: /run after qualifying/i }));
-
-    expect(await screen.findByText("No qualifying data")).toBeVisible();
-  });
-
-  it("explains an empty phase without a button of its own", async () => {
+  it("explains an empty phase as not published yet, with no way to run it", async () => {
     answerSnapshots({ predictions: [] }, { predictions: [] });
     open("order", seed({ snapshots: { pre_qualifying: null, post_qualifying: null } }));
 
     expect(await screen.findByText(/No stored overall prediction for/)).toBeVisible();
+    expect(screen.getByText(/has not been published yet/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: /run/i })).not.toBeInTheDocument();
   });
 
   it("offers to check again when a snapshot cannot be loaded", async () => {
@@ -215,7 +166,6 @@ describe("the Predictions tab (Mexico City)", () => {
     await user.click(await screen.findByRole("button", { name: /After Qualifying/ }));
 
     expect(await screen.findByText("Qualifying Has Not Run")).toBeVisible();
-    expect(screen.getByRole("button", { name: /run after qualifying/i })).toBeDisabled();
   });
 
   it("shows the prediction's own warnings", async () => {

@@ -137,8 +137,7 @@ export function StandbyPanel({
           No stored {phaseName.toLowerCase()} prediction for {raceName}
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8E96A8]">
-          {phaseDetail} Run it from the bar above to save a snapshot. It stays fixed until you run it again, and running
-          one phase leaves the other alone.
+          {phaseDetail} This call has not been published yet. Once it is, it stays fixed.
         </p>
       </div>
     </Panel>

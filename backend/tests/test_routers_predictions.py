@@ -57,12 +57,19 @@ def _clear_locks():
     predictions_router.model_runs.clear()
 
 
+ADMIN_KEY = "owner-key"
+
+
 @pytest.fixture
-def client() -> Iterator[TestClient]:
-    """One event loop for the whole test, so a run outlives the request that started it."""
+def client(monkeypatch) -> Iterator[TestClient]:
+    """One event loop for the whole test, so a run outlives the request that started it.
+
+    It carries the owner's key, so compute tests exercise the run, not the lock.
+    """
+    monkeypatch.setattr(predictions_router, "PREDICTIONS_ADMIN_KEY", ADMIN_KEY)
     app = FastAPI()
     app.include_router(predictions_router.router)
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-Admin-Key": ADMIN_KEY}) as test_client:
         yield test_client
 
 
@@ -239,6 +246,29 @@ def test_snapshot_says_when_that_phase_has_a_run_in_flight(client, monkeypatch, 
 # ---------------------------------------------------------------------------
 # POST /predictions/{year}/{round}/compute
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("configured", "sent"),
+    [
+        (ADMIN_KEY, None),  # a visitor sends no key
+        (ADMIN_KEY, "guess"),  # or the wrong one
+        ("", ""),  # no key configured closes the endpoint, even to an empty header
+    ],
+)
+def test_compute_refuses_anyone_without_the_owner_key(client, monkeypatch, configured, sent):
+    """Visitors must not store predictions; only the owner's key runs the model."""
+    ran: list[int] = []
+    monkeypatch.setattr(predictions_router, "PREDICTIONS_ADMIN_KEY", configured)
+    monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", lambda *a, **k: ran.append(1))
+    client.headers.pop("X-Admin-Key")
+    headers = {} if sent is None else {"X-Admin-Key": sent}
+
+    response = client.post("/predictions/2026/1/compute", headers=headers)
+
+    assert response.status_code == 403
+    assert ran == []
 
 
 @pytest.mark.unit

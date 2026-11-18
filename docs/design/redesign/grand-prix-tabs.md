@@ -16,7 +16,7 @@ Mockups: `grand-prix.html` (Weekend), `gp-sessions.html`, `gp-grid.html`, `gp-re
 
 Every round opens on **Weekend** when the URL names none, whatever stage its weekend has reached, and picking another round starts over on Weekend (user, 2026-11-18). The calendar-driven default this replaced (Sessions mid-weekend, Grid after qualifying, Results after the race) changed tabs on some round switches but not others: only until a tab was clicked, which then stuck. A link can still name a tab (`?tab=results`).
 
-On Weekend the hero and the facts strip sit above the tabs, in place of the one-line race header the other tabs keep, as `grand-prix.html` draws them (user, 2026-11-18).
+The hero and the facts strip sit above the tabs on **every** tab, as `grand-prix.html` draws them, so switching tabs never moves the page above them (user, 2026-11-18: a Weekend-only hero looked out of place). The one-line race header shows only while no round is selected. The other tab mockups still draw that one-line header; a comment in each marks it as replaced.
 
 The season strip marks the selected round by height, never by red (red reads as Ferrari): a won round keeps its winning team's colour, any other is white (user, 2026-11-18).
 

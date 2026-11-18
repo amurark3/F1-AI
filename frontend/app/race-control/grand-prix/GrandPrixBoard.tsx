@@ -164,7 +164,7 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         onSelectRound={props.onSelectRound}
       />
 
-      {activeTab === "weekend" && props.selectedRace ? (
+      {props.selectedRace ? (
         <WeekendTop year={props.year} race={props.selectedRace} totalRounds={props.schedule.length} />
       ) : (
         <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />

@@ -88,6 +88,12 @@ describe("the Predictions tab (Mexico City)", () => {
     answerSnapshots();
   });
 
+  it("keeps the round's hero above the tabs off the Weekend tab too", async () => {
+    open("order");
+
+    expect(await screen.findByText(/Round 19 \/ \d+/)).toBeVisible();
+  });
+
   it("opens the Order on the after-qualifying call, with vs grid and no removed columns", async () => {
     open("order");
 

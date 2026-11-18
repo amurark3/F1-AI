@@ -21,7 +21,7 @@ from app.data.profiles.results import (
     season_results,
     season_rounds,
 )
-from app.data.profiles.standings import Standing, season_standings
+from app.data.profiles.standings import Standing, neighbours, season_standings
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -30,12 +30,33 @@ if TYPE_CHECKING:
 _TEAM_QUERY = "SELECT id, name, full_name FROM constructor WHERE id = ?"
 
 _ENTRANTS_QUERY = """
-    SELECT DISTINCT sed.driver_id AS id, d.name AS name, d.abbreviation AS code,
-           d.permanent_number AS number
+    SELECT DISTINCT sed.driver_id AS id, d.name AS name, d.last_name AS last_name,
+           d.abbreviation AS code, d.permanent_number AS number
     FROM season_entrant_driver sed
     JOIN driver d ON d.id = sed.driver_id
-    WHERE sed.year = ? AND sed.constructor_id = ? AND sed.test_driver = 0
+    WHERE sed.year = ? AND sed.constructor_id = ?
+      AND (sed.test_driver = 0 OR EXISTS (
+          SELECT 1 FROM race_data rd JOIN race r ON r.id = rd.race_id
+          WHERE r.year = sed.year AND rd.driver_id = sed.driver_id
+            AND rd.constructor_id = sed.constructor_id
+            AND rd.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT')))
     ORDER BY d.name
+"""
+
+_POWER_UNIT_QUERY = """
+    SELECT em.name AS name
+    FROM season_entrant_driver sed
+    JOIN engine_manufacturer em ON em.id = sed.engine_manufacturer_id
+    WHERE sed.year = ? AND sed.constructor_id = ?
+    ORDER BY em.name
+    LIMIT 1
+"""
+
+_TEAM_NAMES_QUERY = """
+    SELECT DISTINCT c.id AS id, c.name AS name
+    FROM season_entrant_driver sed
+    JOIN constructor c ON c.id = sed.constructor_id
+    WHERE sed.year = ?
 """
 
 PODIUM_POSITIONS = 3
@@ -53,6 +74,8 @@ class _Season:
     through: dict | None
     #: Which round the championship table is after, whether provisional, and its sources.
     table_meta: dict
+    power_unit: str | None
+    rivals: dict
 
 
 def _race_finishes(season: _Season) -> list[Finish]:
@@ -75,6 +98,7 @@ def _driver(row: sqlite3.Row, season: _Season, current: set[str]) -> dict:
     return {
         "id": row["id"],
         "name": row["name"],
+        "last_name": row["last_name"],
         "code": row["code"],
         "number": number,
         "current": row["id"] in current,
@@ -160,12 +184,24 @@ def _payload(season: _Season) -> dict:
             "wins": sum(1 for item in races if item.position == 1),
             "podiums": sum(1 for item in races if item.position is not None and item.position <= PODIUM_POSITIONS),
             "poles": sum(1 for item in races if item.pole),
+            "power_unit": season.power_unit,
         },
+        "rivals": season.rivals,
         "drivers": _drivers(season),
         "wins": _wins(season),
         "rounds": _rounds(season),
         "results_through": season.through,
         **season.table_meta,
+    }
+
+
+def _rivals(table: Mapping[str, Standing], team_id: str, names: Mapping[str, str]) -> dict:
+    ahead, behind = neighbours(table, team_id)
+    return {
+        side: {"id": key, "name": names[key], "position": table[key].position, "points": table[key].points}
+        if key
+        else None
+        for side, key in (("ahead", ahead), ("behind", behind))
     }
 
 
@@ -178,6 +214,8 @@ def team_season(year: int, constructor_id: str) -> dict | None:
         if team is None or not entrants:
             return None
         rounds = season_rounds(conn, year)
+        power_unit = conn.execute(_POWER_UNIT_QUERY, (year, constructor_id)).fetchone()
+        names = {row["id"]: row["name"] for row in conn.execute(_TEAM_NAMES_QUERY, (year,)).fetchall()}
         season = _Season(
             year=year,
             team=team,
@@ -188,5 +226,7 @@ def team_season(year: int, constructor_id: str) -> dict | None:
             standing=standings.teams.get(constructor_id),
             through=results_through(conn, year, rounds),
             table_meta=standings.meta,
+            power_unit=power_unit["name"] if power_unit else None,
+            rivals=_rivals(standings.teams, constructor_id, names),
         )
     return _payload(season)

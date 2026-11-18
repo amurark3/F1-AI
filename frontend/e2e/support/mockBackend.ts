@@ -3,6 +3,7 @@ import {
   GRIDS_2026,
   MEXICO_CITY_2026,
   PREDICTION_REVIEW_R19,
+  PROFILE_PAGES_2026,
   RACE_RESULTS_2026,
   READY,
   TEAMS_2026,
@@ -43,6 +44,30 @@ export async function mockBackend(page: Page): Promise<void> {
   // Pages ask for the calendar year's season; the fixture is 2026's table.
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));
+  // The Teams index (its own path, so it does not shadow a team's `/teams/{id}`).
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/teams`, (route) =>
+    fulfillJson(route, PROFILE_PAGES_2026.teams_index),
+  );
+  // A team's season by f1db id; any other id is a team the season does not have.
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/teams/*`, (route) => {
+    const id = route.request().url().split("/").pop() ?? "";
+    const known: Record<string, unknown> = {
+      mercedes: PROFILE_PAGES_2026.mercedes,
+      "red-bull": PROFILE_PAGES_2026.red_bull,
+    };
+    return fulfillJson(route, known[id] ?? { year: 2026, status: "not_found", team: null });
+  });
+  // A driver's season by f1db id; any other id is a driver the season does not have.
+  await page.route(`${E2E_API_ORIGIN}/api/profiles/*/drivers/*`, (route) => {
+    const id = route.request().url().split("/").pop() ?? "";
+    const known: Record<string, unknown> = {
+      "max-verstappen": PROFILE_PAGES_2026.verstappen,
+      "lewis-hamilton": PROFILE_PAGES_2026.hamilton,
+      "liam-lawson": PROFILE_PAGES_2026.lawson,
+      "ryo-hirakawa": PROFILE_PAGES_2026.hirakawa,
+    };
+    return fulfillJson(route, known[id] ?? { year: 2026, status: "not_found", driver: null });
+  });
   // The Results tab: Mexico City (no sprint) and the Chinese Grand Prix (a sprint weekend).
   await page.route(`${E2E_API_ORIGIN}/api/race-control/results/2026/*`, (route) => {
     const round = route.request().url().split("/").pop();

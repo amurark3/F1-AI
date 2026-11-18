@@ -22,7 +22,8 @@ export interface SectionHeadProps {
  */
 export function SectionHead({ index, title, aside, as: Heading = "h2", id, className = "" }: SectionHeadProps) {
   return (
-    <div className={`mb-6 flex items-baseline gap-4 border-b border-rc-line pb-3.5 ${className}`}>
+    // Wraps: on a phone a long caption drops under the title, where a fixed row squeezed the title to nothing.
+    <div className={`mb-6 flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-rc-line pb-3.5 ${className}`}>
       <span aria-hidden="true" className="font-mono text-[13px] font-semibold leading-none text-rc-red-text">
         {String(index).padStart(2, "0")}
       </span>
@@ -30,7 +31,7 @@ export function SectionHead({ index, title, aside, as: Heading = "h2", id, class
         {title}
       </Heading>
       {aside != null && (
-        <div className="ml-auto shrink-0">{typeof aside === "string" ? <p className={EYEBROW}>{aside}</p> : aside}</div>
+        <div className="ml-auto">{typeof aside === "string" ? <p className={EYEBROW}>{aside}</p> : aside}</div>
       )}
     </div>
   );

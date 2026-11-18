@@ -5,6 +5,7 @@ const TONES = {
   red: "border-rc-red-text text-rc-red-text",
   blue: "border-rc-blue text-rc-blue",
   gain: "border-rc-gain text-rc-gain",
+  gold: "border-rc-gold text-rc-gold",
 } as const;
 
 export type StateTone = keyof typeof TONES;

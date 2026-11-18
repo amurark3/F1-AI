@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
+import type { StandingsProgression } from "@/app/race-control/teams/standingsModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 
 import { fetchFromBackend } from "./backend";
@@ -114,4 +115,12 @@ export function getPredictionSnapshot<T>(year: number, round: number, phase?: st
 /** Narrows the schedule response to an array, discarding an `{ error }` payload. */
 export function scheduleRaces(response: RaceEvent[] | { error: string } | null): RaceEvent[] {
   return Array.isArray(response) ? response : [];
+}
+
+/** Every round's championship table and the round each title was clinched. */
+export function getStandingsProgression(year: number): Promise<StandingsProgression | null> {
+  return fetchFromBackend<StandingsProgression>(`/api/race-control/standings/${year}/progression`, {
+    revalidate: REVALIDATE.STANDINGS,
+    tags: ["standings", `standings:${year}`],
+  });
 }

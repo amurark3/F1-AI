@@ -4,6 +4,7 @@ import type {
   DriverProfileResponse,
   SeasonDirectory,
   TeamProfileResponse,
+  TeamsIndexResponse,
 } from "@/app/race-control/profiles/profilesModel";
 
 import { fetchFromBackend } from "./backend";
@@ -22,21 +23,26 @@ export const getDirectory = cache((year: number): Promise<SeasonDirectory | null
   });
 });
 
-/**
- * A constructor's season. It carries power-unit usage, which moves through a
- * race weekend, so it refreshes on that clock rather than the standings'.
- */
+/** Every team of the season with its drivers' points for it; moves once per race weekend. */
+export const getTeamsIndex = cache((year: number): Promise<TeamsIndexResponse | null> => {
+  return fetchFromBackend<TeamsIndexResponse>(`/api/profiles/${year}/teams`, {
+    revalidate: REVALIDATE.STANDINGS,
+    tags: ["profiles", `profiles:${year}`],
+  });
+});
+
+/** A constructor's season: results and points only, so it refreshes on the standings' clock. */
 export const getTeamProfile = cache((year: number, teamId: string): Promise<TeamProfileResponse | null> => {
   return fetchFromBackend<TeamProfileResponse>(`/api/profiles/${year}/teams/${encodeURIComponent(teamId)}`, {
-    revalidate: REVALIDATE.POWER_UNITS,
+    revalidate: REVALIDATE.STANDINGS,
     tags: ["profiles", `profiles:${year}`, `profiles:team:${teamId}`],
   });
 });
 
-/** A driver's season, refreshed on the same clock as the team page. */
+/** A driver's season: results and points only, so it refreshes on the standings' clock. */
 export const getDriverProfile = cache((year: number, driverId: string): Promise<DriverProfileResponse | null> => {
   return fetchFromBackend<DriverProfileResponse>(`/api/profiles/${year}/drivers/${encodeURIComponent(driverId)}`, {
-    revalidate: REVALIDATE.POWER_UNITS,
+    revalidate: REVALIDATE.STANDINGS,
     tags: ["profiles", `profiles:${year}`, `profiles:driver:${driverId}`],
   });
 });

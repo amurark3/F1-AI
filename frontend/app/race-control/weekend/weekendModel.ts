@@ -3,7 +3,7 @@
  * bits of arithmetic the panels share. No React, so they read the same on the
  * server and in the browser.
  */
-import { driverLabel, teamLabel } from "@/app/ui/names/names";
+import { contenderName, nextEventSentence, type ChampionshipTable } from "@/app/lib/clinch";
 
 import type { SessionPhase, SessionWeatherRow, TableStakes, WeatherCondition } from "./weekendTypes";
 
@@ -92,14 +92,6 @@ export function summariseWeekend(rows: SessionWeatherRow[]): WeekendSummary {
 
 export type ClinchTone = "decided" | "possible" | "open";
 
-/** Which championship a stakes table counts. */
-export type ChampionshipTable = "drivers" | "constructors";
-
-/** A contender in a sentence: the driver's full name, or the team's f1db name. */
-function contenderName(table: ChampionshipTable, name: string, code: string | null = null): string {
-  return table === "constructors" ? teamLabel({ name }, "name") : driverLabel({ name, code }, "full");
-}
-
 /** Championship points, which are whole except in the odd half-points race. */
 export const formatPoints = (points: number): string => (Number.isInteger(points) ? String(points) : points.toFixed(1));
 
@@ -122,17 +114,7 @@ export function clinchLine(
       text: `The title can't be settled in ${venue} — ${formatPoints(stakes.max_available)} pts still on offer.`,
     };
   }
-  const rival = contenderName(table, clinch.rival);
-  if (clinch.margin_needed > 0) {
-    return {
-      tone: "possible",
-      text: `${leader} clinches in ${venue} by outscoring ${rival} by ${formatPoints(clinch.margin_needed)}+ pts.`,
-    };
-  }
-  return {
-    tone: "possible",
-    text: `${leader} clinches in ${venue} unless ${rival} outscores them by ${formatPoints(1 - clinch.margin_needed)}+ pts.`,
-  };
+  return { tone: "possible", text: nextEventSentence(table, stakes.leader, venue, clinch.needs) };
 }
 
 /**

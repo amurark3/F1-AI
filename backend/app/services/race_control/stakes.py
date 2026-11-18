@@ -14,9 +14,11 @@ ever delays a verdict.
 Whether a rival is still in, and so whether the title is decided, is
 ``app.data.title_rule``'s call, the rule every title read shares: a lead larger
 than what is left decides it, and a lead exactly equal to it decides it only
-when the leader would win the count-back. The margin to clinch *at this round*
-is quoted on points alone (a lead past what is left after the round): a finish
-level with that margin turns on this weekend's places, which nobody knows yet.
+when the leader would win the count-back. What the leader must
+do *at this round* is ``title_rule.needs_at``: against each rival still in it, a
+margin to outscore them by, quoted so that it always suffices. A finish exactly
+one point short of the margin goes to the count-back on this weekend's places,
+which nobody knows yet, and the need is flagged ``countback``.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.data import title_rule
-from app.data.title_rule import Remaining, Scoring, can_still_beat, max_points
+from app.data.title_rule import Need, Remaining, Scoring, can_settle_at, can_still_beat, max_points, needs_at
 from app.services.race_control.session_weather import session_slots
 
 if TYPE_CHECKING:
@@ -61,7 +63,7 @@ class PointsLeft:
     sprints_here: int
 
 
-def _paying_sessions(event: dict | None, now: datetime | None) -> tuple[int, int]:
+def paying_sessions(event: dict | None, now: datetime | None) -> tuple[int, int]:
     """Races and sprints at ``event``; only those not yet finished when ``now`` is given."""
     names = [slot.name for slot in session_slots(event) if now is None or now < slot.end]
     return names.count(RACE_SESSION), names.count(SPRINT_SESSION)
@@ -75,9 +77,9 @@ def _unscored(event: dict | None, through_round: int | None, now: datetime) -> t
     session counts until it ends.
     """
     if through_round is None:
-        return _paying_sessions(event, now)
+        return paying_sessions(event, now)
     if (event or {}).get("round", 0) > through_round:
-        return _paying_sessions(event, None)
+        return paying_sessions(event, None)
     return 0, 0
 
 
@@ -93,34 +95,34 @@ def points_left(events: list[dict], selected: dict | None, through_round: int | 
     )
 
 
+def entrant(row: Standing, championship: Championship) -> dict:
+    """Who a row is: name, driver code (None for a team) and team."""
+    return {"name": row.name, "code": row.key if championship.coded else None, "team": row.team}
+
+
+def need_row(need: Need, championship: Championship) -> dict:
+    """A rival the leader must outscore, and by how much."""
+    return {**entrant(need.rival, championship), "margin": need.margin, "countback": need.countback}
+
+
 def _contender(row: Standing, leader: Standing, alive: bool, championship: Championship) -> dict:
     return {
         "position": row.position,
-        "name": row.name,
-        "code": row.key if championship.coded else None,
-        "team": row.team,
+        **entrant(row, championship),
         "points": row.points,
         "gap": leader.points - row.points,
         "alive": alive,
     }
 
 
-def _clinch(rows: tuple[Standing, ...], available: int, here: int) -> dict | None:
-    """Whether the leader can settle the title at this round, and by what margin.
-
-    Settled means a lead over every rival larger than what is left after the
-    round. The closest rival binds, so the margin is quoted against them; the
-    leader must also stay far enough clear of the others still in play.
-    """
-    leader, rival = rows[0], rows[1]
-    lead = leader.points - rival.points
-    after = available - here
-    margin = after - lead + 1
+def _clinch(rows: tuple[Standing, ...], left: PointsLeft, championship: Championship) -> dict:
+    """Whether the leader can settle the title at this round, and what they must do against each rival."""
+    at = Remaining(left.races_here, left.sprints_here)
+    after = Remaining(left.races - left.races_here, left.sprints - left.sprints_here)
+    scoring = championship.scoring
     return {
-        "rival": rival.name,
-        "margin_needed": margin,
-        "possible": margin <= here,
-        "rivals_in_play": sum(1 for row in rows[1:] if leader.points - row.points <= after),
+        "possible": can_settle_at(rows, at, after, scoring),
+        "needs": [need_row(need, championship) for need in needs_at(rows, at, after, scoring)],
     }
 
 
@@ -150,7 +152,7 @@ def table_stakes(rows: tuple[Standing, ...], left: PointsLeft, championship: Cha
         ],
         "rivals_alive": rivals_alive,
         "decided": decided,
-        "clinch": None if decided or len(rows) < 2 or here == 0 else _clinch(rows, available, here),
+        "clinch": None if decided or len(rows) < 2 or here == 0 else _clinch(rows, left, championship),
     }
 
 

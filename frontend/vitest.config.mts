@@ -22,13 +22,14 @@ const COVERAGE_INCLUDE = [
   "app/home/HomeHero.tsx",
   "app/home/HomeSections.tsx",
   "app/home/motifs.tsx",
+  "app/lib/clinch.ts",
+  "app/race-control/clinch/**",
   "app/lib/standingsFreshness.ts",
   "app/ui/**",
   "app/race-control/components/BaselineStrategyPanel.tsx",
   "app/race-control/components/CommandCenterPanels.tsx",
   "app/race-control/components/Disclosure.tsx",
   "app/race-control/components/RaceControlPrimitives.tsx",
-  "app/race-control/components/RefreshButton.tsx",
   "app/race-control/components/Tabs.tsx",
   // P0b.7: the "vs grid" helper.
   "app/race-control/grand-prix/gridDelta.ts",
@@ -62,10 +63,12 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/WeekendPanels.tsx",
   "app/race-control/grand-prix/WeekendSchedule.tsx",
   "app/race-control/grand-prix/weekendTabModel.ts",
-  // P2.3a: the profiles files the redesign keeps. FinishChip, ProfileCharts,
-  // PowerUnitCards and ProfileStates stay off: P5.4 / P6.3 rebuild or remove them.
-  "app/race-control/profiles/EntityLinks.tsx",
-  "app/race-control/profiles/profilesModel.ts",
+  // P5.4: the Teams index, the Team and Driver pages, everything shared under profiles/, and the
+  // old team URL's redirect.
+  "app/race-control/constructors/**",
+  "app/race-control/drivers/**",
+  "app/race-control/profiles/**",
+  "app/race-control/teams/[team]/page.tsx",
   "app/race-control/weekend/**",
   // P4.4a: the Telemetry Lab toolbar and the speed map. P4.4b adds the head-to-head cards. The
   // tyre-wear files stay off: P4.4c rebuilds them.
@@ -118,6 +121,9 @@ const COVERAGE_INCLUDE = [
   "app/race-control/grand-prix/useHubData.ts",
   "app/race-control/grand-prix/useHubUrlState.ts",
   "app/race-control/grand-prix/usePredictionWorkspace.ts",
+  // P5.2: the Standings page (route kept at /race-control/teams) and the old /standings redirect.
+  "app/race-control/teams/**",
+  "app/standings/page.tsx",
 ];
 
 /** Every metric must reach this in every included file. */

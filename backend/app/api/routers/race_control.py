@@ -17,6 +17,8 @@ from app.services.race_control import (
     build_overview_weather,
     build_round_circuit,
 )
+from app.services.race_control.clinch import build_clinch
+from app.services.race_control.progression import build_standings_progression
 from app.services.race_control_battles import build_driver_battle
 from app.services.race_control_championship import build_championship_forecast
 from app.services.race_control_common import get_driver_options
@@ -165,6 +167,19 @@ async def get_drivers(year: int) -> dict:
         return {"year": year, "drivers": [], **client_error("api.race_control_drivers.error", exc, year=year)}
 
 
+@router.get("/standings/{year}/progression")
+async def get_standings_progression(year: int) -> dict:
+    """Every round's drivers' and constructors' table, and the round each title was clinched."""
+    try:
+        return await asyncio.to_thread(build_standings_progression, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "rounds": [],
+            **client_error("api.race_control_standings_progression.error", exc, year=year),
+        }
+
+
 @router.get("/grid/{year}/{round_num}")
 async def get_starting_grid(year: int, round_num: int) -> dict:
     """The round's starting grid and any grid penalties applied to it."""
@@ -213,6 +228,20 @@ async def get_race_strategy(year: int, round_num: int) -> dict:
             "drivers": [],
             "stops": [],
             **client_error("api.race_control_stints.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/standings/{year}/clinch")
+async def get_clinch(year: int) -> dict:
+    """What each championship hangs on: decided (where) or what the leader must do at the next event."""
+    try:
+        return await asyncio.to_thread(build_clinch, year)
+    except Exception as exc:
+        return {
+            "year": year,
+            "drivers": None,
+            "constructors": None,
+            **client_error("api.race_control_clinch.error", exc, year=year),
         }
 
 

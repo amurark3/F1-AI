@@ -60,7 +60,7 @@ describe("ChampionshipStakes", () => {
 
     expect(screen.getByRole("button", { name: "Teams" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Drivers" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByText("Mercedes clinches in São Paulo by outscoring Ferrari by 4+ pts.")).toBeInTheDocument();
+    expect(screen.getByText("Mercedes clinch in São Paulo if they outscore Ferrari by 3.")).toBeInTheDocument();
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeInTheDocument();
     expect(rows().slice(0, 3)).toEqual(["P1Mercedes630", "P2Ferrari504−126", "P3Red Bullout382−248"]);
     expect(footer()).toBe("Standings after round 19 · confirmed · 4 races · 0 sprints to count · 172 pts max");

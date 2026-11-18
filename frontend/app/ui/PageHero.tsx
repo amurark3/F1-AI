@@ -18,6 +18,8 @@ export interface PageHeroProps {
   accent?: string | null;
   /** Entity pages: sets the hero on the framed hero band. */
   band?: boolean;
+  /** A leading column before the title: the car number on driver pages. */
+  lead?: ReactNode;
   /** A right-hand column: a team's lineup, a circuit map. */
   aside?: ReactNode;
   /** Anything under the meta line: a countdown, a headline figure. */
@@ -43,6 +45,15 @@ const LAYOUT = {
   },
 } as const;
 
+/** With a lead, the band is three columns and the cells inherit the band's padding. */
+const LEAD = {
+  columns: "lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-end gap-x-9",
+  lead: "px-6 pt-6 sm:px-9 lg:pb-9 lg:pr-0",
+  body: "p-6 sm:p-9 lg:pl-0",
+  /** driver.html's size: the car number takes the room the band title would. */
+  title: "text-[clamp(48px,6vw,92px)]",
+} as const;
+
 /** Each line rises in on entrance, a beat after the one above; the rule then draws out from the left. */
 const RISE = "motion-safe:animate-fade-up";
 
@@ -63,24 +74,33 @@ export function PageHero({
   meta,
   accent,
   band = false,
+  lead,
   aside,
   children,
   className = "",
 }: PageHeroProps) {
   const layout = band ? LAYOUT.band : LAYOUT.plain;
   const color = accentColor(accent);
+  const hasLead = lead != null;
+  const columns = hasLead ? LEAD.columns : layout.columns;
+  const asideClass = hasLead ? LEAD.body : layout.aside;
 
   return (
     <header
       data-band={band ? "" : undefined}
-      className={`grid min-w-0 ${layout.frame} ${aside == null ? "" : layout.columns} ${className}`}
+      className={`grid min-w-0 ${layout.frame} ${aside == null && !hasLead ? "" : columns} ${className}`}
     >
       {band && (
         <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
       )}
-      <div className={`min-w-0 ${layout.body}`}>
+      {hasLead && <div className={`min-w-0 ${LEAD.lead}`}>{lead}</div>}
+      <div className={`min-w-0 ${hasLead ? LEAD.body : layout.body}`}>
         {eyebrow != null && <p className={`${EYEBROW} ${RISE}`}>{eyebrow}</p>}
-        <h1 className={`${DISPLAY} ${layout.title} mt-3.5 text-rc-ink ${RISE} [animation-delay:60ms]`}>{title}</h1>
+        <h1
+          className={`${DISPLAY} ${hasLead ? LEAD.title : layout.title} mt-3.5 text-rc-ink ${RISE} [animation-delay:60ms]`}
+        >
+          {title}
+        </h1>
         <div
           aria-hidden="true"
           data-hero-rule=""
@@ -92,7 +112,7 @@ export function PageHero({
         )}
         {children != null && <div className={`mt-8 ${RISE} [animation-delay:200ms]`}>{children}</div>}
       </div>
-      {aside != null && <div className={`min-w-0 ${layout.aside}`}>{aside}</div>}
+      {aside != null && <div className={`min-w-0 ${asideClass}`}>{aside}</div>}
     </header>
   );
 }

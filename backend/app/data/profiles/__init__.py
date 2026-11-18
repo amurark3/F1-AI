@@ -2,5 +2,6 @@
 
 from app.data.profiles.drivers import driver_season
 from app.data.profiles.teams import team_season
+from app.data.profiles.teams_index import teams_index
 
-__all__ = ["driver_season", "team_season"]
+__all__ = ["driver_season", "team_season", "teams_index"]

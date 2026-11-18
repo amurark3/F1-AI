@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from functools import reduce
+from itertools import accumulate
 
 import structlog
 
@@ -59,6 +59,8 @@ class CurrentStandings:
     #: True while any round in the table is not yet in f1db.
     provisional: bool
     sources: tuple[dict, ...] = ()
+    #: (round, table after it) for each round added past f1db's base, in order.
+    round_tables: tuple[tuple[int, Table], ...] = ()
 
     def driver_rows(self) -> list[dict]:
         """Driver rows in the shape the standings endpoints have always sent."""
@@ -142,7 +144,8 @@ def _compute(year: int, version: str | None) -> CurrentStandings:
     base_round, base = f1db_table(year)
     # A finished season is f1db's alone; only a live one can be ahead of it.
     rounds = later_rounds(year, base_round) if year >= _utc_now().year else ()
-    table = reduce(lambda current, points: add_round(current, points.scores), rounds, base)
+    tables = tuple(accumulate(rounds, lambda current, points: add_round(current, points.scores), initial=base))
+    table = tables[-1]
     checks = cross_check(year, table, rounds[-1]) if rounds else ()
     return CurrentStandings(
         year=year,
@@ -151,6 +154,7 @@ def _compute(year: int, version: str | None) -> CurrentStandings:
         as_of_round=(rounds[-1].round if rounds else base_round) or None,
         provisional=bool(rounds),
         sources=_sources(base_round, version, rounds, checks),
+        round_tables=tuple(zip((points.round for points in rounds), tables[1:], strict=True)),
     )
 
 

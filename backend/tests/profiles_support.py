@@ -7,6 +7,10 @@ seed is pinned by many tests. The profile pages read more of ``race_data``
 * 2026, four rounds, three published. Round 2 is a sprint weekend.
 * Red Bull swaps Hadjar out for Lawson at round 2 and back for round 3, and
   lists a reserve (``test_driver = 1``) who must never appear.
+* Hadjar starts round 3 from the pit lane (grid empty, text "PL") and keeps
+  his four places gained.
+* Lawson's entry is flagged a test driver, as f1db does for some stand-ins
+  (Hirakawa 2026 R19): he raced, so he still counts.
 * Hadjar retires unclassified in round 1; Hamilton does not start round 2 and
   retires *classified* in round 3 — one retirement, not two.
 * Cadillac is entered with a driver but has no result yet and no full name.
@@ -42,15 +46,17 @@ CREATE TABLE race_data (
     race_id INTEGER, type TEXT, position_display_order INTEGER,
     position_number INTEGER, position_text TEXT, driver_number TEXT,
     driver_id TEXT, constructor_id TEXT, race_points REAL,
-    race_grid_position_number INTEGER, race_positions_gained INTEGER,
+    race_grid_position_number INTEGER, race_grid_position_text TEXT, race_positions_gained INTEGER,
     race_reason_retired TEXT, race_fastest_lap INTEGER, race_pole_position INTEGER
 );
 CREATE TABLE race_driver_standing (race_id INTEGER, position_number INTEGER, driver_id TEXT, points REAL);
 CREATE TABLE race_constructor_standing (
     race_id INTEGER, position_number INTEGER, constructor_id TEXT, points REAL
 );
+CREATE TABLE engine_manufacturer (id TEXT PRIMARY KEY, name TEXT);
 CREATE TABLE season_entrant_driver (
-    year INTEGER, driver_id TEXT, constructor_id TEXT, rounds TEXT, test_driver INTEGER
+    year INTEGER, driver_id TEXT, constructor_id TEXT, engine_manufacturer_id TEXT, rounds TEXT,
+    test_driver INTEGER
 );
 """
 
@@ -105,7 +111,7 @@ RESULTS = [
     (2, RACE, 2, 2, "2", "1", "max-verstappen", "red-bull", 18, 2, 0, None, 1, 0),
     (2, RACE, 3, 3, "3", "30", "liam-lawson", "red-bull", 15, 5, 2, None, 0, 0),
     (2, RACE, 4, None, "DNS", "44", "lewis-hamilton", "ferrari", None, None, None, "Hydraulics", 0, 0),
-    (3, RACE, 1, 1, "1", "6", "isack-hadjar", "red-bull", 25, 5, 4, None, 0, 0),
+    (3, RACE, 1, 1, "1", "6", "isack-hadjar", "red-bull", 25, None, 4, None, 0, 0),
     (3, RACE, 2, 2, "2", "16", "charles-leclerc", "ferrari", 18, 1, -1, None, 1, 1),
     (3, RACE, 3, 3, "3", "1", "max-verstappen", "red-bull", 15, 2, -1, None, 0, 0),
     (3, RACE, 4, 4, "4", "44", "lewis-hamilton", "ferrari", 12, 3, -1, "Gearbox", 0, 0),
@@ -135,16 +141,18 @@ CONSTRUCTOR_STANDINGS = [
     (3, 2, "ferrari", 88.0),
 ]
 
+# (year, driver, team, engine, rounds, test driver)
 ENTRANTS = [
-    (2026, "max-verstappen", "red-bull", "1;2;3", 0),
-    (2026, "isack-hadjar", "red-bull", "1;3", 0),
-    (2026, "liam-lawson", "red-bull", "2", 0),
-    (2026, "ayumu-iwasa", "red-bull", "", 1),
-    (2026, "charles-leclerc", "ferrari", "1;2;3", 0),
-    (2026, "lewis-hamilton", "ferrari", "1;2;3", 0),
-    (2026, "sergio-perez", "cadillac", "", 0),
-    (2027, "max-verstappen", "red-bull", "", 0),
-    (2027, "ayumu-iwasa", "red-bull", "", 1),
+    (2026, "max-verstappen", "red-bull", "red-bull-ford", "1;2;3", 0),
+    (2026, "isack-hadjar", "red-bull", "red-bull-ford", "1;3", 0),
+    # f1db marks some stand-ins test drivers, e.g. Hirakawa 2026 R19.
+    (2026, "liam-lawson", "red-bull", "red-bull-ford", "2", 1),
+    (2026, "ayumu-iwasa", "red-bull", "red-bull-ford", "", 1),
+    (2026, "charles-leclerc", "ferrari", "ferrari", "1;2;3", 0),
+    (2026, "lewis-hamilton", "ferrari", "ferrari", "1;2;3", 0),
+    (2026, "sergio-perez", "cadillac", None, "", 0),
+    (2027, "max-verstappen", "red-bull", "red-bull-ford", "", 0),
+    (2027, "ayumu-iwasa", "red-bull", "red-bull-ford", "", 1),
 ]
 
 
@@ -183,8 +191,18 @@ def build_profiles_db(path: Path) -> Path:
             CONSTRUCTOR_STANDINGS,
         )
         conn.executemany(
-            "INSERT INTO season_entrant_driver (year, driver_id, constructor_id, rounds, test_driver) VALUES (?, ?, ?, ?, ?)",
+            """INSERT INTO season_entrant_driver (year, driver_id, constructor_id, engine_manufacturer_id, rounds,
+                                                 test_driver)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             ENTRANTS,
+        )
+        conn.executemany(
+            "INSERT INTO engine_manufacturer (id, name) VALUES (?, ?)",
+            [("red-bull-ford", "Red Bull Ford"), ("ferrari", "Ferrari")],
+        )
+        # Hadjar's round 3 win came from the pit lane: no grid number, text "PL".
+        conn.execute(
+            "UPDATE race_data SET race_grid_position_text = 'PL' WHERE race_id = 3 AND driver_id = 'isack-hadjar'"
         )
         conn.commit()
     finally:

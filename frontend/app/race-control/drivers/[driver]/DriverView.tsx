@@ -1,92 +1,81 @@
 "use client";
 
-import useSWR from "swr";
-
 import { API_BASE } from "@/app/constants/api";
-import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
-import { PanelHeading } from "@/app/ui/PanelHeading";
-import { fetcher } from "@/app/utils/fetcher";
+import { Section } from "@/app/ui/section/Section";
+import { useSection } from "@/app/ui/section/useSection";
+import { SectionHead } from "@/app/ui/SectionHead";
+import { SourceBadge } from "@/app/ui/SourceBadge";
 
-import { Panel } from "../../components/RaceControlPrimitives";
-import { PowerUnitsSection, type DriverFocus } from "../../profiles/PowerUnitCards";
-import { FinishPositionChart } from "../../profiles/ProfileCharts";
+import { CarAllocations } from "../../profiles/CarAllocations";
+import { MissingProfile } from "../../profiles/MissingProfile";
 import {
   isDriverProfile,
   profilesUrl,
-  type DriverCar,
   type DriverProfile,
   type DriverProfileResponse,
 } from "../../profiles/profilesModel";
-import { ProfileLoading, ProfileNotFound, ProfileUnavailable } from "../../profiles/ProfileStates";
 
-import { DriverHeader, DriverWins } from "./DriverHeader";
-import { DriverResultsTable } from "./DriverResultsTable";
+import { DriverHero } from "./DriverHero";
+import { DriverKpis } from "./DriverKpis";
+import { GridToFinish } from "./GridToFinish";
+import { PointsPerRace } from "./PointsPerRace";
+import { TeammateBattle } from "./TeammateBattle";
 
-/** A full 2026 grid; the axis grows if a result ever sits lower. */
-const FIELD_SIZE = 22;
+const REFRESH = { revalidateOnFocus: false, dedupingInterval: 180_000 };
 
-function PositionPanel({ profile }: { profile: DriverProfile }) {
-  const data = profile.rounds
-    .filter((round) => round.status === "complete")
-    .map((round) => ({ label: `R${round.round}`, name: round.short_name, position: round.race?.position ?? null }));
-  const raced = data.filter((entry) => entry.position !== null);
-  if (raced.length < 2) return null;
-  const lowest = Math.max(...raced.map((entry) => entry.position ?? 0));
-  return (
-    <Panel as="section" className="mb-5">
-      <PanelHeading
-        eyebrow="Finishing position by round"
-        aside={<span className="text-xs text-[#6F7789]">Gaps are retirements or rounds not raced</span>}
-        inset
-      />
-      <div className="p-3">
-        <FinishPositionChart data={data} color={profile.driver.color} fieldSize={Math.max(FIELD_SIZE, lowest)} />
-      </div>
-    </Panel>
-  );
-}
-
-function focusFor(profile: DriverProfile): (car: DriverCar) => DriverFocus {
-  return (car) => ({ driverName: profile.driver.name, rounds: car.driver_rounds, sharedWith: car.shared_with });
-}
-
-function DriverPage({ profile }: { profile: DriverProfile }) {
+function DriverSeason({ profile }: { profile: DriverProfile }) {
   return (
     <div>
-      <DriverHeader profile={profile} />
-      <div className="grid gap-x-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <DriverWins profile={profile} />
-        <PositionPanel profile={profile} />
-      </div>
-      <DriverResultsTable profile={profile} />
-      <PowerUnitsSection section={profile.power_units} color={profile.driver.color} renderFocus={focusFor(profile)} />
+      <DriverHero profile={profile} />
+      <DriverKpis profile={profile} />
+      <section className="pt-16">
+        <SectionHead index={1} title="The season, race by race" />
+        <GridToFinish profile={profile} />
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <TeammateBattle profile={profile} />
+          <PointsPerRace profile={profile} />
+        </div>
+      </section>
+      <CarAllocations
+        year={profile.year}
+        scope={{ kind: "driver", driverId: profile.driver.id, lastName: profile.driver.last_name }}
+      />
+      <SourceBadge freshness={profile} className="mt-10" />
     </div>
   );
 }
 
-export function DriverView({
-  driverId,
-  year,
-  initial,
-}: {
-  driverId: string;
+interface DriverViewProps {
   year: number;
-  initial: DriverProfileResponse | null;
-}) {
-  const { data, error, isLoading, mutate } = useSWR<DriverProfileResponse, Error>(
-    profilesUrl(API_BASE, year, `drivers/${encodeURIComponent(driverId)}`),
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 180000, ...seededWith(initial) },
-  );
+  driverId: string;
+  /** The server render's answer; null renders the skeleton and fetches in the browser. */
+  seed: DriverProfileResponse | null;
+}
 
-  if (awaitingFirstData(isLoading, data !== undefined)) {
-    return <ProfileLoading what="driver" />;
-  }
-  if (isDriverProfile(data)) {
-    return <DriverPage profile={data} />;
-  }
-  if (data?.status === "not_found") {
-    return <ProfileNotFound what="driver" backHref="/race-control/constructors" backLabel="All teams" />;
-  }
-  return <ProfileUnavailable onRetry={() => void mutate()} errorId={error ? undefined : data?.error_id} />;
+/** The driver's season: one section on `/api/profiles/{year}/drivers/{id}`, with the power unit on its own endpoint. */
+export function DriverView({ year, driverId, seed }: DriverViewProps) {
+  const state = useSection<DriverProfileResponse>(
+    profilesUrl(API_BASE, year, `drivers/${encodeURIComponent(driverId)}`),
+    { seed, config: REFRESH },
+  );
+  const { data } = state;
+  return (
+    <Section
+      state={state}
+      label={isDriverProfile(data) ? `${data.driver.name} season` : "Driver season"}
+      skeletonClassName="h-[760px]"
+    >
+      {isDriverProfile(data) ? (
+        <DriverSeason profile={data} />
+      ) : (
+        <MissingProfile
+          year={year}
+          what="driver"
+          id={driverId}
+          backHref="/race-control/constructors"
+          backLabel="All teams"
+        />
+      )}
+    </Section>
+  );
 }

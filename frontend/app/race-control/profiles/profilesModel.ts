@@ -5,14 +5,12 @@
  * Everything here is a function of the payload — no fetching, no React — so
  * server and client components can both use it.
  *
- * Power-unit usage belongs to the car (FIA B8.2.7). A driver's page therefore
- * carries whole cars, plus the rounds that were theirs and who else drove them.
+ * Power-unit usage belongs to the car (FIA B8.2.7), so no profile carries it:
+ * the pages read it from the power-units endpoint (`CarAllocations`).
  */
 
-import { standingsLabel, type StandingsFreshness } from "@/app/lib/standingsFreshness";
+import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
 import { findDirectoryDriver, findDirectoryTeam } from "@/app/ui/names/names";
-
-import type { DocumentRef, ElementInfo, PowerUnitCar } from "../power-units/powerUnitsModel";
 
 export interface DirectoryDriver {
   id: string;
@@ -49,6 +47,12 @@ export interface SeasonDirectory extends Partial<StandingsFreshness> {
   error?: string;
 }
 
+/**
+ * What a car did. A classified retirement is still `dnf` (f1db may give it a
+ * place and places gained; we show the status code and no gain).
+ */
+export type FinishStatus = "finished" | "dnf" | "dns" | "dsq" | "nc" | "dnq" | "ex";
+
 /** One car's classification in one race or sprint. */
 export interface Finish {
   number: number | null;
@@ -60,6 +64,9 @@ export interface Finish {
   reason_retired: string | null;
   fastest_lap: boolean;
   pole: boolean;
+  status: FinishStatus;
+  /** Started from the pit lane (`grid` is then null). */
+  pit_lane: boolean;
 }
 
 export type RoundStatus = "complete" | "pending";
@@ -75,14 +82,6 @@ export interface ResultsThrough {
   name: string;
 }
 
-export interface ProfilePowerUnits<C> {
-  available: boolean;
-  reason: string | null;
-  as_of: (DocumentRef & { round: number }) | null;
-  elements: ElementInfo[];
-  cars: C[];
-}
-
 /** Every non-ok answer: an unknown id, or a backend that failed. */
 export interface MissingProfile {
   year: number;
@@ -91,7 +90,20 @@ export interface MissingProfile {
   error_id?: string;
 }
 
+/** The entity one place above or below in a championship table. */
+export interface Rivals<R> {
+  ahead: R | null;
+  behind: R | null;
+}
+
 // --- Team ------------------------------------------------------------------
+
+export interface TeamRival {
+  id: string;
+  name: string;
+  position: number | null;
+  points: number;
+}
 
 export interface TeamSummary {
   id: string;
@@ -103,11 +115,14 @@ export interface TeamSummary {
   wins: number;
   podiums: number;
   poles: number;
+  /** The engine manufacturer, e.g. "Red Bull Ford"; null when f1db names none. */
+  power_unit: string | null;
 }
 
 export interface TeamDriver {
   id: string;
   name: string;
+  last_name: string;
   code: string | null;
   number: number | null;
   /** Started the team's latest race. */
@@ -142,22 +157,40 @@ export interface TeamProfile extends StandingsFreshness {
   year: number;
   status: "ok";
   team: TeamSummary;
+  rivals: Rivals<TeamRival>;
   drivers: TeamDriver[];
   wins: TeamWin[];
   rounds: TeamRound[];
   results_through: ResultsThrough | null;
-  /** The key the rival-intel endpoint knows this team by. */
-  intel_slug: string;
-  power_units: ProfilePowerUnits<PowerUnitCar>;
 }
 
 export type TeamProfileResponse = TeamProfile | MissingProfile;
 
 // --- Driver ----------------------------------------------------------------
 
+export interface DriverRival {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  position: number | null;
+  points: number;
+}
+
+/** Another driver who raced for the same team in a round this driver raced. */
+export interface Teammate {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  rounds: number[];
+  rounds_label: string;
+}
+
 export interface DriverSummary {
   id: string;
   name: string;
+  last_name: string;
   code: string | null;
   number: number | null;
   nationality: string | null;
@@ -190,19 +223,8 @@ export interface DriverRound extends RoundRef {
   team_id: string | null;
   race: Finish | null;
   sprint: Finish | null;
-}
-
-export interface CarShare {
-  id: string;
-  name: string;
-  rounds: number[];
-  rounds_label: string;
-}
-
-export interface DriverCar extends PowerUnitCar {
-  /** The rounds this driver raced this car. */
-  driver_rounds: number[];
-  shared_with: CarShare[];
+  /** The teammate's race that round; null when this driver did not race or had none. */
+  teammate: { driver_id: string; race: Finish } | null;
 }
 
 export interface DriverProfile extends StandingsFreshness {
@@ -212,13 +234,47 @@ export interface DriverProfile extends StandingsFreshness {
   standing: { position: number | null; points: number };
   stats: DriverStats;
   teams: DriverTeamSpell[];
+  rivals: Rivals<DriverRival>;
+  /** Ordered by rounds together, the main teammate first. */
+  teammates: Teammate[];
   wins: RoundRef[];
   rounds: DriverRound[];
   results_through: ResultsThrough | null;
-  power_units: ProfilePowerUnits<DriverCar>;
 }
 
 export type DriverProfileResponse = DriverProfile | MissingProfile;
+
+// --- Teams index -----------------------------------------------------------
+
+export interface TeamsIndexDriver {
+  id: string;
+  name: string;
+  last_name: string;
+  code: string | null;
+  /** Race and sprint points scored for this team. */
+  points: number;
+  rounds: number[];
+  rounds_label: string;
+}
+
+export interface TeamsIndexTeam {
+  id: string;
+  name: string;
+  full_name: string;
+  color: string;
+  position: number | null;
+  points: number;
+  drivers: TeamsIndexDriver[];
+}
+
+export interface TeamsIndex extends StandingsFreshness {
+  year: number;
+  status: "ok";
+  teams: TeamsIndexTeam[];
+  results_through: ResultsThrough | null;
+}
+
+export type TeamsIndexResponse = TeamsIndex | MissingProfile;
 
 // --- Helpers ---------------------------------------------------------------
 
@@ -240,17 +296,6 @@ export function formatPoints(points: number): string {
 
 export function ordinalPosition(position: number | null): string {
   return position === null ? "—" : `P${position}`;
-}
-
-/** "382 pts · after round 19 · provisional": championship points and how fresh the table is. */
-export function championshipPoints(points: number, freshness: Partial<StandingsFreshness>): string {
-  const label = standingsLabel(freshness);
-  return label ? `${formatPoints(points)} pts · ${label}` : `${formatPoints(points)} pts`;
-}
-
-/** "Results through R18 United States Grand Prix", or a plain "no results yet". */
-export function freshnessLine(through: ResultsThrough | null, year: number): string {
-  return through ? `Results through R${through.round} ${through.name}` : `No ${year} results published yet`;
 }
 
 // --- Resolving names from other feeds --------------------------------------

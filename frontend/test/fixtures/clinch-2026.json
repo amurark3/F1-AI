@@ -1,0 +1,128 @@
+{
+  "after_round_19": {
+    "year": 2026,
+    "as_of_round": 19,
+    "provisional": true,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 19,
+        "version": "v2026.19.0"
+      }
+    ],
+    "drivers": {
+      "decided": true,
+      "leader": {
+        "name": "Kimi Antonelli",
+        "code": "ANT",
+        "team": "Mercedes",
+        "points": 380.0
+      },
+      "max_available": 100,
+      "next": null,
+      "earliest": null,
+      "decided_at": {
+        "round": 19,
+        "name": "Mexican Grand Prix",
+        "venue": "Mexico City",
+        "lead": 119.0,
+        "left": 100,
+        "races_to_spare": 4,
+        "sprints_to_spare": 0,
+        "provisional": true
+      }
+    },
+    "constructors": {
+      "decided": false,
+      "leader": {
+        "name": "Mercedes",
+        "code": null,
+        "team": "Mercedes",
+        "points": 630.0
+      },
+      "max_available": 172,
+      "next": {
+        "round": 20,
+        "name": "São Paulo Grand Prix",
+        "venue": "São Paulo",
+        "races": 1,
+        "sprints": 0,
+        "max_points": 43,
+        "possible": true,
+        "needs": [
+          {
+            "name": "Ferrari",
+            "code": null,
+            "team": "Ferrari",
+            "margin": 3.0,
+            "countback": false
+          }
+        ]
+      },
+      "earliest": {
+        "round": 20,
+        "name": "São Paulo Grand Prix",
+        "venue": "São Paulo"
+      },
+      "decided_at": null
+    }
+  },
+  "after_round_20": {
+    "year": 2026,
+    "as_of_round": 20,
+    "provisional": false,
+    "sources": [
+      {
+        "source": "f1db",
+        "role": "base",
+        "through_round": 20,
+        "version": "v2026.20.0"
+      }
+    ],
+    "drivers": {
+      "decided": true,
+      "leader": {
+        "name": "Kimi Antonelli",
+        "code": "ANT",
+        "team": "Mercedes",
+        "points": 390.0
+      },
+      "max_available": 75,
+      "next": null,
+      "earliest": null,
+      "decided_at": {
+        "round": 19,
+        "name": "Mexican Grand Prix",
+        "venue": "Mexico City",
+        "lead": 119,
+        "left": 100,
+        "races_to_spare": 4,
+        "sprints_to_spare": 0,
+        "provisional": false
+      }
+    },
+    "constructors": {
+      "decided": true,
+      "leader": {
+        "name": "Mercedes",
+        "code": null,
+        "team": "Mercedes",
+        "points": 652.0
+      },
+      "max_available": 129,
+      "next": null,
+      "earliest": null,
+      "decided_at": {
+        "round": 20,
+        "name": "São Paulo Grand Prix",
+        "venue": "São Paulo",
+        "lead": 142,
+        "left": 129,
+        "races_to_spare": 3,
+        "sprints_to_spare": 0,
+        "provisional": false
+      }
+    }
+  }
+}

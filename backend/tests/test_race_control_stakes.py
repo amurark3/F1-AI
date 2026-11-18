@@ -119,7 +119,10 @@ def test_a_lead_that_needs_more_than_a_perfect_weekend_cannot_clinch_here():
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
     # After this weekend 58 are left; the lead must exceed that: 20 + x > 58 → x ≥ 39 > 33.
-    assert clinch == {"rival": "Piastri", "margin_needed": 39, "possible": False, "rivals_in_play": 1}
+    assert clinch == {
+        "possible": False,
+        "needs": [{"name": "Piastri", "code": "PIA", "team": "McLaren", "margin": 39, "countback": False}],
+    }
 
 
 def test_a_lead_within_one_weekend_of_safety_can_clinch_here():
@@ -127,7 +130,13 @@ def test_a_lead_within_one_weekend_of_safety_can_clinch_here():
 
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
-    assert clinch == {"rival": "Piastri", "margin_needed": 9, "possible": True, "rivals_in_play": 2}
+    assert clinch == {
+        "possible": True,
+        "needs": [
+            {"name": "Piastri", "code": "PIA", "team": "McLaren", "margin": 9, "countback": False},
+            {"name": "Russell", "code": "RUS", "team": "McLaren", "margin": 4, "countback": False},
+        ],
+    }
 
 
 def test_the_margin_to_clinch_here_asks_for_a_lead_past_what_is_left_after_the_weekend():
@@ -137,7 +146,7 @@ def test_the_margin_to_clinch_here_asks_for_a_lead_past_what_is_left_after_the_w
     clinch = table_stakes(rows, LEFT, DRIVERS)["clinch"]
 
     # Lead 58 equals the 58 left after the weekend: one more point settles it on points.
-    assert clinch["margin_needed"] == 1
+    assert [(n["margin"], n["countback"]) for n in clinch["needs"]] == [(1, False)]
 
 
 # A deficit equal to the 91 points left: only a perfect run (3 wins, 2 sprint wins) draws level.
@@ -161,7 +170,10 @@ def test_a_rival_who_can_draw_level_and_win_the_count_back_is_still_in():
     assert stakes["contenders"][1]["alive"] is True
     assert (stakes["rivals_alive"], stakes["decided"]) == (1, False)
     # Norris settles it this weekend unless Piastri outscores him by the full 33 a weekend is worth.
-    assert stakes["clinch"] == {"rival": "Piastri", "margin_needed": -32, "possible": True, "rivals_in_play": 0}
+    assert stakes["clinch"] == {
+        "possible": True,
+        "needs": [{"name": "Piastri", "code": "PIA", "team": "McLaren", "margin": -32, "countback": True}],
+    }
 
 
 def test_a_lead_already_beyond_reach_is_decided_with_no_clinch_to_chase():

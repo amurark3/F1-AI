@@ -39,13 +39,20 @@ export function RetryButton({ state, framed = false, className = "" }: RetryButt
  * The small "couldn't refresh · retry" mark that sits with data a refresh
  * failed to update. The data stays; the mark says it may be behind.
  */
-export function StaleMark({ state, className = "" }: { state: SectionState; className?: string }) {
+interface StaleMarkProps {
+  state: SectionState;
+  className?: string;
+  /** `span` when the mark sits inside running text, such as a hero's `<p>`. */
+  as?: "p" | "span";
+}
+
+export function StaleMark({ state, className = "", as: Tag = "p" }: StaleMarkProps) {
   return (
-    <p className={`flex items-center gap-1.5 text-rc-ink-3 motion-safe:animate-fade-up ${MARK} ${className}`}>
+    <Tag className={`flex items-center gap-1.5 text-rc-ink-3 motion-safe:animate-fade-up ${MARK} ${className}`}>
       <span title={state.reason ?? undefined}>Couldn&apos;t refresh</span>
       <span aria-hidden="true">·</span>
       <RetryButton state={state} />
-    </p>
+    </Tag>
   );
 }
 
@@ -68,13 +75,18 @@ function announcement({ status, reason }: SectionState, label: string): string {
   return "";
 }
 
+/** The pending block: also the fallback of a `Suspense` boundary around a section. */
+export function SectionSkeleton({ className = "h-32" }: { className?: string }) {
+  return (
+    <div
+      className={`w-full rounded-md border border-rc-line bg-(--surface-raised) motion-safe:animate-pulse ${className}`}
+    />
+  );
+}
+
 function SectionBody({ state, label, skeletonClassName = "h-32", children }: SectionProps) {
   if (state.status === "pending") {
-    return (
-      <div
-        className={`w-full rounded-md border border-rc-line bg-(--surface-raised) motion-safe:animate-pulse ${skeletonClassName}`}
-      />
-    );
+    return <SectionSkeleton className={skeletonClassName} />;
   }
   if (state.status === "failed") return <SectionFailure state={state} label={label} />;
   return (

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { RetryButton, Section, StaleMark } from "./Section";
+import { RetryButton, Section, SectionSkeleton, StaleMark } from "./Section";
 
 import type { SectionState, SectionStatus } from "./sectionState";
 
@@ -99,6 +99,14 @@ describe("StaleMark", () => {
     expect(screen.getByText("Couldn't refresh")).toHaveAttribute("title", "Could not reach the server.");
   });
 
+  it("is a paragraph by default and a span inside running text", () => {
+    const { container, rerender } = render(<StaleMark state={state("stale")} />);
+    expect(container.firstElementChild?.tagName).toBe("P");
+
+    rerender(<StaleMark state={state("stale")} as="span" />);
+    expect(container.firstElementChild?.tagName).toBe("SPAN");
+  });
+
   it("leaves the reason off when there is none", () => {
     render(<StaleMark state={state("stale")} />);
 
@@ -116,5 +124,13 @@ describe("RetryButton", () => {
 
     rerender(<RetryButton state={state("failed")} framed className="mt-3" />);
     expect(screen.getByRole("button", { name: "Retry" })).toHaveClass("border", "mt-3");
+  });
+});
+
+describe("SectionSkeleton", () => {
+  it("is the pending block, sized by the caller", () => {
+    const { container } = render(<SectionSkeleton className="h-[420px]" />);
+
+    expect(container.firstElementChild).toHaveClass("h-[420px]", "motion-safe:animate-pulse", "rounded-md");
   });
 });

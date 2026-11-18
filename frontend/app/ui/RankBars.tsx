@@ -10,6 +10,8 @@ export interface RankBarItem {
   label: ReactNode;
   /** A mono caption after the name: a driver code, "Hard · 11 laps". */
   detail?: string;
+  /** A state mark after the name: a "Champion" tag. */
+  tag?: ReactNode;
   /** The bar's length, on a scale from zero. */
   value: number;
   /** The figure to show when it reads better than the bare number: "36%", "+0.123 s/lap". */
@@ -104,6 +106,7 @@ export function RankBars({ items, label, max, highlight, size = "regular", class
                   </span>
                 </>
               )}
+              {item.tag != null && <span className="ml-2">{item.tag}</span>}
             </span>
             <span aria-hidden="true" className={`relative rounded-[3px] bg-rc-ink/3 ${BAR_HEIGHT[size]}`}>
               <span

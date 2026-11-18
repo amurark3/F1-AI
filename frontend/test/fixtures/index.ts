@@ -13,6 +13,20 @@
  *   `profiles.build_directory(2026)` (f1db v2026.19.0, round 19 confirmed), so
  *   each driver now carries f1db's `first_name` / `last_name` (P2.1); every
  *   other value is unchanged from the first capture.
+ * - `profile-pages-2026.json`: the P5.4 profile payloads, captured 2026-11-16
+ *   through the backend's own `profiles.build_*` functions on f1db v2026.20.0
+ *   (round 20, São Paulo, confirmed; before Las Vegas lands on 2026-11-22). Keys:
+ *   `teams_index` (`/teams`), `mercedes` and `red_bull` (`build_team_profile`),
+ *   `verstappen`, `hamilton`, `lawson`, `hirakawa` (`build_driver_profile`) and
+ *   `unknown_team` (`build_team_profile(2026, "lotus")`). `power_units` and
+ *   `intel_slug` are dropped (the pages read neither), and the later-round
+ *   lookup is stubbed so the table is f1db's own.
+ * - `standings-progression-2026.json`: `GET /api/race-control/standings/2026/progression`
+ *   (P5.2), as served, captured on 16 Nov 2026 through the backend's own
+ *   `progression.build_standings_progression(2026)` on a copy of f1db v2026.20.0
+ *   cut back to round 19 (rounds 20+ removed, version file `v2026.19.0`, no
+ *   OpenF1 round added), so it matches `teams-2026.json`: 19 rounds, none
+ *   provisional, Antonelli's title clinched in round 19.
  * - `ready.json`: `GET /api/ready`, kept to the `ready`, `stage` and `detail`
  *   fields the warm-up probe reads.
  *
@@ -183,6 +197,7 @@
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
+import type { ClinchResponse } from "@/app/lib/clinch";
 import type { RaceWinner, StatsResponse } from "@/app/lib/server/champions";
 import type { StrategyContext, WeatherCard } from "@/app/race-control/components/CommandCenterPanels";
 import type { StartingGridResponse } from "@/app/race-control/grand-prix/gridModel";
@@ -193,11 +208,12 @@ import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strateg
 import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
 import type {
   DriverProfile,
-  DriverProfileResponse,
   SeasonDirectory,
   TeamProfile,
   TeamProfileResponse,
+  TeamsIndex,
 } from "@/app/race-control/profiles/profilesModel";
+import type { StandingsProgression } from "@/app/race-control/teams/standingsModel";
 import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
 import type { HeroRace } from "@/app/race-control/weekend/WeekendHero";
@@ -215,6 +231,7 @@ import championStats from "./champions-stats.json";
 import circuitMaps from "./circuit-maps.json";
 import circuitRecords from "./circuit-records.json";
 import circuitRound2026 from "./circuit-round-2026-r19.json";
+import clinch2026 from "./clinch-2026.json";
 import openF1DriversMexico2026 from "./openf1-drivers-mexico-2026.json";
 import overviewCircuit2026 from "./overview-circuit-2026.json";
 import overviewPredictions2026 from "./overview-predictions-2026.json";
@@ -223,7 +240,7 @@ import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
 import predictionReviewR19 from "./prediction-review-2026-r19.json";
-import profiles2026 from "./profiles-2026.json";
+import profilePages2026 from "./profile-pages-2026.json";
 import directory2023 from "./profiles-directory-2023.json";
 import directory2026 from "./profiles-directory-2026.json";
 import glance2026 from "./race-glance-2026-r19.json";
@@ -233,6 +250,7 @@ import ready from "./ready.json";
 import seasonCalendar2026 from "./season-calendar-2026.json";
 import sessionWeather2026 from "./session-weather-2026.json";
 import stakes2026Earlier from "./stakes-2026-earlier.json";
+import standingsProgression2026 from "./standings-progression-2026.json";
 import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
@@ -240,16 +258,21 @@ import weekendSessions2026 from "./weekend-sessions-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
+export const STANDINGS_PROGRESSION_2026 = standingsProgression2026 as StandingsProgression;
 export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;
 
-/** Team and driver profiles of 2026, kept to the fields `profilesModel` reads. */
-export const PROFILES_2026 = {
-  haas: profiles2026.haas_team as TeamProfile,
-  hulkenberg: profiles2026.hulkenberg_driver as DriverProfile,
-  unknownTeam: profiles2026.unknown_team as TeamProfileResponse,
-  hirakawa: profiles2026.hirakawa_driver as DriverProfileResponse,
+/** The Teams index, Team page and Driver page payloads (P5.4), as captured. */
+export const PROFILE_PAGES_2026 = {
+  teams_index: profilePages2026.teams_index as TeamsIndex,
+  mercedes: profilePages2026.mercedes as TeamProfile,
+  red_bull: profilePages2026.red_bull as TeamProfile,
+  verstappen: profilePages2026.verstappen as DriverProfile,
+  hamilton: profilePages2026.hamilton as DriverProfile,
+  lawson: profilePages2026.lawson as DriverProfile,
+  hirakawa: profilePages2026.hirakawa as DriverProfile,
+  unknown_team: profilePages2026.unknown_team as TeamProfileResponse,
 };
 
 /** One row of OpenF1's `drivers` list, as the feed spells it. */
@@ -408,4 +431,14 @@ export const MEXICO_CITY_2026 = {
   circuit: circuitRound2026 as unknown as RoundCircuit,
   strategy: raceStrategy2026 as unknown as RaceStrategyResponse,
   glance: glance2026,
+};
+
+/**
+ * `GET /api/race-control/standings/2026/clinch`. `after_round_19` is the morning
+ * after Mexico City (provisional); `after_round_20` is the backend's own
+ * `build_clinch(2026)` on f1db v2026.20.0 (14 Nov 2026), before Las Vegas.
+ */
+export const CLINCH_2026 = {
+  afterRound19: clinch2026.after_round_19 as unknown as ClinchResponse,
+  afterRound20: clinch2026.after_round_20 as unknown as ClinchResponse,
 };

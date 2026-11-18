@@ -41,7 +41,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | todo | | User 2026-11-06. Depends on P0b.3. |
 | P4.7 | Grand Prix hub fixes (user, 2026-11-18): Weekend hero above the tabs per `grand-prix.html`; every race opens on Weekend; the selected rail tick is never red | done | `git log --grep "Task: P4.7"` | **Done 2026-11-18** (coordinator, inline). vitest 1385 passed at 100 %, e2e 53 passed; throwaway screenshots at 1440 and 390 px match `grand-prix.html`. See the log. |
 | D2.1 | Generalized FIA document ingest | done | D2.1a `058d55b`, D2.1b `git log --grep "Task: D2.1b"` | **Done 2026-11-17** (coordinator, inline). D2.1a: backend 4615 passed at 100 %. D2.1b: the classifier pins all 85 R19 titles (35 penalty, 7 classification, 7 deleted laps, 5 grid, 3 entry list, …); a live run collected Las Vegas's first 3 documents with their text. |
-| D2.2 | FIA parsers (penalties, grids, classifications, deleted laps, entry list, Pirelli) | todo | | |
+| D2.2 | FIA parsers (penalties, grids, classifications, deleted laps, entry list, Pirelli) | in_progress | | Started 2026-11-18 (coordinator, worktree `.claude/worktrees/d2-2`). Split: D2.2a penalties, grids, deleted laps (the feed's); D2.2b classifications, entry list, Pirelli. |
 | D2.3 | FIA final classification as authority in resolvers | todo | | |
 | D2.4 | Weekend live feed backend (idea #1) | todo | | |
 | P6.1 | Debrief per mockup | todo | | |

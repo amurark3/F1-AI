@@ -10,18 +10,20 @@ from pathlib import Path
 
 import pytest
 
-from app.data.power_units import ingest, sources
+from app.data.fia_documents import listing
+from app.data.fia_documents.document import SourceDocument
+from app.data.fia_documents.listing import WITHDRAWN_UNLISTED, IngestError
+from app.data.fia_documents.site import DOCUMENTS_INDEX_URL, FetchError
+from app.data.fia_documents.text import DocumentParseError
+from app.data.power_units import sources
 from app.data.power_units.allowances import load_allowances
-from app.data.power_units.fia_site import DOCUMENTS_INDEX_URL, FetchError
-from app.data.power_units.ingest import WITHDRAWN_UNLISTED, IngestError, ingest_season
+from app.data.power_units.ingest import ingest_season, is_power_unit_title
 from app.data.power_units.sources import (
     SeasonSources,
-    SourceDocument,
     SourcesUnavailableError,
     load_season,
     save_season,
 )
-from app.data.power_units.text import DocumentParseError
 from app.data.store import DOCUMENT_POWER_UNIT_SOURCES, document_store
 from app.data.store_types import ReadResult, WriteResult
 
@@ -156,7 +158,7 @@ def text_pdfs(monkeypatch):
             raise DocumentParseError("PDF text could not be extracted: broken")
         return data.decode()
 
-    monkeypatch.setattr(ingest, "pdf_text", extract)
+    monkeypatch.setattr(listing, "pdf_text", extract)
 
 
 def test_the_first_run_collects_every_event(store_dir, text_pdfs):
@@ -351,3 +353,17 @@ def test_a_failed_store_write_is_reported(store_dir, text_pdfs, monkeypatch):
     assert not report.written
     assert report.write_error == "disk full"
     assert not report.ok
+
+
+@pytest.mark.parametrize(
+    ("title", "wanted"),
+    [
+        ("Doc 20 - Infringement - Car 63 - Changes to PU elements", True),
+        ("Doc 8 - PU elements used per driver up to now", True),
+        ("Doc 1 - New Power Unit elements", True),
+        ("Doc 8 - Power Unit Information", False),
+        ("Doc 22 - Summons - Car 44 - Alleged Yellow Flag Infringement", False),
+    ],
+)
+def test_is_power_unit_title(title, wanted):
+    assert is_power_unit_title(title) is wanted

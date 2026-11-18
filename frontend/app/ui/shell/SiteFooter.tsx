@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { reopenConsent } from "../consent/analyticsConsent";
+import { GA_ID } from "../consent/measurementId";
+
 import { MORE_NAV, PRIMARY_NAV } from "./navConfig";
 import { WRAP } from "./wrap";
 
@@ -35,7 +38,8 @@ export function F1DisclaimerLine({ className = "" }: { className?: string }) {
 /**
  * The foot of every page but the workspaces (the mockups' `footer`): the
  * screens from `navConfig`, the one source of the header's links too, then
- * the disclaimer beside the data credits.
+ * the disclaimer beside the data credits and, when Google Analytics is on,
+ * the button that brings its consent banner back.
  */
 export function SiteFooter() {
   return (
@@ -54,17 +58,28 @@ export function SiteFooter() {
         </nav>
         <div className="mt-8 flex flex-wrap justify-between gap-x-12 gap-y-4 border-t border-rc-line-soft pt-6">
           <p className="max-w-2xl leading-relaxed">{F1_DISCLAIMER}</p>
-          <p className="font-mono">
-            Data:{" "}
-            {DATA_SOURCES.map(({ label, href }, i) => (
-              <span key={label}>
-                {i > 0 && " · "}
-                <a href={href} target="_blank" rel="noopener noreferrer" className={QUIET_LINK}>
-                  {label}
-                </a>
-              </span>
-            ))}
-          </p>
+          <div className="flex flex-col items-start gap-2.5 font-mono">
+            <p>
+              Data:{" "}
+              {DATA_SOURCES.map(({ label, href }, i) => (
+                <span key={label}>
+                  {i > 0 && " · "}
+                  <a href={href} target="_blank" rel="noopener noreferrer" className={QUIET_LINK}>
+                    {label}
+                  </a>
+                </span>
+              ))}
+            </p>
+            {GA_ID === null ? null : (
+              <button
+                type="button"
+                onClick={reopenConsent}
+                className={`${QUIET_LINK} underline decoration-rc-line underline-offset-[3px]`}
+              >
+                Cookie settings
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </footer>

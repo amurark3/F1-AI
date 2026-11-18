@@ -26,6 +26,7 @@ backend/reports/
 # Any leftover local build is ignored.
 backend/data/chroma/
 backend/data/openf1_store/
+backend/data/fia_documents/
 # Ignore stray/experiment model artifacts but track the production model so it
 # ships with deploys (Render's filesystem is ephemeral).
 backend/models/*.joblib

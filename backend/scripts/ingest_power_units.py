@@ -47,8 +47,9 @@ from dotenv import load_dotenv
 # its backend from ``DATABASE_URL`` at import time.
 load_dotenv()
 
-from app.data.power_units.fia_site import FetchError, PoliteFetcher
-from app.data.power_units.ingest import IngestError, IngestReport, ingest_season
+from app.data.fia_documents.listing import IngestError
+from app.data.fia_documents.site import FetchError, PoliteFetcher
+from app.data.power_units.ingest import IngestReport, ingest_season
 from app.data.power_units.sources import SourcesUnavailableError
 from app.data.power_units.status import (
     OUTCOME_ABORTED,
@@ -90,7 +91,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _database_problem() -> str | None:
+def database_problem() -> str | None:
     """Why the configured store would lose this run's work, or ``None``."""
     health = document_store.health()
     if health.backend != BACKEND_POSTGRES:
@@ -131,7 +132,7 @@ def _record(status: IngestStatus, *, changed: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    problem = _database_problem() if args.require_database else None
+    problem = database_problem() if args.require_database else None
     if problem:
         print(f"Ingest refused: {problem}")
         return EXIT_NO_DATABASE

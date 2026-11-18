@@ -12,9 +12,10 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from app.data.fia_documents.document import SourceDocument
 from app.data.power_units.allowances import SOURCE_FIA, AllowanceEntry
 from app.data.power_units.season_context import Entry, SeasonContext, SeasonRound
-from app.data.power_units.sources import SeasonSources, SourceDocument
+from app.data.power_units.sources import SeasonSources
 
 FIXTURES = Path(__file__).parent / "fixtures" / "power_units"
 

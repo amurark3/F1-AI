@@ -20,9 +20,9 @@ from dataclasses import replace
 import pytest
 
 from app.data.f1db_grid import GridSlot
+from app.data.fia_documents.text import clean
 from app.data.power_units.allowances import SOURCE_MANUAL, AllowanceEntry
 from app.data.power_units.status import OUTCOME_OK, IngestStatus
-from app.data.power_units.text import clean
 from app.services.power_units import clear_cache, provenance, report
 from app.services.power_units.evidence import gather_evidence
 from tests.power_units_support import allowance_entries, corpus, fixture, season_context, source

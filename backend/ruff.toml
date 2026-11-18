@@ -212,6 +212,7 @@ ban-relative-imports = "all"
 # imports have to follow ``load_dotenv()``.
 "scripts/backfill_predictions.py" = ["E402"]
 "scripts/ingest_power_units.py" = ["E402"]
+"scripts/ingest_fia_documents.py" = ["E402"]
 
 # Test suites: `assert` is the point (S101), fixtures legitimately shadow names,
 # and private access is how internals get tested.

@@ -33,6 +33,8 @@ OPENF1_MIN_REQUEST_GAP_SECONDS = float(os.getenv("OPENF1_MIN_REQUEST_GAP_SECONDS
 OPENF1_STORE_DIR = os.getenv("OPENF1_STORE_DIR", "data/openf1_store")
 OPENF1_STORE_FINAL_AFTER_HOURS = int(os.getenv("OPENF1_STORE_FINAL_AFTER_HOURS", "24"))
 OPENF1_STORE_PROVISIONAL_TTL_MINUTES = int(os.getenv("OPENF1_STORE_PROVISIONAL_TTL_MINUTES", "30"))
+# The FIA document store's file fallback (no DATABASE_URL): one JSON file per season.
+FIA_DOCUMENTS_DIR = os.getenv("FIA_DOCUMENTS_DIR", "data/fia_documents")
 
 # ---------------------------------------------------------------------------
 # WebSocket settings

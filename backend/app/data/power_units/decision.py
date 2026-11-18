@@ -31,7 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-from app.data.power_units.text import DocumentParseError, clean, squash
+from app.data.fia_documents.text import DocumentParseError, clean, squash
 
 OUTCOME_GRID_DROP = "grid_drop"
 OUTCOME_PIT_LANE = "pit_lane"

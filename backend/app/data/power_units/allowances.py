@@ -34,17 +34,18 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.fia_documents.text import DocumentParseError
 from app.data.power_units.documents import parse_document
 from app.data.power_units.elements import canonical_code
 from app.data.power_units.new_elements import NewElementsReport
 from app.data.power_units.sources import SourcesUnavailableError
-from app.data.power_units.text import DocumentParseError
 from app.data.store import DOCUMENT_POWER_UNIT_ALLOWANCES, document_store
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from app.data.power_units.sources import SeasonSources, SourceDocument
+    from app.data.fia_documents.document import SourceDocument
+    from app.data.power_units.sources import SeasonSources
     from app.data.store_types import WriteResult
 
 logger = structlog.get_logger()

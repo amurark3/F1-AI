@@ -1,8 +1,13 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { MORE_NAV, PRIMARY_NAV } from "./navConfig";
 import { F1DisclaimerLine, SiteFooter } from "./SiteFooter";
+
+const consent = vi.hoisted(() => ({ GA_ID: null as string | null, reopenConsent: vi.fn() }));
+vi.mock("../consent/measurementId", () => consent);
+vi.mock("../consent/analyticsConsent", () => consent);
 
 /** The standard trade-mark notice, word for word: it must never be reworded. */
 const DISCLAIMER =
@@ -45,6 +50,22 @@ describe("SiteFooter", () => {
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
     }
     expect(credits).toHaveTextContent("Data: f1db · OpenF1 · FastF1 · Open-Meteo · OpenWeatherMap");
+  });
+
+  it("has no Cookie settings when Google Analytics is off", () => {
+    consent.GA_ID = null;
+    render(<SiteFooter />);
+
+    expect(within(footer()).queryByRole("button", { name: "Cookie settings" })).toBeNull();
+  });
+
+  it("brings the analytics banner back from Cookie settings", async () => {
+    consent.GA_ID = "G-AB12CD34EF";
+    render(<SiteFooter />);
+
+    await userEvent.click(within(footer()).getByRole("button", { name: "Cookie settings" }));
+
+    expect(consent.reopenConsent).toHaveBeenCalledOnce();
   });
 });
 

@@ -1,4 +1,4 @@
-"""Find and fetch the FIA's power-unit documents, politely.
+"""Find and fetch the FIA's event documents, politely.
 
 fia.com publishes event documents as PDFs behind three kinds of page, with no
 feed or API (layout verified October 2026):
@@ -44,7 +44,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 import requests
 import structlog
 
-from app.data.power_units.text import DocumentParseError, squash
+from app.data.fia_documents.text import DocumentParseError, squash
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -56,7 +56,7 @@ DOCUMENTS_INDEX_URL = f"{FIA_BASE_URL}/documents/championships/fia-formula-one-w
 #: robots.txt ``Crawl-delay``.
 CRAWL_DELAY_SECONDS = 10.0
 REQUEST_TIMEOUT_SECONDS = 60
-USER_AGENT = "F1-AI power-unit tracker (github.com/amurark3/F1-AI; honours robots.txt crawl-delay)"
+USER_AGENT = "F1-AI FIA document ingest (github.com/amurark3/F1-AI; honours robots.txt crawl-delay)"
 #: Extra pause before each retry of a transiently failed request — one entry per
 #: retry, so three attempts in all. The server just turned us away, so the second
 #: knock waits longer than the crawl delay, and the third longer still.
@@ -74,10 +74,6 @@ _ROW_MARKER = '<li class="document-row'
 _PDF_LINK = re.compile(r'href="(?P<href>[^"]+\.pdf)"', re.IGNORECASE)
 _PUBLISHED = re.compile(r'date-display-single"[^>]*>\s*(?P<when>[^<]+?)\s*<')
 _TAG = re.compile(r"<[^>]+>")
-_POWER_UNIT_TITLE = re.compile(r"\bPU\b|\bpower\s+unit", re.IGNORECASE)
-# "Power Unit Information" is the race director's energy and overtake limits
-# for the circuit — nothing to do with element usage.
-_NOT_USAGE_TITLE = re.compile(r"power\s+unit\s+information", re.IGNORECASE)
 
 
 class FetchError(RuntimeError):
@@ -154,17 +150,6 @@ def listed_documents(page_html: str, event: str) -> tuple[ListedDocument, ...]:
     """Every document row on an event page, newest first as the FIA lists them."""
     rows = (_listed(block, event) for block in _rows(page_html))
     return tuple(row for row in rows if row is not None)
-
-
-def is_power_unit_title(title: str) -> bool:
-    """Whether a listed title is worth downloading as power-unit evidence.
-
-    Deliberately loose — anything mentioning PU — because the parsers decide
-    what a document is from its text. A decision only about parc fermé is
-    collected, read, and set aside as unrelated; one about engines that this
-    filter skipped would simply be missing.
-    """
-    return bool(_POWER_UNIT_TITLE.search(title)) and not _NOT_USAGE_TITLE.search(title)
 
 
 def pdf_text(data: bytes) -> str:

@@ -40,7 +40,7 @@ import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from app.data.power_units.text import DocumentParseError, clean, squash
+from app.data.fia_documents.text import DocumentParseError, clean, squash
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

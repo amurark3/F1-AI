@@ -20,7 +20,7 @@ A document the FIA later takes back is kept, with the reason in
 ``withdrawn``. It happens when a decision is corrected — at Belgium 2026 the
 stewards replaced two decisions and only the corrected ones stayed listed —
 and counting both would double the penalty. See
-:mod:`app.data.power_units.rescission` for every way it is noticed.
+:mod:`app.data.fia_documents.rescission` for every way it is noticed.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.fia_documents.document import SourceDocument
 from app.data.store import DOCUMENT_POWER_UNIT_SOURCES, document_store
 
 if TYPE_CHECKING:
@@ -37,51 +38,9 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger()
 
-_TEXT_FIELDS = ("url", "event", "title", "published", "sha256", "fetched_at")
-
 
 class SourcesUnavailableError(RuntimeError):
     """The store could not be read, so nothing may be concluded — or written."""
-
-
-@dataclass(frozen=True)
-class SourceDocument:
-    """One collected FIA document."""
-
-    url: str
-    event: str
-    title: str
-    published: str
-    sha256: str
-    fetched_at: str
-    text: str | None
-    error: str | None = None
-    #: Why the FIA no longer stands by the document; ``None`` while it does.
-    withdrawn: str | None = None
-
-    def as_dict(self) -> dict:
-        return {
-            "url": self.url,
-            "event": self.event,
-            "title": self.title,
-            "published": self.published,
-            "sha256": self.sha256,
-            "fetched_at": self.fetched_at,
-            "text": self.text,
-            "error": self.error,
-            "withdrawn": self.withdrawn,
-        }
-
-    @classmethod
-    def from_dict(cls, raw: object) -> SourceDocument | None:
-        """A stored entry, or ``None`` for one missing its identity fields."""
-        if not isinstance(raw, dict) or not all(isinstance(raw.get(key), str) for key in _TEXT_FIELDS):
-            return None
-        optional = {key: raw.get(key) for key in ("text", "error", "withdrawn")}
-        return cls(
-            **{key: raw[key] for key in _TEXT_FIELDS},
-            **{key: value if isinstance(value, str) else None for key, value in optional.items()},
-        )
 
 
 @dataclass(frozen=True)

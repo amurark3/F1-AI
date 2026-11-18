@@ -91,7 +91,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _database_problem() -> str | None:
+def database_problem() -> str | None:
     """Why the configured store would lose this run's work, or ``None``."""
     health = document_store.health()
     if health.backend != BACKEND_POSTGRES:
@@ -132,7 +132,7 @@ def _record(status: IngestStatus, *, changed: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    problem = _database_problem() if args.require_database else None
+    problem = database_problem() if args.require_database else None
     if problem:
         print(f"Ingest refused: {problem}")
         return EXIT_NO_DATABASE

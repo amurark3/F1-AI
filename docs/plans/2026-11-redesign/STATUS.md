@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-17): phase D2** (FIA documents ingest, live feed backend), started at the user's request. D2.1 is done. Next: D2.2's parsers the feed needs first (penalties, grids, deleted laps), then the rest of D2.2, D2.3, D2.4. Then P7.4, P7.3, P6.
+- **Now (2026-11-18): phase D2** (FIA documents ingest, live feed backend), started at the user's request. D2.1 is done and went out early, with the analytics consent banner (`70c1269`), in its own PR (user, 2026-11-18); D2's phase PR will hold D2.2–D2.4. Next: D2.2's parsers the feed needs first (penalties, grids, deleted laps), then the rest of D2.2, D2.3, D2.4. Then P7.4, P7.3, P6.
 - **Merged:** PR #102 (2026-11-14), PR #103 (D1 + P4, 2026-11-15) and PR #105 (P5 + N1, 2026-11-17; rows and log in the archive). PR #102's production steps are done.
 - **Two branches (user, 2026-11-09):**
   - **`feat/oracle-backend`** (pushed): all of P0c. P0c.1–P0c.8 are at `3821aa5`, ready for its PR `feat: always-on backend on Oracle Cloud`, which the user opens. Cutover follows `docs/deploy/ORACLE.md` §2 once the Oracle VM exists; the user's agent is still retrying for A1 capacity. Then P0c.9. Work on it only in a separate git worktree, never on `dev`.
@@ -25,7 +25,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
   2. After P0c merges, register `session_store.ensure_schema` and `fia_documents.store.ensure_schema` in `scripts/ensure_schema.py`.
 - **FastF1 left after D1** (not on the request path): `mcp_server.py`, `scripts/backfill_predictions.py`, and the live-session fallback in `race_stints.py` (archive, 2026-11-14 "FastF1 left after D1.9/D1.10").
 - **Agents:** each runs in a worktree under `.claude/worktrees/`, created from `dev` with `git worktree add`; the coordinator cherry-picks onto `dev` and records status here. A new session first runs `ListAgents` (another busy F1-AI session may already coordinate), then checks each branch for its `Task:` commit, verifies, cherry-picks, records and runs `git worktree remove`.
-- **Branch:** `dev`. Commit each task locally; **never push `dev`** (user, 2026-11-03). **One exception (user, 2026-11-16):** after phase P5 and N1, push `dev` and open the PR; that permission covers this one push and PR only. Pushing `feat/oracle-backend` was the user's request of 2026-11-09.
+- **Branch:** `dev`. Commit each task locally; **never push `dev`** (user, 2026-11-03). **One exception (user, 2026-11-16):** after phase P5 and N1, push `dev` and open the PR; that permission covers this one push and PR only. **Second exception (user, 2026-11-18):** push `dev` and open the PR for D2.1 + the analytics consent banner; that one push and PR only. Pushing `feat/oracle-backend` was the user's request of 2026-11-09.
 - **PRs (user-owned):** each phase's commits go together as one new PR, which the user opens, reviews and merges. At the end of a phase, note here that it is ready for its PR (title from PLAN.md) and stop; don't push, open or manage PRs.
 
 ## Tasks

@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-18): phase D2 is done** and pushed with P7.3 in one PR (user's request; D2.1 already shipped in PR #106). Next: P6 (P6.1, P6.3, P6.4), P7.1, P7.2, P7.5; the features (P7.4, P7.6, P6.2, P8) after the redesign (user, 2026-11-18).
+- **Now (2026-11-18): phase D2 is done** and pushed with P7.3 in one PR (user's request; D2.1 already shipped in PR #106). Next: P6 (P6.1, P6.3, P6.4), P7.1, P7.2, P7.5; then D3.1 (bug, own PR); the features (P7.4, P7.6, P6.2, P8) after the redesign (user, 2026-11-18).
 - **Merged:** PR #102 (2026-11-14), PR #103 (D1 + P4, 2026-11-15) PR #105 (P5 + N1, 2026-11-17; rows and log in the archive) and PR #106 (D2.1 + the analytics consent banner, 2026-11-18). PR #102's production steps are done.
 - **Two branches (user, 2026-11-09):**
   - **`feat/oracle-backend`** (pushed): all of P0c. P0c.1–P0c.8 are at `3821aa5`, ready for its PR `feat: always-on backend on Oracle Cloud`, which the user opens. Cutover follows `docs/deploy/ORACLE.md` §2 once the Oracle VM exists; the user's agent is still retrying for A1 capacity. Then P0c.9. Work on it only in a separate git worktree, never on `dev`.
@@ -54,6 +54,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P7.4 | Weekend live feed UI (idea #1) | todo | | |
 | P7.5 | Sweep + SourceBadge everywhere (idea #5) | todo | | |
 | P7.6 | Forecast vs measured (idea #4; split from P7.3) | todo | | Feature: after the redesign. |
+| D3.1 | Race control's untimed lap deletions (bug) | todo | | Added 2026-11-18 (user): after P7.5, before the features; own PR. Evidence in the D2.3c log. |
 | P8.1 | Race Rewind (idea #6) | todo | | |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 

@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("the champion, the title race and both tables", async ({ page }) => {
-  await page.goto("/race-control/teams");
+  await page.goto("/race-control/standings");
 
   await expect(page.getByRole("heading", { level: 1, name: "Kimi Antonelli" })).toBeVisible();
   await expect(page.getByText("2026 World Champion", { exact: true })).toBeVisible();
@@ -34,7 +34,7 @@ test("the champion, the title race and both tables", async ({ page }) => {
 });
 
 test("the switch moves the hero to the constructors", async ({ page }) => {
-  await page.goto("/race-control/teams");
+  await page.goto("/race-control/standings");
   await expect(page.getByRole("heading", { level: 1, name: "Kimi Antonelli" })).toBeVisible();
 
   await page.getByRole("radio", { name: "Drivers" }).focus();
@@ -46,9 +46,23 @@ test("the switch moves the hero to the constructors", async ({ page }) => {
 
 test("fits a phone without sideways scrolling", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/race-control/teams");
+  await page.goto("/race-control/standings");
   await expect(page.getByRole("heading", { level: 1, name: "Kimi Antonelli" })).toBeVisible();
 
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
+});
+
+for (const old of ["/race-control/teams", "/standings"]) {
+  test(`${old} lands on the Standings page`, async ({ page }) => {
+    await page.goto(old);
+
+    await expect(page).toHaveURL(/\/race-control\/standings$/);
+  });
+}
+
+test("an old team URL lands on that team page", async ({ page }) => {
+  await page.goto("/race-control/teams/mercedes");
+
+  await expect(page).toHaveURL(/\/race-control\/constructors\/mercedes$/);
 });

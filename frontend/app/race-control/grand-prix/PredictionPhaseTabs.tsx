@@ -1,6 +1,6 @@
 "use client";
 
-import { Flag, History, Lock, Sparkles } from "lucide-react";
+import { Flag, History, Lock } from "lucide-react";
 
 import { LocalTime } from "@/app/components/LocalTime";
 
@@ -17,8 +17,6 @@ export interface PhaseTabState {
   hasSnapshot: boolean;
   /** When that snapshot was stored. */
   storedAt?: string | null;
-  /** True while this phase is being recomputed. */
-  computing: boolean;
 }
 
 const PHASE_ICONS = {
@@ -29,7 +27,6 @@ const PHASE_ICONS = {
 /** What the phase currently holds, in a few words. */
 function phaseStatus(state: PhaseTabState) {
   if (!state.available) return <span className="text-[#596173]">awaiting qualifying</span>;
-  if (state.computing) return <span className="text-[#F5C542]">running…</span>;
   if (!state.hasSnapshot) return <span className="text-[#596173]">not computed</span>;
   return <LocalTime value={state.storedAt} style="stamp" fallback="stored" />;
 }
@@ -86,27 +83,15 @@ export interface PredictionBarProps {
   activePhase: PredictionPhase;
   onSelectPhase: (phase: PredictionPhase) => void;
   accuracy?: PredictionsResponse["accuracy"];
-  /** False when no round is selected, a run is going, or the phase cannot exist yet. */
-  canRun: boolean;
-  isComputing: boolean;
-  onRun: () => void;
 }
 
 /**
  * The one control bar for a race's prediction: which of its two phases is on
- * screen (each shows when it was stored), how the model has scored lately, and
- * the single button that runs it. Selecting a phase switches every view below.
+ * screen (each shows when it was stored) and how the model has scored lately.
+ * Selecting a phase switches every view below. Visitors cannot run the model:
+ * the owner stores predictions through the key-locked compute endpoint.
  */
-export function PredictionBar({
-  states,
-  activePhase,
-  onSelectPhase,
-  accuracy,
-  canRun,
-  isComputing,
-  onRun,
-}: PredictionBarProps) {
-  const active = states.find((state) => state.phase === activePhase);
+export function PredictionBar({ states, activePhase, onSelectPhase, accuracy }: PredictionBarProps) {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-[#1E2633] bg-[#0D111B] p-2 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-wrap gap-1" role="group" aria-label="Prediction phase">
@@ -116,16 +101,6 @@ export function PredictionBar({
       </div>
       <div className="flex flex-wrap items-center gap-3 px-1">
         <AccuracyChip accuracy={accuracy} />
-        <button
-          type="button"
-          onClick={onRun}
-          disabled={!canRun}
-          title={active?.available === false ? "Qualifying has not run yet." : phaseDescription(activePhase)}
-          className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-[#00FF78]/35 bg-[#00FF78]/10 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#00FF78] transition-colors hover:bg-[#00FF78] hover:text-black disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-[#596173]"
-        >
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          {isComputing ? "running" : `run ${phaseTabLabel(activePhase).toLowerCase()}`}
-        </button>
       </div>
     </div>
   );

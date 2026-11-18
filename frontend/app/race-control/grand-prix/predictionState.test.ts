@@ -7,7 +7,6 @@ import {
   derivePredictionView,
   hasSnapshot,
   predictionCount,
-  reasonFor,
   type PhaseSnapshot,
 } from "./predictionState";
 
@@ -15,11 +14,6 @@ const MEXICO = SEASON_2026.schedule.find((race) => race.round === 19)!;
 const snap = (data: PhaseSnapshot["data"]): PhaseSnapshot => ({ data, awaiting: false, mutate: vi.fn() });
 
 describe("predictionState", () => {
-  it("labels a post-qualifying refresh as a qualifying recompute and any other as manual", () => {
-    expect(reasonFor("post_qualifying")).toBe("qualifying_recompute");
-    expect(reasonFor("pre_qualifying")).toBe("manual_compute");
-  });
-
   it("counts the finishing-order rows, tolerating an error body without them", () => {
     expect(predictionCount(PREDICTION_REVIEW_R19)).toBe(22);
     expect(predictionCount(undefined)).toBe(0);
@@ -48,12 +42,11 @@ describe("predictionState", () => {
   });
 
   it("builds both phase tabs, the post-qualifying one unavailable until qualifying has run", () => {
-    const job = { phase: "post_qualifying" as const, reason: "qualifying_recompute" as const };
-    const states = buildPhaseStates(snap(PREDICTION_REVIEW_R19), snap(undefined), false, job);
+    const states = buildPhaseStates(snap(PREDICTION_REVIEW_R19), snap(undefined), false);
     expect(states).toEqual([
-      expect.objectContaining({ phase: "pre_qualifying", available: true, hasSnapshot: true, computing: false }),
-      expect.objectContaining({ phase: "post_qualifying", available: false, hasSnapshot: false, computing: true }),
+      expect.objectContaining({ phase: "pre_qualifying", available: true, hasSnapshot: true }),
+      expect.objectContaining({ phase: "post_qualifying", available: false, hasSnapshot: false }),
     ]);
-    expect(buildPhaseStates(snap(undefined), snap(undefined), true, null)[1].available).toBe(true);
+    expect(buildPhaseStates(snap(undefined), snap(undefined), true)[1].available).toBe(true);
   });
 });

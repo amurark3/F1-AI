@@ -50,9 +50,9 @@ describe("resolveRound", () => {
 });
 
 describe("useHubSections", () => {
-  it("opens a finished round on Results and its prediction on the review", () => {
+  it("opens every round on Weekend, a finished one too, and its prediction on the review", () => {
     const { result } = renderHook(() => useHubSections(url(), MEXICO));
-    expect(result.current.activeTab).toBe("results");
+    expect(result.current.activeTab).toBe("weekend");
     expect(result.current.predictionView).toBe("review");
   });
 

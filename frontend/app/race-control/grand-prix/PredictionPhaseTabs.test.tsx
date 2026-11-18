@@ -13,7 +13,6 @@ function states(changes: Array<Partial<PhaseTabState>> = [{}, {}]): PhaseTabStat
       available: true,
       hasSnapshot: true,
       storedAt: "2026-10-30T10:00:00Z",
-      computing: false,
       ...changes[0],
     },
     {
@@ -21,23 +20,14 @@ function states(changes: Array<Partial<PhaseTabState>> = [{}, {}]): PhaseTabStat
       available: true,
       hasSnapshot: true,
       storedAt: "2026-11-01T01:38:00Z",
-      computing: false,
       ...changes[1],
     },
   ];
 }
 
-function bar(tabs: PhaseTabState[], accuracy = PREDICTION_REVIEW_R19.accuracy, canRun = true, isComputing = false) {
+function bar(tabs: PhaseTabState[], accuracy = PREDICTION_REVIEW_R19.accuracy) {
   return renderWithProviders(
-    <PredictionBar
-      states={tabs}
-      activePhase="post_qualifying"
-      onSelectPhase={vi.fn()}
-      accuracy={accuracy}
-      canRun={canRun}
-      isComputing={isComputing}
-      onRun={vi.fn()}
-    />,
+    <PredictionBar states={tabs} activePhase="post_qualifying" onSelectPhase={vi.fn()} accuracy={accuracy} />,
   );
 }
 
@@ -61,25 +51,16 @@ describe("PredictionBar", () => {
     expect(screen.getByText(/Top-3/)).not.toHaveAttribute("title");
   });
 
-  it("says what each phase holds: awaiting qualifying, running, not computed, stored", () => {
+  it("says what each phase holds: awaiting qualifying, not computed, stored", () => {
     bar(states([{ hasSnapshot: false }, { available: false, hasSnapshot: false }]));
     expect(screen.getByText("not computed")).toBeInTheDocument();
     expect(screen.getByText("awaiting qualifying")).toBeInTheDocument();
   });
 
-  it("marks the phase being recomputed and disables the run while it goes", () => {
-    bar(states([{}, { computing: true }]), PREDICTION_REVIEW_R19.accuracy, false, true);
+  it("gives visitors no way to run the model: the only buttons pick a phase", () => {
+    bar(states());
 
-    expect(screen.getByText("running…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "running" })).toBeDisabled();
-  });
-
-  it("explains a locked run button", () => {
-    bar(states([{}, { available: false }]), PREDICTION_REVIEW_R19.accuracy, false);
-
-    expect(screen.getByRole("button", { name: /run after qualifying/i })).toHaveAttribute(
-      "title",
-      "Qualifying has not run yet.",
-    );
+    expect(screen.queryByRole("button", { name: /run/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 });

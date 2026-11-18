@@ -1,8 +1,8 @@
 import { cache } from "react";
 
 import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
-import type { StandingsProgression } from "@/app/race-control/teams/standingsModel";
-import type { TeamsResponse } from "@/app/race-control/teams/teamsModel";
+import type { StandingsProgression } from "@/app/race-control/standings/standingsModel";
+import type { TeamsResponse } from "@/app/race-control/standings/teamsModel";
 
 import { fetchFromBackend } from "./backend";
 import { REVALIDATE } from "./revalidate";

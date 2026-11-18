@@ -17,7 +17,7 @@ import { PredictionSection } from "./PredictionSection";
 import { ResultsTab } from "./ResultsTab";
 import { SessionsTab } from "./SessionsTab";
 import { StintChart } from "./StintChart";
-import { WeekendPanel } from "./WeekendPanels";
+import { WeekendPanel, WeekendTop } from "./WeekendPanels";
 
 import type { StartingGridResponse } from "./gridModel";
 import type {
@@ -137,13 +137,8 @@ export interface GrandPrixBoardProps {
   phaseStates: PhaseTabState[];
   /** False while the active phase cannot be computed yet. */
   phaseAvailable: boolean;
-  isComputing: boolean;
-  computeReason: "manual_compute" | "qualifying_recompute" | null;
-  /** A failed recompute, shown inside the prediction section it belongs to. */
-  computeError: string | null;
   onSelectRound: (round: number) => void;
   onSelectPhase: (phase: PredictionPhase) => void;
-  onRun: () => void;
   onRetry: () => void;
   onReloadSchedule: () => void;
   onReloadDrivers: () => void;
@@ -169,7 +164,11 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         onSelectRound={props.onSelectRound}
       />
 
-      <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />
+      {props.selectedRace ? (
+        <WeekendTop year={props.year} race={props.selectedRace} totalRounds={props.schedule.length} />
+      ) : (
+        <RaceHeader selectedRound={props.selectedRound} selectedRace={props.selectedRace} raceName={props.raceName} />
+      )}
 
       <Tabs
         items={HUB_TABS}

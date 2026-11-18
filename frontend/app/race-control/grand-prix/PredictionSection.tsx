@@ -47,7 +47,6 @@ interface PredictionLoadStateProps {
   predictionLoading: boolean;
   predictionError: boolean;
   hasPredictions: boolean;
-  isComputing: boolean;
   activePhase: PredictionPhase;
   /** False while the active phase cannot be computed yet. */
   phaseAvailable: boolean;
@@ -56,15 +55,11 @@ interface PredictionLoadStateProps {
   onRetry: () => void;
 }
 
-/**
- * What stands in for a prediction that is not on screen yet. None of these
- * states carries its own run button: the bar above holds the only one.
- */
+/** What stands in for a prediction that is not on screen yet. Visitors cannot run the model. */
 function PredictionLoadState({
   predictionLoading,
   predictionError,
   hasPredictions,
-  isComputing,
   activePhase,
   phaseAvailable,
   errorMessage,
@@ -107,13 +102,6 @@ function PredictionLoadState({
             </div>
           </div>
         </Panel>
-      )}
-
-      {isComputing && (
-        <SectionLoader
-          title={`Running the ${phaseName.toLowerCase()} model`}
-          detail="Building a fresh stored snapshot with finish order, model I/O, accuracy, and incident risk. The other tab keeps its own prediction."
-        />
       )}
 
       {!predictionLoading && !hasPredictions && !predictionError && (
@@ -189,15 +177,6 @@ function PredictionWarnings({ warnings }: { warnings?: string[] }) {
   );
 }
 
-function ComputeErrorBanner({ message }: { message: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-md border border-[#E10600]/35 bg-[#E10600]/10 px-4 py-3 text-sm text-red-100">
-      <AlertTriangle className="h-4 w-4 shrink-0 text-[#E10600]" />
-      <span>{message}</span>
-    </div>
-  );
-}
-
 const VIEWS_ID = "prediction-views";
 
 /** Everything that reads a stored prediction snapshot, in one section. */
@@ -210,18 +189,12 @@ export function PredictionSection(props: GrandPrixBoardProps & { driverLookup: D
         activePhase={props.activePhase}
         onSelectPhase={props.onSelectPhase}
         accuracy={props.data?.accuracy}
-        canRun={props.selectedRound !== null && !props.isComputing && props.phaseAvailable}
-        isComputing={props.isComputing}
-        onRun={props.onRun}
       />
-
-      {props.computeError && <ComputeErrorBanner message={props.computeError} />}
 
       <PredictionLoadState
         predictionLoading={props.predictionLoading}
         predictionError={props.predictionError}
         hasPredictions={hasPredictions}
-        isComputing={props.isComputing}
         activePhase={props.activePhase}
         phaseAvailable={props.phaseAvailable}
         errorMessage={props.data?.error}

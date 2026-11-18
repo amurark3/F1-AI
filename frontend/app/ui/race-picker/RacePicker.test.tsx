@@ -73,6 +73,18 @@ describe("RacePicker", () => {
     expect(within(rail()).getByRole("option", { name: LAS_VEGAS }).firstElementChild).not.toHaveAttribute("style");
   });
 
+  it("marks the selected round by height, never by red: a won round keeps its team's colour, any other is white", async () => {
+    const { rerender, onSelectRound } = renderPicker({ selectedRound: 19 });
+    const selected = () => within(rail()).getByRole("option", { selected: true }).firstElementChild!;
+    await waitFor(() => expect(selected()).toHaveStyle({ backgroundColor: "#3671C6" }));
+    expect(selected().className).toContain("h-[38px]");
+    expect(selected().className).not.toMatch(/red/);
+
+    rerender(<RacePicker year={2026} races={schedule} selectedRound={21} onSelectRound={onSelectRound} />);
+    expect(selected().className).toContain("bg-rc-ink");
+    expect(selected()).not.toHaveAttribute("style");
+  });
+
   it("steps to the round before and after", async () => {
     const { user, onSelectRound } = renderPicker();
 

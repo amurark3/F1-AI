@@ -22,6 +22,7 @@ import httpx
 import pytest
 import requests
 
+from app.api.routers import predictions as predictions_router
 from app.data import f1db_source, race_stints
 from app.data.openf1 import client as openf1_client
 from app.data.predictions import history
@@ -177,9 +178,10 @@ def _wait_until(done, what: str) -> None:
 
 
 def test_boot_grading_two_computes_and_a_stints_request_make_no_fastf1_request(
-    fastf1_counter, openf1, ungraded_r20, grading_passes
+    fastf1_counter, openf1, ungraded_r20, grading_passes, monkeypatch
 ):
-    with TestClient(main.app) as client:
+    monkeypatch.setattr(predictions_router, "PREDICTIONS_ADMIN_KEY", "owner-key")
+    with TestClient(main.app, headers={"X-Admin-Key": "owner-key"}) as client:
         _wait_until(lambda: readiness.current_state().ready and grading_passes, "warm-up or the grading pass")
         computed = {
             phase: client.post(f"/api/predictions/2026/20/compute?phase={phase}").json()

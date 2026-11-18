@@ -96,6 +96,10 @@ PREFETCH_INTERVAL = int(os.getenv("PREFETCH_INTERVAL", "1800"))
 # for good would outlive the gap that caused it.
 ANALYSIS_SESSION_SETTLE_MINUTES = int(os.getenv("ANALYSIS_SESSION_SETTLE_MINUTES", "60"))
 
+# Secret for POST /api/predictions/{year}/{round}/compute, sent as X-Admin-Key.
+# Only the owner stores predictions; unset leaves the endpoint closed to everyone.
+PREDICTIONS_ADMIN_KEY = os.getenv("PREDICTIONS_ADMIN_KEY", "")
+
 # How long one request waits on a cold OpenF1 load before answering "still
 # working". The load carries on, and the next request joins it.
 ANALYSIS_WAIT_SECONDS = float(os.getenv("ANALYSIS_WAIT_SECONDS", "45"))

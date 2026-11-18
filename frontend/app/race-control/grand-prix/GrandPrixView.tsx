@@ -31,7 +31,7 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl): GrandPrixBoard
     { sessions: seeded ? seed.sessions : null, strategy: seeded ? seed.strategy : null },
     sections.stintsWanted,
   );
-  const { clearComputeError, ...prediction } = usePredictionWorkspace(seed, effectiveRound, selectedRace);
+  const prediction = usePredictionWorkspace(seed, effectiveRound, selectedRace);
 
   return {
     ...prediction,
@@ -54,8 +54,8 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl): GrandPrixBoard
     drivers: season.drivers,
     driversError: season.driversFailed,
     onSelectRound: (round) => {
-      url.update({ round });
-      clearComputeError();
+      // A new round starts over on Weekend; a tab carried across rounds was the inconsistency.
+      url.update({ round, tab: null, view: null });
     },
     onReloadSchedule: season.reloadSchedule,
     onReloadDrivers: season.reloadDrivers,

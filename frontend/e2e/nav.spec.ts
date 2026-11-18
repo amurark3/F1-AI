@@ -35,7 +35,7 @@ test.describe("on a wide screen", () => {
   test("one top bar on every screen, with the current section marked, and no sidebar", async ({ page }) => {
     for (const [path, section] of [
       ["/race-control", "Race Control"],
-      ["/race-control/teams", "Standings"],
+      ["/race-control/standings", "Standings"],
       ["/race-control/drivers/lewis-hamilton", "Teams"],
     ] as const) {
       await page.goto(path);
@@ -59,7 +59,7 @@ test.describe("on a wide screen", () => {
   });
 
   test("a click moves the current section to the screen it opens", async ({ page }) => {
-    await page.goto("/race-control/teams");
+    await page.goto("/race-control/standings");
     await mainNav(page).getByRole("link", { name: "Power Units" }).click();
 
     await expect(page).toHaveURL(/\/race-control\/power-units(\?|$)/);
@@ -68,7 +68,7 @@ test.describe("on a wide screen", () => {
   });
 
   test("More holds Champions, Debriefs and Rulebook, by mouse or keyboard", async ({ page }) => {
-    await page.goto("/race-control/teams");
+    await page.goto("/race-control/standings");
     const more = mainNav(page).getByRole("button", { name: "More" });
     const champions = mainNav(page).getByRole("link", { name: /^Champions/ });
 
@@ -96,7 +96,7 @@ test.describe("on a wide screen", () => {
   test("the status chip reads the weekend, with its countdown on hover", async ({ page }) => {
     await page.clock.install({ time: SAO_PAULO_WEEK });
     await serveShell(page);
-    await page.goto("/race-control/teams");
+    await page.goto("/race-control/standings");
 
     const chip = topBar(page).getByRole("button", { name: "R20 · Pre-race" });
     await expect(chip).toBeVisible();
@@ -132,7 +132,7 @@ test.describe("on a phone", () => {
   test("MENU opens every section in a modal menu that keeps focus and holds the page still", async ({ page }) => {
     await page.clock.install({ time: SAO_PAULO_WEEK });
     await serveShell(page);
-    await page.goto("/race-control/teams");
+    await page.goto("/race-control/standings");
 
     await expect(mainNav(page)).toBeHidden();
     const menuButton = topBar(page).getByRole("button", { name: "Menu" });

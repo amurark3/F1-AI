@@ -58,6 +58,8 @@ services:
         sync: false
       - key: TAVILY_API_KEY # optional — web search tool
         sync: false
+      - key: PREDICTIONS_ADMIN_KEY # owner-only X-Admin-Key for POST /api/predictions/{y}/{r}/compute; unset = nobody can store predictions
+        sync: false
       - key: OPENWEATHERMAP_API_KEY # optional — weather tool + current-conditions fallback (session forecast is Open-Meteo, keyless)
         sync: false
       - key: ALLOWED_ORIGINS # CORS: comma-separated frontend origin(s)

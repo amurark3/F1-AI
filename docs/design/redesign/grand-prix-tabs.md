@@ -14,14 +14,11 @@ Mockups: `grand-prix.html` (Weekend), `gp-sessions.html`, `gp-grid.html`, `gp-re
 - Stints sits after Results because its rows are in classification order and it explains how that order was reached.
 - Predictions is last because it spans the weekend: a call before qualifying, a call after, and a Review that reads Results.
 
-The tab a round opens on when the URL names none (`defaultHubTab`), read from the calendar so it doesn't jump as data loads:
+Every round opens on **Weekend** when the URL names none, whatever stage its weekend has reached, and picking another round starts over on Weekend (user, 2026-11-18). The calendar-driven default this replaced (Sessions mid-weekend, Grid after qualifying, Results after the race) changed tabs on some round switches but not others: only until a tab was clicked, which then stuck. A link can still name a tab (`?tab=results`).
 
-| Weekend state                     | Opens on    | Today              |
-| --------------------------------- | ----------- | ------------------ |
-| Before any session                | Weekend     | Weekend            |
-| Practice or qualifying under way  | Sessions    | Sessions           |
-| Qualifying run, race not finished | Grid        | Grid               |
-| Race finished                     | **Results** | Predictions/Review |
+The hero and the facts strip sit above the tabs on **every** tab, as `grand-prix.html` draws them, so switching tabs never moves the page above them (user, 2026-11-18: a Weekend-only hero looked out of place). The one-line race header shows only while no round is selected. The other tab mockups still draw that one-line header; a comment in each marks it as replaced.
+
+The season strip marks the selected round by height, never by red (red reads as Ferrari): a won round keeps its winning team's colour, any other is white (user, 2026-11-18).
 
 `GrandPrixTab` and `HUB_TABS` gain `results` (`?tab=results`), placed fourth.
 
@@ -209,7 +206,7 @@ Each links to the other. The Debrief never prints the full classification table;
 
 ## Decisions for the user
 
-1. **Tab order:** Weekend · Sessions · Grid · Results · Stints · Predictions, and a finished race opens on Results (today it opens on Predictions › Review).
+1. **Tab order:** Weekend · Sessions · Grid · Results · Stints · Predictions, and a finished race opens on Results (today it opens on Predictions › Review). Superseded 2026-11-18: every round opens on Weekend.
 2. **Results has no Grid or places-gained column.** The Grid tab and the Debrief's grid→finish chart own movement. The alternative is a "Started" column on Results.
 3. **Results has no Laps column.** Finishers read `+1 lap` when lapped, and non-finishers carry laps in the reason cell (`Collision · 58 laps`).
 4. **Qualifying gap is measured within the driver's own part** (official figure), not from each driver's best lap across parts.

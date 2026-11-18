@@ -6,7 +6,7 @@ import { API_BASE } from "@/app/constants/api";
 import { useSchedule } from "@/app/ui/race-picker/useSchedule";
 import { useSection } from "@/app/ui/section/useSection";
 
-import { defaultHubTab, defaultPredictionView, type HubTab } from "./hubNavigation";
+import { defaultPredictionView, type HubTab } from "./hubNavigation";
 
 import type { DriversResponse, GrandPrixSeed } from "./hubSeed";
 import type { DriverStanding, RaceEvent } from "./predictionModel";
@@ -26,12 +26,12 @@ export function resolveRound(schedule: RaceEvent[], selectedRound: number | null
 }
 
 /**
- * The section and prediction view on screen: the URL's, or wherever the
- * weekend has got to. Remembers that Stints was opened, so its slow load
+ * The section and prediction view on screen: the URL's, else Weekend — every
+ * round opens there, whatever stage its weekend has reached (user, 2026-11-18). Remembers that Stints was opened, so its slow load
  * starts only when someone asks for it and is not dropped on the next tab.
  */
 export function useHubSections(url: HubUrl, race: RaceEvent | null) {
-  const activeTab: HubTab = url.tab ?? defaultHubTab(race);
+  const activeTab: HubTab = url.tab ?? "weekend";
   const [stintsWanted, setStintsWanted] = useState(activeTab === "stints");
   if (activeTab === "stints" && !stintsWanted) {
     setStintsWanted(true);

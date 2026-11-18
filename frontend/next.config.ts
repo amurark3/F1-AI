@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     Promise.resolve([
       { source: "/live", destination: "/race-control", permanent: false },
       { source: "/race-control/live", destination: "/race-control", permanent: false },
+      { source: "/standings", destination: "/race-control/standings", permanent: true },
+      { source: "/race-control/teams", destination: "/race-control/standings", permanent: true },
+      { source: "/race-control/teams/:team", destination: "/race-control/constructors/:team", permanent: true },
     ]),
 };
 

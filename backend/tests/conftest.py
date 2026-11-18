@@ -171,6 +171,14 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
 
 
 @pytest.fixture(autouse=True)
+def _empty_fia_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts with an empty, private FIA document store: no final classification has landed."""
+    from app.data.fia_documents import store
+
+    monkeypatch.setattr(store, "STORE", store.FileFiaStore(tmp_path_factory.mktemp("fia_store")))
+
+
+@pytest.fixture(autouse=True)
 def _empty_openf1_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every test starts with an empty, private OpenF1 store, never the developer's files or a database."""
     from app.data.openf1 import session_store

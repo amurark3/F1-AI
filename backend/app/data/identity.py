@@ -75,6 +75,16 @@ TEAM_ALIASES: dict[str, str] = {
     "cadillac f1 team": "cadillac",
     "sauber": "kick-sauber",
     "stake f1 team kick sauber": "kick-sauber",
+    # The FIA's documents print each 2026 entrant's full name.
+    "tgr haas f1 team": "haas",
+    "visa cash app racing bulls f1 team": "racing-bulls",
+    "atlassian williams f1 team": "williams",
+    "mclaren mastercard f1 team": "mclaren",
+    "audi revolut f1 team": "audi",
+    "cadillac formula 1 team": "cadillac",
+    "mercedes amg petronas f1 team": "mercedes",
+    "aston martin aramco f1 team": "aston-martin",
+    "scuderia ferrari hp": "ferrari",
 }
 
 # The sessions that prove a driver raced for a team. Practice is left out so a

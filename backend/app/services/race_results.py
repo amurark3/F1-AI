@@ -1,9 +1,10 @@
 """The official classification of a round's Grand Prix, and its sprint, for the Results tab.
 
-**Authority** (``docs/DATA_SOURCES.md``): the FIA final classification, which f1db
-mirrors, so a session f1db holds is ``final``. Until f1db has it, OpenF1's
-``session_result`` answers, marked provisional. Jolpica is never used here: it
-still showed the pre-penalty order the morning after Mexico 2026.
+**Authority** (``docs/DATA_SOURCES.md``): the FIA final classification. f1db
+mirrors it, so a session f1db holds is ``final``. Until f1db has it, the FIA's
+own document answers, also ``final``, once the ingest has collected it; before
+that, OpenF1's ``session_result``, marked provisional. Jolpica is never used
+here: it still showed the pre-penalty order the morning after Mexico 2026.
 
 **Special states** read the same words as every other tab: ``Finished``, ``DNF``,
 ``NC``, ``DNS``, ``DSQ``. A car that is not ``Finished`` has no ``position``,
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+from typing import TYPE_CHECKING, Literal
 
 import structlog
 
@@ -21,7 +23,12 @@ from app.data.canonical_names import F1DB_READ_ERRORS, driver_identity, team_dis
 from app.data.f1db_grid import starting_grid
 from app.data.f1db_race_results import TYPE_RACE, TYPE_SPRINT, ResultRow, fastest_lap, result_rows
 from app.data.f1db_source import installed_version
-from app.data.race_classification import openf1_session_result, openf1_status
+from app.data.fia_documents.results import FIA_FINAL_SOURCE, final_classification
+from app.data.race_classification import fia_status, openf1_session_result, openf1_status
+
+if TYPE_CHECKING:
+    from app.data.fia_documents.parsers.classifications import ClassifiedEntry
+    from app.data.fia_documents.results import FinalClassification
 
 logger = structlog.get_logger()
 
@@ -121,6 +128,45 @@ def _openf1_car(year: int, row: dict, entries: dict) -> _Car:
         reason=None,
         points=row.get("points"),
         fastest_lap=False,
+    )
+
+
+def _millis(text: str | None) -> int | None:
+    """An FIA time (``"2:20:28.772"``, ``"1:02.345"``, ``"0.799"``) in milliseconds."""
+    if not text:
+        return None
+    return round(sum(float(part) * 60**power for power, part in enumerate(reversed(text.split(":")))) * 1000)
+
+
+def _fia_gap(text: str | None) -> tuple[str | None, int | None]:
+    """The FIA's gap column (``"29.475"``, ``"1 LAP"``) as f1db's gap text and laps down."""
+    if text and "LAP" in text:
+        return _openf1_gap(f"+{text}")
+    millis = _millis(text)
+    return _openf1_gap(millis / 1000 if millis is not None else None)
+
+
+def _fia_car(year: int, final: FinalClassification, entry: ClassifiedEntry) -> _Car:
+    who = final.driver(year, entry.car, entry.driver)
+    status = OPENF1_STATUS[fia_status(entry)]
+    gap, laps_down = _fia_gap(entry.gap)
+    fastest = final.classification.fastest_lap
+    return _Car(
+        code=who.code or str(entry.car),
+        name=who.name,
+        team=team_display_name(year, entry.team),
+        status=status,
+        position=entry.position if status == "Finished" else None,
+        laps=entry.laps,
+        time_millis=_millis(entry.time),
+        gap=gap,
+        laps_down=laps_down,
+        # The FIA's race time includes any time penalty, as f1db's does.
+        penalty_millis=final.time_penalty(entry.car) * 1000 or None,
+        reason=None,
+        # The final classification prints no zero: a car past P10 scored nothing.
+        points=entry.points or 0,
+        fastest_lap=fastest is not None and fastest.car == entry.car,
     )
 
 
@@ -229,14 +275,28 @@ def _from_openf1(year: int, round_num: int, code: str) -> dict | None:
     return _session(year, cars, provenance, None)
 
 
-def _best(year: int, round_num: int, result_type: str, openf1_code: str) -> dict | None:
-    return _from_f1db(year, round_num, result_type) or _from_openf1(year, round_num, openf1_code)
+def _from_fia(year: int, round_num: int, kind: Literal["race", "sprint"]) -> dict | None:
+    final = final_classification(year, round_num, kind)
+    if final is None:
+        return None
+    cars = [_fia_car(year, final, entry) for entry in final.classification.entries]
+    source = {"source": FIA_FINAL_SOURCE, "role": "classification", "document": final.classification.document}
+    lap = final.classification.fastest_lap
+    fastest = None
+    if lap is not None:
+        who = final.driver(year, lap.car, lap.driver)
+        fastest = {**_who(year, who.code or str(lap.car), who.name, lap.team), "lap": lap.lap, "time": lap.time}
+    return _session(year, cars, {"final": True, "sources": [{**source, "url": final.url}]}, fastest)
 
 
-def build_session_result(year: int, round_num: int, kind: str) -> dict | None:
+def build_session_result(year: int, round_num: int, kind: Literal["race", "sprint"]) -> dict | None:
     """One session's classification (``kind`` "race" or "sprint"), or ``None`` when no source holds it."""
     result_type, openf1_code = SESSION_KINDS[kind]
-    return _best(year, round_num, result_type, openf1_code)
+    return (
+        _from_f1db(year, round_num, result_type)
+        or _from_fia(year, round_num, kind)
+        or _from_openf1(year, round_num, openf1_code)
+    )
 
 
 def official_grid(year: int, round_num: int) -> dict[str, int | None]:

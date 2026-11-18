@@ -167,8 +167,10 @@ def test_clear_cache_forces_a_reread(profiles_f1db):
         ("SCUDERIA FERRARI", "ferrari"),
         ("Oracle Red Bull Racing", "red-bull"),
         ("Cadillac F1 Team", "cadillac"),
+        ("Scuderia Ferrari HP", "ferrari"),
+        ("Cadillac Formula 1 Team", "cadillac"),
     ],
-    ids=["id", "name", "full-name", "folded-full-name", "alias", "alias-of-new-team"],
+    ids=["id", "name", "full-name", "folded-full-name", "alias", "alias-of-new-team", "fia-entrant", "fia-new-team"],
 )
 def test_resolve_team_matches_exact_names_and_aliases(profiles_f1db, name, expected):
     assert resolve_team(2026, name) == expected

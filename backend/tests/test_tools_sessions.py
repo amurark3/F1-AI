@@ -43,7 +43,7 @@ def test_mexico_qualifying_reads_f1dbs_segments_fastest_first(qualifying_f1db, m
 
     table = get_qualifying_results.invoke({"year": 2026, "grand_prix": "Mexico"})
 
-    assert "*(Source: f1db, the FIA final classification)*" in table
+    assert "*(Source: the FIA final classification)*" in table
     assert "### Q1 Results (Mexico 2026)" in table
     assert "### Q3 Results (Pole Position)" in table
     q3 = table.split("### Q3 Results (Pole Position)")[1]
@@ -83,7 +83,7 @@ def test_openf1_answers_a_qualifying_f1db_does_not_hold_yet_and_says_provisional
 
     table = get_qualifying_results.invoke({"year": 2026, "grand_prix": "Mexico"})
 
-    assert "*(Source: OpenF1, provisional until f1db publishes the final classification)*" in table
+    assert "*(Source: OpenF1, provisional until the FIA final classification is published)*" in table
     q3 = table.split("### Q3 Results (Pole Position)")[1]
     assert q3.splitlines()[3].startswith("| 1 | Lewis Hamilton (HAM)")
     assert "1:16.514" in q3.splitlines()[3]
@@ -141,7 +141,7 @@ def test_china_sprint_reads_f1db_with_retirements_as_dnf_and_a_reason(race_resul
 
     lines = table.splitlines()
     assert lines[0] == "### Sprint Race Results: China 2026"
-    assert lines[1] == "*(Source: f1db, the FIA final classification)*"
+    assert lines[1] == "*(Source: the FIA final classification)*"
     assert "| 1 | George Russell (RUS) | Mercedes | 33:38.998 | 8 |" in table
     assert "| 2 | Charles Leclerc (LEC) | Ferrari | +0.674 | 7 |" in table
     assert "| DNF | Nico Hülkenberg (HUL) | Audi | ❌ DNF (Mechanical) | 0 |" in table

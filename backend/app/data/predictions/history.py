@@ -13,6 +13,7 @@ import time
 
 import structlog
 
+from app.data.fia_documents.results import FIA_FINAL_SOURCE
 from app.data.predictions.graded import with_graded_fields
 from app.data.predictions.incidents import _classify_status
 from app.data.predictions.phases import trim_snapshots
@@ -191,8 +192,9 @@ def _classify_results(classification: RaceClassification) -> tuple[dict[str, int
 def actual_fields(entry: dict, classification: RaceClassification) -> dict:
     """The result fields of ``entry`` once ``classification`` is recorded on it.
 
-    Final only when it agrees with what ``entry`` already holds and is not
-    Jolpica's, which shows the pre-penalty order. A Jolpica read never replaces a
+    Final at once when read from the FIA final classification, the authority.
+    Otherwise final only when it agrees with what ``entry`` already holds and
+    is not Jolpica's, which shows the pre-penalty order. A Jolpica read never replaces a
     result from another source: it only moves ``actual_recorded_at``.
     """
     if classification.source == JOLPICA_SOURCE and entry.get("actual_source") not in (None, JOLPICA_SOURCE):
@@ -204,7 +206,9 @@ def actual_fields(entry: dict, classification: RaceClassification) -> dict:
         "actual_statuses": statuses,
         "actual_incidents": incidents,
         "actual_source": classification.source,
-        "actual_provisional": not (agrees and classification.source != JOLPICA_SOURCE),
+        "actual_provisional": not (
+            classification.source == FIA_FINAL_SOURCE or (agrees and classification.source != JOLPICA_SOURCE)
+        ),
         "actual_recorded_at": datetime.now(UTC).isoformat(),
     }
 
@@ -234,7 +238,8 @@ def record_actual_result(year: int, round_num: int) -> None:
     records nothing and is retried later.
 
     The result is stored with its ``actual_source`` and ``actual_provisional``.
-    It becomes final when a later read, a day after it was recorded, agrees with
+    It is final at once when read from the FIA final classification. Otherwise
+    it becomes final when a later read, a day after it was recorded, agrees with
     it and did not come from Jolpica, which shows the pre-penalty order. A read
     that differs replaces it (still provisional); the graded call is untouched.
     """

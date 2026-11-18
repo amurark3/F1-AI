@@ -45,6 +45,8 @@ export interface ResultSource {
   source: string;
   role: string;
   version?: string | null;
+  /** The FIA document number, for a classification read from the FIA's own document. */
+  document?: number | null;
 }
 
 export interface SessionResult {
@@ -103,6 +105,7 @@ export function penaltyLabel(row: ResultRow): string | null {
 const SOURCE_NAMES: Record<string, (source: ResultSource) => string> = {
   f1db: ({ version }) => `f1db${version ? ` ${version}` : ""}, mirroring the FIA final classification`,
   "openf1-session-result": () => "OpenF1 session result",
+  "fia-final-classification": ({ document }) => `FIA final classification${document ? `, document ${document}` : ""}`,
 };
 
 /** The provenance line: what the table was read from and whether the FIA's final has landed. */

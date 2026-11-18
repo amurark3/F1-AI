@@ -7,12 +7,11 @@ import dataclasses
 import pytest
 
 from app.data.fia_documents import feed, store
-from app.data.fia_documents.document import SourceDocument
 from app.data.fia_documents.feed import FEED_TTL_SECONDS, document_event, fia_event, weekend_feed
 from app.data.fia_documents.kinds import KIND_CLASSIFICATION, KIND_GRID, KIND_PENALTY
 from app.data.fia_documents.store import FiaStoreError, FileFiaStore
 from app.utils.ttl_cache import TtlCache
-from tests.fia_documents_support import MEXICO_2026
+from tests.fia_documents_support import MEXICO_2026, held
 
 pytestmark = pytest.mark.unit
 
@@ -21,19 +20,6 @@ SCHEDULE = [
     {"round": 19, "name": "Mexico City Grand Prix", "location": "rodriguez"},
     {"round": 21, "name": "Las Vegas Grand Prix", "location": "vegas"},
 ]
-
-
-def held(title: str) -> SourceDocument:
-    entry = MEXICO_2026[title]
-    return SourceDocument(
-        url=entry["url"],
-        event=MEXICO,
-        title=title,
-        published=entry["published"],
-        sha256="0" * 64,
-        fetched_at="2026-11-18T09:00:00+00:00",
-        text=entry["text"],
-    )
 
 
 class Clock:

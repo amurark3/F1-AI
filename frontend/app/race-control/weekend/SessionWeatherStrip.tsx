@@ -40,20 +40,20 @@ function SessionCells({ rows }: { rows: SessionWeatherRow[] }) {
         return (
           <li
             key={row.name}
-            className={`flex min-w-0 flex-col items-center rounded-md border bg-black/30 px-1.5 py-2 motion-safe:animate-fade-up ${
-              row.name === "Race" ? "border-[#E10600]/50 bg-[#E10600]/[0.06]" : "border-white/10"
+            className={`flex min-w-0 flex-col items-center gap-1.5 rounded border border-rc-line px-1 py-2 motion-safe:animate-fade-up ${
+              row.name === "Race" ? "border-t-2 border-t-f1-red" : ""
             }`}
             style={{ animationDelay: `${0.3 + index * 0.08}s` }}
           >
-            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#7F8797]">
+            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-rc-ink-3">
               {SHORT_NAMES[row.name] ?? row.name}
             </span>
             {forecast ? (
-              <WeatherGlyph condition={forecast.condition} isDay={forecast.is_day} size={34} label={forecast.label} />
+              <WeatherGlyph condition={forecast.condition} isDay={forecast.is_day} size={30} label={forecast.label} />
             ) : (
-              <span className="my-1 h-7 w-7 rounded-full border border-dashed border-white/15" aria-hidden="true" />
+              <span className="my-1 h-7 w-7 rounded-full border border-dashed border-rc-line" aria-hidden="true" />
             )}
-            <span className="whitespace-nowrap font-mono text-xs font-bold text-white">
+            <span className="whitespace-nowrap font-mono text-xs font-semibold text-rc-ink">
               {forecast?.air_temp_c == null ? "—" : `${Math.round(forecast.air_temp_c)}°`}
               {rain !== null && (
                 <span className="ml-1.5" style={{ color: rainColor(rain) }}>

@@ -6,11 +6,11 @@
  * No client boundary: these panels are pure functions of their props, so the
  * server renders them straight into the overview HTML.
  */
-import { ShieldAlert } from "lucide-react";
-
 import type { StandingsFreshness } from "@/app/lib/standingsFreshness";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+import { f1, rc } from "@/app/ui/tokens";
 
-import { Panel, rcFont } from "./RaceControlPrimitives";
+import { Panel } from "./RaceControlPrimitives";
 
 import type { ChampionshipStakes, LapRecord, RiskCard, RiskLevel, SessionWeather } from "../weekend/weekendTypes";
 
@@ -139,40 +139,34 @@ export interface OverviewStrategy {
   error?: string | null;
 }
 
-const RISK_COLORS: Record<RiskLevel, string> = { High: "#FF4655", Medium: "#FFF200", Low: "#00FF78" };
+const RISK_STYLE: Record<RiskLevel, { rule: string; text: string }> = {
+  High: { rule: f1.red, text: "text-rc-red-text" },
+  Medium: { rule: rc.ink2, text: "text-rc-ink-2" },
+  Low: { rule: rc.line, text: "text-rc-ink-3" },
+};
 
 /** The risk register as short cards, graded from the race-day forecast and the standings. */
 export function RiskRegisterPanel({ risks }: { risks: RiskCard[] }) {
   return (
-    <Panel className="h-full p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400" style={rcFont}>
-            Risk register
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-white" style={rcFont}>
-            Weekend risks
-          </h2>
-        </div>
-        <ShieldAlert className="h-5 w-5 text-[#FFF200]" aria-hidden="true" />
-      </div>
-      {risks.length === 0 && <p className="text-sm text-neutral-500">No risks graded for this weekend.</p>}
+    <Panel className="h-full p-5 sm:p-6">
+      <PanelHeading as="h2" eyebrow="Risk register" title="Weekend risks" />
+      {risks.length === 0 && <p className="text-sm text-rc-ink-3">No risks graded for this weekend.</p>}
       <ul className="space-y-2.5">
         {risks.map((risk, index) => {
-          const color = RISK_COLORS[risk.level];
+          const style = RISK_STYLE[risk.level];
           return (
             <li
               key={risk.title}
-              className="rounded-lg border border-white/8 bg-white/[0.03] p-3 motion-safe:animate-fade-up"
-              style={{ borderLeft: `3px solid ${color}`, animationDelay: `${index * 0.08}s` }}
+              className="rounded border border-l-[3px] border-rc-line px-3.5 py-3 motion-safe:animate-fade-up"
+              style={{ borderLeftColor: style.rule, animationDelay: `${index * 0.08}s` }}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-bold text-white">{risk.title}</p>
-                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color }}>
+                <p className="text-sm font-semibold text-rc-ink">{risk.title}</p>
+                <span className={`font-mono text-[9px] font-semibold uppercase tracking-[0.16em] ${style.text}`}>
                   {risk.level}
                 </span>
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-500">{risk.detail}</p>
+              <p className="mt-1 text-xs leading-relaxed text-rc-ink-3">{risk.detail}</p>
             </li>
           );
         })}

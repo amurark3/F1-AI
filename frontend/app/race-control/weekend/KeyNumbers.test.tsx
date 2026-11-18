@@ -43,7 +43,7 @@ function saoPaulo(state: SectionState = READY): KeyNumbersProps {
 /** A tile as [figure, caption], found by its label. */
 function tile(label: string): [string | null | undefined, string | null | undefined] {
   const root = screen.getByRole("group", { name: label });
-  return [root.querySelector("p.mt-2")?.textContent, root.querySelector("p.line-clamp-2")?.textContent];
+  return [root.querySelector("p.font-display")?.textContent, root.querySelector("p.mt-1.text-xs")?.textContent ?? ""];
 }
 
 describe("KeyNumbers", () => {
@@ -58,8 +58,11 @@ describe("KeyNumbers", () => {
     expect(tile("Pit lane time")).toEqual(["23.5s", "Median of 34 stops · 2025 São Paulo Grand Prix"]);
     expect(tile("Title gap")).toEqual(["Decided", "Kimi Antonelli has clinched the title"]);
     expect(tile("Pole → win here")).toEqual(["6/10", "Poles converted to wins in the last 10 races here"]);
-    // The rain tile takes its accent from the rain band, and draws the race's sky.
-    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ backgroundColor: "#FFF200" });
+    // The kit tile has no accent bar or icon, and the rain tile draws the race's sky.
+    expect(container.querySelector(".h-\\[2px\\]")).toBeNull();
+    expect(
+      screen.getByRole("group", { name: "Pole → win here" }).querySelector("p.font-display span"),
+    ).toHaveTextContent("/10");
     expect(container.querySelectorAll("svg[viewBox='0 0 64 64']")).toHaveLength(1);
   });
 
@@ -95,7 +98,6 @@ describe("KeyNumbers", () => {
     expect(tile("Title gap")).toEqual(["—", "Standings unavailable"]);
     expect(tile("Pole → win here")).toEqual(["—", "No earlier race at this circuit"]);
     expect(container.querySelector("svg[viewBox='0 0 64 64']")).not.toBeInTheDocument();
-    expect(container.querySelector(".h-\\[2px\\]")).toHaveStyle({ backgroundColor: "#3A4254" });
   });
 
   it("reads a missing circuit record as no earlier race", () => {

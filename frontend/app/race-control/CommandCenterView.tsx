@@ -1,6 +1,7 @@
 "use client";
 
 import { API_BASE } from "@/app/constants/api";
+import { PageHero } from "@/app/ui/PageHero";
 import { Section } from "@/app/ui/section/Section";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
 
@@ -13,8 +14,8 @@ import {
   type OverviewWeather,
 } from "./components/CommandCenterPanels";
 import { Disclosure } from "./components/Disclosure";
-import { LiveTimingPanel } from "./components/LiveTimingPanel";
-import { SectionHeader, SkeletonPanel } from "./components/RaceControlPrimitives";
+import { LiveTimingTower } from "./components/LiveTimingTower";
+import { SkeletonPanel } from "./components/RaceControlPrimitives";
 import { ChampionshipStakes } from "./weekend/ChampionshipStakes";
 import { CircuitHistoryPanel } from "./weekend/CircuitHistoryPanel";
 import { KeyNumbers } from "./weekend/KeyNumbers";
@@ -61,13 +62,13 @@ interface HeroSlotProps {
 
 function HeroSlot({ shell, circuit, weather }: HeroSlotProps) {
   const race = shell.data?.race;
-  if (shell.status === "pending") return <SkeletonPanel className="mb-5 h-[460px]" />;
+  if (shell.status === "pending") return <SkeletonPanel className="h-[460px]" />;
   if (!race) {
     return (
-      <SectionHeader
-        eyebrow="Race Weekend Command Center"
+      <PageHero
+        eyebrow="Race Control"
         title="Command Center"
-        description={shell.reason ?? "The next race weekend appears here once the calendar is published."}
+        meta={shell.reason ?? "The next race weekend appears here once the calendar is published."}
       />
     );
   }
@@ -121,9 +122,12 @@ function SourcesDisclosure({ assumptions }: { assumptions: string[] }) {
   ];
   return (
     <Disclosure title="Sources & assumptions" hint={`${sources.length + assumptions.length} notes`}>
-      <ul className="space-y-2 p-4 text-sm leading-relaxed text-neutral-400">
+      <ul>
         {[...sources, ...assumptions].map((line) => (
-          <li key={line} className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2">
+          <li
+            key={line}
+            className="border-b border-rc-line-soft py-2.5 text-[13px] leading-relaxed text-rc-ink-2 last:border-0"
+          >
             {line}
           </li>
         ))}
@@ -148,45 +152,42 @@ export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
   const venue = race?.location.split(",")[0] ?? "this round";
 
   return (
-    <div>
+    <div className="space-y-5">
       <HeroSlot shell={shell} circuit={circuit} weather={weather} />
       <WeekendNumbers shell={shell} strategy={strategy} weather={weather} circuit={circuit} />
+      <LiveTimingTower year={year} race={race} />
 
-      <div className="space-y-5">
-        <LiveTimingPanel year={year} race={race} />
+      <Section state={weather} label="Weather feed" skeletonClassName="h-[440px]">
+        <WeekendForecast weather={weather.data?.session_weather} />
+      </Section>
 
-        <Section state={weather} label="Weather feed" skeletonClassName="h-[440px]">
-          <WeekendForecast weather={weather.data?.session_weather} />
+      <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
+        <Section state={shell} label="Championship standings" skeletonClassName="h-[420px]">
+          <ChampionshipStakes stakes={shell.data?.stakes} venue={venue} />
         </Section>
-
-        <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
-          <Section state={shell} label="Championship standings" skeletonClassName="h-[420px]">
-            <ChampionshipStakes stakes={shell.data?.stakes} venue={venue} />
-          </Section>
-          <Section state={predictions} label="Prediction snapshot" skeletonClassName="h-[420px]">
-            <PodiumPanel podium={predictions.data?.predicted_podium ?? []} />
-          </Section>
-          <Section state={circuit} label="Circuit history" skeletonClassName="h-[420px]">
-            <CircuitHistoryPanel record={circuit.data?.record} />
-          </Section>
-        </div>
-
-        <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0">
-          <Section state={strategy} label="Baseline strategy" skeletonClassName="h-[420px]" className="flex-1">
-            <BaselineStrategyPanel context={context} />
-          </Section>
-          <Section
-            state={weather}
-            label="Risk register"
-            skeletonClassName="h-[420px]"
-            className="xl:w-[400px] xl:shrink-0"
-          >
-            <RiskRegisterPanel risks={weather.data?.risk_register ?? []} />
-          </Section>
-        </div>
-
-        <SourcesDisclosure assumptions={context?.assumptions ?? []} />
+        <Section state={predictions} label="Prediction snapshot" skeletonClassName="h-[420px]">
+          <PodiumPanel podium={predictions.data?.predicted_podium ?? []} />
+        </Section>
+        <Section state={circuit} label="Circuit history" skeletonClassName="h-[420px]">
+          <CircuitHistoryPanel record={circuit.data?.record} />
+        </Section>
       </div>
+
+      <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0">
+        <Section state={strategy} label="Baseline strategy" skeletonClassName="h-[420px]" className="flex-1">
+          <BaselineStrategyPanel context={context} />
+        </Section>
+        <Section
+          state={weather}
+          label="Risk register"
+          skeletonClassName="h-[420px]"
+          className="xl:w-[400px] xl:shrink-0"
+        >
+          <RiskRegisterPanel risks={weather.data?.risk_register ?? []} />
+        </Section>
+      </div>
+
+      <SourcesDisclosure assumptions={context?.assumptions ?? []} />
     </div>
   );
 }

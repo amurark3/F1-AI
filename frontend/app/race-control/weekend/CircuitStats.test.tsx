@@ -44,18 +44,19 @@ describe("CircuitStats", () => {
     ]);
   });
 
-  it("turns the direction icon the way the circuit runs", () => {
+  it("words the direction, draws no icons, and sets worded values apart from the figures", () => {
     vi.mocked(useReducedMotion).mockReturnValue(true);
-    const { unmount } = render(<CircuitStats record={circuit.record} lapRecord={null} basics={{}} />);
-    const anti = screen.getByText("Direction").querySelector("svg");
-    expect(anti).toHaveClass("motion-safe:animate-wx-spin");
-    expect(anti).toHaveStyle({ animationDirection: "reverse" });
-    expect(screen.getByText("Length").querySelector("svg")).not.toHaveClass("motion-safe:animate-wx-spin");
+    const { container, unmount } = render(
+      <CircuitStats record={circuit.record} lapRecord={null} basics={{}} className="mt-7" />,
+    );
+    expect(container.querySelector("svg")).toBeNull();
+    expect(container.firstElementChild).toHaveClass("mt-7", "border-y", "border-rc-line");
+    expect(screen.getByText("Anti-clockwise")).toHaveClass("uppercase", "text-[20px]");
+    expect(screen.getByText("Length").nextElementSibling).toHaveClass("font-display", "text-[30px]");
     unmount();
 
     render(<CircuitStats record={CIRCUIT_RECORDS.mexicoCity2026} lapRecord={null} basics={{}} />);
     expect(screen.getByText("Clockwise")).toBeInTheDocument();
-    expect(screen.getByText("Direction").querySelector("svg")).not.toHaveStyle({ animationDirection: "reverse" });
   });
 
   it("falls back to the schedule's facts while f1db's record is missing", () => {

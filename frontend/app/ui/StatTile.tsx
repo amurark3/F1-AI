@@ -13,6 +13,8 @@ export interface StatTileProps {
   sub?: ReactNode;
   /** The row's headline figure: a wider tile and a larger figure. */
   lead?: boolean;
+  /** The id of the label, for a wrapper that names itself by it (`aria-labelledby`). */
+  labelId?: string;
   className?: string;
 }
 
@@ -22,10 +24,12 @@ export interface StatTileProps {
  * Inside {@link StatTiles} the row sets the spacing and hairlines; alone, the
  * caller places it.
  */
-export function StatTile({ label, value, unit, sub, lead = false, className = "" }: StatTileProps) {
+export function StatTile({ label, value, unit, sub, lead = false, labelId, className = "" }: StatTileProps) {
   return (
     <div data-lead={lead ? "" : undefined} className={`min-w-0 ${className}`}>
-      <p className={EYEBROW}>{label}</p>
+      <p id={labelId} className={EYEBROW}>
+        {label}
+      </p>
       <p
         className={`mt-2.5 font-display font-extrabold leading-none tabular-nums text-rc-ink ${lead ? "text-[56px]" : "text-[40px]"}`}
       >

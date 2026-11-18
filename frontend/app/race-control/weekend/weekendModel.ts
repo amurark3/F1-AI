@@ -4,21 +4,19 @@
  * server and in the browser.
  */
 import { contenderName, nextEventSentence, type ChampionshipTable } from "@/app/lib/clinch";
+import { rc } from "@/app/ui/tokens";
 
-import type { SessionPhase, SessionWeatherRow, TableStakes, WeatherCondition } from "./weekendTypes";
+import type { SessionPhase, SessionWeatherRow, TableStakes } from "./weekendTypes";
 
-/** Rain probability bands: dry, mixed, and likely wet. */
+/** Rain probability bands: dry, mixed and likely wet, rising from the caption tone to info blue. */
 const RAIN_MIXED_PCT = 20;
 const RAIN_WET_PCT = 50;
-const DRY_COLOR = "#00FF78";
-const MIXED_COLOR = "#FFF200";
-const WET_COLOR = "#4C8DFF";
 
 export function rainColor(pct: number | null): string {
-  if (pct === null) return "#3A4254";
-  if (pct >= RAIN_WET_PCT) return WET_COLOR;
-  if (pct >= RAIN_MIXED_PCT) return MIXED_COLOR;
-  return DRY_COLOR;
+  if (pct === null) return rc.dim;
+  if (pct >= RAIN_WET_PCT) return rc.blue;
+  if (pct >= RAIN_MIXED_PCT) return rc.ink2;
+  return rc.ink3;
 }
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -29,26 +27,6 @@ export function compassPoint(degrees: number | null): string | null {
   if (degrees === null) return null;
   const index = Math.round((((degrees % 360) + 360) % 360) / COMPASS_STEP) % COMPASS.length;
   return COMPASS[index] ?? null;
-}
-
-/** The ambient backdrop a session card gets for its weather. */
-export type Ambience = "sun" | "night" | "cloud" | "rain" | "storm" | "snow" | "none";
-
-const AMBIENCE: Record<WeatherCondition, Ambience> = {
-  clear: "sun",
-  partly_cloudy: "sun",
-  cloudy: "cloud",
-  fog: "cloud",
-  drizzle: "rain",
-  rain: "rain",
-  storm: "storm",
-  snow: "snow",
-  unknown: "none",
-};
-
-export function ambienceFor(condition: WeatherCondition, isDay: boolean | null): Ambience {
-  const ambience = AMBIENCE[condition];
-  return ambience === "sun" && isDay === false ? "night" : ambience;
 }
 
 /**

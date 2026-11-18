@@ -12,6 +12,7 @@ import {
   penaltyNote,
   promotedNote,
   qualifiedNote,
+  reasonNote,
 } from "./gridHelpers";
 
 import type { GridSlot } from "./gridModel";
@@ -80,6 +81,38 @@ describe("grid labels on Mexico City 2026", () => {
     expect(hasGrid(GRIDS_2026.lasVegasNone)).toBe(false);
     expect(hasGrid(undefined)).toBe(false);
     expect(hasGrid({ ...mexico, grid: [] })).toBe(false);
+  });
+
+  it("reads each FIA ruling as its reason and document, or nothing when none is held", () => {
+    const withReasons = GRIDS_2026.mexicoCityWithFiaReasons.grid;
+    const reasonOf = (code: string) => reasonNote(withReasons.find((s) => s.driver_code === code)!);
+    expect(reasonOf("VER")).toBe("Causing a collision \u00b7 doc 33");
+    expect(reasonOf("LAW")).toBe(
+      "Permitted to start \u00b7 doc 58; Driving erratically \u00b7 doc 34; Car modified whilst under Parc Fermé conditions and additional power unit elements have been used \u00b7 doc 65",
+    );
+    expect(reasonOf("HAM")).toBeNull();
+    expect(reasonNote(slot("VER"))).toBeNull();
+    expect(reasonNote({ ...slot("VER"), reasons: [{ ruling: "Reprimand", reason: null, document: null }] })).toBe(
+      "Reprimand",
+    );
+  });
+
+  it("names the FIA grid and the decisions behind its reasons", () => {
+    expect(gridNote(GRIDS_2026.mexicoCityWithFiaReasons)).toBe(
+      "Grid: f1db, mirroring the FIA final starting grid \u00b7 reasons: FIA decisions 17, 33, 34, 58, 65",
+    );
+    const provisional = GRIDS_2026.mexicoCityFiaProvisional;
+    expect(gridNote(provisional)).toBe(
+      "Grid: FIA provisional starting grid (doc 60) \u00b7 the final grid replaces it \u00b7 reasons: FIA decisions 17, 33, 34, 58",
+    );
+    // Slots that carry no reasons at all (an older payload) read as a sheet with no rulings.
+    const unnumbered = { number: null, final: true, url: "" };
+    expect(gridNote({ ...mexico, source: "fia_starting_grid", fia_document: unnumbered })).toBe(
+      "Grid: FIA final starting grid \u00b7 no grid rulings published",
+    );
+    // A provisional FIA grid has its penalties applied: it is not the qualifying order.
+    expect(gridTitle(provisional)).toBe("3 penalties on the grid");
+    expect(gridSourceLabel("fia_starting_grid")).toBe("FIA starting grid");
   });
 
   it("names the source and says whether it is final", () => {

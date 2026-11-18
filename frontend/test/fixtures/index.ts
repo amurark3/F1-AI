@@ -361,13 +361,18 @@ export const OVERVIEW_SEGMENTS_2026 = {
 /** MultiViewer layouts drawn as the circuit segment serves them, keyed by circuit. */
 export const CIRCUIT_MAPS_2026 = circuitMaps as Record<keyof typeof circuitMaps, CircuitMapData>;
 
-/** Starting grids for 2026 weekends: provisional (two f1db releases), official, and none yet. */
+/**
+ * Starting grids for 2026 weekends: provisional (two f1db releases), official, none yet, and Mexico City
+ * with the FIA's reasons on f1db's sheet and from the FIA's provisional grid (doc 60) alone.
+ */
 export const GRIDS_2026 = {
   saoPauloQualifyingDay: startingGrids2026.sao_paulo_qualifying_day as StartingGridResponse,
   saoPauloF1dbV202620: startingGrids2026.sao_paulo_f1db_v2026_20 as StartingGridResponse,
   mexicoCityOfficial: startingGrids2026.mexico_city_official as StartingGridResponse,
   lasVegasNone: startingGrids2026.las_vegas_none as StartingGridResponse,
   saoPauloJolpicaProvisional: startingGrids2026.sao_paulo_jolpica_provisional as StartingGridResponse,
+  mexicoCityWithFiaReasons: startingGrids2026.mexico_city_with_fia_reasons as StartingGridResponse,
+  mexicoCityFiaProvisional: startingGrids2026.mexico_city_fia_provisional as StartingGridResponse,
 };
 
 /** One stored prediction's finishing order, kept to the fields the "vs grid" column reads. */

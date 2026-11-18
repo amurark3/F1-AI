@@ -17,6 +17,7 @@ import {
   penaltyNote,
   promotedNote,
   qualifiedNote,
+  reasonNote,
   type GridRow,
 } from "./gridHelpers";
 import { FinalTag, StateTag } from "./StateTag";
@@ -36,6 +37,7 @@ function GridBox({ slot, context }: { slot: GridSlot; context: GridContext }) {
   const qualified = qualifiedNote(slot, context.dsq);
   const penalty = penaltyNote(slot, context.last);
   const promoted = promotedNote(slot, context.slots);
+  const reason = reasonNote(slot);
 
   return (
     <div
@@ -58,6 +60,7 @@ function GridBox({ slot, context }: { slot: GridSlot; context: GridContext }) {
             <StateTag tone="red">{penalty}</StateTag>
           </p>
         )}
+        {reason && <p className="mt-1 text-[11px] leading-snug text-rc-ink-3">{reason}</p>}
         {promoted && (
           <p className="mt-1 font-mono text-[11px] text-rc-gain">
             +{promoted.places}

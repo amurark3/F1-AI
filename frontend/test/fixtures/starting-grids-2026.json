@@ -1245,5 +1245,843 @@
     "warnings": [
       "The official grid sheet for this round is not in our dataset yet. The order shown is the qualifying classification, so any grid penalty is not applied to it."
     ]
+  },
+  "mexico_city_with_fia_reasons": {
+    "year": 2026,
+    "round": 19,
+    "available": true,
+    "provisional": false,
+    "source": "official_grid",
+    "fia_document": {
+      "number": 67,
+      "final": true,
+      "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_final_starting_grid.pdf"
+    },
+    "grid": [
+      {
+        "driver_code": "HAM",
+        "driver_name": "Lewis Hamilton",
+        "team": "Ferrari",
+        "position": 1,
+        "qualifying_position": 1,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "RUS",
+        "driver_name": "George Russell",
+        "team": "Mercedes",
+        "position": 2,
+        "qualifying_position": 2,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LEC",
+        "driver_name": "Charles Leclerc",
+        "team": "Ferrari",
+        "position": 3,
+        "qualifying_position": 3,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ANT",
+        "driver_name": "Kimi Antonelli",
+        "team": "Mercedes",
+        "position": 4,
+        "qualifying_position": 5,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": -1,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "VER",
+        "driver_name": "Max Verstappen",
+        "team": "Red Bull",
+        "position": 5,
+        "qualifying_position": 4,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 1,
+        "reasons": [
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Causing a collision",
+            "document": 33
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "NOR",
+        "driver_name": "Lando Norris",
+        "team": "McLaren",
+        "position": 6,
+        "qualifying_position": 6,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HAD",
+        "driver_name": "Isack Hadjar",
+        "team": "Red Bull",
+        "position": 7,
+        "qualifying_position": 7,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LIN",
+        "driver_name": "Arvid Lindblad",
+        "team": "Racing Bulls",
+        "position": 8,
+        "qualifying_position": 8,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "GAS",
+        "driver_name": "Pierre Gasly",
+        "team": "Alpine",
+        "position": 9,
+        "qualifying_position": 9,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HUL",
+        "driver_name": "Nico Hülkenberg",
+        "team": "Audi",
+        "position": 10,
+        "qualifying_position": 10,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "COL",
+        "driver_name": "Franco Colapinto",
+        "team": "Alpine",
+        "position": 11,
+        "qualifying_position": 11,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "PIA",
+        "driver_name": "Oscar Piastri",
+        "team": "McLaren",
+        "position": 12,
+        "qualifying_position": 12,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOR",
+        "driver_name": "Gabriel Bortoleto",
+        "team": "Audi",
+        "position": 13,
+        "qualifying_position": 13,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BEA",
+        "driver_name": "Oliver Bearman",
+        "team": "Haas",
+        "position": 14,
+        "qualifying_position": 14,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "SAI",
+        "driver_name": "Carlos Sainz Jr.",
+        "team": "Williams",
+        "position": 15,
+        "qualifying_position": 15,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ALB",
+        "driver_name": "Alexander Albon",
+        "team": "Williams",
+        "position": 16,
+        "qualifying_position": 16,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ALO",
+        "driver_name": "Fernando Alonso",
+        "team": "Aston Martin",
+        "position": 17,
+        "qualifying_position": 17,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HIR",
+        "driver_name": "Ryō Hirakawa",
+        "team": "Haas",
+        "position": 18,
+        "qualifying_position": 18,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "STR",
+        "driver_name": "Lance Stroll",
+        "team": "Aston Martin",
+        "position": 19,
+        "qualifying_position": 19,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "PER",
+        "driver_name": "Sergio Pérez",
+        "team": "Cadillac",
+        "position": 20,
+        "qualifying_position": 20,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOT",
+        "driver_name": "Valtteri Bottas",
+        "team": "Cadillac",
+        "position": 21,
+        "qualifying_position": 21,
+        "penalty_positions": 50,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 0,
+        "reasons": [
+          {
+            "ruling": "50 place grid penalty",
+            "reason": "Additional power unit elements have been used",
+            "document": 17
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LAW",
+        "driver_name": "Liam Lawson",
+        "team": "Racing Bulls",
+        "position": null,
+        "qualifying_position": null,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": true,
+        "penalised": true,
+        "places_lost": null,
+        "reasons": [
+          {
+            "ruling": "Permitted to start",
+            "reason": null,
+            "document": 58
+          },
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Driving erratically",
+            "document": 34
+          },
+          {
+            "ruling": "Required to start from the pit lane",
+            "reason": "Car modified whilst under Parc Fermé conditions and additional power unit elements have been used",
+            "document": 65
+          }
+        ],
+        "code_unresolved": false
+      }
+    ],
+    "penalties": [
+      {
+        "driver_code": "VER",
+        "driver_name": "Max Verstappen",
+        "team": "Red Bull",
+        "position": 5,
+        "qualifying_position": 4,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 1,
+        "reasons": [
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Causing a collision",
+            "document": 33
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOT",
+        "driver_name": "Valtteri Bottas",
+        "team": "Cadillac",
+        "position": 21,
+        "qualifying_position": 21,
+        "penalty_positions": 50,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 0,
+        "reasons": [
+          {
+            "ruling": "50 place grid penalty",
+            "reason": "Additional power unit elements have been used",
+            "document": 17
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LAW",
+        "driver_name": "Liam Lawson",
+        "team": "Racing Bulls",
+        "position": null,
+        "qualifying_position": null,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": true,
+        "penalised": true,
+        "places_lost": null,
+        "reasons": [
+          {
+            "ruling": "Permitted to start",
+            "reason": null,
+            "document": 58
+          },
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Driving erratically",
+            "document": 34
+          },
+          {
+            "ruling": "Required to start from the pit lane",
+            "reason": "Car modified whilst under Parc Fermé conditions and additional power unit elements have been used",
+            "document": 65
+          }
+        ],
+        "code_unresolved": false
+      }
+    ],
+    "warnings": []
+  },
+  "mexico_city_fia_provisional": {
+    "year": 2026,
+    "round": 19,
+    "available": true,
+    "provisional": true,
+    "source": "fia_starting_grid",
+    "fia_document": {
+      "number": 60,
+      "final": false,
+      "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_provisional_starting_grid.pdf"
+    },
+    "grid": [
+      {
+        "driver_code": "HAM",
+        "driver_name": "Lewis Hamilton",
+        "team": "Ferrari",
+        "position": 1,
+        "qualifying_position": 1,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "RUS",
+        "driver_name": "George Russell",
+        "team": "Mercedes",
+        "position": 2,
+        "qualifying_position": 2,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LEC",
+        "driver_name": "Charles Leclerc",
+        "team": "Ferrari",
+        "position": 3,
+        "qualifying_position": 3,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ANT",
+        "driver_name": "Kimi Antonelli",
+        "team": "Mercedes",
+        "position": 4,
+        "qualifying_position": 5,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": -1,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "VER",
+        "driver_name": "Max Verstappen",
+        "team": "Red Bull",
+        "position": 5,
+        "qualifying_position": 4,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 1,
+        "reasons": [
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Causing a collision",
+            "document": 33
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "NOR",
+        "driver_name": "Lando Norris",
+        "team": "McLaren",
+        "position": 6,
+        "qualifying_position": 6,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HAD",
+        "driver_name": "Isack Hadjar",
+        "team": "Red Bull",
+        "position": 7,
+        "qualifying_position": 7,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LIN",
+        "driver_name": "Arvid Lindblad",
+        "team": "Racing Bulls",
+        "position": 8,
+        "qualifying_position": 8,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "GAS",
+        "driver_name": "Pierre Gasly",
+        "team": "Alpine",
+        "position": 9,
+        "qualifying_position": 9,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HUL",
+        "driver_name": "Nico Hülkenberg",
+        "team": "Audi",
+        "position": 10,
+        "qualifying_position": 10,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "COL",
+        "driver_name": "Franco Colapinto",
+        "team": "Alpine",
+        "position": 11,
+        "qualifying_position": 11,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "PIA",
+        "driver_name": "Oscar Piastri",
+        "team": "McLaren",
+        "position": 12,
+        "qualifying_position": 12,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOR",
+        "driver_name": "Gabriel Bortoleto",
+        "team": "Audi",
+        "position": 13,
+        "qualifying_position": 13,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BEA",
+        "driver_name": "Oliver Bearman",
+        "team": "Haas",
+        "position": 14,
+        "qualifying_position": 14,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "SAI",
+        "driver_name": "Carlos Sainz Jr.",
+        "team": "Williams",
+        "position": 15,
+        "qualifying_position": 15,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ALB",
+        "driver_name": "Alexander Albon",
+        "team": "Williams",
+        "position": 16,
+        "qualifying_position": 16,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "ALO",
+        "driver_name": "Fernando Alonso",
+        "team": "Aston Martin Aram co F1 Team",
+        "position": 17,
+        "qualifying_position": 17,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "HIR",
+        "driver_name": "Ryō Hirakawa",
+        "team": "Haas",
+        "position": 18,
+        "qualifying_position": 18,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "STR",
+        "driver_name": "Lance Stroll",
+        "team": "Aston Martin",
+        "position": 19,
+        "qualifying_position": 19,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "PER",
+        "driver_name": "Sergio Pérez",
+        "team": "Cadillac",
+        "position": 20,
+        "qualifying_position": 20,
+        "penalty_positions": null,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": false,
+        "places_lost": 0,
+        "reasons": [],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOT",
+        "driver_name": "Valtteri Bottas",
+        "team": "Cadilla c Formula 1 Team",
+        "position": 21,
+        "qualifying_position": 21,
+        "penalty_positions": 50,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 0,
+        "reasons": [
+          {
+            "ruling": "50 place grid penalty",
+            "reason": "Additional power unit elements have been used",
+            "document": 17
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LAW",
+        "driver_name": "Liam Lawson",
+        "team": "Racing Bulls",
+        "position": 22,
+        "qualifying_position": null,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": null,
+        "reasons": [
+          {
+            "ruling": "Permitted to start",
+            "reason": null,
+            "document": 58
+          },
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Driving erratically",
+            "document": 34
+          }
+        ],
+        "code_unresolved": false
+      }
+    ],
+    "penalties": [
+      {
+        "driver_code": "VER",
+        "driver_name": "Max Verstappen",
+        "team": "Red Bull",
+        "position": 5,
+        "qualifying_position": 4,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 1,
+        "reasons": [
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Causing a collision",
+            "document": 33
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "BOT",
+        "driver_name": "Valtteri Bottas",
+        "team": "Cadilla c Formula 1 Team",
+        "position": 21,
+        "qualifying_position": 21,
+        "penalty_positions": 50,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": 0,
+        "reasons": [
+          {
+            "ruling": "50 place grid penalty",
+            "reason": "Additional power unit elements have been used",
+            "document": 17
+          }
+        ],
+        "code_unresolved": false
+      },
+      {
+        "driver_code": "LAW",
+        "driver_name": "Liam Lawson",
+        "team": "Racing Bulls",
+        "position": 22,
+        "qualifying_position": null,
+        "penalty_positions": 1,
+        "start_from_back": false,
+        "pit_lane": false,
+        "penalised": true,
+        "places_lost": null,
+        "reasons": [
+          {
+            "ruling": "Permitted to start",
+            "reason": null,
+            "document": 58
+          },
+          {
+            "ruling": "1 place grid penalty",
+            "reason": "Driving erratically",
+            "document": 34
+          }
+        ],
+        "code_unresolved": false
+      }
+    ],
+    "warnings": [
+      "This is the FIA's provisional starting grid. The final grid, published before the race, can still change it."
+    ]
   }
 }

@@ -7,7 +7,7 @@ import dataclasses
 import pytest
 
 from app.data.fia_documents import store
-from app.data.fia_documents.results import final_classification
+from app.data.fia_documents.results import fia_starting_grid, final_classification
 from app.data.fia_documents.store import FiaStoreError
 from tests.fia_documents_support import MEXICO_2026, held, hold
 
@@ -27,7 +27,7 @@ def test_the_final_race_classification_is_document_86_with_the_entry_lists_codes
     assert final.url == MEXICO_2026[FINAL_RACE]["url"]
     assert [entry.car for entry in final.classification.entries[:3]] == [3, 44, 12]
     # Hirakawa's debut: f1db did not know him yet, the entry list did.
-    assert final.codes[50] == "HIR"
+    assert final.entries[50].tla == "HIR"
     assert final.driver(2026, 50, "Ryo HIRAKAWA").code == "HIR"
 
 
@@ -79,7 +79,7 @@ def test_an_unreadable_entry_list_falls_back_to_the_previous_one(monkeypatch, tm
     final = final_classification(2026, 19, "race")
 
     assert final is not None
-    assert final.codes[1] == "NOR"
+    assert final.entries[1].tla == "NOR"
 
 
 def test_without_an_entry_list_a_car_is_named_by_number_and_printed_name(monkeypatch, tmp_path):
@@ -88,7 +88,7 @@ def test_without_an_entry_list_a_car_is_named_by_number_and_printed_name(monkeyp
     final = final_classification(2026, 19, "race")
 
     assert final is not None
-    assert final.codes == {}
+    assert final.entries == {}
     assert final.driver(2026, 3, "Max VERSTAPPEN").name == "Max Verstappen"
 
 
@@ -108,3 +108,58 @@ def test_a_store_outage_reads_as_not_landed_so_callers_fall_back(monkeypatch, tm
 
     assert store.STORE is files
     assert final_classification(2026, 19, "race") is None
+
+
+FINAL_GRID = "Doc 67 - Final Starting Grid"
+
+
+def test_the_final_starting_grid_wins_with_the_final_qualifying_classification(monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+
+    found = fia_starting_grid(2026, 19)
+
+    assert found is not None
+    assert (found.grid.document, found.grid.final, found.url) == (67, True, MEXICO_2026[FINAL_GRID]["url"])
+    assert found.qualifying is not None
+    assert found.qualifying.document == 59
+    assert [note.document for note in found.rulings(30)] == [58, 34, 65]
+    assert found.driver(2026, 50).code == "HIR"
+
+
+def test_a_sprint_document_never_answers_for_the_race(monkeypatch, tmp_path):
+    grid, race = held(FINAL_GRID), held(FINAL_RACE)
+    hold(
+        monkeypatch,
+        tmp_path,
+        [
+            grid,
+            race,
+            dataclasses.replace(grid, url=grid.url + "-sprint", title="Doc 91 - Sprint Final Starting Grid"),
+            dataclasses.replace(race, url=race.url + "-sprint", title="Doc 92 - Sprint Final Race Classification"),
+        ],
+    )
+
+    found = fia_starting_grid(2026, 19)
+    final = final_classification(2026, 19, "race")
+
+    assert found is not None
+    assert final is not None
+    assert (found.url, final.url) == (grid.url, race.url)
+
+
+def test_no_grid_before_the_fia_publishes_one(monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path, [held(FINAL_RACE)])
+
+    assert fia_starting_grid(2026, 19) is None
+
+
+def test_the_rounds_documents_are_read_once_a_minute(monkeypatch, tmp_path):
+    files = hold(monkeypatch, tmp_path)
+    reads: list[str] = []
+    load = files.load_event
+    monkeypatch.setattr(files, "load_event", lambda year, event: reads.append(event) or load(year, event))
+
+    final_classification(2026, 19, "race")
+    fia_starting_grid(2026, 19)
+
+    assert len(reads) == 1

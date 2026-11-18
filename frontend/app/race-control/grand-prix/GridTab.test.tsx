@@ -68,6 +68,23 @@ describe("GridTab", () => {
     expect(screen.getByRole("link", { name: "Debrief" })).toBeInTheDocument();
   });
 
+  it("shows each penalty's FIA reason and document on the slot and in the penalties panel", () => {
+    show(GRIDS_2026.mexicoCityWithFiaReasons);
+
+    const penalties = screen.getByText("Penalties applied").closest("section")!;
+    expect(within(penalties).getByText("Causing a collision \u00b7 doc 33")).toBeInTheDocument();
+    expect(screen.getAllByText("Causing a collision \u00b7 doc 33")).toHaveLength(2);
+    expect(screen.getByText(/reasons: FIA decisions 17, 33, 34, 58, 65/)).toBeInTheDocument();
+  });
+
+  it("labels the FIA's provisional grid provisional, with its penalties applied", () => {
+    show(GRIDS_2026.mexicoCityFiaProvisional);
+
+    expect(screen.getByRole("heading", { name: "3 penalties on the grid" })).toBeInTheDocument();
+    expect(screen.getByText(/FIA provisional starting grid \(doc 60\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Penalties cannot be listed yet/)).not.toBeInTheDocument();
+  });
+
   it("labels a Jolpica qualifying order provisional, with its source, and applies no penalty", () => {
     show(GRIDS_2026.saoPauloJolpicaProvisional);
 

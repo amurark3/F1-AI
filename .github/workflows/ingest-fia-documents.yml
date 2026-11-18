@@ -1,0 +1,88 @@
+name: Ingest FIA documents
+
+# Collects every document the FIA publishes for a race weekend (decisions,
+# summonses, grids, classifications, deleted laps, entry lists, Pirelli notes)
+# into the fia_documents Postgres table. The weekend live feed,
+# GET /api/weekend/{year}/{round}/feed, reads it; nothing is deployed.
+#
+# A run reads the FIA index, the season page and the current event's page —
+# three requests, thirty seconds, when nothing is new — and downloads each new
+# PDF ten seconds apart, as fia.com's robots.txt asks. Only new documents are
+# fetched; one already held with its text is never downloaded again.
+#
+# Cadence:
+# - every five minutes from Thursday to Sunday (UTC), plus Monday morning UTC,
+#   when an evening race in the Americas publishes its final classification
+#   (Mexico 2026's arrived at 01:50 UTC on Monday). These runs look at the
+#   current event only (--max-new-events 0).
+# - once a day, every event page of the season (--all-events: notices a
+#   document the FIA takes back), and up to three events not collected yet:
+#   a past event is ~85 PDFs, ~15 minutes, so a season backfills in about a week.
+# GitHub may start a scheduled run late or skip one under load; the next run
+# picks up whatever the last one missed.
+on:
+  schedule:
+    - cron: "*/5 * * * 4,5,6,0"
+    - cron: "*/5 0-11 * * 1"
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+    inputs:
+      all_events:
+        description: "Re-read every event page of the season (withdrawals, corrections)"
+        type: boolean
+        default: false
+      max_new_events:
+        description: "Start at most this many events with nothing collected yet"
+        type: number
+        default: 0
+
+concurrency:
+  group: ingest-fia-documents
+  # Never cancel a run mid-write, and never let two runs crawl fia.com at once:
+  # the next one waits its turn (GitHub keeps one pending run and drops older ones).
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    # The daily backfill can download three events' PDFs; a weekend check is a minute or two.
+    timeout-minutes: ${{ github.event.schedule == '23 4 * * *' && 60 || 20 }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-ingest.txt
+
+      # As in ingest-power-units.yml: the web service's dependencies plus pypdf,
+      # at the version requirements-ingest.txt pins (no torch).
+      - name: Install dependencies
+        run: pip install -r requirements.txt "$(grep -E '^pypdf==' requirements-ingest.txt)"
+
+      # DATABASE_URL is the Supabase session pooler URL (see ingest-power-units.yml);
+      # --require-database stops the run rather than collect into the runner's disk.
+      - name: Collect the FIA's documents
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALL_EVENTS: ${{ (github.event.schedule == '23 4 * * *' || inputs.all_events) && '--all-events' || '' }}
+          MAX_NEW_EVENTS: ${{ github.event.schedule == '23 4 * * *' && '3' || inputs.max_new_events || '0' }}
+        # Exit 1 means some documents could not be read: they are kept, retried on
+        # every run and shown as unread in the feed, so it warns instead of
+        # failing the job every five minutes. Anything else (2: store or fia.com
+        # unreachable, 3: no database) fails it.
+        run: |
+          set +e
+          python -m scripts.ingest_fia_documents --require-database --max-new-events "$MAX_NEW_EVENTS" $ALL_EVENTS
+          status=$?
+          if [ "$status" -eq 1 ]; then
+            echo "::warning title=Unread FIA documents::Some documents could not be read; they are kept and retried on the next run."
+            exit 0
+          fi
+          exit "$status"

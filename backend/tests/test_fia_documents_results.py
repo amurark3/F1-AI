@@ -7,7 +7,7 @@ import dataclasses
 import pytest
 
 from app.data.fia_documents import store
-from app.data.fia_documents.results import fia_starting_grid, final_classification
+from app.data.fia_documents.results import fia_deleted_laps, fia_starting_grid, final_classification
 from app.data.fia_documents.store import FiaStoreError
 from tests.fia_documents_support import MEXICO_2026, held, hold
 
@@ -163,3 +163,51 @@ def test_the_rounds_documents_are_read_once_a_minute(monkeypatch, tmp_path):
     fia_starting_grid(2026, 19)
 
     assert len(reads) == 1
+
+
+QUALIFYING_TRACK_LIMITS = "Doc 48 - Infringement - Qualifying Deleted Lap Times"
+QUALIFYING_DOUBLE_YELLOW = "Doc 49 - Infringement - Qualifying Deleted Lap Times - Double Yellow"
+
+
+def _timed(rows: tuple) -> list[tuple[int, str]]:
+    return [(row.car, row.lap_time) for row in rows if row.lap_time is not None]
+
+
+def test_every_deleted_lap_sheet_of_the_session_counts(monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+
+    qualifying = fia_deleted_laps(2026, 19, "qualifying")
+
+    # Track limits (doc 48) and the double yellow (doc 49), "PIT" rows included without a time.
+    assert len(qualifying) == 12
+    assert _timed(qualifying) == [
+        (18, "1:29.337"),
+        (6, "1:19.035"),
+        (44, "1:23.081"),
+        (87, "1:17.847"),
+        (16, "1:41.066"),
+        (55, "1:31.549"),
+    ]
+    assert len(fia_deleted_laps(2026, 19, "Race")) == 13
+    assert fia_deleted_laps(2026, 19, "Sprint") == ()
+
+
+def test_a_withdrawn_or_unreadable_deleted_lap_sheet_does_not_count(monkeypatch, tmp_path):
+    withdrawn = dataclasses.replace(held(QUALIFYING_TRACK_LIMITS), withdrawn="unlisted")
+    garbled = dataclasses.replace(
+        held(QUALIFYING_TRACK_LIMITS), url="https://example.test/48b", text="Session Qualifying"
+    )
+    hold(monkeypatch, tmp_path, [withdrawn, garbled, held(QUALIFYING_DOUBLE_YELLOW)])
+
+    assert _timed(fia_deleted_laps(2026, 19, "Qualifying")) == [(16, "1:41.066"), (55, "1:31.549")]
+
+
+def test_no_deleted_laps_while_the_store_is_down(monkeypatch, tmp_path):
+    files = hold(monkeypatch, tmp_path)
+
+    def down(year: int) -> frozenset[str]:
+        raise FiaStoreError("connection refused")
+
+    monkeypatch.setattr(files, "events", down)
+
+    assert fia_deleted_laps(2026, 19, "Qualifying") == ()

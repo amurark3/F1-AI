@@ -128,7 +128,8 @@ def standing_deletions(messages: list[dict]) -> tuple[Deletion, ...]:
     return tuple(standing)
 
 
-def _by_time(laps: list[Lap], seconds: float | None) -> Lap | None:
+def lap_by_time(laps: list[Lap], seconds: float | None) -> Lap | None:
+    """The lap whose time is ``seconds`` to the millisecond; the first, should two match."""
     if seconds is None:
         return None
     return next(
@@ -147,7 +148,7 @@ def deleted_laps(deletions: tuple[Deletion, ...], laps: tuple[Lap, ...]) -> froz
     found: set[tuple[int, int]] = set()
     for deletion in deletions:
         own = [lap for lap in laps if lap.driver == deletion.car]
-        lap = _by_time(own, deletion.seconds) or _last_finished_before(own, deletion.at)
+        lap = lap_by_time(own, deletion.seconds) or _last_finished_before(own, deletion.at)
         if lap is not None:
             found.add((lap.driver, lap.number))
     return frozenset(found)

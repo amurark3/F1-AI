@@ -1,4 +1,4 @@
-"""The FIA's final classifications and starting grid: the authority for results, points and the grid.
+"""The FIA's final classifications, starting grid and deleted laps: the authority for results, points and the grid.
 
 ``docs/DATA_SOURCES.md`` names the FIA's documents as the authority: f1db
 mirrors them about ten hours later, sometimes days, without the reasons behind
@@ -30,8 +30,10 @@ import structlog
 from app.data.canonical_names import F1DB_READ_ERRORS, driver_identity
 from app.data.fia_documents import store
 from app.data.fia_documents.feed import fia_event
+from app.data.fia_documents.kinds import KIND_DELETED_LAPS, document_kind
 from app.data.fia_documents.listing import title_number
 from app.data.fia_documents.parsers.classifications import parse_classification
+from app.data.fia_documents.parsers.deleted_laps import parse_deleted_laps
 from app.data.fia_documents.parsers.entry_list import parse_entry_list
 from app.data.fia_documents.parsers.grids import parse_starting_grid
 from app.data.fia_documents.store import FiaStoreError
@@ -44,6 +46,7 @@ if TYPE_CHECKING:
     from app.data.canonical_names import CanonicalDriver
     from app.data.fia_documents.document import SourceDocument
     from app.data.fia_documents.parsers.classifications import Classification
+    from app.data.fia_documents.parsers.deleted_laps import DeletedLap
     from app.data.fia_documents.parsers.entry_list import EntryRow
     from app.data.fia_documents.parsers.fields import RuledNote
     from app.data.fia_documents.parsers.grids import StartingGrid
@@ -196,3 +199,23 @@ def fia_starting_grid(year: int, round_number: int) -> FiaGrid | None:
     grid, url = found
     qualifying = _newest(documents, _is_final("qualifying"), parse_classification)
     return FiaGrid(grid=grid, url=url, entries=_entries(documents), qualifying=qualifying[0] if qualifying else None)
+
+
+def fia_deleted_laps(year: int, round_number: int, session: str) -> tuple[DeletedLap, ...]:
+    """Every lap the standing deleted-lap sheets for ``session`` ("Qualifying", "Free Practice 1" …) list.
+
+    A session can have several sheets (track limits, double yellows), so all of
+    them count, not only the newest. Empty until one lands or when the store fails.
+    """
+    found: list[DeletedLap] = []
+    for document in _event(year, round_number) or ():
+        if document.withdrawn or not document.text or document_kind(document.title) != KIND_DELETED_LAPS:
+            continue
+        try:
+            sheet = parse_deleted_laps(document.text)
+        except DocumentParseError as exc:
+            logger.warning("fia_results.document_unread", title=document.title, error=str(exc))
+            continue
+        if sheet.session.casefold() == session.casefold():
+            found.extend(sheet.laps)
+    return tuple(found)

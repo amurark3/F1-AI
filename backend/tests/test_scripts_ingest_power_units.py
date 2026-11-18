@@ -20,8 +20,9 @@ from scripts import ingest_power_units as script  # noqa: E402
 os.environ.clear()
 os.environ.update(_ENV_BEFORE_IMPORT)
 
-from app.data.power_units.fia_site import FetchError  # noqa: E402
-from app.data.power_units.ingest import IngestError, IngestReport  # noqa: E402
+from app.data.fia_documents.listing import IngestError  # noqa: E402
+from app.data.fia_documents.site import FetchError  # noqa: E402
+from app.data.power_units.ingest import IngestReport  # noqa: E402
 from app.data.power_units.sources import SourcesUnavailableError  # noqa: E402
 from app.data.power_units.status import (  # noqa: E402
     OUTCOME_ABORTED,

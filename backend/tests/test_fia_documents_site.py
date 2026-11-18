@@ -1,4 +1,4 @@
-"""Tests for FIA site discovery and polite fetching (app.data.power_units.fia_site).
+"""Tests for FIA site discovery and polite fetching (app.data.fia_documents.site).
 
 The HTML fixtures are trimmed from real fia.com pages in both markups the site
 serves — the flat one and the Drupal ``field-item`` one — because a parser
@@ -10,18 +10,17 @@ from pathlib import Path
 import pytest
 import requests
 
-from app.data.power_units import fia_site
-from app.data.power_units.fia_site import (
+from app.data.fia_documents import site
+from app.data.fia_documents.site import (
     FetchError,
     PoliteFetcher,
     active_event,
-    is_power_unit_title,
     listed_documents,
     pdf_text,
     season_events,
     season_page_url,
 )
-from app.data.power_units.text import DocumentParseError
+from app.data.fia_documents.text import DocumentParseError
 
 FIXTURES = Path(__file__).parent / "fixtures" / "power_units"
 
@@ -60,7 +59,7 @@ def tiny_pdf(text: str) -> bytes:
 
 def test_season_page_url_is_read_from_the_index():
     url = season_page_url(fixture("documents_index.html"), 2026)
-    assert url == f"{fia_site.DOCUMENTS_INDEX_URL}/season/season-2026-2072"
+    assert url == f"{site.DOCUMENTS_INDEX_URL}/season/season-2026-2072"
     assert season_page_url(fixture("documents_index.html"), 2031) is None
 
 
@@ -101,20 +100,6 @@ def test_listed_documents_in_the_drupal_markup():
 def test_listed_document_without_a_published_date_still_lists():
     html = '<li class="document-row"><a href="/a.pdf"><div class="title">Doc 1 - PU</div><div class="published"></div></a></li>'
     assert listed_documents(html, "E")[0].published == ""
-
-
-@pytest.mark.parametrize(
-    ("title", "wanted"),
-    [
-        ("Doc 20 - Infringement - Car 63 - Changes to PU elements", True),
-        ("Doc 8 - PU elements used per driver up to now", True),
-        ("Doc 1 - New Power Unit elements", True),
-        ("Doc 8 - Power Unit Information", False),
-        ("Doc 22 - Summons - Car 44 - Alleged Yellow Flag Infringement", False),
-    ],
-)
-def test_is_power_unit_title(title, wanted):
-    assert is_power_unit_title(title) is wanted
 
 
 # ---------------------------------------------------------------------------
@@ -181,8 +166,8 @@ def clock(monkeypatch):
         state["sleeps"].append(seconds)
         state["now"] += seconds
 
-    monkeypatch.setattr(fia_site.time, "monotonic", lambda: state["now"])
-    monkeypatch.setattr(fia_site.time, "sleep", sleep)
+    monkeypatch.setattr(site.time, "monotonic", lambda: state["now"])
+    monkeypatch.setattr(site.time, "sleep", sleep)
     return state
 
 
@@ -199,7 +184,7 @@ def test_requests_identify_themselves_and_wait_the_crawl_delay(clock):
     url, headers, timeout = session.calls[0]
     assert url == "u1"
     assert "F1-AI" in headers["User-Agent"]
-    assert timeout == fia_site.REQUEST_TIMEOUT_SECONDS
+    assert timeout == site.REQUEST_TIMEOUT_SECONDS
 
 
 def test_no_wait_once_the_delay_has_already_passed(clock):

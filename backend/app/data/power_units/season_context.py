@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from app.data.f1db_source import connect
-from app.data.power_units.text import compact
+from app.data.fia_documents.text import compact
 
 if TYPE_CHECKING:
     import sqlite3

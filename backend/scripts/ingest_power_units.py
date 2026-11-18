@@ -47,8 +47,9 @@ from dotenv import load_dotenv
 # its backend from ``DATABASE_URL`` at import time.
 load_dotenv()
 
-from app.data.power_units.fia_site import FetchError, PoliteFetcher
-from app.data.power_units.ingest import IngestError, IngestReport, ingest_season
+from app.data.fia_documents.listing import IngestError
+from app.data.fia_documents.site import FetchError, PoliteFetcher
+from app.data.power_units.ingest import IngestReport, ingest_season
 from app.data.power_units.sources import SourcesUnavailableError
 from app.data.power_units.status import (
     OUTCOME_ABORTED,

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from langchain_core.tools import tool
 import structlog
 
-from app.data.power_units.text import compact
+from app.data.fia_documents.text import compact
 from app.services.power_units import build_power_units
 
 logger = structlog.get_logger()

@@ -15,7 +15,7 @@ f1db carries the grid sheet those penalties were applied to, but not the
 offence (see :mod:`app.data.f1db_grid`); this package is what supplies it.
 
 None of these documents is published as data — they are PDFs on fia.com — so
-the package is split by job: :mod:`.fia_site` discovers and downloads them
+the package is split by job: :mod:`app.data.fia_documents` discovers and downloads them
 politely, :mod:`.sources` keeps the extracted text in the document store,
 :mod:`.ingest` is the job that keeps that corpus current, and the parsers
 (:mod:`.cover`, :mod:`.usage_report`, :mod:`.new_elements`, :mod:`.decision`,

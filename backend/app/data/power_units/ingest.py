@@ -19,10 +19,9 @@ up in this run's report — and the job's exit status — rather than first on
 the screen.
 
 Every event page read also settles which held documents the FIA still stands
-by (see :mod:`.rescission` for the four ways it withdraws one). A document
-missing from the page is only judged withdrawn when the page lists documents
-numbered both below and above it: a page that lists nothing, or one cut short,
-is a page this module could not read in full, not a withdrawal.
+by (see :mod:`app.data.fia_documents.rescission` for the four ways it
+withdraws one, and :mod:`app.data.fia_documents.listing` for when a missing
+document counts as withdrawn).
 
 Every run finishes by bringing the stored allowances in line with the latest
 figures the FIA's reports state (:mod:`.allowances`).
@@ -31,43 +30,35 @@ figures the FIA's reports state (:mod:`.allowances`).
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
-import hashlib
 import re
 from typing import TYPE_CHECKING
 
 import structlog
 
+from app.data.fia_documents.listing import (
+    download,
+    events_to_check,
+    now,
+    read_event_pages,
+    resettled,
+    season_listing,
+)
+from app.data.fia_documents.rescission import is_withdrawal_notice_title
+from app.data.fia_documents.text import DocumentParseError
 from app.data.power_units.allowances import refresh_from_reports
 from app.data.power_units.documents import parse_document
-from app.data.power_units.fia_site import (
-    DOCUMENTS_INDEX_URL,
-    EventPage,
-    FetchError,
-    ListedDocument,
-    PoliteFetcher,
-    active_event,
-    is_power_unit_title,
-    listed_documents,
-    pdf_text,
-    season_events,
-    season_page_url,
-)
-from app.data.power_units.rescission import is_withdrawal_notice_title, marks_withdrawn
-from app.data.power_units.sources import SeasonSources, SourceDocument, load_season, save_season
-from app.data.power_units.text import DocumentParseError
+from app.data.power_units.sources import SeasonSources, load_season, save_season
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from app.data.fia_documents.document import SourceDocument
+    from app.data.fia_documents.site import ListedDocument, PoliteFetcher
 
 logger = structlog.get_logger()
 
-WITHDRAWN_UNLISTED = "no longer listed on the FIA event page"
-_TITLE_NUMBER = re.compile(r"^\s*Doc\s+(?P<number>\d+)\b", re.IGNORECASE)
-
-
-class IngestError(RuntimeError):
-    """The FIA site did not offer what a run needs to proceed."""
+_POWER_UNIT_TITLE = re.compile(r"\bPU\b|\bpower\s+unit", re.IGNORECASE)
+# "Power Unit Information" is the race director's energy and overtake limits
+# for the circuit — nothing to do with element usage.
+_NOT_USAGE_TITLE = re.compile(r"power\s+unit\s+information", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -91,24 +82,19 @@ class IngestReport:
         return not self.failed and self.write_error is None
 
 
-def _now() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
+def is_power_unit_title(title: str) -> bool:
+    """Whether a listed title is worth downloading as power-unit evidence.
+
+    Deliberately loose — anything mentioning PU — because the parsers decide
+    what a document is from its text. A decision only about parc fermé is
+    collected, read, and set aside as unrelated; one about engines that this
+    filter skipped would simply be missing.
+    """
+    return bool(_POWER_UNIT_TITLE.search(title)) and not _NOT_USAGE_TITLE.search(title)
 
 
 def _wanted(title: str) -> bool:
     return is_power_unit_title(title) or is_withdrawal_notice_title(title)
-
-
-def _events_to_check(
-    events: tuple[EventPage, ...],
-    current: str | None,
-    collected: Iterable[SourceDocument],
-    all_events: bool,
-) -> tuple[EventPage, ...]:
-    if all_events:
-        return events
-    covered = {document.event for document in collected}
-    return tuple(event for event in events if event.name == current or event.name not in covered)
 
 
 def _parse_failure(text: str) -> str | None:
@@ -133,37 +119,10 @@ def _collect(fetcher: PoliteFetcher, listed: ListedDocument) -> _Collected:
     failure is reported for this run, but the text is kept, because the parser
     runs again at read time and a fixed parser should not inherit a stale error.
     """
-    base = SourceDocument(
-        url=listed.url,
-        event=listed.event,
-        title=listed.title,
-        published=listed.published,
-        sha256="",
-        fetched_at=_now(),
-        text=None,
-    )
-    try:
-        data = fetcher.document(listed.url)
-    except FetchError as exc:
-        reason = f"download failed: {exc}"
-        return _Collected(replace(base, error=reason), reason)
-    digest = hashlib.sha256(data).hexdigest()
-    try:
-        text = pdf_text(data)
-    except DocumentParseError as exc:
-        return _Collected(replace(base, sha256=digest, error=str(exc)), str(exc))
-    return _Collected(replace(base, sha256=digest, text=text), _parse_failure(text))
-
-
-def _listing(fetcher: PoliteFetcher, year: int) -> tuple[tuple[EventPage, ...], str | None]:
-    season_url = season_page_url(fetcher.page(DOCUMENTS_INDEX_URL), year)
-    if season_url is None:
-        raise IngestError(f"the FIA documents index lists no {year} season")
-    season_html = fetcher.page(season_url)
-    events = season_events(season_html)
-    if not events:
-        raise IngestError(f"the {year} season page links no events")
-    return events, active_event(season_html)
+    document, problem = download(fetcher, listed)
+    if document.text is None:
+        return _Collected(document, problem)
+    return _Collected(document, _parse_failure(document.text))
 
 
 def _merge(existing: tuple[SourceDocument, ...], fresh: list[SourceDocument]) -> tuple[SourceDocument, ...]:
@@ -173,52 +132,15 @@ def _merge(existing: tuple[SourceDocument, ...], fresh: list[SourceDocument]) ->
     return tuple(by_url.values())
 
 
-def _title_number(title: str) -> int | None:
-    match = _TITLE_NUMBER.match(title)
-    return int(match["number"]) if match else None
-
-
-def _resettled(document: SourceDocument, listing: tuple[ListedDocument, ...]) -> SourceDocument:
-    """``document`` as its event page now shows it: current title, withdrawn or not."""
-    current = next((item for item in listing if item.url == document.url), None)
-    if current is not None:
-        marked = f"marked on the FIA event page: {current.title}" if marks_withdrawn(current.title) else None
-        return replace(document, title=current.title, withdrawn=marked)
-    numbers = [number for number in (_title_number(item.title) for item in listing) if number is not None]
-    own = _title_number(document.title)
-    if own is None or not numbers or not min(numbers) <= own <= max(numbers):
-        return document
-    return replace(document, withdrawn=WITHDRAWN_UNLISTED)
-
-
 def _settle_withdrawn(
     documents: tuple[SourceDocument, ...],
     listings: dict[str, tuple[ListedDocument, ...]],
 ) -> tuple[SourceDocument, ...]:
     """Re-judge every held document of each event page this run read in full."""
     return tuple(
-        _resettled(document, listings[document.event]) if listings.get(document.event) else document
+        resettled(document, listings[document.event]) if listings.get(document.event) else document
         for document in documents
     )
-
-
-def _read_event_pages(
-    fetcher: PoliteFetcher,
-    events: tuple[EventPage, ...],
-) -> tuple[dict[str, tuple[ListedDocument, ...]], tuple[str, ...]]:
-    """Every event page that answered, and a line for each one that did not.
-
-    A page left unread is tried again by a later run: the current event every
-    run, an event with nothing collected yet every run, the rest daily.
-    """
-    listings: dict[str, tuple[ListedDocument, ...]] = {}
-    unreachable: list[str] = []
-    for event in events:
-        try:
-            listings[event.name] = listed_documents(fetcher.page(event.url), event.name)
-        except FetchError as exc:
-            unreachable.append(f"{event.name} event page: {exc}")
-    return listings, tuple(unreachable)
 
 
 def ingest_season(year: int, fetcher: PoliteFetcher, *, all_events: bool = False) -> IngestReport:
@@ -234,11 +156,11 @@ def ingest_season(year: int, fetcher: PoliteFetcher, *, all_events: bool = False
     this run did not read.
     """
     existing = load_season(year)
-    events, current = _listing(fetcher, year)
-    targets = _events_to_check(events, current, existing.documents, all_events)
+    events, current = season_listing(fetcher, year)
+    targets = events_to_check(events, current, existing.documents, all_events)
 
     held = {document.url for document in existing.documents if document.text is not None}
-    listings, unreachable = _read_event_pages(fetcher, targets)
+    listings, unreachable = read_event_pages(fetcher, targets)
     collected = [
         _collect(fetcher, listed)
         for items in listings.values()
@@ -259,10 +181,10 @@ def ingest_season(year: int, fetcher: PoliteFetcher, *, all_events: bool = False
         ),
     )
     if documents != existing.documents:
-        result = save_season(SeasonSources(year=year, documents=documents, updated_at=_now()))
+        result = save_season(SeasonSources(year=year, documents=documents, updated_at=now()))
         logger.info("power_units.ingested", year=year, added=len(report.added), failed=len(report.failed), ok=result.ok)
         report = replace(report, written=result.ok, write_error=None if result.ok else result.error)
     return replace(
         report,
-        allowances_changed=refresh_from_reports(SeasonSources(year=year, documents=documents), _now()),
+        allowances_changed=refresh_from_reports(SeasonSources(year=year, documents=documents), now()),
     )

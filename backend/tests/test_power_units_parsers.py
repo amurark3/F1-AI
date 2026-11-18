@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from app.data.fia_documents.rescission import is_withdrawal_notice_title, marks_withdrawn, withdrawn_numbers
+from app.data.fia_documents.text import DocumentParseError, clean, compact, squash
 from app.data.power_units import elements
 from app.data.power_units.cover import parse_cover
 from app.data.power_units.decision import (
@@ -30,8 +32,6 @@ from app.data.power_units.documents import (
     parse_document,
 )
 from app.data.power_units.new_elements import parse_new_elements
-from app.data.power_units.rescission import is_withdrawal_notice_title, marks_withdrawn, withdrawn_numbers
-from app.data.power_units.text import DocumentParseError, clean, compact, squash
 from app.data.power_units.usage_report import parse_usage_report
 
 FIXTURES = Path(__file__).parent / "fixtures" / "power_units"

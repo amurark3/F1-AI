@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 import re
 
-from app.data.power_units.text import clean
+from app.data.fia_documents.text import clean
 
 # "09 - 11 October 2026", "05 – 07 June 2026", or across a month end:
 # "30 October - 01 November 2026". The FIA is not consistent about the rest:

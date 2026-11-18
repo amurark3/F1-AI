@@ -23,7 +23,7 @@ _ZERO_WIDTH = re.compile("[\u200b-\u200d\ufeff]")
 
 
 class DocumentParseError(ValueError):
-    """A power-unit document whose text does not have the shape its type promises.
+    """An FIA document whose text does not have the shape its type promises.
 
     Raised rather than returning a partial result: a report read halfway would
     undercount someone's engines without anything on screen saying so. The

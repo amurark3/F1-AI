@@ -9,7 +9,7 @@ elements have been used".
 
 Any document may also take earlier ones back ("This decision replaces
 Document 37"); those numbers are read from every document, whatever its kind
-(see :mod:`app.data.power_units.rescission`).
+(see :mod:`app.data.fia_documents.rescission`).
 """
 
 from __future__ import annotations
@@ -17,11 +17,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import re
 
+from app.data.fia_documents.rescission import withdrawn_numbers
+from app.data.fia_documents.text import clean
 from app.data.power_units.cover import Cover, parse_cover
 from app.data.power_units.decision import ELEMENTS_USED, PuDecision, parse_decision
 from app.data.power_units.new_elements import NewElementsReport, parse_new_elements
-from app.data.power_units.rescission import withdrawn_numbers
-from app.data.power_units.text import clean
 from app.data.power_units.usage_report import UsageReport, parse_usage_report
 
 KIND_USAGE_REPORT = "usage_report"
@@ -67,7 +67,7 @@ def classify(text: str) -> str:
 def parse_document(text: str) -> ParsedDocument:
     """Parse ``text`` as whatever it is.
 
-    Raises :class:`app.data.power_units.text.DocumentParseError` when the
+    Raises :class:`app.data.fia_documents.text.DocumentParseError` when the
     document is a power-unit template but cannot be read in full.
     """
     text = clean(text)

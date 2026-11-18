@@ -24,16 +24,17 @@ from dataclasses import dataclass
 import re
 from typing import TYPE_CHECKING
 
+from app.data.fia_documents.text import DocumentParseError, compact
 from app.data.power_units.decision import PuDecision
 from app.data.power_units.documents import ParsedDocument, parse_document
 from app.data.power_units.elements import canonical_code
 from app.data.power_units.new_elements import NewElementsReport
-from app.data.power_units.text import DocumentParseError, compact
 from app.data.power_units.usage_report import UsageReport
 
 if TYPE_CHECKING:
+    from app.data.fia_documents.document import SourceDocument
     from app.data.power_units.season_context import SeasonContext
-    from app.data.power_units.sources import SeasonSources, SourceDocument
+    from app.data.power_units.sources import SeasonSources
 
 # "Doc 44 - Corrected Infringement - Car 6 - …" and the original it replaces
 # share everything after these two prefixes.

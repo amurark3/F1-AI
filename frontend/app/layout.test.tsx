@@ -11,6 +11,12 @@ vi.mock("next/font/google", () => {
 });
 vi.mock("@vercel/analytics/next", () => ({ Analytics: () => null }));
 vi.mock("@vercel/speed-insights/next", () => ({ SpeedInsights: () => null }));
+const consent = vi.hoisted(() => ({ GA_ID: null as string | null }));
+vi.mock("./ui/consent/measurementId", () => consent);
+vi.mock("./ui/consent/GoogleAnalytics", () => ({
+  GoogleAnalytics: ({ id }: { id: string }) => <div data-testid="ga" data-id={id} />,
+}));
+vi.mock("./ui/consent/ConsentBanner", () => ({ ConsentBanner: () => <div data-testid="consent" /> }));
 vi.mock("./components/ServerWarmingGate", () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="warm-up">{children}</div>,
 }));
@@ -43,5 +49,29 @@ describe("RootLayout", () => {
 
     expect(screen.getByTestId("warm-up")).toContainElement(screen.getByTestId("shell"));
     expect(screen.getByTestId("shell")).toHaveTextContent("Page");
+  });
+
+  it("leaves Google Analytics and its banner out when no measurement ID is set", () => {
+    consent.GA_ID = null;
+    render(
+      <RootLayout>
+        <p>Page</p>
+      </RootLayout>,
+    );
+
+    expect(screen.queryByTestId("ga")).toBeNull();
+    expect(screen.queryByTestId("consent")).toBeNull();
+  });
+
+  it("adds Google Analytics for the configured property, with its consent banner", () => {
+    consent.GA_ID = "G-AB12CD34EF";
+    render(
+      <RootLayout>
+        <p>Page</p>
+      </RootLayout>,
+    );
+
+    expect(screen.getByTestId("ga")).toHaveAttribute("data-id", "G-AB12CD34EF");
+    expect(screen.getByTestId("consent")).toBeInTheDocument();
   });
 });

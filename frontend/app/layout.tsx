@@ -3,6 +3,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import ServerWarmingGate from "./components/ServerWarmingGate";
 import { FONT_VARIABLES } from "./fonts";
+import { ConsentBanner } from "./ui/consent/ConsentBanner";
+import { GoogleAnalytics } from "./ui/consent/GoogleAnalytics";
+import { GA_ID } from "./ui/consent/measurementId";
 import { AppShell } from "./ui/shell/AppShell";
 
 import type { Metadata } from "next";
@@ -27,6 +30,12 @@ export default function RootLayout({
         </ServerWarmingGate>
         <Analytics />
         <SpeedInsights />
+        {GA_ID === null ? null : (
+          <>
+            <GoogleAnalytics id={GA_ID} />
+            <ConsentBanner />
+          </>
+        )}
       </body>
     </html>
   );

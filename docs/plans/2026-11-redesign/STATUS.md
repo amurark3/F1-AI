@@ -50,7 +50,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P6.4 | Champions per mockup + verified records | todo | | |
 | P7.1 | Engineer: inline charts + sources | todo | | |
 | P7.2 | Rulebook: cites articles + stewards' decisions | todo | | |
-| P7.3 | Command Center polish | todo | | |
+| P7.3 | Command Center polish | in_progress | | **Started 2026-11-18.** Mockup `docs/design/redesign/command-center.html` and brief `p7.3-brief.md` by an Opus planner, finalized by the coordinator (no `page.tsx` test: P3.6 rewrites it, so P7's `race-control/page` coverage moves to P3.6); executed by a Sonnet worktree agent. |
 | P7.4 | Weekend live feed UI (idea #1) | todo | | |
 | P7.5 | Sweep + SourceBadge everywhere (idea #5) | todo | | |
 | P7.6 | Forecast vs measured (idea #4; split from P7.3) | todo | | Feature: after the redesign. |

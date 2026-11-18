@@ -935,7 +935,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
 - **D2.4 Weekend live feed backend** (idea #1): a GitHub Action polls every 5 minutes, Thursday to Sunday, honouring the crawl delay; `GET /api/weekend/{year}/{round}/feed` returns new documents as typed events.
 - **Accept:** R19 parsed exactly as `docs/DATA_SOURCES.md` describes (docs 17, 33, 57, 65, 79, 86). **PR.**
 
-## Phase P6 — Debrief, Power Units, Champions (+ radio moments)
+## Phase P6 — Debrief, Power Units, Champions
 
 - **P6.1 Debrief** per `debrief.html`:
   - a headline computed from the race (winner + context, e.g. the clinch);
@@ -943,7 +943,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - **penalty timeline** (race control + FIA), **overtakes leaderboard** ("on-track position changes · OpenF1");
   - picker limited to completed races, with `?round=`.
   - Split `DebriefsView.tsx` (510 lines).
-- **P6.2 Radio moments** (idea #3): attach OpenF1 `team_radio` clips (audio URL, no transcript) to race moments within ±1 lap (stops, incidents, penalties). Play inline and label as audio.
+- **P6.2 Radio moments** (idea #3; **a feature: runs after the redesign, in its own PR**, see "Phase order"): attach OpenF1 `team_radio` clips (audio URL, no transcript) to race moments within ±1 lap (stops, incidents, penalties). Play inline and label as audio.
 - **P6.3 Power Units** per `power-units.html`: KPI row, pip matrix ordered by standings, shared-seat tags, the grid-places ranking, the car page.
 - **P6.4 Champions** per `champions.html`:
   - hero for the latest champion;
@@ -953,7 +953,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - season pages.
 - **Accept:** coverage for `debriefs`, `power-units` and `champions`. **PR.**
 
-## Phase P7 — Engineer, Rulebook, Command Center, live feed UI, sweep
+## Phase P7 — Engineer, Rulebook, Command Center, sweep
 
 - **P7.1 Engineer** per `engineer.html`: answers include inline charts (generative UI) and source chips. Copy is computed from tool results.
 - **P7.2 Rulebook** per `rulebook.html`: a large search, quick questions that submit straight away, and answers that cite the article plus a real stewards' decision (from the D2 store).
@@ -961,11 +961,11 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - Barlow title;
   - remove the glow orb;
   - `LiveTimingTower` with team-colour edges and `DriverName codeLast`;
-  - **Forecast vs measured** (idea #4): OpenF1 measured track temperature and rainfall beside the Open-Meteo forecast. It builds on P0b.1's stored forecast.
-  - The weather card, the risk register, the strategy baseline and the corner labels were fixed in P0b. This task restyles them and doesn't rework their data.
-- **P7.4 Weekend live feed UI** (idea #1): a feed panel on the Command Center and the Grand Prix hub showing new FIA decisions as they publish (penalty, grid drop, deleted lap), each linking to its document.
+  - The weather card, the risk register, the strategy baseline and the corner labels were fixed in P0b. This task restyles them and doesn't rework their data. Forecast vs measured moved to P7.6 (a feature).
+- **P7.4 Weekend live feed UI** (idea #1; **a feature: runs after the redesign, in its own PR**): a feed panel on the Command Center and the Grand Prix hub showing new FIA decisions as they publish (penalty, grid drop, deleted lap), each linking to its document.
 - **P7.5 Sweep.** `grep` for `#00FF78` used as an accent, `italic uppercase`, `text-neutral-`, `#151817`, `#0F1210` and `--font-barlow` fallbacks, and fix them. `SourceBadge` on every data screen (idea #5).
-- **Accept:** coverage for `rulebook`, `engineer` and `race-control/page`. **PR.**
+- **P7.6 Forecast vs measured** (idea #4; split from P7.3 on 2026-11-18; **a feature: runs after the redesign, in its own PR**): OpenF1 measured track temperature and rainfall beside the Open-Meteo forecast on the Command Center. It builds on P0b.1's stored forecast.
+- **Accept:** coverage for `rulebook`, `engineer` and `race-control/page`. **PR** (P7.1, P7.2, P7.3, P7.5; not the features P7.4 and P7.6).
 
 ## Phase P8 — Race Rewind (idea #6)
 
@@ -989,15 +989,19 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
 | 1   | Weekend live feed              | FIA documents every 5 min             | D2.4 backend, P7.4 UI                               |
 | 2   | Clinch calculator              | Computed standings + points left      | P5.3                                                |
 | 3   | Radio moments                  | OpenF1 `team_radio`                   | D1 store, P6.2 UI                                   |
-| 4   | Forecast vs measured           | OpenF1 `weather` + Open-Meteo         | D1 store, P7.3 UI                                   |
+| 4   | Forecast vs measured           | OpenF1 `weather` + Open-Meteo         | D1 store, P7.6 UI                                   |
 | 5   | Provisional / confirmed badges | Resolver `sources`                    | P0.5 data, P1.4 `SourceBadge`, everywhere from P7.5 |
 | 6   | Race Rewind                    | OpenF1 `position` / `overtakes` + pit | P8                                                  |
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.4 → P7.3 → P6 → P7 (rest) → P8 → P9`
+`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.3 → P6 (P6.1, P6.3, P6.4) → P7 (P7.1, P7.2, P7.5) → features: P7.4 → P7.6 → P6.2 → P8 → P9`
 
-- **Ordered by season value, not by page (user, 2026-11-16).** While race weekends are still running, work that only matters on a live weekend goes first: the clinch calculator (P5.3), the FIA ingest and live feed (D2, then P7.4) and the Command Center (P7.3). Pages about finished races and past seasons (P6, P8) and coverage (P9) lose nothing by waiting for the off-season. Inside D2, the parsers the feed needs (penalties, grids, deleted laps) come before the rest. Each PR still carries whole tasks; a phase split across PRs is fine.
+- **Redesign before new features (user, 2026-11-18).** From P6 on, every remaining page gets its mockup redesign before any new feature starts.
+  - **Redesign track:** P7.3 (restyle only), P6.1, P6.3, P6.4, P7.1, P7.2, P7.5. `SourceBadge` everywhere (idea #5) stays in P7.5: it places an existing kit part.
+  - **Feature track:** the open "New ideas": live feed UI (P7.4), forecast vs measured (P7.6), radio moments (P6.2), Race Rewind (P8). They start after P7.5, in that order, each in its own PR.
+  - The season-value rule below now only orders tasks inside each track: the Command Center first among the pages, the live feed first among the features.
+- **Ordered by season value, not by page (user, 2026-11-16; superseded from P6 on by the rule above).** While race weekends are still running, work that only matters on a live weekend goes first: the clinch calculator (P5.3), the FIA ingest and live feed (D2, then P7.4) and the Command Center (P7.3). Pages about finished races and past seasons (P6, P8) and coverage (P9) lose nothing by waiting for the off-season. Inside D2, the parsers the feed needs (penalties, grids, deleted laps) come before the rest. Each PR still carries whole tasks; a phase split across PRs is fine.
 - P0c was added on 2026-11-08 as P0 (user) and runs first: P0b.1's Open-Meteo diagnosis belongs on the new host.
 - P0b was added on 2026-11-06 and runs before P3 (bugs first). P3.6 depends on P0b.3's section kit.
 - D1 runs before P3.2 (user, 2026-11-13). D1.6 needs D1.4; D1.7 needs D1.3. D1.1 and D1.2 touch different files and may run in parallel worktrees.

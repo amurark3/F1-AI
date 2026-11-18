@@ -1,4 +1,4 @@
-import { currentSeason, getPowerUnits } from "@/app/lib/server/raceControl";
+import { currentSeason, getPowerUnits, getTeams } from "@/app/lib/server/raceControl";
 
 import { PowerUnitsView } from "./PowerUnitsView";
 
@@ -14,8 +14,13 @@ export const metadata: Metadata = {
     "Every Formula 1 car's power-unit allocation — engines, turbochargers, MGU-K, energy stores and more — the Grand Prix each new unit arrived at, and the grid penalties it cost, read from the FIA's own documents.",
 };
 
-export default async function PowerUnitsPage() {
+/** Awaits nothing: the promises go to the sections, which take them up behind their own boundaries. */
+export default function PowerUnitsPage() {
   const year = currentSeason();
-  const data = await getPowerUnits<PowerUnitsResponse>(year);
-  return <PowerUnitsView seed={{ year, data }} />;
+  return (
+    <PowerUnitsView
+      year={year}
+      seeds={{ powerUnits: getPowerUnits<PowerUnitsResponse>(year), teams: getTeams(year) }}
+    />
+  );
 }

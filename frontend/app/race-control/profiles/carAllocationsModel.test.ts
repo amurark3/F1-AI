@@ -187,6 +187,17 @@ describe("gridPlacesCell", () => {
       extras: ["+ 2 pit lane", "+ 1 back of grid"],
     });
   });
+
+  it("labels a ruling still to come, and a past-allocation weekend with none found", () => {
+    expect(gridPlacesCell({ ...totals, pending: 1, not_found: 1 }).extras).toEqual([
+      "ruling pending",
+      "no ruling found",
+    ]);
+    expect(gridPlacesCell({ ...totals, pending: 2, not_found: 2 }).extras).toEqual([
+      "2 rulings pending",
+      "2× no ruling found",
+    ]);
+  });
 });
 
 describe("carFooterLink", () => {

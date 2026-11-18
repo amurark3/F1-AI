@@ -1,30 +1,13 @@
 /**
- * The season overview's supporting panels: every stewards' decision of the
- * season, and where every number on the screen came from.
+ * The car page's supporting panels: where every number on the screen came from.
  *
  * Server-safe: no state, no effects.
  */
-import { ExternalLink, FileWarning, FileX2, Gavel } from "lucide-react";
-import Link from "next/link";
+import { ExternalLink, FileWarning, FileX2 } from "lucide-react";
 
-import { getTeamColor } from "@/app/lib/teamColors";
-import { DriverName } from "@/app/ui/names/DriverName";
-import { PanelHeading } from "@/app/ui/PanelHeading";
+import { InlineNotice } from "../components/RaceControlPrimitives";
 
-import { InlineNotice, Panel } from "../components/RaceControlPrimitives";
-
-import {
-  OVER_COLOR,
-  carHref,
-  outcomeLabel,
-  penaltyLog,
-  shortDay,
-  type ElementInfo,
-  type PowerUnitCar,
-  type PowerUnitsResponse,
-  type RoundInfo,
-  type WithdrawnDocument,
-} from "./powerUnitsModel";
+import type { PowerUnitsResponse, WithdrawnDocument } from "./powerUnitsModel";
 
 export function FiaLink({ href, label }: { href: string; label: string }) {
   return (
@@ -39,105 +22,6 @@ export function FiaLink({ href, label }: { href: string; label: string }) {
       <span className="sr-only">(opens the FIA document)</span>
     </a>
   );
-}
-
-export function PenaltyLog({ cars, rounds }: { cars: PowerUnitCar[]; rounds: Map<number, RoundInfo> }) {
-  const entries = penaltyLog(cars);
-  return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Stewards' decisions"
-        aside={
-          <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#7F8797]">
-            <Gavel className="h-3.5 w-3.5 text-[#F5C542]" />
-            {entries.length} this season
-          </span>
-        }
-        inset
-      />
-      {entries.length === 0 ? (
-        <p className="p-4 text-sm text-[#8E96A8]">No power-unit decision has been published this season.</p>
-      ) : (
-        <ol className="max-h-[560px] divide-y divide-[#1E2633] overflow-y-auto">
-          {entries.map(({ car, event, decision }) => {
-            const color = getTeamColor(car.team);
-            const driver = event.driver ?? car.driver;
-            return (
-              <li key={`${decision.url}-${car.seat_id}`} className="flex items-start gap-3 px-4 py-3">
-                <span className="w-10 shrink-0 font-mono text-[11px] font-bold text-[#7F8797]">
-                  {rounds.get(event.round)?.code ?? `R${event.round}`}
-                </span>
-                <span className="mt-1 h-4 w-[3px] shrink-0 rounded-full" style={{ background: color }} />
-                <div className="min-w-0 flex-1">
-                  <Link href={carHref(car)} className="text-sm font-bold text-white hover:underline">
-                    #{driver.car_number} <DriverName name={driver.name} code={driver.code} id={driver.id} />
-                  </Link>
-                  <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-[#6F7789]">
-                    {decision.elements.map((item) => `${item.code} #${item.number}`).join(" · ")}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="font-mono text-xs font-black" style={{ color: OVER_COLOR }}>
-                    {outcomeLabel(decision)}
-                  </span>
-                  <FiaLink href={decision.url} label={decision.number ? `Doc ${decision.number}` : "FIA doc"} />
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-    </Panel>
-  );
-}
-
-export function AllowanceLegend({ elements }: { elements: ElementInfo[] }) {
-  return (
-    <Panel as="section">
-      <PanelHeading eyebrow="2026 allowance per car" inset />
-      <dl className="grid grid-cols-2 gap-px bg-[#1E2633] sm:grid-cols-4">
-        {elements.map((item) => (
-          <div key={item.code} className="bg-[#0D111B] px-3 py-3">
-            <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#7F8797]">{item.code}</dt>
-            <dd className="mt-1 font-mono text-2xl font-black text-white">{item.allowance ?? "?"}</dd>
-            <dd className="mt-1 text-[11px] leading-snug text-[#6F7789]">{item.name}</dd>
-            <dd className="mt-2">
-              <AllowanceOrigin item={item} />
-            </dd>
-          </div>
-        ))}
-        <div className="bg-[#0D111B] px-3 py-3">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#7F8797]">Source</dt>
-          <dd className="mt-1 text-[11px] leading-snug text-[#6F7789]">
-            Each link opens the FIA report that last stated the figure, dated by its Grand Prix.
-          </dd>
-        </div>
-      </dl>
-      <p className="border-t border-[#1E2633] px-4 py-3 text-xs leading-relaxed text-[#8E96A8]">
-        Each figure is the latest one the FIA&apos;s own reports state, collected with the rest of the documents — so a
-        change to the regulations shows up here without a release. The first unit beyond an allowance costs ten grid
-        places, every later one of the same element five, and a weekend&apos;s penalties add up (Article B8.2.8).
-      </p>
-    </Panel>
-  );
-}
-
-function AllowanceOrigin({ item }: { item: ElementInfo }) {
-  const origin = item.allowance_source;
-  if (!origin) {
-    return <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#F5C542]">not stated yet</span>;
-  }
-  if (origin.kind === "manual") {
-    return (
-      <span
-        className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#F5C542]"
-        title={origin.note ?? undefined}
-      >
-        pinned by hand
-      </span>
-    );
-  }
-  return origin.url ? <FiaLink href={origin.url} label={`FIA · ${shortDay(origin.stated_on) || "report"}`} /> : null;
 }
 
 function WithdrawnList({ items }: { items: WithdrawnDocument[] }) {

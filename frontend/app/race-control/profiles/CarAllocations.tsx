@@ -98,17 +98,7 @@ function CarNames({ car, scope, year }: { car: PowerUnitCar; scope: CarScope; ye
   ));
 }
 
-function CarRow({
-  car,
-  elements,
-  scope,
-  year,
-}: {
-  car: PowerUnitCar;
-  elements: ElementInfo[];
-  scope: CarScope;
-  year: number;
-}) {
+function CarRow({ car, elements, name }: { car: PowerUnitCar; elements: ElementInfo[]; name: ReactNode }) {
   const grid = gridPlacesCell(car.penalties);
   return (
     <tr className="border-b border-rc-line-soft">
@@ -120,7 +110,7 @@ function CarRow({
             style={{ backgroundColor: getTeamColor(car.team) }}
           />
           <span className="font-display text-lg font-extrabold">#{car.car_number}</span>
-          <CarNames car={car} scope={scope} year={year} />
+          {name}
         </Link>
       </th>
       {elements.map((element) => {
@@ -150,6 +140,49 @@ function CarRow({
   );
 }
 
+/** The pip table, shared by the Team and Driver cards and the Power Units page. */
+export function AllocationTable({
+  cars,
+  elements,
+  caption,
+  nameFor,
+}: {
+  cars: readonly PowerUnitCar[];
+  elements: ElementInfo[];
+  caption: string;
+  nameFor: (car: PowerUnitCar) => ReactNode;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[780px] border-collapse text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="border-b border-rc-line">
+            <th scope="col" className={`${HEAD} ${STICKY}`}>
+              Car
+            </th>
+            {elements.map((element) => (
+              <th key={element.code} scope="col" className={HEAD}>
+                {element.code}
+                {element.allowance !== null && <span className="ml-1 font-medium">/{element.allowance}</span>}
+              </th>
+            ))}
+            <th scope="col" className={`${HEAD} text-right`}>
+              Grid places
+            </th>
+            <th scope="col" aria-hidden="true" className={HEAD} />
+          </tr>
+        </thead>
+        <tbody>
+          {cars.map((car) => (
+            <CarRow key={car.seat_id} car={car} elements={elements} name={nameFor(car)} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AllocationCard({
   data,
   cars,
@@ -167,33 +200,12 @@ function AllocationCard({
   return (
     <figure className="rounded-md border border-rc-line bg-(--surface) p-6">
       <PanelHeading eyebrow="Allocation by car" title={title} sub={carAllocationsSub(cars, data.as_of)} />
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[780px] border-collapse text-sm">
-          <caption className="sr-only">{title}</caption>
-          <thead>
-            <tr className="border-b border-rc-line">
-              <th scope="col" className={`${HEAD} ${STICKY}`}>
-                Car
-              </th>
-              {elements.map((element) => (
-                <th key={element.code} scope="col" className={HEAD}>
-                  {element.code}
-                  {element.allowance !== null && <span className="ml-1 font-medium">/{element.allowance}</span>}
-                </th>
-              ))}
-              <th scope="col" className={`${HEAD} text-right`}>
-                Grid places
-              </th>
-              <th scope="col" aria-hidden="true" className={HEAD} />
-            </tr>
-          </thead>
-          <tbody>
-            {cars.map((car) => (
-              <CarRow key={car.seat_id} car={car} elements={elements} scope={scope} year={year} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AllocationTable
+        cars={cars}
+        elements={elements}
+        caption={title}
+        nameFor={(car) => <CarNames car={car} scope={scope} year={year} />}
+      />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3.5">
         <Legend items={LEGEND} label="Legend" />
         <Link

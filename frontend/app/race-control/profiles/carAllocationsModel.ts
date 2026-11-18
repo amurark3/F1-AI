@@ -112,11 +112,18 @@ export function pipsFor(element: ElementUsage): Pips {
   };
 }
 
+function rulingExtra(count: number, one: string, many: string): string | null {
+  if (count === 0) return null;
+  return count === 1 ? one : many;
+}
+
 /** The grid-places cell: the places lost (null for none) and any pit-lane or back-of-grid starts. */
 export function gridPlacesCell(totals: PenaltyTotals): { places: number | null; extras: string[] } {
   const extras = [
     totals.pit_lane_starts > 0 ? `+ ${totals.pit_lane_starts} pit lane` : null,
     totals.back_of_grid > 0 ? `+ ${totals.back_of_grid} back of grid` : null,
+    rulingExtra(totals.pending, "ruling pending", `${totals.pending} rulings pending`),
+    rulingExtra(totals.not_found, "no ruling found", `${totals.not_found}× no ruling found`),
   ].filter((text) => text !== null);
   return { places: totals.grid_places > 0 ? totals.grid_places : null, extras };
 }

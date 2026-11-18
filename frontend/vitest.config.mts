@@ -124,6 +124,15 @@ const COVERAGE_INCLUDE = [
   // P7.3: the Command Center view and the timing tower.
   "app/race-control/CommandCenterView.tsx",
   "app/race-control/components/LiveTimingTower.tsx",
+  // P6.3: the Power Units season page. The car page, FreshnessBar, SeasonPanels and powerUnitsModel join with P6.3b, which rebuilds them.
+  "app/race-control/power-units/page.tsx",
+  "app/race-control/power-units/PowerUnitsView.tsx",
+  "app/race-control/power-units/PowerUnitsHero.tsx",
+  "app/race-control/power-units/AllocationMatrix.tsx",
+  "app/race-control/power-units/GridPlacesRanking.tsx",
+  "app/race-control/power-units/PowerUnitsParts.tsx",
+  "app/race-control/power-units/seasonModel.ts",
+  "app/race-control/power-units/usePowerUnits.ts",
 ];
 
 /** Every metric must reach this in every included file. */

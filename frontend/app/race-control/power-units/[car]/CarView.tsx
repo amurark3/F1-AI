@@ -4,20 +4,64 @@ import Link from "next/link";
 import useSWR from "swr";
 
 import { API_BASE } from "@/app/constants/api";
-import { seededWith } from "@/app/lib/swrFallback";
+import { awaitingFirstData, seededWith } from "@/app/lib/swrFallback";
 import { getTeamColor } from "@/app/lib/teamColors";
 import { fetcher } from "@/app/utils/fetcher";
 
-import { InlineNotice } from "../../components/RaceControlPrimitives";
+import { InlineNotice, PageLoader } from "../../components/RaceControlPrimitives";
 import { FreshnessBar } from "../FreshnessBar";
 import { findCar, powerUnitsUrl, roundsByNumber, type PowerUnitsResponse } from "../powerUnitsModel";
-import { POWER_UNITS_SWR, PowerUnitsGate, type PowerUnitsSeed } from "../PowerUnitsView";
 import { Provenance } from "../SeasonPanels";
 
 import { CarHeader } from "./CarHeader";
 import { ElementLedger } from "./ElementLedger";
 import { SeasonTimeline } from "./SeasonTimeline";
 import { WeekendCard } from "./WeekendCard";
+
+/** One request serves every power-unit screen; reuse it across navigations. */
+const POWER_UNITS_SWR = { revalidateOnFocus: false, dedupingInterval: 120_000 } as const;
+
+/** The loading, failure and not-yet-collected states every power-unit screen shares. */
+function PowerUnitsGate({
+  data,
+  error,
+  isLoading,
+  children,
+}: {
+  data: PowerUnitsResponse | undefined;
+  error: Error | undefined;
+  isLoading: boolean;
+  children: (data: PowerUnitsResponse) => React.ReactNode;
+}) {
+  if (awaitingFirstData(isLoading, data !== undefined)) {
+    return <PageLoader title="Reading the FIA's documents" detail="Loading every car's power-unit usage." />;
+  }
+  // `error` alone is not a reason to blank the screen: SWR keeps the last good
+  // payload when a background refresh fails, and that payload is still true.
+  if (!data || data.error) {
+    return (
+      <InlineNotice title="Could not load power-unit usage" tone="error">
+        {data?.error ?? (error ? "The power-unit service is unavailable. Please try again shortly." : null)}
+      </InlineNotice>
+    );
+  }
+  if (!data.available) {
+    return (
+      <>
+        <FreshnessBar freshness={data.freshness} asOf={null} rounds={new Map()} />
+        <InlineNotice title="Not available yet" tone="info">
+          {data.reason ?? "Power-unit usage has not been collected for this season yet."}
+        </InlineNotice>
+      </>
+    );
+  }
+  return <>{children(data)}</>;
+}
+
+export interface PowerUnitsSeed {
+  year: number;
+  data: PowerUnitsResponse | null;
+}
 
 function CarScreen({ data, segment }: { data: PowerUnitsResponse; segment: string }) {
   const car = findCar(data.cars, segment);

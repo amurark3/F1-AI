@@ -82,9 +82,15 @@ def test_the_feed_lists_the_weekend_newest_first_with_what_each_document_says():
     assert piastri["data"]["outcomes"] == ({"kind": "time_penalty", "value": 10},)
     assert events[67]["data"]["final"] is True
     assert len(events[80]["data"]["laps"]) == 13
-    # No parser for classifications yet (D2.2b), and a permission to start is not a grid: listed, data empty.
-    assert (events[86]["kind"], events[86]["data"], events[86]["unread"]) == (KIND_CLASSIFICATION, None, None)
+    assert events[86]["kind"] == KIND_CLASSIFICATION
+    assert [entry["car"] for entry in events[86]["data"]["entries"][:3]] == [3, 44, 12]
+    assert (events[36]["data"]["outgoing"], events[36]["data"]["incoming"]) == ("Esteban Ocon", "Ryo Hirakawa")
+    assert events[37]["data"]["revised"] is True
+    assert (events[2]["data"]["hard"], events[2]["data"]["soft"]) == ("C3", "C5")
+    # A permission to start is in the grid kind but is not a grid: listed, data empty.
     assert (events[58]["kind"], events[58]["data"], events[58]["unread"]) == (KIND_GRID, None, None)
+    # Every parsed kind reads: no document of the weekend is unread.
+    assert [item["title"] for item in payload["events"] if item["unread"]] == []
 
 
 def test_after_returns_only_the_documents_newer_than_the_client_holds():

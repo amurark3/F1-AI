@@ -3,7 +3,8 @@
 The ingest job (``scripts.ingest_fia_documents``, every five minutes over a
 weekend) keeps the store current; this module only reads it. Each document is
 one event: its number, title, kind and publication time as fia.com lists them,
-plus what its parser reads from it (a penalty, a starting grid, deleted laps).
+plus what its parser reads from it (a penalty, a starting grid, deleted laps,
+a classification, the entry list, the Pirelli compounds).
 A document no parser covers yet still appears, with ``data`` empty, and one
 whose text could not be read or parsed says why in ``unread``: the feed never
 hides a decision because its PDF was awkward.
@@ -20,10 +21,21 @@ from typing import TYPE_CHECKING
 
 from app.data.f1db_results import race_schedule
 from app.data.fia_documents import store
-from app.data.fia_documents.kinds import KIND_DELETED_LAPS, KIND_GRID, KIND_PENALTY, document_kind
+from app.data.fia_documents.kinds import (
+    KIND_CLASSIFICATION,
+    KIND_DELETED_LAPS,
+    KIND_ENTRY_LIST,
+    KIND_GRID,
+    KIND_PENALTY,
+    KIND_PIRELLI,
+    document_kind,
+)
 from app.data.fia_documents.listing import title_number
+from app.data.fia_documents.parsers.classifications import parse_classification
 from app.data.fia_documents.parsers.deleted_laps import parse_deleted_laps
+from app.data.fia_documents.parsers.entry_list import parse_driver_change, parse_entry_list
 from app.data.fia_documents.parsers.grids import parse_starting_grid
+from app.data.fia_documents.parsers.pirelli import parse_pirelli_preview
 from app.data.fia_documents.parsers.stewards import parse_stewards_decision
 from app.data.fia_documents.text import DocumentParseError, compact
 from app.utils.ttl_cache import TtlCache
@@ -36,6 +48,7 @@ if TYPE_CHECKING:
 #: The ingest runs every five minutes, so a minute's reuse loses nothing new.
 FEED_TTL_SECONDS = 60.0
 _STARTING_GRID = re.compile(r"\bstarting\s+grid\b", re.IGNORECASE)
+_DRIVER_CHANGE = re.compile(r"\bdriver\s+change\b", re.IGNORECASE)
 _CACHE: TtlCache[tuple[int, int], tuple[str | None, tuple[dict, ...]]] = TtlCache()
 
 
@@ -44,10 +57,19 @@ def _grid(document: SourceDocument) -> object | None:
     return parse_starting_grid(document.text or "") if _STARTING_GRID.search(document.title) else None
 
 
+def _entries(document: SourceDocument) -> object:
+    # The entry-list kind is the list itself and the stewards' driver-change decisions.
+    text = document.text or ""
+    return parse_driver_change(text) if _DRIVER_CHANGE.search(document.title) else parse_entry_list(text)
+
+
 _PARSERS: dict[str, Callable[[SourceDocument], object | None]] = {
     KIND_PENALTY: lambda document: parse_stewards_decision(document.title, document.text or ""),
     KIND_GRID: _grid,
     KIND_DELETED_LAPS: lambda document: parse_deleted_laps(document.text or ""),
+    KIND_CLASSIFICATION: lambda document: parse_classification(document.text or ""),
+    KIND_ENTRY_LIST: _entries,
+    KIND_PIRELLI: lambda document: parse_pirelli_preview(document.text or ""),
 }
 
 

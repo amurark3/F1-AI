@@ -1,0 +1,332 @@
+<!doctype html>
+<!--
+  P6.3b mockup: the Power Units car page, /race-control/power-units/[car], the drill-down from power-units.html.
+  Car 6 (Red Bull) was chosen because it shows the most states: a shared seat (Lawson stood in as #30 at R12-R14),
+  every element past the allocation, three grid drops, two pit-lane starts and a drop superseded by a pit-lane start.
+
+  DATA: GET /api/race-control/power-units/2026, the production capture of 2026-11-18 (freshness.changed_at
+  2026-11-08T19:41Z; FIA documents through R20 São Paulo GP doc 57). The page is generated from that file, so no
+  figure was typed by hand. No backend change is needed: everything below reads that one payload, with
+  car = findCar(cars, segment).
+
+  SOURCE PER SECTION
+  - Crumb + car strip: cars[] by car_number (team colour swatch from team, title = driver.name · team);
+    aria-current = car.seat_id.
+  - Hero: eyebrow = year, as_of.round, rounds[as_of.round].name and as_of.number (the season page's pattern).
+    h1 "Car {n}" comes from the URL segment, so it renders before any data arrives. Meta = car.team, plus the
+    shared-seat sentence when drivers.length > 1. Takeaway = the ICE row of car.elements (used, allowance);
+    "the most of any car" only when this car's ICE used is the unique maximum across cars[].
+    Lineup = car.drivers[]: car_number, name, roundRuns(rounds). The stand-in is any stint other than the one with
+    the most rounds. "At his weekends" sums the decisions of the events where event.driver.id = stint.id.
+  - KPI row: penalties.grid_places with the grid_drop decisions (round, places); penalties.pit_lane_starts with
+    the pit_lane decisions; elementsOver(car) of elements.length; totalOverBy(car) with elements[].over_by.
+  - 01 Elements: car.elements[] (code, used, allowance, over_by, parts[]: number, round, window, source,
+    beyond_allowance, not_counted_from) and elements[].name. The inspector reads the part, events[].decisions and
+    penalty_status. Default selection: the newest part, beyond the allocation first (as today).
+  - 02 Season: rounds[] (code, name, has_documents), car.events[] (decisions, penalty_status, new_parts), as_of.round
+    (latest), and drivers[].rounds for the driver row, which shows only for a shared seat.
+  - 03 Weekend by weekend: car.events[], newest first. round → rounds[] name, code and date; penalty_status;
+    stand_in and driver; new_parts; decisions[] (outcome, places, nominal_places, session, elements, summary, title,
+    url); grid (gridLabel); sources[] (TD reports).
+  - Source note: freshness (checked_at, changed_at; outcome, stale and error only when not OK),
+    elements[].allowance_source, and the season page's sourceNotes() list plus car.warnings.
+
+  LOADING: page.tsx awaits nothing. The crumb and h1 come from the URL. The car strip, the hero and KPI row, 01, 02,
+  03 and the source note are each their own <Section> (skeleton / failure card with retry / stale mark over kept
+  data), so one failing never blanks another. All of them read one SWR key, so the page makes one request, as on the
+  season page.
+
+  ACCURACY LABELS: the annex at the bottom ("Every state this page labels") gives the exact words for each state,
+  where it shows, and a real case from this capture where one exists. In short: Stand-in; Within the allocation /
+  Stewards decided / Ruling pending / No ruling found; beyond the allocation (past the red line); spare; round not
+  pinned down (dashed); round inferred between two FIA reports; not counted; a drop superseded by a pit-lane start;
+  grid sheet not published yet / not on the published grid sheet; pit-lane starts "ordered by power-unit rulings";
+  Not checked yet / Last check failed / Last check not saved / Collection overdue / Some documents unread; unread
+  document; withdrawn document; allowance not stated; allowance pinned by hand; checks that did not add up; unknown
+  car; season not collected; no new units yet.
+
+  DROPPED OR MOVED FROM THE CURRENT CAR PAGE ([car]/CarView, CarHeader, ElementLedger, SeasonTimeline, WeekendCard)
+  - FreshnessBar: its times move to the source note, which also carries its state label, but only when the state is
+    not OK (as on the season page). The latest FIA document moves to the hero eyebrow. The pinging dot is dropped
+    because it is a looping animation.
+  - CarHeader tallies → KPI row: "Elements over" and "Extra units" keep their names. "PU grid drop −70" becomes
+    "Grid places imposed 70". The Pending / Pit-lane tile swap becomes a fixed pit-lane tile, with pending and
+    not-found weekends added to the lead tile's sub, worded as on the season page.
+  - "Also raced by Lawson (#30) at R12–R14" → a lineup row with a Stand-in tag. The back link → "← All cars".
+    Driver and team links stay on the lineup names and the meta's team name.
+  - Car switcher → the strip above the hero (team.html's switch). Its red "over" dot is dropped: 18 of 22 cars
+    carry one, so it told little, and the season matrix one click back shows it per element.
+  - Unit tiles in team colour → neutral and red, the season matrix's pip grammar. Team colour stays on the hero rule,
+    the numbers and the strip swatches. The ledger legend keeps "round not named", now worded "round not pinned down".
+  - Provenance (car warnings + data.notes): car warnings go into the source-note list. data.notes is dropped because
+    its four lines restate the source line, the allocation line and the hero's Article B8.2.7 sentence; withdrawn
+    documents are listed whenever the API sends any.
+  - StatusPill → tag. The amber pending colour becomes blue, because gold means wins only. The lucide icons become
+    the "Stand-in" tag and ↗. The raw ISO date becomes "11 Oct".
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — Car 6 power units (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>
+/* On an entity page the team colour takes the accent role (team.html); red stays in the chrome and means "beyond". */
+:root{--team:#3671c6}
+main.wrap.page{padding-top:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.crumb{display:flex;align-items:center;gap:10px 20px}
+.crumb .back{flex:none;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.crumb .back:hover{color:var(--ink)}
+.switch{display:flex;flex-wrap:wrap;gap:2px;min-width:0}
+.switch a{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid transparent;border-radius:4px;font:600 11px/1 var(--mono);color:var(--ink-3)}
+.switch a i{width:3px;height:12px;border-radius:1px}
+.switch a:hover{color:var(--ink)}
+.switch a[aria-current="page"]{border-color:var(--line);background:var(--raised);color:var(--ink)}
+
+.hero{position:relative;margin-top:20px;border:1px solid var(--line);border-radius:6px;background:var(--hero);overflow:hidden;display:grid;grid-template-columns:1.2fr 1fr}
+.hero::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--team)}
+.hero .left{padding:36px;min-width:0}
+.hero .left > .eyebrow{line-height:1.7}
+.hero h1{font-size:clamp(64px,8vw,120px);margin-top:10px}
+.hero h1 .n{color:var(--team)}
+.hero .rule{background:var(--team);margin:22px 0 16px}
+.hero .meta{color:var(--ink-2);font-size:15px;max-width:58ch}
+.hero .meta a{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.champ{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-top:30px}
+.champ b{font:800 76px/.9 var(--display);white-space:nowrap}
+.champ span:not(.unit){color:var(--ink-2);font-size:15px;max-width:30ch}
+.lineup{border-left:1px solid var(--line);display:grid;align-content:center}
+.seat{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:22px;padding:26px 32px}
+.seat + .seat{border-top:1px solid var(--line)}
+.seat .num{font:800 88px/.85 var(--display);color:var(--team);text-align:right}
+.seat h2{font:800 30px/1 var(--display);text-transform:uppercase;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.seat h2 a:hover{text-decoration:underline;text-underline-offset:4px}
+.seat p{color:var(--ink-3);margin-top:8px;font:500 12px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.seat p + p{margin-top:2px}
+.seat p b{color:var(--ink);font-weight:600}
+.kpis small{display:block;margin-top:4px;line-height:1.45}
+
+.card .sub{max-width:80ch}
+/* 01 Elements: one row per element, one tile per unit */
+.ledger .row{display:grid;grid-template-columns:210px minmax(0,1fr);gap:24px;align-items:center;padding:16px 0;border-top:1px solid var(--line-soft)}
+.el b{font:600 14px/1 var(--mono);letter-spacing:.06em}
+.el small{display:block;color:var(--ink-3);font-size:12px;margin-top:5px}
+.el .use{margin-top:8px;font:500 12px/1 var(--mono);color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.tiles{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;width:56px;height:46px;display:grid;place-content:center;text-align:center;border:1px solid var(--line);border-radius:3px;background:var(--raised);transition:border-color .15s}
+.tile b{font:600 13px/1 var(--mono);color:var(--ink)}
+.tile span{display:block;margin-top:5px;font:500 9px/1 var(--mono);letter-spacing:.1em;color:var(--ink-3)}
+.tile:hover{border-color:var(--ink-3)}
+.tile.o{border-color:var(--red);background:rgb(225 6 0 / .16)}
+.tile.o span{color:var(--ink-2)}
+.tile.w{border-style:dashed}
+.tile.x{background:none;border-style:dotted}
+.tile.x b{text-decoration:line-through;color:var(--ink-3)}
+.tile[aria-pressed="true"]{box-shadow:0 0 0 2px var(--page),0 0 0 3px var(--ink)}
+.tile:focus-visible{outline:2px solid var(--red-text);outline-offset:2px}
+.spare{width:56px;height:46px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:3px;font:500 9px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.limit{display:grid;place-items:center;width:14px;margin:0 2px}
+.limit i{width:2px;height:46px;background:var(--red)}
+.nc{font:500 9px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-left:8px}
+.ledger .legend{padding-top:16px;border-top:1px solid var(--line-soft);margin-top:0}
+.legend .sw{width:14px;height:12px;border-radius:2px;border:1px solid var(--line);background:var(--raised)}
+.legend .sw.o{border-color:var(--red);background:rgb(225 6 0 / .16)}
+.legend .sw.d{border-style:dashed}
+.legend s{font:600 11px/1 var(--mono);color:var(--ink-3)}
+.inspect{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;margin:20px -24px -24px;padding:16px 24px;border-top:1px solid var(--line);background:var(--raised);border-radius:0 0 6px 6px}
+.inspect .eyebrow.over{color:var(--red-text)}
+.inspect .t1{margin-top:8px;color:var(--ink)}
+.inspect .t2{margin-top:2px;color:var(--ink-2)}
+.jump{flex:none;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.jump:hover{color:var(--ink)}
+
+/* 02 Season: one cell per Grand Prix */
+.tl{list-style:none;padding:0;display:grid;grid-template-columns:repeat(23,minmax(0,1fr));gap:12px 4px}
+.tl .c{display:grid;gap:5px;text-align:center;border-radius:3px}
+.tl .code{font:500 10px/1 var(--mono);letter-spacing:.04em;color:var(--ink-3)}
+.tl .latest .code{color:var(--ink)}
+.tl .m,.mk{height:40px;border-radius:3px;display:grid;place-items:center;font:600 13px/1 var(--mono);color:var(--ink-3);background:rgb(255 255 255 / .03)}
+.tl .m.u,.mk.u{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.tl .m.p,.mk.p{background:var(--red);color:var(--ink)}
+.tl .m.q,.mk.q{background:none;color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.tl .m.nf,.mk.nf{background:none;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--ink-3)}
+.tl .m.f,.mk.f{background:none;box-shadow:none;border:1px dashed var(--line)}
+.tl .latest .m{box-shadow:inset 0 0 0 1px var(--ink-3)}
+.tl a.c:hover .m{outline:1px solid var(--ink-3);outline-offset:1px}
+.tl .d{font:500 10px/1 var(--mono);color:var(--ink-3);min-height:10px}
+.tl .d.alt{color:var(--blue)}
+.legend .mk{display:inline-grid;width:26px;height:18px;font-size:10px}
+
+/* 03 Weekend by weekend: an open log, no panel */
+.wk{display:grid;grid-template-columns:200px minmax(0,1fr) 260px;gap:12px 32px;padding:26px 0;border-top:1px solid var(--line);scroll-margin-top:84px}
+.log .wk:last-child{border-bottom:1px solid var(--line)}
+.wk .r{font:800 40px/1 var(--display)}
+.wk .r span{font:600 11px/1 var(--mono);letter-spacing:.12em;color:var(--ink-3);margin-left:8px;vertical-align:.4em}
+.wk h3{font:600 15px/1.3 var(--sans);margin-top:10px}
+.wk .when{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:6px 0 12px}
+.tagx.line{background:none;box-shadow:inset 0 0 0 1px var(--ink-3);color:var(--ink-2)}
+.wk .body{display:grid;gap:14px;align-content:start;min-width:0}
+.si{color:var(--ink-2);font-size:13px;border-left:2px solid var(--blue);padding:2px 0 2px 12px;max-width:76ch}
+.si .tagx{margin-right:6px}
+.units{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.units .lbl{min-width:176px;font:500 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.chip{font:600 11px/1 var(--mono);padding:5px 7px;border-radius:3px;border:1px solid var(--line);background:var(--raised);color:var(--ink)}
+.chip.o{border-color:var(--red);background:rgb(225 6 0 / .16)}
+.chip.x{text-decoration:line-through;color:var(--ink-3)}
+.dec{border-left:3px solid var(--red);padding:2px 0 2px 16px}
+.dec b{font:800 26px/1 var(--display);text-transform:uppercase;color:var(--red-text)}
+.dec .els{margin-top:8px;font:500 11px/1.5 var(--mono);letter-spacing:.04em;color:var(--ink-2)}
+.dec .nom{margin-top:6px;color:var(--ink-2);font-size:13px}
+.dec .sum{margin-top:6px;color:var(--ink-3);font-size:13px;max-width:76ch}
+.doc{display:inline-block;margin-top:8px;font:500 11px/1.5 var(--mono);color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.doc:hover{color:var(--ink);text-decoration-color:var(--ink-3)}
+.gap{color:var(--ink-2);font-size:13px;border-left:2px solid var(--ink-3);padding:2px 0 2px 12px;max-width:76ch}
+.side dl{display:grid;gap:6px}
+.side dt{font:600 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.side dd{color:var(--ink-2);font-size:13px;margin-bottom:12px}
+.side dd.links{display:grid;justify-items:start}
+.side dd.links .doc{margin-top:0}
+
+.srcnote{margin-top:28px;display:grid;gap:6px}
+.srcnote a{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.srcnote a:hover{color:var(--ink)}
+
+/* Annex: a spec for the executor, set apart from the page */
+.annex{margin-top:96px;padding-top:28px;border-top:1px dashed var(--line)}
+.annex h2{font-size:44px;margin-top:12px}
+.annex > p.soft{margin-top:10px;max-width:80ch}
+.annex .grid2{margin-top:24px}
+.annex figure{margin-top:20px}
+.annex .grid2 figure{margin-top:0}
+.annex .log .wk{border:0;padding-bottom:0}
+.annex .cap{margin-top:12px;font:500 11px/1.6 var(--mono);color:var(--ink-3)}
+.annex .marks{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.annex .marks .mk{width:44px}
+.annex .marks .tl-c{display:grid;gap:5px;text-align:center}
+.annex .scroll{overflow-x:auto;margin:20px 0 0}
+.states{min-width:860px}
+.states td{font-size:13px;color:var(--ink-2);vertical-align:top}
+.states td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.states code{font:500 11.5px/1.5 var(--mono);color:var(--ink)}
+.states .none{color:var(--ink-3)}
+
+@media (max-width:1100px){
+  .hero{grid-template-columns:1fr}
+  .lineup{border-left:0;border-top:1px solid var(--line)}
+  .wk{grid-template-columns:180px minmax(0,1fr)}
+  .wk .side{grid-column:2}
+}
+@media (max-width:600px){
+  .crumb{flex-direction:column;align-items:flex-start}
+  .switch{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:calc(100vw - 40px)}
+  .switch a{flex:none}
+  .hero .left{padding:26px 20px}
+  .champ b{font-size:60px}
+  .units .lbl{min-width:0;flex-basis:100%;margin-bottom:2px}
+  .seat{grid-template-columns:60px minmax(0,1fr);gap:16px;padding:20px}
+  .seat .num{font-size:54px}
+  .seat h2{font-size:24px}
+  .section-head{flex-wrap:wrap;row-gap:8px}
+  .section-head .aside{margin-left:0;flex-basis:100%}
+  .card{padding:18px}
+  .ledger .row{grid-template-columns:1fr;gap:12px}
+  .tile,.spare{width:50px}
+  .inspect{flex-direction:column;align-items:flex-start;margin:20px -18px -18px;padding:16px 18px}
+  .tl{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .wk{grid-template-columns:1fr;gap:14px}
+  .wk .side{grid-column:auto}
+  .wk .side dd{margin-bottom:8px}
+  .annex h2{font-size:34px}
+}
+    </style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html">Teams</a><a href="power-units.html" aria-current="page">Power Units</a><a href="engineer.html">AI Engineer</a><a href="#">More ▾</a></nav><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+
+    <main class="wrap page">
+      <div class="crumb"><a class="back" href="power-units.html">← All cars</a><nav class="switch" aria-label="Other cars"><a href="#" title="Lando Norris · McLaren"><i style="background:#ff8000"></i>1</a><a href="#" title="Max Verstappen · Red Bull"><i style="background:#3671c6"></i>3</a><a href="#" title="Gabriel Bortoleto · Audi"><i style="background:#ff0000"></i>5</a><a href="#" aria-current="page" title="Isack Hadjar · Red Bull"><i style="background:#3671c6"></i>6</a><a href="#" title="Pierre Gasly · Alpine"><i style="background:#ff87bc"></i>10</a><a href="#" title="Sergio Pérez · Cadillac"><i style="background:#e0d4b8"></i>11</a><a href="#" title="Kimi Antonelli · Mercedes"><i style="background:#27f4d2"></i>12</a><a href="#" title="Fernando Alonso · Aston Martin"><i style="background:#229971"></i>14</a><a href="#" title="Charles Leclerc · Ferrari"><i style="background:#e8002d"></i>16</a><a href="#" title="Lance Stroll · Aston Martin"><i style="background:#229971"></i>18</a><a href="#" title="Alexander Albon · Williams"><i style="background:#64c4ff"></i>23</a><a href="#" title="Nico Hülkenberg · Audi"><i style="background:#ff0000"></i>27</a><a href="#" title="Liam Lawson · Racing Bulls"><i style="background:#6692ff"></i>30</a><a href="#" title="Arvid Lindblad · Racing Bulls"><i style="background:#6692ff"></i>41</a><a href="#" title="Franco Colapinto · Alpine"><i style="background:#ff87bc"></i>43</a><a href="#" title="Lewis Hamilton · Ferrari"><i style="background:#e8002d"></i>44</a><a href="#" title="Rafael Câmara · Haas"><i style="background:#b6babd"></i>51</a><a href="#" title="Carlos Sainz Jr. · Williams"><i style="background:#64c4ff"></i>55</a><a href="#" title="George Russell · Mercedes"><i style="background:#27f4d2"></i>63</a><a href="#" title="Valtteri Bottas · Cadillac"><i style="background:#e0d4b8"></i>77</a><a href="#" title="Oscar Piastri · McLaren"><i style="background:#ff8000"></i>81</a><a href="#" title="Oliver Bearman · Haas"><i style="background:#b6babd"></i>87</a></nav></div>
+
+      <section class="hero" aria-labelledby="car-title">
+        <div class="left">
+          <p class="eyebrow rise">Power units · 2026 · after round 20 · latest FIA document: São Paulo GP doc 57</p>
+          <h1 id="car-title" class="display rise" style="animation-delay:.06s">Car <span class="n">6</span></h1>
+          <div class="rule grow-x" style="animation-delay:.25s"></div>
+          <p class="meta rise" style="animation-delay:.12s"><a href="#">Red Bull</a>. Every power-unit element fitted to car 6 this season, where it arrived and what it cost. Elements belong to the car, so the penalties follow the car, never the driver.</p>
+          <div class="champ rise" style="animation-delay:.2s"><b>8<span class="unit">engines</span></b><span>fitted against an allocation of 4, the most of any car this season.</span></div>
+        </div>
+        <div class="lineup"><div class="seat"><span class="num">6</span><div><h2><a href="#">Isack Hadjar</a></h2><p><b>17 rounds</b> · R1–R11, R15–R20</p><p>At his weekends: <b>−35 grid places, 2 pit-lane starts</b></p></div></div><div class="seat"><span class="num">30</span><div><h2><a href="#">Liam Lawson</a> <span class="tagx blue">Stand-in</span></h2><p><b>R12–R14</b> · under his own number</p><p>At his weekends: <b>−35 grid places</b></p></div></div></div>
+      </section>
+
+      <div class="kpis rise" style="margin-top:20px;animation-delay:.3s"><div><span class="eyebrow">Grid places imposed</span><b>70</b><small>R10 −30 · R13 −35 · R16 −5</small></div><div><span class="eyebrow">Pit-lane starts</span><b>2</b><small>ordered by power-unit rulings · R4 Miami GP · R17 Singapore GP</small></div><div><span class="eyebrow">Elements over</span><b>7<span class="unit">of 7</span></b><small>every element past its allocation</small></div><div><span class="eyebrow">Extra units</span><b>15</b><small>beyond the allocation · ICE 4 · TC 3 · EXH 3 · PU-ANC 2 · MGU-K 1 · ES 1 · PU-CE 1</small></div></div>
+
+      <section class="block" aria-labelledby="s-el">
+        <div class="section-head"><span class="idx">01</span><h2 id="s-el">Elements</h2><span class="aside eyebrow">One tile per unit fitted</span></div>
+        <figure class="panel card ledger">
+          <p class="eyebrow">Element ledger</p>
+          <h3>All seven elements past the allocation</h3>
+          <p class="sub">Units in the order fitted, each with the Grand Prix it arrived at. Right of the red line is beyond the allocation. Select a unit for its ruling.</p>
+          <div class="row"><div class="el"><b>ICE</b><small>Internal combustion engine</small><p class="use">8 used / 4 allowed <span class="tagx red">+4</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="ICE unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="ICE unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="ICE unit 3, within the allocation: Introduced at the Canadian GP (named in an FIA document)"><b>#3</b><span>CAN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="ICE unit 4, within the allocation: Introduced at the Austrian GP (named in an FIA document)"><b>#4</b><span>AUT</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="ICE unit 5, beyond the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#5</b><span>BEL</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="ICE unit 6, beyond the allocation: Introduced at the Italian GP (named in an FIA document)"><b>#6</b><span>ITA</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="ICE unit 7, beyond the allocation: Introduced at the Bahrain GP (named in an FIA document)"><b>#7</b><span>BHR</span></button><button type="button" class="tile o" aria-pressed="true" aria-label="ICE unit 8, beyond the allocation: Introduced at the Singapore GP (named in an FIA document)"><b>#8</b><span>SGP</span></button></div></div><div class="row"><div class="el"><b>TC</b><small>Turbocharger</small><p class="use">7 used / 4 allowed <span class="tagx red">+3</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="TC unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="TC unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="TC unit 3, within the allocation: Introduced at the Canadian GP (named in an FIA document)"><b>#3</b><span>CAN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="TC unit 4, within the allocation: Introduced at the Austrian GP (named in an FIA document)"><b>#4</b><span>AUT</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="TC unit 5, beyond the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#5</b><span>BEL</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="TC unit 6, beyond the allocation: Introduced at the Italian GP (named in an FIA document)"><b>#6</b><span>ITA</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="TC unit 7, beyond the allocation: Introduced at the Singapore GP (named in an FIA document)"><b>#7</b><span>SGP</span></button></div></div><div class="row"><div class="el"><b>EXH</b><small>Exhaust set</small><p class="use">7 used / 4 allowed <span class="tagx red">+3</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="EXH unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="EXH unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="EXH unit 3, within the allocation: Introduced at the Canadian GP (named in an FIA document)"><b>#3</b><span>CAN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="EXH unit 4, within the allocation: Introduced at the Austrian GP (named in an FIA document)"><b>#4</b><span>AUT</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="EXH unit 5, beyond the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#5</b><span>BEL</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="EXH unit 6, beyond the allocation: Introduced at the Italian GP (named in an FIA document)"><b>#6</b><span>ITA</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="EXH unit 7, beyond the allocation: Introduced at the Singapore GP (named in an FIA document)"><b>#7</b><span>SGP</span></button></div></div><div class="row"><div class="el"><b>MGU-K</b><small>Motor generator unit – kinetic</small><p class="use">4 used / 3 allowed <span class="tagx red">+1</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="MGU-K unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="MGU-K unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="MGU-K unit 3, within the allocation: Introduced at the Dutch GP (named in an FIA document)"><b>#3</b><span>NLD</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="MGU-K unit 4, beyond the allocation: Introduced at the Italian GP (named in an FIA document)"><b>#4</b><span>ITA</span></button></div></div><div class="row"><div class="el"><b>ES</b><small>Energy store</small><p class="use">4 used / 3 allowed <span class="tagx red">+1</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="ES unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="ES unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="ES unit 3, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#3</b><span>CHN</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="ES unit 4, beyond the allocation: Introduced at the Miami GP (named in an FIA document)"><b>#4</b><span>MIA</span></button></div></div><div class="row"><div class="el"><b>PU-CE</b><small>Control electronics</small><p class="use">4 used / 3 allowed <span class="tagx red">+1</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="PU-CE unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-CE unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-CE unit 3, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#3</b><span>CHN</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="PU-CE unit 4, beyond the allocation: Introduced at the Miami GP (named in an FIA document)"><b>#4</b><span>MIA</span></button></div></div><div class="row"><div class="el"><b>PU-ANC</b><small>Power unit ancillaries</small><p class="use">8 used / 6 allowed <span class="tagx red">+2</span></p></div><div class="tiles"><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 1, within the allocation: Introduced at the Australian GP (the only round between two FIA usage reports)"><b>#1</b><span>AUS</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 3, within the allocation: Introduced at the Canadian GP (named in an FIA document)"><b>#3</b><span>CAN</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 4, within the allocation: Introduced at the Austrian GP (named in an FIA document)"><b>#4</b><span>AUT</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 5, within the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#5</b><span>BEL</span></button><button type="button" class="tile" aria-pressed="false" aria-label="PU-ANC unit 6, within the allocation: Introduced at the Italian GP (the only round between two FIA usage reports)"><b>#6</b><span>ITA</span></button><span class="limit" aria-hidden="true"><i></i></span><button type="button" class="tile o" aria-pressed="false" aria-label="PU-ANC unit 7, beyond the allocation: Introduced at the Italian GP (named in an FIA document)"><b>#7</b><span>ITA</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="PU-ANC unit 8, beyond the allocation: Introduced at the Singapore GP (named in an FIA document)"><b>#8</b><span>SGP</span></button></div></div>
+          <div class="legend"><span><i class="sw"></i>Within the allocation</span><span><i class="sw o"></i>Beyond the allocation</span><span><i class="sw d" style="background:none"></i>Spare: still available</span><span><i class="sw d"></i>Round not pinned down</span><span><s>#4</s>No longer counted by the FIA</span></div>
+          <div class="inspect" aria-live="polite"><div><p class="eyebrow over">ICE #8 · 4th beyond the 4 allowed</p><p class="t1">Introduced at the Singapore GP (named in an FIA document).</p><p class="t2">Stewards: Pit-lane start, first used in Qualifying.</p></div><a class="jump" href="#round-17">That weekend ↓</a></div>
+        </figure>
+      </section>
+
+      <section class="block" aria-labelledby="s-season">
+        <div class="section-head"><span class="idx">02</span><h2 id="s-season">Season</h2><span class="aside eyebrow">One cell per Grand Prix · select one for the weekend</span></div>
+        <figure class="panel card">
+          <p class="eyebrow">What each weekend cost</p>
+          <h3>Five rulings in 20 rounds: three grid drops and two pit-lane starts</h3>
+          <p class="sub">New units fitted at 10 of 20 Grand Prix weekends · Lawson (#30) stood in at R12–R14</p>
+          <ol class="tl"><li><a class="c" href="#round-1" aria-label="Australian GP: 7 new units" title="Australian GP: 7 new units"><span class="code">AUS</span><span class="m u">7</span><span class="d">HAD</span></a></li><li><a class="c" href="#round-2" aria-label="Chinese GP: 9 new units" title="Chinese GP: 9 new units"><span class="code">CHN</span><span class="m u">9</span><span class="d">HAD</span></a></li><li><span class="c" title="Japanese GP: nothing new"><span class="code">JPN</span><span class="m" aria-label="Japanese GP: nothing new">·</span><span class="d">HAD</span></span></li><li><a class="c" href="#round-4" aria-label="Miami GP: pit-lane start" title="Miami GP: pit-lane start"><span class="code">MIA</span><span class="m p">PL</span><span class="d">HAD</span></a></li><li><a class="c" href="#round-5" aria-label="Canadian GP: 4 new units" title="Canadian GP: 4 new units"><span class="code">CAN</span><span class="m u">4</span><span class="d">HAD</span></a></li><li><span class="c" title="Monaco GP: nothing new"><span class="code">MCO</span><span class="m" aria-label="Monaco GP: nothing new">·</span><span class="d">HAD</span></span></li><li><span class="c" title="Barcelona-Catalunya GP: nothing new"><span class="code">BAR</span><span class="m" aria-label="Barcelona-Catalunya GP: nothing new">·</span><span class="d">HAD</span></span></li><li><a class="c" href="#round-8" aria-label="Austrian GP: 4 new units" title="Austrian GP: 4 new units"><span class="code">AUT</span><span class="m u">4</span><span class="d">HAD</span></a></li><li><span class="c" title="British GP: nothing new"><span class="code">GBR</span><span class="m" aria-label="British GP: nothing new">·</span><span class="d">HAD</span></span></li><li><a class="c" href="#round-10" aria-label="Belgian GP: 30 grid places" title="Belgian GP: 30 grid places"><span class="code">BEL</span><span class="m p">−30</span><span class="d">HAD</span></a></li><li><span class="c" title="Hungarian GP: nothing new"><span class="code">HUN</span><span class="m" aria-label="Hungarian GP: nothing new">·</span><span class="d">HAD</span></span></li><li><a class="c" href="#round-12" aria-label="Dutch GP: 1 new unit" title="Dutch GP: 1 new unit"><span class="code">NLD</span><span class="m u">1</span><span class="d alt">LAW</span></a></li><li><a class="c" href="#round-13" aria-label="Italian GP: 35 grid places" title="Italian GP: 35 grid places"><span class="code">ITA</span><span class="m p">−35</span><span class="d alt">LAW</span></a></li><li><span class="c" title="Spanish GP: nothing new"><span class="code">ESP</span><span class="m" aria-label="Spanish GP: nothing new">·</span><span class="d alt">LAW</span></span></li><li><span class="c" title="Azerbaijan GP: nothing new"><span class="code">AZE</span><span class="m" aria-label="Azerbaijan GP: nothing new">·</span><span class="d">HAD</span></span></li><li><a class="c" href="#round-16" aria-label="Bahrain GP: 5 grid places" title="Bahrain GP: 5 grid places"><span class="code">BHR</span><span class="m p">−5</span><span class="d">HAD</span></a></li><li><a class="c" href="#round-17" aria-label="Singapore GP: pit-lane start" title="Singapore GP: pit-lane start"><span class="code">SGP</span><span class="m p">PL</span><span class="d">HAD</span></a></li><li><span class="c" title="United States GP: nothing new"><span class="code">USA</span><span class="m" aria-label="United States GP: nothing new">·</span><span class="d">HAD</span></span></li><li><span class="c" title="Mexican GP: nothing new"><span class="code">MEX</span><span class="m" aria-label="Mexican GP: nothing new">·</span><span class="d">HAD</span></span></li><li><span class="c latest" title="São Paulo GP: nothing new"><span class="code">SAO</span><span class="m" aria-label="São Paulo GP: nothing new">·</span><span class="d">HAD</span></span></li><li><span class="c" title="Las Vegas GP: no FIA documents yet"><span class="code">LAS</span><span class="m f" aria-label="Las Vegas GP: no FIA documents yet"></span><span class="d"></span></span></li><li><span class="c" title="Qatar GP: no FIA documents yet"><span class="code">QAT</span><span class="m f" aria-label="Qatar GP: no FIA documents yet"></span><span class="d"></span></span></li><li><span class="c" title="Abu Dhabi GP: no FIA documents yet"><span class="code">ABD</span><span class="m f" aria-label="Abu Dhabi GP: no FIA documents yet"></span><span class="d"></span></span></li></ol>
+          <div class="legend"><span><b class="mk u">7</b>new units</span><span><b class="mk p">−30</b>grid places</span><span><b class="mk p">PL</b>pit-lane start</span><span><b class="mk q">?</b>ruling pending</span><span><b class="mk nf">!</b>no ruling found</span><span><b class="mk">·</b>nothing new</span><span><b class="mk f"></b>no FIA documents yet</span><span><b class="mk" style="color:var(--blue);background:none">LAW</b>stand-in driver</span></div>
+        </figure>
+      </section>
+
+      <section class="block" aria-labelledby="s-wk">
+        <div class="section-head"><span class="idx">03</span><h2 id="s-wk">Weekend by weekend</h2><span class="aside eyebrow">10 weekends with new units · newest first</span></div>
+        <div class="log"><article class="wk" id="round-17"><header><p class="r">R17<span>SGP</span></p><h3>Singapore GP</h3><p class="when">11 Oct</p><span class="tagx red">Stewards decided</span></header><div class="body"><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ICE #8</span><span class="chip o">TC #7</span><span class="chip o">EXH #7</span><span class="chip o">PU-ANC #8</span></div><div class="dec"><b>Pit-lane start</b><p class="els">ICE #8 · TC #7 · EXH #7 · PU-ANC #8 · first used in Qualifying</p><p class="nom">The units alone carried 5 grid places; the pit-lane start made that drop redundant.</p><p class="sum">Required to start the Race from the pit lane.</p><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_infringement_-_car_6_-_pu_elements_and_changes_made_during_parc_ferme.pdf" target="_blank" rel="noopener noreferrer">Stewards · Doc 83 · Infringement · Car 6 · PU elements and changes made during Parc Ferme ↗<span class="sr">(opens the FIA document)</span></a></div></div><div class="side"><dl><dt>Grid</dt><dd>Started from the pit lane</dd></dl></div></article><article class="wk" id="round-16"><header><p class="r">R16<span>BHR</span></p><h3>Bahrain GP</h3><p class="when">4 Oct</p><span class="tagx red">Stewards decided</span></header><div class="body"><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ICE #7</span></div><div class="dec"><b>−5 grid places</b><p class="els">ICE #7 · first used in Free Practice 1</p><p class="sum">Drop of 5 grid positions for the next Race in which the driver participates.</p><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_bahrain_grand_prix_in_malaysia_-_infringement_-_car_6_-_changes_to_pu_elements.pdf" target="_blank" rel="noopener noreferrer">Stewards · Doc 17 · Infringement · Car 6 · Changes to PU elements ↗<span class="sr">(opens the FIA document)</span></a></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P3 → started P8</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_bahrain_grand_prix_in_malaysia_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 14 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-13"><header><p class="r">R13<span>ITA</span></p><h3>Italian GP</h3><p class="when">6 Sep</p><span class="tagx red">Stewards decided</span></header><div class="body"><p class="si"><span class="tagx blue">Stand-in</span> Liam Lawson drove car 6 this weekend under his own number, #30. Units fitted to this car count against its allocation, the one Hadjar races with, whoever drives it (Article B8.2.7).</p><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ICE #6</span><span class="chip o">TC #6</span><span class="chip o">EXH #6</span><span class="chip o">MGU-K #4</span><span class="chip o">PU-ANC #7</span></div><div class="units"><span class="lbl">Within</span><span class="chip">PU-ANC #6</span></div><div class="dec"><b>−35 grid places</b><p class="els">ICE #6 · TC #6 · EXH #6 · MGU-K #4 · PU-ANC #7 · first used in Free Practice 3</p><p class="sum">Drop of 35 grid positions for the next Race in which the driver participates.</p><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_italian_grand_prix_-_infringement_-_car_30_-_change_to_pu_elements.pdf" target="_blank" rel="noopener noreferrer">Stewards · Doc 41 · Infringement · Car 30 · Change to PU elements ↗<span class="sr">(opens the FIA document)</span></a></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P14 → started from the pit lane</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_italian_grand_prix_-_new_pu_elements_for_this_competition_1.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 33 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-12"><header><p class="r">R12<span>NLD</span></p><h3>Dutch GP</h3><p class="when">23 Aug</p><span class="tagx">Within the allocation</span></header><div class="body"><p class="si"><span class="tagx blue">Stand-in</span> Liam Lawson drove car 6 this weekend under his own number, #30. Units fitted to this car count against its allocation, the one Hadjar races with, whoever drives it (Article B8.2.7).</p><div class="units"><span class="lbl">Within</span><span class="chip">MGU-K #3</span></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P8 → started P8</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_dutch_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 12 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-10"><header><p class="r">R10<span>BEL</span></p><h3>Belgian GP</h3><p class="when">19 Jul</p><span class="tagx red">Stewards decided</span></header><div class="body"><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ICE #5</span><span class="chip o">TC #5</span><span class="chip o">EXH #5</span></div><div class="units"><span class="lbl">Within</span><span class="chip">PU-ANC #5</span></div><div class="dec"><b>−30 grid places</b><p class="els">ICE #5 · TC #5 · EXH #5 · first used in Free Practice 1</p><p class="sum">Drop of 30 grid positions for the next Race in which the driver participates. (Subject to Car 6 being classified in the results of qualifying, Car 6 will be allocated a grid position in the race in accordance with Article B2.5.4b.iv of the FIA F1 Regulations)</p><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_corrected_infringement_-_car_6_-_changes_to_pu_elements.pdf" target="_blank" rel="noopener noreferrer">Stewards · Doc 44 · Corrected Infringement · Car 6 · Changes to PU elements ↗<span class="sr">(opens the FIA document)</span></a></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P10 → started P21</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 14 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-8"><header><p class="r">R8<span>AUT</span></p><h3>Austrian GP</h3><p class="when">28 Jun</p><span class="tagx">Within the allocation</span></header><div class="body"><div class="units"><span class="lbl">Within</span><span class="chip">ICE #4</span><span class="chip">TC #4</span><span class="chip">EXH #4</span><span class="chip">PU-ANC #4</span></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P8 → started P8</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_austrian_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 15 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-5"><header><p class="r">R5<span>CAN</span></p><h3>Canadian GP</h3><p class="when">24 May</p><span class="tagx">Within the allocation</span></header><div class="body"><div class="units"><span class="lbl">Within</span><span class="chip">ICE #3</span><span class="chip">TC #3</span><span class="chip">EXH #3</span><span class="chip">PU-ANC #3</span></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P7 → started P7</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 16 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-4"><header><p class="r">R4<span>MIA</span></p><h3>Miami GP</h3><p class="when">3 May</p><span class="tagx red">Stewards decided</span></header><div class="body"><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ES #4</span><span class="chip o">PU-CE #4</span></div><div class="dec"><b>Pit-lane start</b><p class="els">ES #4 · PU-CE #4 · first used in Qualifying</p><p class="sum">Required to start the Race from the pit lane.</p><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_miami_grand_prix_-_infringement_-_car_6_-_pu_elements_changed_under_parc_ferme.pdf" target="_blank" rel="noopener noreferrer">Stewards · Doc 75 · Infringement · Car 6 · PU Elements changed under Parc Ferme ↗<span class="sr">(opens the FIA document)</span></a></div></div><div class="side"><dl><dt>Grid</dt><dd>Started from the pit lane</dd></dl></div></article><article class="wk" id="round-2"><header><p class="r">R2<span>CHN</span></p><h3>Chinese GP</h3><p class="when">15 Mar</p><span class="tagx">Within the allocation</span></header><div class="body"><div class="units"><span class="lbl">Within</span><span class="chip">ICE #2</span><span class="chip">TC #2</span><span class="chip">EXH #2</span><span class="chip">MGU-K #2</span><span class="chip">ES #2</span><span class="chip">ES #3</span><span class="chip">PU-CE #2</span><span class="chip">PU-CE #3</span><span class="chip">PU-ANC #2</span></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P9 → started P9</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_chinese_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 15 ↗<span class="sr">(opens the FIA document)</span></a><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_chinese_grand_prix_-_new_pu_elements_for_this_competition_0.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 22 ↗<span class="sr">(opens the FIA document)</span></a><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_chinese_grand_prix_-_new_pu_elements_for_this_competition_2.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 69 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article><article class="wk" id="round-1"><header><p class="r">R1<span>AUS</span></p><h3>Australian GP</h3><p class="when">8 Mar</p><span class="tagx">Within the allocation</span></header><div class="body"><div class="units"><span class="lbl">Within</span><span class="chip">ICE #1</span><span class="chip">TC #1</span><span class="chip">EXH #1</span><span class="chip">MGU-K #1</span><span class="chip">ES #1</span><span class="chip">PU-CE #1</span><span class="chip">PU-ANC #1</span></div></div><div class="side"><dl><dt>Grid</dt><dd>Qualified P3 → started P3</dd></dl></div></article></div>
+      </section>
+
+      <footer class="srcnote note">
+        <p>Source: FIA technical-delegate reports “New PU elements for this competition” and the stewards’ power-unit decisions, checked hourly · last checked 18 Nov 2026, 14:36 UTC · last change 08 Nov 2026, 19:41 UTC</p>
+        <p>Allocations as the FIA states them: ICE 4 · TC 4 · ES 3 · PU-CE 3 (<a href="https://www.fia.com/system/files/decision-document/2026_sao_paulo_grand_prix_-_new_pu_elements_for_this_competition_2.pdf" target="_blank" rel="noopener noreferrer">FIA doc 55, 8 Nov ↗</a>) · EXH 4 · MGU-K 3 · PU-ANC 6 (<a href="https://www.fia.com/system/files/decision-document/2026_sao_paulo_grand_prix_-_new_pu_elements_for_this_competition_1.pdf" target="_blank" rel="noopener noreferrer">FIA doc 42, 8 Nov ↗</a>)</p>
+      </footer>
+
+      <aside class="annex" aria-labelledby="annex-h">
+        <p class="eyebrow">Mockup annex · not part of the page</p>
+        <h2 id="annex-h" class="display">Every state this page labels</h2>
+        <p class="soft">Car 6 shows the stand-in, beyond-the-allocation, grid-drop, pit-lane and superseded-drop states above. The rest follow, with a real case from the same capture where one exists. In the table, words in ‹angle quotes› are fields from the payload.</p>
+        <div class="grid2">
+          <figure class="panel card"><p class="eyebrow">Unit tiles</p><div class="tiles" style="margin-top:14px"><button type="button" class="tile" aria-pressed="false" aria-label="ICE unit 2, within the allocation: Introduced at the Chinese GP (named in an FIA document)"><b>#2</b><span>CHN</span></button><button type="button" class="tile o" aria-pressed="false" aria-label="ICE unit 5, beyond the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#5</b><span>BEL</span></button><button type="button" class="tile o w" aria-pressed="false" aria-label="ICE unit 6, beyond the allocation: Introduced between round 18 and round 19 — the FIA documents collected do not pin the round down"><b>#6</b><span>R18–19</span></button><button type="button" class="tile x" aria-pressed="false" aria-label="EXH unit 4, within the allocation: Introduced at the Belgian GP (named in an FIA document)"><b>#4</b><span>BEL</span></button></div><p class="cap">Within (car 6) · beyond (car 6) · round not pinned down: #18 ICE #6 · not counted: #12 EXH #4 (R10, not counted from R13)</p></figure>
+          <figure class="panel card"><p class="eyebrow">Season cells</p><div class="marks"><span class="tl-c"><b class="mk u">7</b></span><span class="tl-c"><b class="mk p">−30</b></span><span class="tl-c"><b class="mk p">PL</b></span><span class="tl-c"><b class="mk q">?</b></span><span class="tl-c"><b class="mk nf">!</b></span><span class="tl-c"><b class="mk">·</b></span><span class="tl-c"><b class="mk f"></b></span></div><p class="cap">New units · grid drop · pit-lane start · ruling pending · no ruling found · nothing new · no FIA documents yet. A ruling pending has no case in this capture.</p></figure>
+        </div>
+        <figure class="panel card"><p class="eyebrow">No ruling found · the real row for car 30 at R19</p><div class="log" style="margin-top:8px"><article class="wk" id="round-19"><header><p class="r">R19<span>MEX</span></p><h3>Mexican GP</h3><p class="when">1 Nov</p><span class="tagx line">No ruling found</span></header><div class="body"><div class="units"><span class="lbl">Beyond the allocation</span><span class="chip o">ICE #5</span><span class="chip o">TC #5</span><span class="chip o">EXH #5</span><span class="chip o">PU-ANC #7</span></div><div class="units"><span class="lbl">Within</span><span class="chip">ES #3</span><span class="chip">PU-CE #3</span></div><p class="gap">Units beyond the allocation were fitted, but no stewards' decision naming them was found in the collected documents.</p></div><div class="side"><dl><dt>Grid</dt><dd>Started from the pit lane</dd><dt>FIA reports</dt><dd class="links"><a class="doc" href="https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_new_pu_elements_for_this_competition.pdf" target="_blank" rel="noopener noreferrer">TD report · Doc 14 ↗<span class="sr">(opens the FIA document)</span></a></dd></dl></div></article></div></figure>
+        <div class="scroll">
+          <table class="tbl states">
+            <thead><tr><th>State</th><th>Where it shows</th><th>Words on screen</th><th>Case in the 2026-11-18 capture</th></tr></thead>
+            <tbody>
+              <tr><td>Stand-in</td><td>Lineup, weekend row, season driver row</td><td><code>Stand-in</code> · <code>‹name› drove car ‹n› this weekend under his own number, #‹m›. Units fitted to this car count against its allocation, the one ‹regular› races with, whoever drives it (Article B8.2.7).</code></td><td>Car 6, R12–R14 (above)</td></tr>
+              <tr><td>Ruling pending</td><td>Weekend tag (blue), season cell, KPI lead sub, inspector</td><td><code>Ruling pending</code> · <code>Units beyond the allocation were fitted, and the stewards have not published a decision yet.</code> · <code>· 1 weekend’s ruling still pending</code></td><td class="none">None</td></tr>
+              <tr><td>No ruling found</td><td>Weekend tag (outlined), season cell, KPI lead sub, inspector</td><td><code>No ruling found</code> · <code>Units beyond the allocation were fitted, but no stewards’ decision naming them was found in the collected documents.</code> · <code>· 1 weekend past the allocation with no ruling found</code></td><td>#14 R14 Spanish GP · #30 R19 Mexican GP</td></tr>
+              <tr><td>Round not pinned down</td><td>Dashed tile, inspector</td><td><code>R18–19</code> · <code>Introduced between round 18 and round 19 — the FIA documents collected do not pin the round down</code></td><td>#18 ICE #6, and four more units on car 18</td></tr>
+              <tr><td>Round inferred</td><td>Inspector</td><td><code>(the only round between two FIA usage reports)</code>, against <code>(named in an FIA document)</code></td><td>Car 6: every R1 unit, and PU-ANC #6</td></tr>
+              <tr><td>Not counted</td><td>Struck tile after “Not counted”, struck chip, inspector</td><td><code>The FIA's usage reports stopped counting this unit from round ‹n›, so it is not in the total.</code></td><td>#12 EXH #4 (R10, not counted from R13)</td></tr>
+              <tr><td>Drop superseded</td><td>Decision block</td><td><code>The units alone carried ‹n› grid places; the pit-lane start made that drop redundant.</code></td><td>Car 6, R17 (above)</td></tr>
+              <tr><td>Pit-lane count</td><td>KPI tile</td><td><code>ordered by power-unit rulings</code>. The count is of rulings, so a pit-lane start on the grid sheet with no power-unit ruling is not counted.</td><td>Car 6 R13: a −35 ruling, and the grid sheet says pit lane</td></tr>
+              <tr><td>Grid not final</td><td>Weekend grid line</td><td><code>Grid sheet not published yet</code> · <code>Not on the published grid sheet</code></td><td class="none">None (all 196 grids official)</td></tr>
+              <tr><td>Collection state</td><td>Source note, first line (only when not OK)</td><td><code>Not checked yet</code> · <code>Last check failed</code> · <code>Last check not saved</code> · <code>Collection overdue</code> · <code>Some documents unread</code>, each with <code>· last checked ‹time›</code> and freshness.error</td><td class="none">None (outcome ok)</td></tr>
+              <tr><td>Unread document</td><td>Source note list, linked</td><td><code>‹event›: ‹title› could not be read (‹reason›); counts that depend on it may be incomplete</code></td><td class="none">None</td></tr>
+              <tr><td>Withdrawn document</td><td>Source note list, linked</td><td><code>‹title›: withdrawn or replaced by the FIA, not counted (‹reason›)</code></td><td class="none">None</td></tr>
+              <tr><td>Allowance not stated</td><td>Ledger row <code>‹used› used / ? allowed</code>, source note</td><td><code>‹code›: allowance not stated by the FIA yet</code></td><td class="none">None</td></tr>
+              <tr><td>Allowance pinned by hand</td><td>Source note</td><td><code>‹code›: allowance pinned by hand (‹note›)</code></td><td class="none">None</td></tr>
+              <tr><td>Checks that did not add up</td><td>Source note list</td><td>Each of car.warnings and warnings, as the API words it</td><td class="none">None (car 6: [])</td></tr>
+              <tr><td>Unknown car · no data</td><td>Page body (h1 stays)</td><td><code>No ‹year› car runs as #‹n›.</code> + <code>See every car</code> (a 404 once a loaded payload proves it) · reason, or <code>Power-unit usage hasn't been collected for this season yet.</code> · <code>No new units recorded for this car yet.</code></td><td class="none">n/a</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,3 @@
-import { notFound } from "next/navigation";
-
 import { currentSeason, getPowerUnits } from "@/app/lib/server/raceControl";
 import { driverLabel, teamLabel } from "@/app/ui/names/names";
 
@@ -15,6 +13,8 @@ interface CarPageProps {
 
 /** Documents arrive through a race weekend; the collection job runs hourly. */
 export const revalidate = 300;
+
+const FALLBACK_TITLE = "Power Unit Tracker | F1 AI";
 
 /**
  * Prerender every car of the season, by its current number.
@@ -32,7 +32,8 @@ export async function generateMetadata({ params }: CarPageProps): Promise<Metada
   const data = await getPowerUnits<PowerUnitsResponse>(currentSeason());
   const car = data ? findCar(data.cars, segment) : undefined;
   if (!car) {
-    return { title: "Power Unit Tracker | F1 AI" };
+    // A loaded payload without the car proves the URL wrong; no payload proves nothing.
+    return data?.available ? { title: FALLBACK_TITLE, robots: { index: false } } : { title: FALLBACK_TITLE };
   }
   const driver = driverLabel(car.driver, "full");
   const team = teamLabel({ id: car.team_id, name: car.team }, "name");
@@ -42,14 +43,9 @@ export async function generateMetadata({ params }: CarPageProps): Promise<Metada
   };
 }
 
+/** Awaits only `params`: the payload goes to the sections as a promise, so no section waits for another. */
 export default async function CarPage({ params }: CarPageProps) {
   const { car: segment } = await params;
   const year = currentSeason();
-  const data = await getPowerUnits<PowerUnitsResponse>(year);
-  // Only a payload that loaded and lacks the car proves the URL wrong; with no
-  // payload at all the browser fetches it and decides.
-  if (data?.available && !findCar(data.cars, segment)) {
-    notFound();
-  }
-  return <CarView seed={{ year, data }} segment={segment} />;
+  return <CarView year={year} segment={segment} seed={getPowerUnits<PowerUnitsResponse>(year)} />;
 }

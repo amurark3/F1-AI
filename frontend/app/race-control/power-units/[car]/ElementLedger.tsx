@@ -1,286 +1,240 @@
 "use client";
 
-import { ArrowDown } from "lucide-react";
 import { useState } from "react";
 
 import { PanelHeading } from "@/app/ui/PanelHeading";
+import { Section } from "@/app/ui/section/Section";
+import { SectionHead } from "@/app/ui/SectionHead";
 
-import { Panel } from "../../components/RaceControlPrimitives";
+import { StateTag } from "../../grand-prix/StateTag";
 import {
-  OVER_COLOR,
-  PENDING_COLOR,
-  outcomeLabel,
   partShortWhere,
   partWhere,
-  type CarEvent,
+  roundsByNumber,
   type ElementInfo,
-  type ElementUsage,
   type Part,
   type PowerUnitCar,
   type RoundInfo,
 } from "../powerUnitsModel";
 
-interface PartKey {
-  code: string;
-  number: number;
-}
+import {
+  defaultPart,
+  inspectorHead,
+  ledgerRows,
+  ledgerTitle,
+  rulingFor,
+  tileLabel,
+  type LedgerRow,
+  type PartKey,
+} from "./carModel";
+import { useCar, type CarSectionProps } from "./useCar";
 
-const ORDINALS = ["", "1st", "2nd", "3rd"];
-const ordinal = (n: number): string => ORDINALS[n] ?? `${n}th`;
+const SUB =
+  "Units in the order fitted, each with the Grand Prix it arrived at. Right of the red line is beyond the allocation. Select a unit for its ruling.";
 
-function tileStyle(part: Part, teamColor: string): React.CSSProperties {
-  if (part.not_counted_from !== null) {
-    return { borderColor: "#3A4354", background: "transparent", opacity: 0.6 };
-  }
-  if (part.beyond_allowance) {
-    return { borderColor: OVER_COLOR, background: `${OVER_COLOR}2E` };
-  }
-  return { borderColor: `${teamColor}80`, background: `${teamColor}1F` };
-}
+const BOX = "flex h-[46px] w-[50px] flex-none items-center justify-center rounded-[3px] sm:w-14";
 
-function UnitTile({
-  part,
-  teamColor,
-  rounds,
-  active,
-  onActivate,
-}: {
+interface TileProps {
   part: Part;
-  teamColor: string;
   rounds: Map<number, RoundInfo>;
-  active: boolean;
-  onActivate: (key: PartKey) => void;
-}) {
-  const where = partShortWhere(part, rounds);
-  const activate = () => onActivate({ code: part.code, number: part.number });
+  pressed: boolean;
+  onSelect: (key: PartKey) => void;
+}
+
+function Tile({ part, rounds, pressed, onSelect }: TileProps) {
+  const counted = part.not_counted_from === null;
+  let look = "border border-rc-line bg-rc-raised";
+  if (!counted) look = "border border-dotted border-rc-line bg-transparent";
+  else if (part.beyond_allowance) look = "border border-f1-red bg-f1-red/16";
   return (
     <button
       type="button"
-      onMouseEnter={activate}
-      onFocus={activate}
-      onClick={activate}
-      aria-pressed={active}
-      aria-label={`${part.code} unit ${part.number}: ${partWhere(part, rounds)}`}
-      className={`relative flex h-12 w-14 flex-col items-center justify-center rounded border font-mono transition-transform hover:-translate-y-0.5 ${
-        part.round === null ? "border-dashed" : ""
-      } ${active ? "ring-2 ring-white/70" : ""}`}
-      style={tileStyle(part, teamColor)}
+      aria-pressed={pressed}
+      aria-label={tileLabel(part, rounds)}
+      onClick={() => onSelect({ code: part.code, number: part.number })}
+      className={`${BOX} flex-col font-mono hover:border-rc-ink-3 ${look} ${part.round === null ? "border-dashed" : ""} ${
+        pressed ? "ring-1 ring-rc-ink ring-offset-2 ring-offset-background" : ""
+      }`}
     >
-      <span
-        className={`text-[13px] font-black leading-none text-white ${part.not_counted_from !== null ? "line-through" : ""}`}
-      >
+      <b className={`text-[13px] font-semibold leading-none ${counted ? "text-rc-ink" : "text-rc-ink-3 line-through"}`}>
         #{part.number}
+      </b>
+      <span
+        className={`mt-[5px] text-[9px] font-medium leading-none tracking-[0.1em] ${counted && part.beyond_allowance ? "text-rc-ink-2" : "text-rc-ink-3"}`}
+      >
+        {partShortWhere(part, rounds)}
       </span>
-      <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-[#B7BDCA]">{where}</span>
-      {part.beyond_allowance && part.not_counted_from === null && (
-        <span
-          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#0D111B]"
-          style={{ background: OVER_COLOR }}
-        />
-      )}
     </button>
   );
 }
 
-function ElementRow({
-  usage,
-  info,
-  teamColor,
+function Row({
+  row,
   rounds,
-  active,
-  onActivate,
+  selected,
+  onSelect,
 }: {
-  usage: ElementUsage;
-  info: ElementInfo | undefined;
-  teamColor: string;
+  row: LedgerRow;
   rounds: Map<number, RoundInfo>;
-  active: PartKey | null;
-  onActivate: (key: PartKey) => void;
+  selected: PartKey | null;
+  onSelect: (key: PartKey) => void;
 }) {
-  const allowance = usage.allowance ?? usage.used;
-  const counted = usage.parts.filter((part) => part.not_counted_from === null);
-  const uncounted = usage.parts.filter((part) => part.not_counted_from !== null);
-  const within = counted.filter((part) => part.number <= allowance);
-  const beyond = counted.filter((part) => part.number > allowance);
+  const { usage } = row;
   const tile = (part: Part) => (
-    <UnitTile
+    <Tile
       key={part.number}
       part={part}
-      teamColor={teamColor}
       rounds={rounds}
-      active={active?.code === part.code && active.number === part.number}
-      onActivate={onActivate}
+      pressed={selected?.code === part.code && selected.number === part.number}
+      onSelect={onSelect}
     />
   );
   return (
-    <div className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center">
-      <div className="w-full shrink-0 md:w-44">
-        <p className="font-mono text-sm font-black tracking-[0.08em] text-white">{usage.code}</p>
-        <p className="text-[11px] text-[#6F7789]">{info?.name}</p>
-        <p className="mt-1 font-mono text-xs tabular-nums text-[#B7BDCA]">
+    <div className="grid gap-3 border-t border-rc-line-soft py-4 md:grid-cols-[210px_minmax(0,1fr)] md:gap-6">
+      <div>
+        <b className="font-mono text-sm font-semibold leading-none tracking-[0.06em] text-rc-ink">{usage.code}</b>
+        <small className="mt-[5px] block text-xs text-rc-ink-3">{row.name}</small>
+        <p className="mt-2 flex items-center gap-2 font-mono text-xs font-medium leading-none text-rc-ink-2">
           {usage.used} used / {usage.allowance ?? "?"} allowed
-          {usage.over_by > 0 && (
-            <span
-              className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-black text-white"
-              style={{ background: OVER_COLOR }}
-            >
-              +{usage.over_by}
-            </span>
-          )}
+          {usage.over_by > 0 && <StateTag tone="red">+{usage.over_by}</StateTag>}
         </p>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {within.map(tile)}
-        {Array.from({ length: Math.max(0, allowance - within.length) }, (_, index) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {row.within.map(tile)}
+        {Array.from({ length: row.spares }, (_, index) => (
           <span
-            key={`free-${index}`}
-            className="flex h-12 w-14 items-center justify-center rounded border border-dashed border-[#2C3646] font-mono text-[9px] uppercase tracking-[0.12em] text-[#4A5263]"
+            key={`spare-${index}`}
+            className={`${BOX} border border-dashed border-rc-line font-mono text-[9px] font-medium uppercase leading-none tracking-[0.12em] text-rc-ink-3`}
           >
             spare
           </span>
         ))}
-        {beyond.length > 0 && (
-          <span className="flex h-12 flex-col items-center justify-center px-1" aria-hidden="true">
-            <span className="h-8 border-l-2 border-dashed" style={{ borderColor: OVER_COLOR }} />
-            <span
-              className="mt-0.5 font-mono text-[8px] font-black uppercase tracking-[0.14em]"
-              style={{ color: OVER_COLOR }}
-            >
-              limit
-            </span>
+        {row.beyond.length > 0 && (
+          <span aria-hidden="true" className="mx-0.5 grid w-3.5 place-items-center">
+            <i className="h-[46px] w-0.5 bg-f1-red" />
           </span>
         )}
-        {beyond.map(tile)}
-        {uncounted.length > 0 && (
-          <span className="ml-1 font-mono text-[9px] uppercase tracking-[0.14em] text-[#5A6273]">not counted</span>
+        {row.beyond.map(tile)}
+        {row.notCounted.length > 0 && (
+          <span className="ml-2 font-mono text-[9px] font-medium uppercase leading-none tracking-[0.14em] text-rc-ink-3">
+            Not counted
+          </span>
         )}
-        {uncounted.map(tile)}
+        {row.notCounted.map(tile)}
       </div>
     </div>
   );
 }
 
-function rulingFor(part: Part, events: CarEvent[]): string {
-  if (part.not_counted_from !== null) {
-    return `The FIA's usage reports stopped counting this unit from round ${part.not_counted_from}, so it is not in the total.`;
-  }
-  const event = events.find((item) => item.round === part.round);
-  const decision = event?.decisions.find((item) =>
-    item.elements.some((element) => element.code === part.code && element.number === part.number),
+function Swatch({ className }: { className: string }) {
+  return <i aria-hidden="true" className={`inline-block h-3 w-3.5 rounded-[2px] border ${className}`} />;
+}
+
+function LedgerLegend() {
+  return (
+    <ul
+      aria-label="Legend"
+      className="flex flex-wrap gap-x-[18px] gap-y-2 border-t border-rc-line-soft pt-4 font-mono text-[11px] font-medium leading-none text-rc-ink-3"
+    >
+      <li className="inline-flex items-center gap-[7px]">
+        <Swatch className="border-rc-line bg-rc-raised" />
+        Within the allocation
+      </li>
+      <li className="inline-flex items-center gap-[7px]">
+        <Swatch className="border-f1-red bg-f1-red/16" />
+        Beyond the allocation
+      </li>
+      <li className="inline-flex items-center gap-[7px]">
+        <Swatch className="border-dashed border-rc-line" />
+        Spare: still available
+      </li>
+      <li className="inline-flex items-center gap-[7px]">
+        <Swatch className="border-dashed border-rc-line bg-rc-raised" />
+        Round not pinned down
+      </li>
+      <li className="inline-flex items-center gap-[7px]">
+        <s className="font-semibold">#4</s>
+        No longer counted by the FIA
+      </li>
+    </ul>
   );
-  if (decision) {
-    const session = decision.session ? `, first used in ${decision.session}` : "";
-    return `Stewards: ${outcomeLabel(decision)}${session}.`;
-  }
-  if (!part.beyond_allowance) {
-    return "No penalty — within the season's allowance.";
-  }
-  if (event?.penalty_status === "pending") {
-    return "The stewards' decision for this weekend has not been published yet.";
-  }
-  return "No stewards' decision naming this unit was found in the collected documents.";
 }
 
 function Inspector({
-  part,
-  usage,
-  events,
+  car,
+  selected,
   rounds,
 }: {
-  part: Part;
-  usage: ElementUsage;
-  events: CarEvent[];
+  car: PowerUnitCar;
+  selected: PartKey | null;
   rounds: Map<number, RoundInfo>;
 }) {
-  const allowance = usage.allowance;
-  const extra = allowance === null ? 0 : part.number - allowance;
-  const tone = part.beyond_allowance ? OVER_COLOR : "#00FF78";
+  const usage = car.elements.find((item) => item.code === selected?.code);
+  const part = usage?.parts.find((item) => item.number === selected?.number);
   return (
-    <div className="border-t border-[#1E2633] bg-[#0A0E16] px-4 py-3" aria-live="polite">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: tone }}>
-            {part.code} #{part.number} ·{" "}
-            {extra > 0 ? `${ordinal(extra)} beyond the ${allowance} allowed` : `within the ${allowance ?? "?"} allowed`}
-          </p>
-          <p className="mt-1 text-sm text-white">{partWhere(part, rounds)}.</p>
-          <p className="mt-0.5 text-sm" style={{ color: part.beyond_allowance ? "#FFB4B1" : "#8E96A8" }}>
-            {rulingFor(part, events)}
-          </p>
-        </div>
-        {part.round !== null && (
-          <a
-            href={`#round-${part.round}`}
-            className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#9EC5FF] hover:text-white"
-          >
-            That weekend <ArrowDown className="h-3 w-3" aria-hidden="true" />
-          </a>
-        )}
-      </div>
+    <div
+      aria-live="polite"
+      className="-mx-[18px] -mb-[18px] mt-5 flex flex-col items-start justify-between gap-x-6 gap-y-3 rounded-b-md border-t border-rc-line bg-rc-raised px-[18px] py-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:px-6"
+    >
+      {usage && part && (
+        <>
+          <div>
+            <p
+              className={`font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.22em] ${part.beyond_allowance ? "text-rc-red-text" : "text-rc-ink-3"}`}
+            >
+              {inspectorHead(part, usage)}
+            </p>
+            <p className="mt-2 text-rc-ink">{partWhere(part, rounds)}.</p>
+            <p className="mt-0.5 text-rc-ink-2">{rulingFor(part, car.events)}</p>
+          </div>
+          {part.round !== null && car.events.some((event) => event.round === part.round) && (
+            <a
+              href={`#round-${part.round}`}
+              className="flex-none font-mono text-[11px] font-medium uppercase leading-none tracking-[0.12em] text-rc-ink-2 hover:text-rc-ink"
+            >
+              That weekend ↓
+            </a>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-function defaultPart(car: PowerUnitCar): PartKey | null {
-  const parts = car.elements.flatMap((item) => item.parts);
-  const latest = [...parts].sort(
-    (a, b) => (b.round ?? 0) - (a.round ?? 0) || Number(b.beyond_allowance) - Number(a.beyond_allowance),
-  )[0];
-  return latest ? { code: latest.code, number: latest.number } : null;
-}
-
-export function ElementLedger({
+function Ledger({
   car,
   elements,
   rounds,
-  teamColor,
 }: {
   car: PowerUnitCar;
   elements: ElementInfo[];
   rounds: Map<number, RoundInfo>;
-  teamColor: string;
 }) {
-  const [active, setActive] = useState<PartKey | null>(() => defaultPart(car));
-  const info = new Map(elements.map((item) => [item.code, item]));
-  const activeUsage = car.elements.find((item) => item.code === active?.code);
-  const activePart = activeUsage?.parts.find((part) => part.number === active?.number);
-
+  const [selected, setSelected] = useState<PartKey | null>(() => defaultPart(car));
   return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Element ledger"
-        aside={
-          <span className="hidden items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[#7F8797] sm:inline-flex">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: teamColor }} /> within
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: OVER_COLOR }} /> beyond
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-dashed" style={{ borderColor: PENDING_COLOR }} />{" "}
-              round not named
-            </span>
-          </span>
-        }
-        inset
-      />
-      <div className="divide-y divide-[#1E2633]">
-        {car.elements.map((usage) => (
-          <ElementRow
-            key={usage.code}
-            usage={usage}
-            info={info.get(usage.code)}
-            teamColor={teamColor}
-            rounds={rounds}
-            active={active}
-            onActivate={setActive}
-          />
-        ))}
-      </div>
-      {activePart && activeUsage && (
-        <Inspector part={activePart} usage={activeUsage} events={car.events} rounds={rounds} />
-      )}
-    </Panel>
+    <figure className="rounded-md border border-rc-line bg-(--surface) p-[18px] sm:p-6">
+      <PanelHeading eyebrow="Element ledger" title={ledgerTitle(car)} sub={SUB} />
+      {ledgerRows(car, elements).map((row) => (
+        <Row key={row.usage.code} row={row} rounds={rounds} selected={selected} onSelect={setSelected} />
+      ))}
+      <LedgerLegend />
+      <Inspector car={car} selected={selected} rounds={rounds} />
+    </figure>
+  );
+}
+
+/** 01: one tile per unit fitted, and the ruling for the one selected. */
+export function ElementLedger(props: CarSectionProps) {
+  const { state, data, car, absent } = useCar(props);
+  if (absent) return null;
+  return (
+    <section aria-labelledby="pu-car-elements">
+      <SectionHead index={1} id="pu-car-elements" title="Elements" aside="One tile per unit fitted" />
+      <Section state={state} label="Element ledger" skeletonClassName="h-[720px]">
+        {car && data && (
+          <Ledger key={car.seat_id} car={car} elements={data.elements ?? []} rounds={roundsByNumber(data.rounds)} />
+        )}
+      </Section>
+    </section>
   );
 }

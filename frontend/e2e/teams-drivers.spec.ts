@@ -77,7 +77,7 @@ test.describe("the Team page", () => {
 
     await expect(page.getByRole("heading", { level: 2, name: "Power units" })).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 3, name: "Both cars are past the allocation: 90 grid places lost" }),
+      page.getByRole("heading", { level: 3, name: "Both cars are past the allocation: 90 grid places imposed" }),
     ).toBeVisible();
   });
 

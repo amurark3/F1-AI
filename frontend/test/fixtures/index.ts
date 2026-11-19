@@ -194,6 +194,10 @@
  *   captured qualifying table (`backend/tests/fixtures/sao_paulo_2026_r20/`):
  *   the provisional grid with its source named.
  *
+ * Power Units (P6.3, 18 Nov):
+ *
+ * - `power-units-2026.json`: `GET /api/race-control/power-units/2026` from production, as served, captured 2026-11-18 (FIA documents through R20 São Paulo doc 57; `changed_at` 2026-11-08T19:41Z).
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
@@ -206,6 +210,7 @@ import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsM
 import type { WeekendSessionsResponse } from "@/app/race-control/grand-prix/sessionsModel";
 import type { RaceStrategyResponse } from "@/app/race-control/grand-prix/strategyModel";
 import type { RoundCircuit } from "@/app/race-control/grand-prix/weekendTabModel";
+import type { PowerUnitsResponse } from "@/app/race-control/power-units/powerUnitsModel";
 import type {
   DriverProfile,
   SeasonDirectory,
@@ -238,6 +243,7 @@ import overviewPredictions2026 from "./overview-predictions-2026.json";
 import overviewShell2026 from "./overview-shell-2026.json";
 import overviewStrategy2026 from "./overview-strategy-2026.json";
 import overviewWeather2026 from "./overview-weather-2026.json";
+import powerUnits2026 from "./power-units-2026.json";
 import predictionOrders2026 from "./prediction-orders-2026.json";
 import predictionReviewR19 from "./prediction-review-2026-r19.json";
 import profilePages2026 from "./profile-pages-2026.json";
@@ -259,6 +265,7 @@ import weekendSessions2026 from "./weekend-sessions-2026.json";
 // JSON imports widen string unions (`role: string`), hence the assertions.
 export const TEAMS_2026 = teams2026 as TeamsResponse;
 export const STANDINGS_PROGRESSION_2026 = standingsProgression2026 as StandingsProgression;
+export const POWER_UNITS_2026 = powerUnits2026 as unknown as PowerUnitsResponse;
 export const DIRECTORY_2026 = directory2026 as SeasonDirectory;
 export const DIRECTORY_2023 = directory2023 as SeasonDirectory;
 export const CHAMPION_STATS = championStats as StatsResponse;

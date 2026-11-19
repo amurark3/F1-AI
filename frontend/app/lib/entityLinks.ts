@@ -16,6 +16,11 @@ export function teamHref(teamId: string): string {
   return `/race-control/constructors/${encodeURIComponent(teamId)}`;
 }
 
+/** The debrief of a round's race; with no round, the page opens the latest one. */
+export function debriefHref(round: number | null): string {
+  return round === null ? "/race-control/debriefs" : `/race-control/debriefs?round=${round}`;
+}
+
 /** A round of the Grand Prix Hub, opened on a given tab. */
 export function grandPrixHref(round: number, tab?: GrandPrixTab): string {
   const query = new URLSearchParams({ round: String(round) });

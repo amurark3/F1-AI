@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { debriefHref } from "@/app/lib/entityLinks";
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
@@ -67,7 +68,7 @@ export function FastestLapPanel({ lap, year }: { lap: FastestLap | null; year: n
   );
 }
 
-export function DebriefLinkPanel() {
+export function DebriefLinkPanel({ round }: { round: number }) {
   return (
     <Panel as="section" className="p-5">
       <PanelHeading
@@ -75,7 +76,7 @@ export function DebriefLinkPanel() {
         sub="Lap leaders, the red flag, grid to finish and the penalties served in the pits"
       />
       <Link
-        href="/race-control/debriefs"
+        href={debriefHref(round)}
         className="inline-flex items-center gap-1.5 font-mono text-xs text-rc-blue hover:text-rc-ink"
       >
         Read the debrief

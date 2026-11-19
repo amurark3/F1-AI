@@ -1,258 +1,36 @@
-"""Race classification loading and post-race debrief generation.
+"""Race classification loading and the post-race debrief's summary.
 
 The classification is :func:`app.services.race_results.build_session_result`'s:
-f1db's, or OpenF1's until f1db holds the race. No FastF1 request is made. A car
-that did not finish has no ``position``: its ``status`` reads DNF (or DNS, DSQ,
-NC) with the reason f1db gives, never a place.
+the FIA's final classification or f1db's, or OpenF1's until either holds the
+race. No FastF1 request is made. A car that did not finish has no ``position``:
+its ``status`` reads DNF (or DNS, DSQ, NC) with the reason f1db gives, never a
+place.
 
 Drivers and teams are printed under f1db's names ("Kimi Antonelli", "Racing
-Bulls"). Every sentence here is built from those rows, so it names drivers
-and teams the same way. See :mod:`app.data.canonical_names`.
+Bulls"). See :mod:`app.data.canonical_names`.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import pandas as pd
 
 from app.data.f1db_calendar import season_schedule
+from app.services.race_control.progression import build_standings_progression
 from app.services.race_control_common import safe_float
+from app.services.race_grid import build_starting_grid
 from app.services.race_results import build_session_result, official_grid
 
 
-@dataclass(frozen=True)
-class DebriefSections:
-    """The derived views of a classification that the race control notes read.
-
-    All four are computed from the same results list, so they are built once and
-    passed together rather than threaded through as parallel arguments.
-    """
-
-    podium: list[dict]
-    movers: list[dict]
-    constructor_impact: list[dict]
-    reliability: list[dict]
-
-
-def build_race_debrief(year: int, round_num: int) -> dict:
-    detail = load_race_classification(year, round_num)
-    podium = detail.get("podium") or []
-    results = detail.get("race_results") or []
-    winner = podium[0] if podium else None
-    movers = sorted(
-        [row for row in results if row.get("grid") and row.get("position")],
-        key=lambda row: row["grid"] - row["position"],
-        reverse=True,
-    )[:3]
-    constructor_impact = build_constructor_impact(results)
-    reliability = [row for row in results if row.get("status") and row["status"] != "Finished"]
-
-    return {
-        "year": year,
-        "round": round_num,
-        "race": detail.get("name", f"Round {round_num}"),
-        "location": detail.get("location", ""),
-        "podium": podium,
-        "headline": (
-            build_debrief_headline(detail, winner, results) if winner else "Race classification is not available yet."
-        ),
-        "strategy_winners": movers,
-        "takeaways": build_debrief_takeaways(results, podium),
-        "podium_cause": build_podium_cause(podium),
-        "constructor_impact": constructor_impact,
-        "reliability_watch": reliability[:5],
-        "classification": results[:10],
-        "race_control_notes": build_race_control_notes(
-            results,
-            DebriefSections(
-                podium=podium,
-                movers=movers,
-                constructor_impact=constructor_impact,
-                reliability=reliability,
-            ),
-        ),
-        "final": detail.get("final", False),
-        "sources": detail.get("sources", []),
-        "insight_source": "Derived from race classification, grid positions, finishing status, and points.",
-        "incidents": [],
-    }
-
-
-def build_debrief_headline(detail: dict, winner: dict | None, _results: list[dict]) -> str:
-    if not winner:
-        return "Race classification is not available yet."
-
-    start = winner.get("grid")
-    finish = winner.get("position")
-    if start and finish:
-        if start == finish:
-            return f"{winner['full_name']} converted pole or track position into the race win at {detail.get('name', 'the Grand Prix')}."
-        if start > finish:
-            gained = start - finish
-            return f"{winner['full_name']} won from P{start}, gaining {gained} place{'s' if gained != 1 else ''} against the starting grid."
-
-    points = winner.get("points")
-    if points:
-        return f"{winner['full_name']} led the final classification and banked {points:g} points for {winner.get('team', 'the team')}."
-    return f"{winner['full_name']} topped the final classification."
-
-
-def build_debrief_takeaways(results: list[dict], podium: list[dict]) -> list[str]:
-    if not results:
-        return []
-
-    takeaways: list[str] = []
-    rows_with_grid = [row for row in results if row.get("grid") and row.get("position")]
-    movers = sorted(rows_with_grid, key=lambda row: row["grid"] - row["position"], reverse=True)
-    losses = sorted(rows_with_grid, key=lambda row: row["grid"] - row["position"])
-
-    if podium:
-        podium_teams = defaultdict(int)
-        for row in podium:
-            podium_teams[row.get("team", "Unknown")] += 1
-        top_team, count = max(podium_teams.items(), key=lambda item: item[1])
-        takeaways.append(
-            f"{top_team} placed {count} car{'s' if count != 1 else ''} on the podium, shaping the main points swing."
-        )
-
-    if movers:
-        best = movers[0]
-        gain = best["grid"] - best["position"]
-        if gain > 0:
-            takeaways.append(
-                f"{best['full_name'] or best['driver']} gained {gain} position{'s' if gain != 1 else ''} from the grid, the clearest strategy or execution gain."
-            )
-
-    if losses:
-        worst = losses[0]
-        loss = worst["position"] - worst["grid"]
-        if loss > 0:
-            takeaways.append(
-                f"{worst['full_name'] or worst['driver']} lost {loss} position{'s' if loss != 1 else ''} versus the grid, flagging a compromised race branch."
-            )
-
-    team_points: dict[str, float] = defaultdict(float)
-    for row in results:
-        team_points[row.get("team", "Unknown")] += safe_float(row.get("points", 0))
-    if team_points:
-        team, points = max(team_points.items(), key=lambda item: item[1])
-        if points > 0:
-            takeaways.append(f"{team} scored the strongest constructor haul with {points:g} points.")
-
-    non_standard_statuses = [row for row in results if row.get("status") and row["status"] != "Finished"]
-    if non_standard_statuses:
-        takeaways.append(
-            f"{len(non_standard_statuses)} car{'s' if len(non_standard_statuses) != 1 else ''} had non-standard finish statuses, so reliability and incident exposure mattered."
-        )
-
-    return takeaways[:4]
-
-
-def build_podium_cause(podium: list[dict]) -> list[dict]:
-    rows = []
-    for row in podium:
-        grid = row.get("grid")
-        position = row.get("position")
-        delta = grid - position if grid and position else None
-        if delta is None:
-            call = "Classification result"
-        elif delta > 0:
-            call = f"Made up {delta} place{'s' if delta != 1 else ''}"
-        elif delta < 0:
-            call = f"Lost {abs(delta)} place{'s' if delta != -1 else ''} but held podium"
-        else:
-            call = "Converted starting position"
-        rows.append(
-            {
-                "position": position,
-                "driver": row.get("driver"),
-                "full_name": row.get("full_name") or row.get("driver"),
-                "team": row.get("team"),
-                "grid": grid,
-                "points": row.get("points", 0),
-                "delta": delta,
-                "call": call,
-            }
-        )
-    return rows
-
-
-def build_constructor_impact(results: list[dict]) -> list[dict]:
-    team_points: dict[str, float] = defaultdict(float)
-    finishers: dict[str, int] = defaultdict(int)
-    for row in results:
-        team = row.get("team", "Unknown")
-        team_points[team] += safe_float(row.get("points", 0))
-        if row.get("position"):
-            finishers[team] += 1
-    return [
-        {"team": team, "points": points, "classified_cars": finishers.get(team, 0)}
-        for team, points in sorted(team_points.items(), key=lambda item: item[1], reverse=True)
-        if points > 0
-    ][:6]
-
-
-def build_race_control_notes(results: list[dict], sections: DebriefSections) -> list[dict]:
-    notes = []
-    if sections.podium:
-        notes.append(
-            {
-                "label": "Podium shape",
-                "detail": ", ".join(f"P{row.get('position')} {row.get('driver')}" for row in sections.podium),
-            }
-        )
-    if sections.movers:
-        best = sections.movers[0]
-        notes.append(
-            {
-                "label": "Execution swing",
-                "detail": f"{best.get('full_name') or best.get('driver')} gained {best.get('grid') - best.get('position')} places from the grid.",
-            }
-        )
-    if sections.constructor_impact:
-        leader = sections.constructor_impact[0]
-        notes.append(
-            {
-                "label": "Constructor haul",
-                "detail": f"{leader['team']} led the points take with {leader['points']:g} points.",
-            }
-        )
-    if sections.reliability:
-        count = len(sections.reliability)
-        notes.append(
-            {
-                "label": "Reliability / incidents",
-                "detail": f"{count} non-standard finish status{'es' if count != 1 else ''} in classification.",
-            }
-        )
-    if not results:
-        notes.append(
-            {
-                "label": "Awaiting classification",
-                "detail": "Final race classification has not been published or loaded yet.",
-            }
-        )
-    return notes
-
-
-def load_race_classification(year: int, round_num: int) -> dict:
+def _race_event(year: int, round_num: int) -> dict | None:
+    """The round's name, location and whether its race is over (start + 3 h); None for an unknown round."""
     schedule = season_schedule(year)
     event_row = schedule[schedule["RoundNumber"] == round_num]
     if event_row.empty:
-        return {"error": f"Round {round_num} not found for {year}", "race_results": [], "podium": []}
+        return None
 
     event = event_row.iloc[0]
-    result = {
-        "round": round_num,
-        "name": event["EventName"],
-        "location": f"{event['Location']}, {event['Country']}",
-        "race_results": [],
-        "podium": [],
-    }
-
     race_date = next(
         (
             event[f"Session{i}DateUtc"].to_pydatetime()
@@ -261,7 +39,110 @@ def load_race_classification(year: int, round_num: int) -> dict:
         ),
         None,
     )
-    if not race_date or datetime.now(UTC).replace(tzinfo=None) <= race_date + pd.Timedelta(hours=3):
+    return {
+        "name": event["EventName"],
+        "location": f"{event['Location']}, {event['Country']}",
+        "finished": bool(race_date) and datetime.now(UTC).replace(tzinfo=None) > race_date + pd.Timedelta(hours=3),
+    }
+
+
+def _titles(year: int, round_num: int) -> list[dict]:
+    """The championships clinched at this round, drivers' then constructors', with the points that decided them."""
+    progression = build_standings_progression(year)
+    rounds = [row["round"] for row in progression["rounds"]]
+    if round_num not in rounds:
+        return []
+    index = rounds.index(round_num)
+    titles = []
+    for table in ("drivers", "constructors"):
+        championship = progression[table]
+        clinched = championship["clinched"]
+        if clinched is None or clinched["round"] != round_num:
+            continue
+        standing = sorted(
+            (row for row in championship["entrants"] if row["points"][index] is not None),
+            key=lambda row: -row["points"][index],
+        )
+        champion, runner_up = standing[0], (standing[1] if len(standing) > 1 else None)
+        points = champion["points"][index]
+        titles.append(
+            {
+                "table": table,
+                "name": champion["name"],
+                "team": champion["team"],
+                "points": points,
+                "lead": None if runner_up is None else points - runner_up["points"][index],
+                "runner_up": None if runner_up is None else runner_up["name"],
+                "races_left": clinched["races_left"],
+                "provisional": progression["rounds"][index]["provisional"],
+            }
+        )
+    return titles
+
+
+def _grid_slots(year: int, round_num: int) -> tuple[dict[str, dict], dict]:
+    """Each car's slot on the official grid, and the grid's status; a provisional or stand-in grid is never read."""
+    grid = build_starting_grid(year, round_num)
+    official = grid["available"] and not grid["provisional"]
+    slots = {row["driver_code"]: row for row in grid["grid"]} if official else {}
+    return slots, {"available": official, "fia_document": grid["fia_document"] if official else None}
+
+
+def build_race_debrief(year: int, round_num: int) -> dict:
+    """The debrief's summary: the classification with each car's start, the grid's status and the titles clinched."""
+    event = _race_event(year, round_num)
+    race = build_session_result(year, round_num, "race") if event and event["finished"] else None
+    reason = None
+    if event is None:
+        reason = f"Round {round_num} not found for {year}"
+    elif race is None:
+        reason = "The race hasn't been classified yet."
+    summary = {
+        "year": year,
+        "round": round_num,
+        "race": event["name"] if event else f"Round {round_num}",
+        "location": event["location"] if event else "",
+        "available": race is not None,
+        "reason": reason,
+        "final": False,
+        "sources": [],
+        "classification": [],
+        "grid": {"available": False, "fia_document": None},
+        "titles": [],
+    }
+    if race is None:
+        return summary
+    slots, grid = _grid_slots(year, round_num)
+    return {
+        **summary,
+        "final": race["final"],
+        "sources": race["sources"],
+        "classification": [
+            {
+                **row,
+                "grid": slots[row["driver_code"]]["position"] if row["driver_code"] in slots else None,
+                "pit_lane": row["driver_code"] in slots and slots[row["driver_code"]]["pit_lane"],
+            }
+            for row in race["classification"]
+        ],
+        "grid": grid,
+        "titles": _titles(year, round_num),
+    }
+
+
+def load_race_classification(year: int, round_num: int) -> dict:
+    event = _race_event(year, round_num)
+    if event is None:
+        return {"error": f"Round {round_num} not found for {year}", "race_results": [], "podium": []}
+
+    result = {
+        "round": round_num,
+        "name": event["name"],
+        "location": event["location"],
+        "race_results": [],
+        "podium": [],
+    }
+    if not event["finished"]:
         return result
 
     race = build_session_result(year, round_num, "race")

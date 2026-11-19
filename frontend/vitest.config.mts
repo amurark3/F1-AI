@@ -124,6 +124,13 @@ const COVERAGE_INCLUDE = [
   // P7.3: the Command Center view and the timing tower.
   "app/race-control/CommandCenterView.tsx",
   "app/race-control/components/LiveTimingTower.tsx",
+  // P6.1: the Debrief page.
+  "app/race-control/debriefs/**",
+  // P6.3 + P6.3b: the Power Units season and car pages.
+  "app/race-control/power-units/**",
+  // P6.4 + P6.4b: the Champions page and its season pages.
+  "app/champions/**",
+  "app/race-control/champions/**",
 ];
 
 /** Every metric must reach this in every included file. */

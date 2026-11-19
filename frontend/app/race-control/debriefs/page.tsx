@@ -1,8 +1,9 @@
 import { currentSeason, getDebrief, getSchedule, scheduleRaces } from "@/app/lib/server/raceControl";
 
-import { resolveDefaultDebriefRace, type Debrief } from "./debriefModel";
-import { DebriefsView, type DebriefSeed } from "./DebriefsView";
+import { resolveDefaultDebriefRace } from "./debriefModel";
+import { Debriefs } from "./Debriefs";
 
+import type { DebriefSummary } from "./debriefTypes";
 import type { Metadata } from "next";
 
 /** Debriefs are written once a race is classified and then stop changing. */
@@ -11,23 +12,21 @@ export const revalidate = 900;
 export const metadata: Metadata = {
   title: "F1 Race Debriefs | F1 AI",
   description:
-    "Post-race breakdowns of every Formula 1 Grand Prix — podium, grid gain, points swings, non-finish statuses, and constructor impact.",
+    "Post-race breakdowns of every Grand Prix: result, lap leaders, race trace, grid to finish, penalties and on-track position changes.",
 };
 
-export default async function DebriefsPage() {
+/** Awaits nothing: the promises go to the sections, which take them up behind their own boundaries. */
+export default function DebriefsPage() {
   const year = currentSeason();
-  const schedule = await getSchedule(year);
-
-  // Which debrief to prefetch depends on the schedule, so it follows it.
-  const defaultRace = resolveDefaultDebriefRace(scheduleRaces(schedule));
-  const debrief = defaultRace ? await getDebrief<Debrief>(year, defaultRace.round) : null;
-
-  const seed: DebriefSeed = {
-    year,
-    schedule,
-    debrief,
-    debriefRound: defaultRace?.round ?? null,
-  };
-
-  return <DebriefsView seed={seed} />;
+  const schedule = getSchedule(year);
+  const summary = schedule.then((response) => {
+    const race = resolveDefaultDebriefRace(scheduleRaces(response));
+    if (!race) return null;
+    // A backend still serving the old debrief has no `titles`: seed nothing and let the client ask again.
+    return getDebrief<DebriefSummary>(year, race.round).then((data) => ({
+      round: race.round,
+      data: data?.titles ? data : null,
+    }));
+  });
+  return <Debriefs year={year} seeds={{ schedule, summary }} />;
 }

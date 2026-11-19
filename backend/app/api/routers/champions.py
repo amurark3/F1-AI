@@ -4,7 +4,7 @@ season, sourced from the local f1db dataset (1950–present)."""
 from fastapi import APIRouter
 
 from app.api.errors import client_error
-from app.data.champions import get_champion_stats, get_season_detail, list_champions
+from app.data.champions import get_champion_stats, get_season_detail, latest_champion, list_champions
 
 router = APIRouter(tags=["champions"])
 
@@ -25,6 +25,15 @@ async def get_champions_stats() -> dict:
         return get_champion_stats()
     except Exception as exc:
         return client_error("champions.stats_failed", exc)
+
+
+@router.get("/champions/latest")
+async def get_latest_champion() -> dict:
+    """Returns the newest decided drivers' champion with the records the title sets."""
+    try:
+        return latest_champion()
+    except Exception as exc:
+        return client_error("champions.latest_failed", exc)
 
 
 @router.get("/champions/{year}")

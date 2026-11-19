@@ -1,21 +1,14 @@
-"""Tests for app.services.race_control_debriefs — post-race notes.
+"""Tests for app.services.race_control_debriefs: the debrief summary and the classification the championship reads.
 
-The debrief is the one Race Control screen that makes narrative claims ("won
-from P5, the clearest execution gain"), so the tests pin the sentences, not
-just the shapes. The risks worth guarding:
+The risks worth guarding:
 
-* **Claiming a result before the race has run.** ``load_race_classification``
-  gates on the session time plus three hours; loading early would publish a
-  half-populated classification as final.
-* **Grid deltas read the wrong way round.** Gains and losses are the same
-  subtraction with opposite signs — a flipped sign praises the driver who lost
-  the most places.
-* **A missing grid slot must disable the comparison, not default to zero.**
-  Pit-lane starts arrive as grid 0/NaN.
+* **Claiming a result before the race has run.** The classification is read only
+  once the race's start plus three hours has passed.
+* **A grid that is not official must not invent places gained.** A provisional
+  grid or a qualifying-order stand-in leaves every car without a start.
 * **A retirement is never a place.** A car that did not finish has no
   ``position`` and reads "DNF (Engine)", whatever the source lists it at.
-* **Names are f1db's.** The classification, and every sentence built from it,
-  prints "Kimi Antonelli" and "Racing Bulls".
+* **A title is only announced at the round that decided it.**
 
 No FastF1 request is made: the classification is f1db's (Mexico City 2026,
 ``fixtures/f1db_race_results``, five retirements), OpenF1's until f1db holds the
@@ -30,37 +23,11 @@ import pandas as pd
 import pytest
 
 from app.services import race_control_debriefs as module, race_results
-from app.services.race_control_debriefs import DebriefSections
 from tests.fastf1_guard import no_fastf1  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("no_fastf1")
 
 _NOW = datetime.now(UTC).replace(tzinfo=None)
-
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-
-def _result_row(
-    driver: str,
-    *,
-    position: int | None,
-    grid: int | None,
-    team: str = "Red Bull",
-    points: float = 0.0,
-    status: str = "Finished",
-    full_name: str | None = None,
-) -> dict:
-    return {
-        "position": position,
-        "driver": driver,
-        "full_name": full_name if full_name is not None else f"{driver} Driver",
-        "team": team,
-        "grid": grid,
-        "points": points,
-        "status": status,
-    }
 
 
 def _schedule(rows: list[dict]) -> pd.DataFrame:
@@ -89,384 +56,6 @@ def _stub_calendar(monkeypatch: pytest.MonkeyPatch, schedule: pd.DataFrame) -> l
 
     monkeypatch.setattr(module, "season_schedule", _season_schedule)
     return requested
-
-
-def _label(notes: list[dict], label: str) -> str | None:
-    return next((note["detail"] for note in notes if note["label"] == label), None)
-
-
-# ---------------------------------------------------------------------------
-# build_debrief_headline
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_headline_without_a_winner_says_the_classification_is_missing():
-    assert module.build_debrief_headline({}, None, []) == "Race classification is not available yet."
-
-
-@pytest.mark.unit
-def test_a_winner_who_started_first_is_described_as_converting_track_position():
-    winner = _result_row("VER", position=1, grid=1, full_name="Max Verstappen")
-
-    headline = module.build_debrief_headline({"name": "Monaco Grand Prix"}, winner, [])
-
-    assert headline == ("Max Verstappen converted pole or track position into the race win at Monaco Grand Prix.")
-
-
-@pytest.mark.unit
-def test_an_unnamed_event_still_produces_a_readable_headline():
-    winner = _result_row("VER", position=1, grid=1, full_name="Max Verstappen")
-
-    headline = module.build_debrief_headline({}, winner, [])
-
-    assert headline.endswith("into the race win at the Grand Prix.")
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(("grid", "expected"), [(2, "gaining 1 place"), (9, "gaining 8 places")])
-def test_a_winner_from_further_back_reports_the_places_gained(grid: int, expected: str):
-    winner = _result_row("VER", position=1, grid=grid, full_name="Max Verstappen")
-
-    headline = module.build_debrief_headline({"name": "Monaco Grand Prix"}, winner, [])
-
-    assert headline == f"Max Verstappen won from P{grid}, {expected} against the starting grid."
-
-
-@pytest.mark.unit
-def test_a_winner_with_no_grid_slot_falls_back_to_the_points_scored():
-    winner = _result_row("VER", position=1, grid=None, points=25.0, full_name="Max Verstappen")
-
-    headline = module.build_debrief_headline({}, winner, [])
-
-    assert headline == "Max Verstappen led the final classification and banked 25 points for Red Bull."
-
-
-@pytest.mark.unit
-def test_a_winner_with_neither_grid_nor_points_only_claims_the_classification():
-    winner = {"full_name": "Max Verstappen", "position": 1, "grid": None, "points": 0}
-
-    assert module.build_debrief_headline({}, winner, []) == "Max Verstappen topped the final classification."
-
-
-# ---------------------------------------------------------------------------
-# build_debrief_takeaways
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_no_results_produce_no_takeaways():
-    assert module.build_debrief_takeaways([], []) == []
-
-
-@pytest.mark.unit
-def test_takeaways_cover_podium_gains_losses_and_the_points_haul():
-    results = [
-        _result_row("NOR", position=1, grid=3, team="McLaren", points=25.0),
-        _result_row("PIA", position=2, grid=1, team="McLaren", points=18.0),
-        _result_row("VER", position=3, grid=2, points=15.0),
-        _result_row("HAM", position=18, grid=6, team="Ferrari", status="Accident"),
-    ]
-    podium = results[:3]
-
-    takeaways = module.build_debrief_takeaways(results, podium)
-
-    assert takeaways == [
-        "McLaren placed 2 cars on the podium, shaping the main points swing.",
-        "NOR Driver gained 2 positions from the grid, the clearest strategy or execution gain.",
-        "HAM Driver lost 12 positions versus the grid, flagging a compromised race branch.",
-        "McLaren scored the strongest constructor haul with 43 points.",
-    ]
-
-
-@pytest.mark.unit
-def test_takeaways_are_capped_at_four_entries():
-    """A fifth reliability line exists but must not push the list past four."""
-    results = [
-        _result_row("NOR", position=1, grid=3, team="McLaren", points=25.0),
-        _result_row("HAM", position=18, grid=6, team="Ferrari", status="Accident"),
-    ]
-
-    takeaways = module.build_debrief_takeaways(results, results[:1])
-
-    assert len(takeaways) == 4
-    assert not any("non-standard finish statuses" in line for line in takeaways)
-
-
-@pytest.mark.unit
-def test_a_single_car_podium_uses_singular_wording():
-    results = [_result_row("VER", position=1, grid=1, points=25.0)]
-
-    takeaways = module.build_debrief_takeaways(results, results)
-
-    assert takeaways[0] == "Red Bull placed 1 car on the podium, shaping the main points swing."
-
-
-@pytest.mark.unit
-def test_reliability_is_reported_when_there_is_room_for_it():
-    results = [
-        _result_row("VER", position=None, grid=1, status="Engine"),
-        _result_row("HAM", position=None, grid=2, team="Ferrari", status="Accident"),
-    ]
-
-    takeaways = module.build_debrief_takeaways(results, [])
-
-    assert takeaways == [
-        "2 cars had non-standard finish statuses, so reliability and incident exposure mattered.",
-    ]
-
-
-@pytest.mark.unit
-def test_a_lone_retirement_uses_singular_wording():
-    results = [_result_row("VER", position=None, grid=1, status="Engine")]
-
-    assert module.build_debrief_takeaways(results, [])[0].startswith("1 car had non-standard")
-
-
-@pytest.mark.unit
-def test_lapped_finishers_are_not_treated_as_reliability_problems():
-    """A lapped car is classified "Finished" (its laps down are a gap, not a status): not an incident."""
-    results = [_result_row("VER", position=15, grid=15, status="Finished")]
-
-    assert not any("non-standard" in line for line in module.build_debrief_takeaways(results, []))
-
-
-@pytest.mark.unit
-def test_a_pointless_race_does_not_claim_a_constructor_haul():
-    results = [_result_row("VER", position=1, grid=1, points=0.0)]
-
-    assert not any("constructor haul" in line for line in module.build_debrief_takeaways(results, []))
-
-
-@pytest.mark.unit
-def test_rows_without_a_grid_slot_are_excluded_from_the_movement_comparison():
-    results = [_result_row("VER", position=1, grid=None, points=25.0)]
-
-    takeaways = module.build_debrief_takeaways(results, [])
-
-    assert not any("gained" in line or "lost" in line for line in takeaways)
-
-
-@pytest.mark.unit
-def test_a_grid_faithful_field_reports_neither_a_gain_nor_a_loss():
-    results = [
-        _result_row("VER", position=1, grid=1, points=25.0),
-        _result_row("NOR", position=2, grid=2, team="McLaren", points=18.0),
-    ]
-
-    takeaways = module.build_debrief_takeaways(results, [])
-
-    assert takeaways == ["Red Bull scored the strongest constructor haul with 25 points."]
-
-
-@pytest.mark.unit
-def test_a_driver_without_a_full_name_is_reported_by_code():
-    results = [
-        _result_row("VER", position=1, grid=5, points=25.0, full_name=""),
-        _result_row("NOR", position=10, grid=2, team="McLaren", full_name=""),
-    ]
-
-    takeaways = module.build_debrief_takeaways(results, [])
-
-    assert takeaways[0].startswith("VER gained 4 positions")
-    assert takeaways[1].startswith("NOR lost 8 positions")
-
-
-@pytest.mark.unit
-def test_results_without_a_team_key_bucket_into_unknown():
-    takeaways = module.build_debrief_takeaways([{"points": 25.0}], [{"points": 25.0}])
-
-    assert takeaways[0].startswith("Unknown placed 1 car on the podium")
-    assert takeaways[1] == "Unknown scored the strongest constructor haul with 25 points."
-
-
-# ---------------------------------------------------------------------------
-# build_podium_cause
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_podium_cause_labels_each_step_of_the_grid_delta():
-    podium = [
-        _result_row("VER", position=1, grid=1, points=25.0),
-        _result_row("NOR", position=2, grid=5, team="McLaren", points=18.0),
-        _result_row("LEC", position=3, grid=2, team="Ferrari", points=15.0),
-    ]
-
-    rows = module.build_podium_cause(podium)
-
-    assert [row["call"] for row in rows] == [
-        "Converted starting position",
-        "Made up 3 places",
-        "Lost 1 place but held podium",
-    ]
-    assert [row["delta"] for row in rows] == [0, 3, -1]
-
-
-@pytest.mark.unit
-def test_podium_cause_uses_singular_wording_for_a_one_place_gain():
-    podium = [_result_row("NOR", position=2, grid=3, team="McLaren", points=18.0)]
-
-    assert module.build_podium_cause(podium)[0]["call"] == "Made up 1 place"
-
-
-@pytest.mark.unit
-def test_podium_cause_uses_plural_wording_for_a_multi_place_loss():
-    podium = [_result_row("NOR", position=3, grid=1, team="McLaren", points=15.0)]
-
-    assert module.build_podium_cause(podium)[0]["call"] == "Lost 2 places but held podium"
-
-
-@pytest.mark.unit
-def test_a_podium_finisher_with_no_grid_slot_gets_no_invented_delta():
-    podium = [_result_row("NOR", position=2, grid=None, team="McLaren", points=18.0)]
-
-    row = module.build_podium_cause(podium)[0]
-
-    assert row["delta"] is None
-    assert row["call"] == "Classification result"
-
-
-@pytest.mark.unit
-def test_podium_cause_falls_back_to_the_driver_code_for_a_missing_full_name():
-    podium = [{"position": 1, "driver": "VER", "team": "Red Bull", "grid": 1}]
-
-    row = module.build_podium_cause(podium)[0]
-
-    assert row["full_name"] == "VER"
-    assert row["points"] == 0
-
-
-@pytest.mark.unit
-def test_an_empty_podium_produces_no_cause_rows():
-    assert module.build_podium_cause([]) == []
-
-
-# ---------------------------------------------------------------------------
-# build_constructor_impact
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_constructor_impact_ranks_by_points_and_counts_classified_cars():
-    results = [
-        _result_row("NOR", position=2, grid=1, team="McLaren", points=18.0),
-        _result_row("PIA", position=4, grid=4, team="McLaren", points=12.0),
-        _result_row("VER", position=1, grid=2, points=25.0),
-        _result_row("LAW", position=None, grid=8, points=0.0, status="Engine"),
-    ]
-
-    impact = module.build_constructor_impact(results)
-
-    assert impact == [
-        {"team": "McLaren", "points": 30.0, "classified_cars": 2},
-        {"team": "Red Bull", "points": 25.0, "classified_cars": 1},
-    ]
-
-
-@pytest.mark.unit
-def test_teams_that_scored_nothing_are_left_out_of_the_impact_table():
-    results = [
-        _result_row("VER", position=1, grid=1, points=25.0),
-        _result_row("BOT", position=12, grid=14, team="Sauber", points=0.0),
-    ]
-
-    assert [row["team"] for row in module.build_constructor_impact(results)] == ["Red Bull"]
-
-
-@pytest.mark.unit
-def test_constructor_impact_is_capped_at_six_teams():
-    results = [
-        _result_row(f"D{index}", position=index, grid=index, team=f"Team {index}", points=float(20 - index))
-        for index in range(1, 11)
-    ]
-
-    impact = module.build_constructor_impact(results)
-
-    assert len(impact) == 6
-    assert [row["team"] for row in impact] == [f"Team {index}" for index in range(1, 7)]
-
-
-@pytest.mark.unit
-def test_no_results_produce_no_constructor_impact():
-    assert module.build_constructor_impact([]) == []
-
-
-# ---------------------------------------------------------------------------
-# build_race_control_notes
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_race_control_notes_summarise_every_populated_section():
-    podium = [
-        _result_row("VER", position=1, grid=2, points=25.0),
-        _result_row("NOR", position=2, grid=1, team="McLaren", points=18.0),
-    ]
-    sections = DebriefSections(
-        podium=podium,
-        movers=[_result_row("HUL", position=6, grid=15, team="Haas", points=8.0)],
-        constructor_impact=[{"team": "Red Bull", "points": 25.0, "classified_cars": 1}],
-        reliability=[_result_row("LAW", position=None, grid=8, status="Engine")],
-    )
-
-    notes = module.build_race_control_notes(podium, sections)
-
-    assert [note["label"] for note in notes] == [
-        "Podium shape",
-        "Execution swing",
-        "Constructor haul",
-        "Reliability / incidents",
-    ]
-    assert _label(notes, "Podium shape") == "P1 VER, P2 NOR"
-    assert _label(notes, "Execution swing") == "HUL Driver gained 9 places from the grid."
-    assert _label(notes, "Constructor haul") == "Red Bull led the points take with 25 points."
-    assert _label(notes, "Reliability / incidents") == "1 non-standard finish status in classification."
-
-
-@pytest.mark.unit
-def test_multiple_retirements_pluralise_the_status_note():
-    sections = DebriefSections(
-        podium=[],
-        movers=[],
-        constructor_impact=[],
-        reliability=[
-            _result_row("LAW", position=None, grid=8, status="Engine"),
-            _result_row("HAM", position=None, grid=4, team="Ferrari", status="Accident"),
-        ],
-    )
-
-    notes = module.build_race_control_notes([{"position": 1}], sections)
-
-    assert _label(notes, "Reliability / incidents") == "2 non-standard finish statuses in classification."
-
-
-@pytest.mark.unit
-def test_an_empty_classification_produces_only_the_awaiting_note():
-    sections = DebriefSections(podium=[], movers=[], constructor_impact=[], reliability=[])
-
-    notes = module.build_race_control_notes([], sections)
-
-    assert notes == [
-        {
-            "label": "Awaiting classification",
-            "detail": "Final race classification has not been published or loaded yet.",
-        }
-    ]
-
-
-@pytest.mark.unit
-def test_a_mover_without_a_full_name_is_named_by_code_in_the_notes():
-    sections = DebriefSections(
-        podium=[],
-        movers=[_result_row("HUL", position=6, grid=15, team="Haas", full_name="")],
-        constructor_impact=[],
-        reliability=[],
-    )
-
-    notes = module.build_race_control_notes([{"position": 6}], sections)
-
-    assert _label(notes, "Execution swing") == "HUL gained 9 places from the grid."
 
 
 # ---------------------------------------------------------------------------
@@ -591,124 +180,180 @@ def test_a_status_with_no_reason_reads_as_the_status_alone():
 # build_race_debrief
 # ---------------------------------------------------------------------------
 
+DOC = {"number": 74, "final": True, "url": "https://fia.example/doc74"}
+RACE = {
+    "final": True,
+    "sources": [{"source": "f1db", "role": "classification"}],
+    "classification": [
+        {"driver_code": "VER", "position": 1},
+        {"driver_code": "LIN", "position": None},
+        {"driver_code": "LEC", "position": 3},
+    ],
+}
 
-@pytest.mark.unit
-def test_the_debrief_assembles_every_section_from_one_classification(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    results = [
-        _result_row("VER", position=1, grid=3, points=25.0),
-        _result_row("NOR", position=2, grid=1, team="McLaren", points=18.0),
-        _result_row("LEC", position=3, grid=2, team="Ferrari", points=15.0),
-        _result_row("HUL", position=6, grid=16, team="Haas", points=8.0),
-        _result_row("LAW", position=None, grid=8, team="RB", status="Engine"),
+
+def _grid(*, available: bool = True, provisional: bool = False) -> dict:
+    return {
+        "available": available,
+        "provisional": provisional,
+        "fia_document": DOC,
+        "grid": [
+            {"driver_code": "VER", "position": 3, "pit_lane": False},
+            {"driver_code": "LIN", "position": None, "pit_lane": True},
+        ],
+    }
+
+
+def _progression(*, clinched_at: int | None = 19, constructors_at: int | None = None, runner_up: bool = True) -> dict:
+    entrants = [
+        {"key": "ant", "name": "Kimi Antonelli", "team": "Mercedes", "points": [None, 380]},
+        {"key": "ham", "name": "Lewis Hamilton", "team": "Ferrari", "points": [None, 261]},
+        {"key": "ver", "name": "Max Verstappen", "team": "Red Bull", "points": [10, None]},
     ]
-    monkeypatch.setattr(
-        module,
-        "load_race_classification",
-        lambda year, round_num: {
-            "round": round_num,
-            "name": "Monaco Grand Prix",
-            "location": "Monte Carlo, Monaco",
-            "race_results": results,
-            "podium": results[:3],
+    teams = [
+        {"key": "mer", "name": "Mercedes", "team": "Mercedes", "points": [None, 500]},
+        {"key": "fer", "name": "Ferrari", "team": "Ferrari", "points": [None, 400]},
+    ]
+    return {
+        "rounds": [{"round": 18, "provisional": False}, {"round": 19, "provisional": True}],
+        "drivers": {
+            "entrants": entrants if runner_up else entrants[:1],
+            "clinched": None if clinched_at is None else {"round": clinched_at, "races_left": 4},
         },
-    )
+        "constructors": {
+            "entrants": teams,
+            "clinched": None if constructors_at is None else {"round": constructors_at, "races_left": 0},
+        },
+    }
 
-    debrief = module.build_race_debrief(2024, 3)
 
-    assert debrief["year"] == 2024
-    assert debrief["round"] == 3
-    assert debrief["race"] == "Monaco Grand Prix"
-    assert debrief["location"] == "Monte Carlo, Monaco"
-    assert debrief["headline"].startswith("VER Driver won from P3, gaining 2 places")
-    # Ranked by grid gain (+10, +2), then the two -1 rows in classification order.
-    assert [row["driver"] for row in debrief["strategy_winners"]] == ["HUL", "VER", "NOR"]
-    assert [row["driver"] for row in debrief["reliability_watch"]] == ["LAW"]
-    assert debrief["constructor_impact"][0]["team"] == "Red Bull"
-    assert [note["label"] for note in debrief["race_control_notes"]] == [
-        "Podium shape",
-        "Execution swing",
-        "Constructor haul",
-        "Reliability / incidents",
-    ]
-    assert debrief["incidents"] == []
-    assert debrief["insight_source"].startswith("Derived from race classification")
+@pytest.fixture
+def summary(monkeypatch: pytest.MonkeyPatch):
+    """Everything the summary reads, stubbed; each test overrides what it varies."""
+    _stub_calendar(monkeypatch, _schedule([MEXICO]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: RACE)
+    monkeypatch.setattr(module, "build_starting_grid", lambda *_args: _grid())
+    monkeypatch.setattr(module, "build_standings_progression", lambda _year: _progression())
 
 
 @pytest.mark.unit
-def test_the_debrief_caps_its_classification_and_reliability_lists(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    results = [
-        _result_row(f"D{index}", position=index, grid=index, team=f"Team {index}", points=1.0) for index in range(1, 13)
-    ] + [
-        _result_row(f"R{index}", position=None, grid=index, team=f"Team {index}", status="Engine")
-        for index in range(1, 8)
-    ]
-    monkeypatch.setattr(
-        module,
-        "load_race_classification",
-        lambda year, round_num: {"race_results": results, "podium": results[:3]},
+def test_the_summary_merges_the_official_grid_into_each_classification_row(summary):
+    result = module.build_race_debrief(2026, 19)
+
+    assert (result["available"], result["reason"], result["final"], result["race"]) == (
+        True,
+        None,
+        True,
+        "Mexican Grand Prix",
     )
-
-    debrief = module.build_race_debrief(2024, 3)
-
-    assert len(debrief["classification"]) == 10
-    assert len(debrief["reliability_watch"]) == 5
+    assert result["location"] == "Monte Carlo, Monaco"
+    assert result["sources"] == RACE["sources"]
+    assert [(row["driver_code"], row["grid"], row["pit_lane"]) for row in result["classification"]] == [
+        ("VER", 3, False),
+        ("LIN", None, True),
+        ("LEC", None, False),
+    ]
+    assert result["grid"] == {"available": True, "fia_document": DOC}
 
 
 @pytest.mark.unit
-def test_a_debrief_for_an_unraced_round_says_so_without_inventing_sections(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    monkeypatch.setattr(
-        module,
-        "load_race_classification",
-        lambda year, round_num: {"race_results": [], "podium": []},
-    )
+@pytest.mark.parametrize("grid", [_grid(available=False), _grid(provisional=True)])
+def test_a_grid_that_is_missing_or_provisional_gives_no_starts(summary, monkeypatch, grid):
+    monkeypatch.setattr(module, "build_starting_grid", lambda *_args: grid)
 
-    debrief = module.build_race_debrief(2025, 7)
+    result = module.build_race_debrief(2026, 19)
 
-    assert debrief["race"] == "Round 7"
-    assert debrief["location"] == ""
-    assert debrief["headline"] == "Race classification is not available yet."
-    assert debrief["podium"] == []
-    assert debrief["takeaways"] == []
-    assert debrief["strategy_winners"] == []
-    assert debrief["constructor_impact"] == []
-    assert debrief["race_control_notes"] == [
+    assert all(row["grid"] is None and row["pit_lane"] is False for row in result["classification"])
+    assert result["grid"] == {"available": False, "fia_document": None}
+
+
+@pytest.mark.unit
+def test_the_drivers_title_clinched_here_carries_the_points_and_the_lead(summary):
+    assert module.build_race_debrief(2026, 19)["titles"] == [
         {
-            "label": "Awaiting classification",
-            "detail": "Final race classification has not been published or loaded yet.",
+            "table": "drivers",
+            "name": "Kimi Antonelli",
+            "team": "Mercedes",
+            "points": 380,
+            "lead": 119,
+            "runner_up": "Lewis Hamilton",
+            "races_left": 4,
+            "provisional": True,
         }
     ]
 
 
-# ---------------------------------------------------------------------------
-# Names and the debrief built from the real classification
-# ---------------------------------------------------------------------------
+@pytest.mark.unit
+def test_the_constructors_title_is_listed_after_the_drivers(summary, monkeypatch):
+    monkeypatch.setattr(module, "build_standings_progression", lambda _year: _progression(constructors_at=19))
 
+    titles = module.build_race_debrief(2026, 19)["titles"]
 
-@pytest.mark.integration
-def test_the_debrief_sentences_name_drivers_and_teams_as_f1db_does(mexico):
-    debrief = module.build_race_debrief(2026, 19)
-
-    assert [row["full_name"] for row in debrief["podium"]] == ["Max Verstappen", "Lewis Hamilton", "Kimi Antonelli"]
-    assert debrief["headline"] == "Max Verstappen won from P3, gaining 2 places against the starting grid."
-    assert {row["team"] for row in debrief["constructor_impact"]} >= {"Red Bull", "Ferrari", "Mercedes"}
-
-
-@pytest.mark.integration
-def test_the_debrief_lists_every_retirement_with_its_reason_and_carries_its_source(mexico):
-    debrief = module.build_race_debrief(2026, 19)
-
-    assert [row["status"] for row in debrief["reliability_watch"]] == [
-        "DNF (Collision)",
-        "DNF (Collision damage)",
-        "DNF (Accident)",
-        "DNF (Engine)",
-        "DNF (Engine)",
+    assert [(title["table"], title["name"], title["lead"], title["races_left"]) for title in titles] == [
+        ("drivers", "Kimi Antonelli", 119, 4),
+        ("constructors", "Mercedes", 100, 0),
     ]
-    assert debrief["final"] is True
-    assert debrief["sources"][0]["source"] == "f1db"
+
+
+@pytest.mark.unit
+def test_a_title_clinched_at_another_round_or_not_yet_is_not_announced(summary, monkeypatch):
+    for clinched_at in (18, None):
+        monkeypatch.setattr(
+            module, "build_standings_progression", lambda _year, at=clinched_at: _progression(clinched_at=at)
+        )
+        assert module.build_race_debrief(2026, 19)["titles"] == []
+
+
+@pytest.mark.unit
+def test_a_round_the_standings_do_not_cover_has_no_titles(summary, monkeypatch):
+    monkeypatch.setattr(module, "build_standings_progression", lambda _year: {"rounds": []})
+
+    assert module.build_race_debrief(2026, 19)["titles"] == []
+
+
+@pytest.mark.unit
+def test_a_lone_entrant_champion_has_no_runner_up(summary, monkeypatch):
+    monkeypatch.setattr(module, "build_standings_progression", lambda _year: _progression(runner_up=False))
+
+    title = module.build_race_debrief(2026, 19)["titles"][0]
+
+    assert (title["lead"], title["runner_up"]) == (None, None)
+
+
+@pytest.mark.unit
+def test_a_race_nothing_has_classified_yet_says_so(summary, monkeypatch):
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: None)
+
+    result = module.build_race_debrief(2026, 19)
+
+    assert (result["available"], result["reason"], result["classification"], result["titles"]) == (
+        False,
+        "The race hasn't been classified yet.",
+        [],
+        [],
+    )
+    assert result["race"] == "Mexican Grand Prix"
+
+
+@pytest.mark.unit
+def test_a_race_still_to_run_is_not_read(monkeypatch):
+    _stub_calendar(monkeypatch, _schedule([_event(3, _NOW + timedelta(days=2))]))
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: pytest.fail("a result was read"))
+
+    result = module.build_race_debrief(2026, 3)
+
+    assert (result["available"], result["reason"]) == (False, "The race hasn't been classified yet.")
+
+
+@pytest.mark.unit
+def test_an_unknown_round_is_unavailable_with_its_reason(monkeypatch):
+    _stub_calendar(monkeypatch, _schedule([MEXICO]))
+
+    result = module.build_race_debrief(2026, 99)
+
+    assert (result["available"], result["reason"], result["race"], result["location"]) == (
+        False,
+        "Round 99 not found for 2026",
+        "Round 99",
+        "",
+    )

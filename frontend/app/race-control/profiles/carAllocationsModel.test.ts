@@ -61,22 +61,22 @@ describe("pickCars", () => {
 });
 
 describe("carAllocationsTitle", () => {
-  it("names two cars past the allocation and the grid places lost", () => {
+  it("names two cars past the allocation and the grid places imposed", () => {
     expect(carAllocationsTitle([ALLOCATION_ANTONELLI, ALLOCATION_RUSSELL])).toBe(
-      "Both cars are past the allocation: 90 grid places lost",
+      "Both cars are past the allocation: 90 grid places imposed",
     );
   });
 
   it("says one place in the singular", () => {
     const one = withUsed(ALLOCATION_ANTONELLI, [5, 3, 3, 2, 3, 3, 6], 1);
     expect(carAllocationsTitle([one, ALLOCATION_HAMILTON])).toBe(
-      "1 of 2 cars are past the allocation: 1 grid place lost",
+      "1 of 2 cars are past the allocation: 1 grid place imposed",
     );
   });
 
   it("counts the cars past it when only some are, and says All above two", () => {
     expect(carAllocationsTitle([ALLOCATION_ANTONELLI, ALLOCATION_HAMILTON])).toBe(
-      "1 of 2 cars are past the allocation: 30 grid places lost",
+      "1 of 2 cars are past the allocation: 30 grid places imposed",
     );
     expect(
       carAllocationsTitle([
@@ -84,7 +84,7 @@ describe("carAllocationsTitle", () => {
         ALLOCATION_RUSSELL,
         withUsed(ALLOCATION_RUSSELL, [6, 6, 6, 6, 6, 6, 9]),
       ]),
-    ).toBe("All 3 cars are past the allocation: 90 grid places lost");
+    ).toBe("All 3 cars are past the allocation: 90 grid places imposed");
   });
 
   it("says both cars are within it when none is past", () => {
@@ -95,7 +95,7 @@ describe("carAllocationsTitle", () => {
 
   it("speaks of the one car by its number", () => {
     expect(carAllocationsTitle([ALLOCATION_ANTONELLI])).toBe(
-      "Car #12 is past the allocation on 3 elements: 30 grid places lost",
+      "Car #12 is past the allocation on 3 elements: 30 grid places imposed",
     );
     expect(carAllocationsTitle([withUsed(ALLOCATION_ANTONELLI, [5, 3, 3, 2, 3, 3, 6])])).toBe(
       "Car #12 is past the allocation on 1 element",
@@ -176,7 +176,7 @@ describe("pipsFor", () => {
 describe("gridPlacesCell", () => {
   const totals = ALLOCATION_ANTONELLI.penalties;
 
-  it("gives the places lost", () => {
+  it("gives the places imposed", () => {
     expect(gridPlacesCell(totals)).toEqual({ places: 30, extras: [] });
   });
 
@@ -186,6 +186,17 @@ describe("gridPlacesCell", () => {
       places: 30,
       extras: ["+ 2 pit lane", "+ 1 back of grid"],
     });
+  });
+
+  it("labels a ruling still to come, and a past-allocation weekend with none found", () => {
+    expect(gridPlacesCell({ ...totals, pending: 1, not_found: 1 }).extras).toEqual([
+      "ruling pending",
+      "no ruling found",
+    ]);
+    expect(gridPlacesCell({ ...totals, pending: 2, not_found: 2 }).extras).toEqual([
+      "2 rulings pending",
+      "2× no ruling found",
+    ]);
   });
 });
 

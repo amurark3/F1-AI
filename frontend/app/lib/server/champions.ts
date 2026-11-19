@@ -22,12 +22,46 @@ export interface ConstructorChampion {
   title_decided: boolean;
 }
 
+/** The race that decided the drivers' title. */
+export interface TitleDecider {
+  round: number;
+  date: string;
+  place: string | null;
+}
+
+/** Whole years and the days since the last birthday. */
+export interface Age {
+  years: number;
+  days: number;
+}
+
+/** The newest decided drivers' title, with the records it sets. */
+export interface LatestChampion {
+  season: number;
+  name: string;
+  last_name: string | null;
+  nationality: string | null;
+  decided_at: TitleDecider | null;
+  round_count: number;
+  rounds_completed: number;
+  /** Age on the date of the race that decided the title. */
+  age: Age | null;
+  previous_youngest: { season: number; name: string; last_name: string | null; age: Age } | null;
+  youngest_ever: boolean;
+  previous_compatriot: { season: number; name: string; last_name: string | null } | null;
+  title_number: number;
+  champion_number: number;
+  error?: string;
+}
+
 export interface SeasonChampion {
   season: number;
+  /** The drivers' title is undecided. `rounds_completed < round_count` says whether the season still runs. */
   is_in_progress: boolean;
   driver_champion: DriverChampion | null;
   constructor_champion: ConstructorChampion | null;
   round_count: number;
+  rounds_completed: number;
 }
 
 export interface ChampionsResponse {
@@ -64,6 +98,9 @@ export interface SeasonDetail {
   is_in_progress: boolean;
   driver_champion: DriverChampion | null;
   constructor_champion: ConstructorChampion | null;
+  round_count: number;
+  rounds_completed: number;
+  decided_at: TitleDecider | null;
   runner_up: { name: string; last_name: string | null; points: number } | null;
   race_winners?: RaceWinner[];
   error?: string;
@@ -81,6 +118,14 @@ export const FIRST_SEASON = 1950;
  */
 export const getChampions = cache((): Promise<ChampionsResponse | null> => {
   return fetchFromBackend<ChampionsResponse>("/api/champions", {
+    revalidate: REVALIDATE.ARCHIVE,
+    tags: ["champions"],
+  });
+});
+
+/** The newest decided drivers' champion and the records the title sets. */
+export const getLatestChampion = cache((): Promise<LatestChampion | null> => {
+  return fetchFromBackend<LatestChampion>("/api/champions/latest", {
     revalidate: REVALIDATE.ARCHIVE,
     tags: ["champions"],
   });

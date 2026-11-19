@@ -10,7 +10,7 @@ import type {
  * HAND-BUILT, not captured: a typed `PowerUnitsResponse` that mirrors the
  * rows of the mockups' "Power units" section (`docs/design/redesign/team.html`
  * and `driver.html`): Mercedes #12 and #63 past the allocation with 30 and 60
- * grid places lost, Ferrari #44 at its full allocation of every element.
+ * grid places imposed, Ferrari #44 at its full allocation of every element.
  * It stands in for the endpoint in unit and e2e tests; nothing here is f1db or
  * FIA data.
  */

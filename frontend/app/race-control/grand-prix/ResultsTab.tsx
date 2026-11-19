@@ -56,7 +56,7 @@ function ClassificationPanel({ result, year, kind }: { result: SessionResult; ye
   );
 }
 
-function ResultsBody({ data, year }: { data: RaceResultsResponse; year: number }) {
+function ResultsBody({ data, year, round }: { data: RaceResultsResponse; year: number; round: number }) {
   const [chosen, setChosen] = useState<ResultsKind>("race");
   const kind: ResultsKind = chosen === "sprint" && data.sprint ? "sprint" : "race";
   const result = data[kind];
@@ -70,7 +70,7 @@ function ResultsBody({ data, year }: { data: RaceResultsResponse; year: number }
           <div className="space-y-4">
             <ChangedAfterFlagPanel changes={result.changed_after_flag} year={year} />
             <FastestLapPanel lap={result.fastest_lap} year={year} />
-            <DebriefLinkPanel />
+            <DebriefLinkPanel round={round} />
           </div>
         </div>
       ) : (
@@ -93,7 +93,7 @@ export function ResultsTab({ year, round }: { year: number; round: number }) {
   });
   return (
     <Section state={state} label="Race results" skeletonClassName="h-[520px]">
-      {state.data && <ResultsBody data={state.data} year={year} />}
+      {state.data && <ResultsBody data={state.data} year={year} round={round} />}
     </Section>
   );
 }

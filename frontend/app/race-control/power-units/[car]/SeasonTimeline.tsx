@@ -1,137 +1,174 @@
-/**
- * The car's season at a glance: one cell per Grand Prix, marked with what its
- * power unit cost there.
- *
- * Server-safe: no state, no effects.
- */
+"use client";
+
+import { Fragment, type CSSProperties } from "react";
+
+import { DriverName } from "@/app/ui/names/DriverName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
+import { Section } from "@/app/ui/section/Section";
+import { SectionHead } from "@/app/ui/SectionHead";
 
-import { Panel } from "../../components/RaceControlPrimitives";
-import { OVER_COLOR, PENDING_COLOR, type CarEvent, type RoundInfo } from "../powerUnitsModel";
+import { timelineSub, timelineTitle, seasonCells, type CellKind, type SeasonCell } from "./carModel";
+import { useCar, type CarSectionProps } from "./useCar";
 
-interface Mark {
-  text: string;
-  color: string;
-  filled: boolean;
-  label: string;
-}
+const MARK: Record<CellKind, string> = {
+  units: "bg-rc-raised text-rc-ink ring-1 ring-inset ring-rc-line",
+  penalty: "bg-f1-red text-rc-ink",
+  pending: "text-rc-blue ring-1 ring-inset ring-rc-blue",
+  notFound: "text-rc-ink-2 ring-1 ring-inset ring-rc-ink-3",
+  window: "border border-dashed border-rc-ink-3 text-rc-ink-2",
+  nothing: "bg-rc-ink/3 text-rc-ink-3",
+  future: "border border-dashed border-rc-line",
+};
 
-function mark(event: CarEvent | undefined, round: RoundInfo, teamColor: string): Mark | null {
-  if (!event) {
-    return null;
-  }
-  const places = event.decisions.reduce(
-    (sum, item) => sum + (item.outcome === "grid_drop" ? (item.places ?? 0) : 0),
-    0,
-  );
-  if (event.decisions.some((item) => item.outcome === "pit_lane")) {
-    return { text: "PL", color: OVER_COLOR, filled: true, label: `${round.name}: pit-lane start` };
-  }
-  if (places > 0) {
-    return { text: `−${places}`, color: OVER_COLOR, filled: true, label: `${round.name}: ${places} grid places` };
-  }
-  if (event.penalty_status === "pending") {
-    return { text: "?", color: PENDING_COLOR, filled: false, label: `${round.name}: stewards' decision pending` };
-  }
-  if (event.penalty_status === "not_found") {
-    return { text: "!", color: PENDING_COLOR, filled: false, label: `${round.name}: no decision found` };
-  }
-  const units = event.new_parts.length;
-  return { text: String(units), color: teamColor, filled: false, label: `${round.name}: ${units} new unit(s)` };
-}
+const MARK_BASE = "grid place-items-center rounded-[3px] font-mono font-semibold leading-none";
 
-function Cell({
-  round,
-  event,
-  teamColor,
-  latest,
-}: {
-  round: RoundInfo;
-  event?: CarEvent;
-  teamColor: string;
-  latest: boolean;
-}) {
-  const current = mark(event, round, teamColor);
+function Cell({ cell, linked, showDriver }: { cell: SeasonCell; linked: boolean; showDriver: boolean }) {
   const body = (
     <>
       <span
-        className={`font-mono text-[9px] font-bold uppercase tracking-[0.08em] ${round.has_documents ? "text-[#9AA1B0]" : "text-[#3A4354]"}`}
+        className={`font-mono text-[10px] font-medium leading-none tracking-[0.04em] ${cell.latest ? "text-rc-ink" : "text-rc-ink-3"}`}
       >
-        {round.code || `R${round.round}`}
+        {cell.code}
       </span>
       <span
-        className="mt-1 flex h-7 w-full items-center justify-center rounded font-mono text-[11px] font-black"
-        style={
-          current
-            ? {
-                background: current.filled ? current.color : `${current.color}1F`,
-                color: current.filled ? "#FFFFFF" : current.color,
-                boxShadow: `inset 0 0 0 1px ${current.color}`,
-              }
-            : { background: round.has_documents ? "#121825" : "transparent", color: "#3A4354" }
-        }
+        aria-label={linked ? undefined : cell.label}
+        className={`${MARK_BASE} h-10 text-[13px] ${MARK[cell.kind]} ${cell.latest ? "ring-1 ring-inset ring-rc-ink-3" : ""}`}
       >
-        {current?.text ?? "·"}
+        {cell.text}
       </span>
+      {showDriver && (
+        <span
+          className={`min-h-2.5 font-mono text-[10px] font-medium leading-none ${cell.driver?.standIn ? "text-rc-blue" : "text-rc-ink-3"}`}
+        >
+          {cell.driver?.code}
+        </span>
+      )}
     </>
   );
-  const className = `flex w-11 shrink-0 flex-col items-center rounded px-0.5 py-1 ${latest ? "ring-1 ring-white/40" : ""}`;
-  if (event) {
-    return (
-      <a
-        href={`#round-${round.round}`}
-        className={`${className} hover:bg-[#121825]`}
-        aria-label={current?.label}
-        title={current?.label}
-      >
-        {body}
-      </a>
-    );
-  }
-  return (
-    <span className={className} title={`${round.name}: ${round.has_documents ? "nothing new" : "no documents yet"}`}>
+  const className = "grid gap-[5px] text-center";
+  return linked ? (
+    <a
+      href={`#round-${cell.round}`}
+      aria-label={cell.label}
+      title={cell.label}
+      className={`${className} hover:opacity-80`}
+    >
+      {body}
+    </a>
+  ) : (
+    <span title={cell.label} className={className}>
       {body}
     </span>
   );
 }
 
-export function SeasonTimeline({
-  rounds,
-  events,
-  teamColor,
-  latestRound,
-}: {
-  rounds: RoundInfo[];
-  events: CarEvent[];
-  teamColor: string;
-  latestRound: number | null;
-}) {
-  const byRound = new Map(events.map((item) => [item.round, item]));
+function MiniMark({ kind, children }: { kind: CellKind; children?: string }) {
   return (
-    <Panel as="section">
-      <PanelHeading
-        eyebrow="Season timeline"
-        aside={
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-[#7F8797] sm:inline">
-            number = new units · −n = grid drop · PL = pit lane · ? = pending
-          </span>
-        }
-        inset
+    <b aria-hidden="true" className={`${MARK_BASE} inline-grid h-[18px] w-[26px] text-[10px] ${MARK[kind]}`}>
+      {children}
+    </b>
+  );
+}
+
+function TimelineLegend({ cells, standIn }: { cells: SeasonCell[]; standIn: string | null }) {
+  const items: Array<[CellKind, string, string]> = [
+    ["units", "7", "new units"],
+    ["penalty", "−30", "grid places"],
+    ["penalty", "PL", "pit-lane start"],
+    ["pending", "?", "ruling pending"],
+    ["notFound", "!", "no ruling found"],
+    ["nothing", "·", "nothing new"],
+    ["future", "", "no FIA documents yet"],
+  ];
+  return (
+    <ul
+      aria-label="Legend"
+      className="mt-5 flex flex-wrap gap-x-[18px] gap-y-2 font-mono text-[11px] font-medium leading-none text-rc-ink-3"
+    >
+      {items.map(([kind, text, label]) => (
+        <li key={label} className="inline-flex items-center gap-[7px]">
+          <MiniMark kind={kind}>{text}</MiniMark>
+          {label}
+        </li>
+      ))}
+      {cells.some((cell) => cell.kind === "window") && (
+        <li className="inline-flex items-center gap-[7px]">
+          <MiniMark kind="window">3</MiniMark>round not pinned down
+        </li>
+      )}
+      {standIn !== null && (
+        <li className="inline-flex items-center gap-[7px]">
+          <b aria-hidden="true" className="font-mono text-[10px] font-semibold text-rc-blue">
+            {standIn}
+          </b>
+          stand-in driver
+        </li>
+      )}
+    </ul>
+  );
+}
+
+/** 02: one cell per Grand Prix, marked with what its power unit cost there. */
+export function SeasonTimeline(props: CarSectionProps) {
+  const { state, data, car, absent } = useCar(props);
+  if (absent) return null;
+  const latest = data?.as_of?.round ?? null;
+  const cells = data && car ? seasonCells(data, car) : [];
+  const sub = car ? timelineSub(car, latest) : null;
+  const shared = (car?.drivers.length ?? 0) > 1;
+  return (
+    <section aria-labelledby="pu-car-season">
+      <SectionHead
+        index={2}
+        id="pu-car-season"
+        title="Season"
+        aside="One cell per Grand Prix · select one for the weekend"
       />
-      <div className="overflow-x-auto">
-        <ol className="flex min-w-max gap-1 p-3">
-          {rounds.map((round) => (
-            <li key={round.round}>
-              <Cell
-                round={round}
-                event={byRound.get(round.round)}
-                teamColor={teamColor}
-                latest={round.round === latestRound}
-              />
-            </li>
-          ))}
-        </ol>
-      </div>
-    </Panel>
+      <Section state={state} label="Season" skeletonClassName="h-[260px]">
+        {car && sub && (
+          <figure className="rounded-md border border-rc-line bg-(--surface) p-[18px] sm:p-6">
+            <PanelHeading
+              eyebrow="What each weekend cost"
+              title={timelineTitle(car, latest)}
+              sub={
+                <>
+                  {sub.head}
+                  {sub.standIns.map(({ stint, runs }) => (
+                    <Fragment key={stint.id}>
+                      {" · "}
+                      <DriverName
+                        variant="last"
+                        name={stint.name}
+                        code={stint.code}
+                        id={stint.id}
+                        year={props.year}
+                      />{" "}
+                      (#
+                      {stint.car_number}) stood in at {runs}
+                    </Fragment>
+                  ))}
+                  {sub.tail}
+                </>
+              }
+            />
+            <ol
+              style={{ "--rounds": cells.length } as CSSProperties}
+              className="grid grid-cols-8 gap-x-1 gap-y-3 sm:grid-cols-[repeat(var(--rounds),minmax(0,1fr))]"
+            >
+              {cells.map((cell) => (
+                <li key={cell.round}>
+                  <Cell
+                    cell={cell}
+                    linked={car.events.some((event) => event.round === cell.round)}
+                    showDriver={shared}
+                  />
+                </li>
+              ))}
+            </ol>
+            <TimelineLegend cells={cells} standIn={sub.standIns[0]?.stint.code ?? null} />
+          </figure>
+        )}
+      </Section>
+    </section>
   );
 }

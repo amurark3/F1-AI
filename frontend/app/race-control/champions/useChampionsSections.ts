@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE } from "@/app/constants/api";
-import type { ChampionsResponse, LatestChampion, StatsResponse } from "@/app/lib/server/champions";
+import type { ChampionsResponse, LatestChampion, SeasonDetail, StatsResponse } from "@/app/lib/server/champions";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
 
 /** The archive moves when a title is decided: no refetch on focus. */
@@ -20,6 +20,11 @@ export function useChampionStats(seed: StatsResponse | null): SectionResult<Stat
 /** Every season with its champions. */
 export function useChampionList(seed: ChampionsResponse | null): SectionResult<ChampionsResponse> {
   return useSection<ChampionsResponse>(`${API_BASE}/api/champions`, { seed, config: CONFIG });
+}
+
+/** One season's champions and race winners: one SWR key, so the page's sections share a request. */
+export function useSeasonDetail(year: number, seed: SeasonDetail | null): SectionResult<SeasonDetail> {
+  return useSection<SeasonDetail>(`${API_BASE}/api/champions/${year}`, { seed, config: CONFIG });
 }
 
 /** The server render's three payloads, as promises the sections `use()`; each may resolve to null. */

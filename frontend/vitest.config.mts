@@ -133,6 +133,9 @@ const COVERAGE_INCLUDE = [
   "app/race-control/power-units/PowerUnitsParts.tsx",
   "app/race-control/power-units/seasonModel.ts",
   "app/race-control/power-units/usePowerUnits.ts",
+  // P6.4: the Champions page (its season page joins with P6.4b).
+  "app/champions/**",
+  "app/race-control/champions/*.{ts,tsx}",
 ];
 
 /** Every metric must reach this in every included file. */

@@ -9,6 +9,10 @@ Key f1db facts this relies on (verified against schema v2026.10.0):
     ``position_number`` (1 = leader) and a ``championship_won`` boolean. For a
     completed season the leader has ``championship_won = 1``; for the in-progress
     season the leader has ``championship_won = 0`` (title not yet decided).
+  - ``championship_won`` turns 1 as soon as a title is mathematically decided,
+    rounds left or not (2026: Antonelli after round 19 of 23). ``is_in_progress``
+    means the drivers' title is undecided; ``rounds_completed < round_count``
+    means the season still runs.
   - Race winners are ``race_data`` rows with ``type = 'RACE_RESULT'`` and
     ``position_number = 1``.
   - A driver's team for a season comes from ``season_entrant_driver``.
@@ -19,19 +23,26 @@ Key f1db facts this relies on (verified against schema v2026.10.0):
 
 from __future__ import annotations
 
+import calendar
+from datetime import date
 from typing import TYPE_CHECKING
 
 import structlog
 
-from app.data.f1db_source import connect
+from app.data.f1db_source import connect, installed_version
 
 if TYPE_CHECKING:
     import sqlite3
 
 logger = structlog.get_logger()
 
-# Cache computed results — the dataset is static between f1db refreshes.
-_cache: dict[str, object] = {}
+# Cache computed results. Keyed by the installed f1db version: the refresh loop installs
+# releases in a running process, so an unkeyed cache would never show a new title.
+_cache: dict[tuple[str | None, str], object] = {}
+
+
+def _key(name: str) -> tuple[str | None, str]:
+    return (installed_version(), name)
 
 
 def _rounds_count(rounds_text: str | None) -> int:
@@ -114,9 +125,121 @@ def _constructor_champion(conn: sqlite3.Connection, year: int) -> dict | None:
     }
 
 
+def _round_counts(conn: sqlite3.Connection, year: int) -> tuple[int, int]:
+    """``(round_count, rounds_completed)``: rounds on the calendar, and rounds with a race result."""
+    row = conn.execute(
+        """
+        SELECT COUNT(*),
+               COALESCE(SUM(EXISTS (SELECT 1 FROM race_data rd WHERE rd.race_id = r.id AND rd.type = 'RACE_RESULT')), 0)
+        FROM race r WHERE r.year = ?
+        """,
+        (year,),
+    ).fetchone()
+    return row[0], row[1]
+
+
+def _decider(conn: sqlite3.Connection, year: int) -> dict | None:
+    """The race that decided the drivers' title."""
+    row = conn.execute(
+        """
+        SELECT r.round, r.date, ci.place_name
+        FROM race r LEFT JOIN circuit ci ON ci.id = r.circuit_id
+        WHERE r.year = ? AND r.drivers_championship_decider = 1
+        """,
+        (year,),
+    ).fetchone()
+    return None if row is None else {"round": row["round"], "date": row["date"], "place": row["place_name"]}
+
+
+def _age(born: date, on: date) -> dict[str, int]:
+    """Whole years and the days since the last birthday (a 29 Feb birthday falls on 1 Mar off leap years)."""
+    years = on.year - born.year - ((on.month, on.day) < (born.month, born.day))
+    year = born.year + years
+    leap_day = (born.month, born.day) == (2, 29) and not calendar.isleap(year)
+    birthday = date(year, 3, 1) if leap_day else born.replace(year=year)
+    return {"years": years, "days": (on - birthday).days}
+
+
+def _lived(row: sqlite3.Row) -> int | None:
+    """Days lived at the title decider, or None without a birth date or a decider."""
+    if not row["date_of_birth"] or not row["date"]:
+        return None
+    return (date.fromisoformat(row["date"]) - date.fromisoformat(row["date_of_birth"])).days
+
+
+def _age_at_decider(row: sqlite3.Row) -> dict[str, int]:
+    return _age(date.fromisoformat(row["date_of_birth"]), date.fromisoformat(row["date"]))
+
+
+def _title_person(row: sqlite3.Row) -> dict:
+    return {"season": row["year"], "name": row["name"], "last_name": row["last_name"]}
+
+
+def latest_champion() -> dict:
+    """The newest decided drivers' title, with the records it sets (age, nationality, count)."""
+    cache_key = _key("latest")
+    cached = _cache.get(cache_key)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT sds.year, d.id, d.name, d.last_name, d.date_of_birth, co.name AS nationality,
+                   r.round, r.date, ci.place_name
+            FROM season_driver_standing sds
+            JOIN driver d ON d.id = sds.driver_id
+            LEFT JOIN country co ON co.id = d.nationality_country_id
+            LEFT JOIN race r ON r.year = sds.year AND r.drivers_championship_decider = 1
+            LEFT JOIN circuit ci ON ci.id = r.circuit_id
+            WHERE sds.championship_won = 1
+            ORDER BY sds.year
+            """
+        ).fetchall()
+        if not rows:
+            return {"error": "No decided drivers' title in f1db"}
+        latest, earlier = rows[-1], rows[:-1]
+        round_count, rounds_completed = _round_counts(conn, latest["year"])
+
+    lived = _lived(latest)
+    dated = [(days, row) for row in earlier if (days := _lived(row)) is not None]
+    youngest = min(dated, key=lambda pair: pair[0], default=None)
+    compatriot = next(
+        (
+            row
+            for row in reversed(earlier)
+            if latest["nationality"] is not None
+            and row["nationality"] == latest["nationality"]
+            and row["id"] != latest["id"]
+        ),
+        None,
+    )
+    result = {
+        "season": latest["year"],
+        "name": latest["name"],
+        "last_name": latest["last_name"],
+        "nationality": latest["nationality"],
+        "decided_at": None
+        if latest["round"] is None
+        else {"round": latest["round"], "date": latest["date"], "place": latest["place_name"]},
+        "round_count": round_count,
+        "rounds_completed": rounds_completed,
+        "age": None if lived is None else _age_at_decider(latest),
+        "previous_youngest": None
+        if youngest is None
+        else {**_title_person(youngest[1]), "age": _age_at_decider(youngest[1])},
+        "youngest_ever": lived is not None and youngest is not None and lived < youngest[0],
+        "previous_compatriot": None if compatriot is None else _title_person(compatriot),
+        "title_number": sum(1 for row in rows if row["id"] == latest["id"]),
+        "champion_number": len({row["id"] for row in rows}),
+    }
+    _cache[cache_key] = result
+    return result
+
+
 def list_champions() -> list[dict]:
     """One row per season 1950→latest, newest first."""
-    cached = _cache.get("list")
+    cached = _cache.get(_key("list"))
     if cached is not None:
         return cached  # type: ignore[return-value]
 
@@ -125,24 +248,26 @@ def list_champions() -> list[dict]:
         result = []
         for year in years:
             driver = _driver_champion(conn, year)
+            round_count, rounds_completed = _round_counts(conn, year)
             result.append(
                 {
                     "season": year,
                     "is_in_progress": bool(driver and not driver["title_decided"]),
                     "driver_champion": driver,
                     "constructor_champion": _constructor_champion(conn, year),
-                    "round_count": conn.execute("SELECT COUNT(*) FROM race WHERE year = ?", (year,)).fetchone()[0],
+                    "round_count": round_count,
+                    "rounds_completed": rounds_completed,
                 }
             )
 
-    _cache["list"] = result
+    _cache[_key("list")] = result
     logger.info("champions.list_built", seasons=len(result))
     return result
 
 
 def get_season_detail(year: int) -> dict:
     """Champions plus every race winner for a single season."""
-    cache_key = f"detail:{year}"
+    cache_key = _key(f"detail:{year}")
     cached = _cache.get(cache_key)
     if cached is not None:
         return cached  # type: ignore[return-value]
@@ -167,6 +292,8 @@ def get_season_detail(year: int) -> dict:
             (year,),
         ).fetchall()
 
+        round_count, rounds_completed = _round_counts(conn, year)
+        decided_at = _decider(conn, year)
         driver = _driver_champion(conn, year)
         constructor = _constructor_champion(conn, year)
         runner_up = conn.execute(
@@ -184,6 +311,9 @@ def get_season_detail(year: int) -> dict:
         "is_in_progress": bool(driver and not driver["title_decided"]),
         "driver_champion": driver,
         "constructor_champion": constructor,
+        "round_count": round_count,
+        "rounds_completed": rounds_completed,
+        "decided_at": decided_at,
         "runner_up": (
             {"name": runner_up["name"], "last_name": runner_up["last_name"], "points": float(runner_up["points"])}
             if runner_up
@@ -208,7 +338,7 @@ def get_season_detail(year: int) -> dict:
 
 def get_champion_stats() -> dict:
     """Aggregate leaderboards for the stats/visuals section."""
-    cached = _cache.get("stats")
+    cached = _cache.get(_key("stats"))
     if cached is not None:
         return cached  # type: ignore[return-value]
 
@@ -242,5 +372,5 @@ def get_champion_stats() -> dict:
         ],
         "most_constructor_titles": [{"name": r["name"], "titles": r["titles"]} for r in constructor_titles],
     }
-    _cache["stats"] = stats
+    _cache[_key("stats")] = stats
     return stats

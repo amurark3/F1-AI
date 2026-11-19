@@ -1,0 +1,1947 @@
+{
+ "source": "f1db v2026.20.0, captured 2026-11-18 through app.data.champions with F1DB_PATH on the real database",
+ "list": [
+  {
+   "season": 2026,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Kimi Antonelli",
+    "last_name": "Antonelli",
+    "code": "ANT",
+    "team": "Mercedes",
+    "points": 390.0,
+    "wins": 9,
+    "nationality": "Italy",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 652.0,
+    "title_decided": true
+   },
+   "round_count": 23,
+   "rounds_completed": 20
+  },
+  {
+   "season": 2025,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lando Norris",
+    "last_name": "Norris",
+    "code": "NOR",
+    "team": "McLaren",
+    "points": 423.0,
+    "wins": 7,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 833.0,
+    "title_decided": true
+   },
+   "round_count": 24,
+   "rounds_completed": 24
+  },
+  {
+   "season": 2024,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Max Verstappen",
+    "last_name": "Verstappen",
+    "code": "VER",
+    "team": "Red Bull",
+    "points": 437.0,
+    "wins": 9,
+    "nationality": "Netherlands",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 666.0,
+    "title_decided": true
+   },
+   "round_count": 24,
+   "rounds_completed": 24
+  },
+  {
+   "season": 2023,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Max Verstappen",
+    "last_name": "Verstappen",
+    "code": "VER",
+    "team": "Red Bull",
+    "points": 575.0,
+    "wins": 19,
+    "nationality": "Netherlands",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 860.0,
+    "title_decided": true
+   },
+   "round_count": 22,
+   "rounds_completed": 22
+  },
+  {
+   "season": 2022,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Max Verstappen",
+    "last_name": "Verstappen",
+    "code": "VER",
+    "team": "Red Bull",
+    "points": 454.0,
+    "wins": 15,
+    "nationality": "Netherlands",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 759.0,
+    "title_decided": true
+   },
+   "round_count": 22,
+   "rounds_completed": 22
+  },
+  {
+   "season": 2021,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Max Verstappen",
+    "last_name": "Verstappen",
+    "code": "VER",
+    "team": "Red Bull",
+    "points": 395.5,
+    "wins": 10,
+    "nationality": "Netherlands",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 613.5,
+    "title_decided": true
+   },
+   "round_count": 22,
+   "rounds_completed": 22
+  },
+  {
+   "season": 2020,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 347.0,
+    "wins": 11,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 573.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 2019,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 413.0,
+    "wins": 11,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 739.0,
+    "title_decided": true
+   },
+   "round_count": 21,
+   "rounds_completed": 21
+  },
+  {
+   "season": 2018,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 408.0,
+    "wins": 11,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 655.0,
+    "title_decided": true
+   },
+   "round_count": 21,
+   "rounds_completed": 21
+  },
+  {
+   "season": 2017,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 363.0,
+    "wins": 9,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 668.0,
+    "title_decided": true
+   },
+   "round_count": 20,
+   "rounds_completed": 20
+  },
+  {
+   "season": 2016,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nico Rosberg",
+    "last_name": "Rosberg",
+    "code": "ROS",
+    "team": "Mercedes",
+    "points": 385.0,
+    "wins": 9,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 765.0,
+    "title_decided": true
+   },
+   "round_count": 21,
+   "rounds_completed": 21
+  },
+  {
+   "season": 2015,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 381.0,
+    "wins": 10,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 703.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2014,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "Mercedes",
+    "points": 384.0,
+    "wins": 11,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Mercedes",
+    "points": 701.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2013,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Sebastian Vettel",
+    "last_name": "Vettel",
+    "code": "VET",
+    "team": "Red Bull",
+    "points": 397.0,
+    "wins": 13,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 596.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2012,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Sebastian Vettel",
+    "last_name": "Vettel",
+    "code": "VET",
+    "team": "Red Bull",
+    "points": 281.0,
+    "wins": 5,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 460.0,
+    "title_decided": true
+   },
+   "round_count": 20,
+   "rounds_completed": 20
+  },
+  {
+   "season": 2011,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Sebastian Vettel",
+    "last_name": "Vettel",
+    "code": "VET",
+    "team": "Red Bull",
+    "points": 392.0,
+    "wins": 11,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 650.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2010,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Sebastian Vettel",
+    "last_name": "Vettel",
+    "code": "VET",
+    "team": "Red Bull",
+    "points": 256.0,
+    "wins": 5,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Red Bull",
+    "points": 498.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2009,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jenson Button",
+    "last_name": "Button",
+    "code": "BUT",
+    "team": "Brawn",
+    "points": 95.0,
+    "wins": 6,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Brawn",
+    "points": 172.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 2008,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Lewis Hamilton",
+    "last_name": "Hamilton",
+    "code": "HAM",
+    "team": "McLaren",
+    "points": 98.0,
+    "wins": 5,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 172.0,
+    "title_decided": true
+   },
+   "round_count": 18,
+   "rounds_completed": 18
+  },
+  {
+   "season": 2007,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Kimi Räikkönen",
+    "last_name": "Räikkönen",
+    "code": "RAI",
+    "team": "Ferrari",
+    "points": 110.0,
+    "wins": 6,
+    "nationality": "Finland",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 204.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 2006,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Fernando Alonso",
+    "last_name": "Alonso",
+    "code": "ALO",
+    "team": "Renault",
+    "points": 134.0,
+    "wins": 7,
+    "nationality": "Spain",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Renault",
+    "points": 206.0,
+    "title_decided": true
+   },
+   "round_count": 18,
+   "rounds_completed": 18
+  },
+  {
+   "season": 2005,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Fernando Alonso",
+    "last_name": "Alonso",
+    "code": "ALO",
+    "team": "Renault",
+    "points": 133.0,
+    "wins": 7,
+    "nationality": "Spain",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Renault",
+    "points": 191.0,
+    "title_decided": true
+   },
+   "round_count": 19,
+   "rounds_completed": 19
+  },
+  {
+   "season": 2004,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Ferrari",
+    "points": 148.0,
+    "wins": 13,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 262.0,
+    "title_decided": true
+   },
+   "round_count": 18,
+   "rounds_completed": 18
+  },
+  {
+   "season": 2003,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Ferrari",
+    "points": 93.0,
+    "wins": 6,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 158.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 2002,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Ferrari",
+    "points": 144.0,
+    "wins": 11,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 221.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 2001,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Ferrari",
+    "points": 123.0,
+    "wins": 9,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 179.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 2000,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Ferrari",
+    "points": 108.0,
+    "wins": 9,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 170.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 1999,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Mika Häkkinen",
+    "last_name": "Häkkinen",
+    "code": "HAK",
+    "team": "McLaren",
+    "points": 76.0,
+    "wins": 5,
+    "nationality": "Finland",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 128.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1998,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Mika Häkkinen",
+    "last_name": "Häkkinen",
+    "code": "HAK",
+    "team": "McLaren",
+    "points": 100.0,
+    "wins": 8,
+    "nationality": "Finland",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 156.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1997,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jacques Villeneuve",
+    "last_name": "Villeneuve",
+    "code": "VIL",
+    "team": "Williams",
+    "points": 81.0,
+    "wins": 7,
+    "nationality": "Canada",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 123.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 1996,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Damon Hill",
+    "last_name": "Hill",
+    "code": "HIL",
+    "team": "Williams",
+    "points": 97.0,
+    "wins": 8,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 175.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1995,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Benetton",
+    "points": 102.0,
+    "wins": 9,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Benetton",
+    "points": 137.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 1994,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Michael Schumacher",
+    "last_name": "Schumacher",
+    "code": "MSC",
+    "team": "Benetton",
+    "points": 92.0,
+    "wins": 8,
+    "nationality": "Germany",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 118.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1993,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alain Prost",
+    "last_name": "Prost",
+    "code": "PRO",
+    "team": "Williams",
+    "points": 99.0,
+    "wins": 7,
+    "nationality": "France",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 168.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1992,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nigel Mansell",
+    "last_name": "Mansell",
+    "code": "MAN",
+    "team": "Williams",
+    "points": 108.0,
+    "wins": 9,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 164.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1991,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Ayrton Senna",
+    "last_name": "Senna",
+    "code": "SEN",
+    "team": "McLaren",
+    "points": 96.0,
+    "wins": 7,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 139.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1990,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Ayrton Senna",
+    "last_name": "Senna",
+    "code": "SEN",
+    "team": "McLaren",
+    "points": 78.0,
+    "wins": 6,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 121.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1989,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alain Prost",
+    "last_name": "Prost",
+    "code": "PRO",
+    "team": "McLaren",
+    "points": 76.0,
+    "wins": 4,
+    "nationality": "France",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 141.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1988,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Ayrton Senna",
+    "last_name": "Senna",
+    "code": "SEN",
+    "team": "McLaren",
+    "points": 90.0,
+    "wins": 8,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 199.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1987,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nelson Piquet",
+    "last_name": "Piquet",
+    "code": "PIQ",
+    "team": "Williams",
+    "points": 73.0,
+    "wins": 3,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 137.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1986,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alain Prost",
+    "last_name": "Prost",
+    "code": "PRO",
+    "team": "McLaren",
+    "points": 72.0,
+    "wins": 4,
+    "nationality": "France",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 141.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1985,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alain Prost",
+    "last_name": "Prost",
+    "code": "PRO",
+    "team": "McLaren",
+    "points": 73.0,
+    "wins": 5,
+    "nationality": "France",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 90.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1984,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Niki Lauda",
+    "last_name": "Lauda",
+    "code": "LAU",
+    "team": "McLaren",
+    "points": 72.0,
+    "wins": 5,
+    "nationality": "Austria",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 143.5,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1983,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nelson Piquet",
+    "last_name": "Piquet",
+    "code": "PIQ",
+    "team": "Brabham",
+    "points": 59.0,
+    "wins": 3,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 89.0,
+    "title_decided": true
+   },
+   "round_count": 15,
+   "rounds_completed": 15
+  },
+  {
+   "season": 1982,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Keke Rosberg",
+    "last_name": "Rosberg",
+    "code": "ROS",
+    "team": "Williams",
+    "points": 44.0,
+    "wins": 1,
+    "nationality": "Finland",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 74.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1981,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nelson Piquet",
+    "last_name": "Piquet",
+    "code": "PIQ",
+    "team": "Brabham",
+    "points": 50.0,
+    "wins": 3,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 95.0,
+    "title_decided": true
+   },
+   "round_count": 15,
+   "rounds_completed": 15
+  },
+  {
+   "season": 1980,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alan Jones",
+    "last_name": "Jones",
+    "code": "JON",
+    "team": "Williams",
+    "points": 67.0,
+    "wins": 5,
+    "nationality": "Australia",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Williams",
+    "points": 120.0,
+    "title_decided": true
+   },
+   "round_count": 14,
+   "rounds_completed": 14
+  },
+  {
+   "season": 1979,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jody Scheckter",
+    "last_name": "Scheckter",
+    "code": "SCH",
+    "team": "Ferrari",
+    "points": 51.0,
+    "wins": 3,
+    "nationality": "South Africa",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 113.0,
+    "title_decided": true
+   },
+   "round_count": 15,
+   "rounds_completed": 15
+  },
+  {
+   "season": 1978,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Mario Andretti",
+    "last_name": "Andretti",
+    "code": "AND",
+    "team": "Lotus",
+    "points": 64.0,
+    "wins": 6,
+    "nationality": "United States of America",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 86.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1977,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Niki Lauda",
+    "last_name": "Lauda",
+    "code": "LAU",
+    "team": "Ferrari",
+    "points": 72.0,
+    "wins": 3,
+    "nationality": "Austria",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 95.0,
+    "title_decided": true
+   },
+   "round_count": 17,
+   "rounds_completed": 17
+  },
+  {
+   "season": 1976,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "James Hunt",
+    "last_name": "Hunt",
+    "code": "HUN",
+    "team": "McLaren",
+    "points": 69.0,
+    "wins": 6,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 83.0,
+    "title_decided": true
+   },
+   "round_count": 16,
+   "rounds_completed": 16
+  },
+  {
+   "season": 1975,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Niki Lauda",
+    "last_name": "Lauda",
+    "code": "LAU",
+    "team": "Ferrari",
+    "points": 64.5,
+    "wins": 5,
+    "nationality": "Austria",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 72.5,
+    "title_decided": true
+   },
+   "round_count": 14,
+   "rounds_completed": 14
+  },
+  {
+   "season": 1974,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Emerson Fittipaldi",
+    "last_name": "Fittipaldi",
+    "code": "FIT",
+    "team": "McLaren",
+    "points": 55.0,
+    "wins": 3,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "McLaren",
+    "points": 73.0,
+    "title_decided": true
+   },
+   "round_count": 15,
+   "rounds_completed": 15
+  },
+  {
+   "season": 1973,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jackie Stewart",
+    "last_name": "Stewart",
+    "code": "STE",
+    "team": "Tyrrell",
+    "points": 71.0,
+    "wins": 5,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 92.0,
+    "title_decided": true
+   },
+   "round_count": 15,
+   "rounds_completed": 15
+  },
+  {
+   "season": 1972,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Emerson Fittipaldi",
+    "last_name": "Fittipaldi",
+    "code": "FIT",
+    "team": "Lotus",
+    "points": 61.0,
+    "wins": 5,
+    "nationality": "Brazil",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 61.0,
+    "title_decided": true
+   },
+   "round_count": 12,
+   "rounds_completed": 12
+  },
+  {
+   "season": 1971,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jackie Stewart",
+    "last_name": "Stewart",
+    "code": "STE",
+    "team": "Tyrrell",
+    "points": 62.0,
+    "wins": 6,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Tyrrell",
+    "points": 73.0,
+    "title_decided": true
+   },
+   "round_count": 11,
+   "rounds_completed": 11
+  },
+  {
+   "season": 1970,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jochen Rindt",
+    "last_name": "Rindt",
+    "code": "RIN",
+    "team": "Lotus",
+    "points": 45.0,
+    "wins": 5,
+    "nationality": "Austria",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 59.0,
+    "title_decided": true
+   },
+   "round_count": 13,
+   "rounds_completed": 13
+  },
+  {
+   "season": 1969,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jackie Stewart",
+    "last_name": "Stewart",
+    "code": "STE",
+    "team": "Matra",
+    "points": 63.0,
+    "wins": 6,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Matra",
+    "points": 66.0,
+    "title_decided": true
+   },
+   "round_count": 11,
+   "rounds_completed": 11
+  },
+  {
+   "season": 1968,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Graham Hill",
+    "last_name": "Hill",
+    "code": "HIL",
+    "team": "Lotus",
+    "points": 48.0,
+    "wins": 3,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 62.0,
+    "title_decided": true
+   },
+   "round_count": 12,
+   "rounds_completed": 12
+  },
+  {
+   "season": 1967,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Denny Hulme",
+    "last_name": "Hulme",
+    "code": "HUL",
+    "team": "Brabham",
+    "points": 51.0,
+    "wins": 2,
+    "nationality": "New Zealand",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Brabham",
+    "points": 63.0,
+    "title_decided": true
+   },
+   "round_count": 11,
+   "rounds_completed": 11
+  },
+  {
+   "season": 1966,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jack Brabham",
+    "last_name": "Brabham",
+    "code": "BRA",
+    "team": "Brabham",
+    "points": 42.0,
+    "wins": 4,
+    "nationality": "Australia",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Brabham",
+    "points": 42.0,
+    "title_decided": true
+   },
+   "round_count": 9,
+   "rounds_completed": 9
+  },
+  {
+   "season": 1965,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jim Clark",
+    "last_name": "Clark",
+    "code": "CLA",
+    "team": "Lotus",
+    "points": 54.0,
+    "wins": 6,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 54.0,
+    "title_decided": true
+   },
+   "round_count": 10,
+   "rounds_completed": 10
+  },
+  {
+   "season": 1964,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "John Surtees",
+    "last_name": "Surtees",
+    "code": "SUR",
+    "team": "Ferrari",
+    "points": 40.0,
+    "wins": 2,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 45.0,
+    "title_decided": true
+   },
+   "round_count": 10,
+   "rounds_completed": 10
+  },
+  {
+   "season": 1963,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jim Clark",
+    "last_name": "Clark",
+    "code": "CLA",
+    "team": "Lotus",
+    "points": 54.0,
+    "wins": 7,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Lotus",
+    "points": 54.0,
+    "title_decided": true
+   },
+   "round_count": 10,
+   "rounds_completed": 10
+  },
+  {
+   "season": 1962,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Graham Hill",
+    "last_name": "Hill",
+    "code": "HIL",
+    "team": "BRM",
+    "points": 42.0,
+    "wins": 4,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "BRM",
+    "points": 42.0,
+    "title_decided": true
+   },
+   "round_count": 9,
+   "rounds_completed": 9
+  },
+  {
+   "season": 1961,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Phil Hill",
+    "last_name": "Hill",
+    "code": "HIL",
+    "team": "Ferrari",
+    "points": 34.0,
+    "wins": 2,
+    "nationality": "United States of America",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Ferrari",
+    "points": 40.0,
+    "title_decided": true
+   },
+   "round_count": 8,
+   "rounds_completed": 8
+  },
+  {
+   "season": 1960,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jack Brabham",
+    "last_name": "Brabham",
+    "code": "BRA",
+    "team": "Cooper",
+    "points": 43.0,
+    "wins": 5,
+    "nationality": "Australia",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Cooper",
+    "points": 48.0,
+    "title_decided": true
+   },
+   "round_count": 10,
+   "rounds_completed": 10
+  },
+  {
+   "season": 1959,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Jack Brabham",
+    "last_name": "Brabham",
+    "code": "BRA",
+    "team": "Cooper",
+    "points": 31.0,
+    "wins": 2,
+    "nationality": "Australia",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Cooper",
+    "points": 40.0,
+    "title_decided": true
+   },
+   "round_count": 9,
+   "rounds_completed": 9
+  },
+  {
+   "season": 1958,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Mike Hawthorn",
+    "last_name": "Hawthorn",
+    "code": "HAW",
+    "team": "Ferrari",
+    "points": 42.0,
+    "wins": 1,
+    "nationality": "United Kingdom",
+    "title_decided": true
+   },
+   "constructor_champion": {
+    "name": "Vanwall",
+    "points": 48.0,
+    "title_decided": true
+   },
+   "round_count": 11,
+   "rounds_completed": 11
+  },
+  {
+   "season": 1957,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Juan Manuel Fangio",
+    "last_name": "Fangio",
+    "code": "FAN",
+    "team": "Maserati",
+    "points": 40.0,
+    "wins": 4,
+    "nationality": "Argentina",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 8,
+   "rounds_completed": 8
+  },
+  {
+   "season": 1956,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Juan Manuel Fangio",
+    "last_name": "Fangio",
+    "code": "FAN",
+    "team": "Ferrari",
+    "points": 30.0,
+    "wins": 3,
+    "nationality": "Argentina",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 8,
+   "rounds_completed": 8
+  },
+  {
+   "season": 1955,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Juan Manuel Fangio",
+    "last_name": "Fangio",
+    "code": "FAN",
+    "team": "Mercedes",
+    "points": 40.0,
+    "wins": 4,
+    "nationality": "Argentina",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 7,
+   "rounds_completed": 7
+  },
+  {
+   "season": 1954,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Juan Manuel Fangio",
+    "last_name": "Fangio",
+    "code": "FAN",
+    "team": "Mercedes",
+    "points": 42.0,
+    "wins": 6,
+    "nationality": "Argentina",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 9,
+   "rounds_completed": 9
+  },
+  {
+   "season": 1953,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alberto Ascari",
+    "last_name": "Ascari",
+    "code": "ASC",
+    "team": "Ferrari",
+    "points": 34.5,
+    "wins": 5,
+    "nationality": "Italy",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 9,
+   "rounds_completed": 9
+  },
+  {
+   "season": 1952,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Alberto Ascari",
+    "last_name": "Ascari",
+    "code": "ASC",
+    "team": "Ferrari",
+    "points": 36.0,
+    "wins": 6,
+    "nationality": "Italy",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 8,
+   "rounds_completed": 8
+  },
+  {
+   "season": 1951,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Juan Manuel Fangio",
+    "last_name": "Fangio",
+    "code": "FAN",
+    "team": "Alfa Romeo",
+    "points": 31.0,
+    "wins": 3,
+    "nationality": "Argentina",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 8,
+   "rounds_completed": 8
+  },
+  {
+   "season": 1950,
+   "is_in_progress": false,
+   "driver_champion": {
+    "name": "Nino Farina",
+    "last_name": "Farina",
+    "code": "FAR",
+    "team": "Alfa Romeo",
+    "points": 30.0,
+    "wins": 3,
+    "nationality": "Italy",
+    "title_decided": true
+   },
+   "constructor_champion": null,
+   "round_count": 7,
+   "rounds_completed": 7
+  }
+ ],
+ "latest": {
+  "season": 2026,
+  "name": "Kimi Antonelli",
+  "last_name": "Antonelli",
+  "nationality": "Italy",
+  "decided_at": {
+   "round": 19,
+   "date": "2026-11-01",
+   "place": "Mexico City"
+  },
+  "round_count": 23,
+  "rounds_completed": 20,
+  "age": {
+   "years": 20,
+   "days": 68
+  },
+  "previous_youngest": {
+   "season": 2010,
+   "name": "Sebastian Vettel",
+   "last_name": "Vettel",
+   "age": {
+    "years": 23,
+    "days": 134
+   }
+  },
+  "youngest_ever": true,
+  "previous_compatriot": {
+   "season": 1953,
+   "name": "Alberto Ascari",
+   "last_name": "Ascari"
+  },
+  "title_number": 1,
+  "champion_number": 36
+ },
+ "season_2026": {
+  "season": 2026,
+  "is_in_progress": false,
+  "driver_champion": {
+   "name": "Kimi Antonelli",
+   "last_name": "Antonelli",
+   "code": "ANT",
+   "team": "Mercedes",
+   "points": 390.0,
+   "wins": 9,
+   "nationality": "Italy",
+   "title_decided": true
+  },
+  "constructor_champion": {
+   "name": "Mercedes",
+   "points": 652.0,
+   "title_decided": true
+  },
+  "round_count": 23,
+  "rounds_completed": 20,
+  "decided_at": {
+   "round": 19,
+   "date": "2026-11-01",
+   "place": "Mexico City"
+  },
+  "runner_up": {
+   "name": "Max Verstappen",
+   "last_name": "Verstappen",
+   "points": 279.0
+  },
+  "race_winners": [
+   {
+    "round": 1,
+    "race_name": "Formula 1 Qatar Airways Australian Grand Prix 2026",
+    "date": "2026-03-08",
+    "winner": "George Russell",
+    "driver_id": "george-russell",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 2,
+    "race_name": "Formula 1 Heineken Chinese Grand Prix 2026",
+    "date": "2026-03-15",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 3,
+    "race_name": "Formula 1 Aramco Japanese Grand Prix 2026",
+    "date": "2026-03-29",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 4,
+    "race_name": "Formula 1 Crypto.com Miami Grand Prix 2026",
+    "date": "2026-05-03",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 5,
+    "race_name": "Formula 1 Lenovo Grand Prix du Canada 2026",
+    "date": "2026-05-24",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 6,
+    "race_name": "Formula 1 Louis Vuitton Grand Prix de Monaco 2026",
+    "date": "2026-06-07",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 7,
+    "race_name": "Formula 1 MSC Cruises Gran Premio de Barcelona-Catalunya 2026",
+    "date": "2026-06-14",
+    "winner": "Lewis Hamilton",
+    "driver_id": "lewis-hamilton",
+    "team": "Ferrari",
+    "team_id": "ferrari"
+   },
+   {
+    "round": 8,
+    "race_name": "Formula 1 Lenovo Austrian Grand Prix 2026",
+    "date": "2026-06-28",
+    "winner": "George Russell",
+    "driver_id": "george-russell",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 9,
+    "race_name": "Formula 1 Pirelli British Grand Prix 2026",
+    "date": "2026-07-05",
+    "winner": "Charles Leclerc",
+    "driver_id": "charles-leclerc",
+    "team": "Ferrari",
+    "team_id": "ferrari"
+   },
+   {
+    "round": 10,
+    "race_name": "Formula 1 Moët & Chandon Belgian Grand Prix 2026",
+    "date": "2026-07-19",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 11,
+    "race_name": "Formula 1 AWS Hungarian Grand Prix 2026",
+    "date": "2026-07-26",
+    "winner": "Lando Norris",
+    "driver_id": "lando-norris",
+    "team": "McLaren",
+    "team_id": "mclaren"
+   },
+   {
+    "round": 12,
+    "race_name": "Formula 1 Heineken Dutch Grand Prix 2026",
+    "date": "2026-08-23",
+    "winner": "Lando Norris",
+    "driver_id": "lando-norris",
+    "team": "McLaren",
+    "team_id": "mclaren"
+   },
+   {
+    "round": 13,
+    "race_name": "Formula 1 Pirelli Gran Premio d'Italia 2026",
+    "date": "2026-09-06",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 14,
+    "race_name": "Formula 1 TAG Heuer Gran Premio de España 2026",
+    "date": "2026-09-13",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 15,
+    "race_name": "Formula 1 Qatar Airways Azerbaijan Grand Prix 2026",
+    "date": "2026-09-26",
+    "winner": "George Russell",
+    "driver_id": "george-russell",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 16,
+    "race_name": "Formula 1 Gulf Air Bahrain Grand Prix in Malaysia 2026",
+    "date": "2026-10-04",
+    "winner": "Max Verstappen",
+    "driver_id": "max-verstappen",
+    "team": "Red Bull",
+    "team_id": "red-bull"
+   },
+   {
+    "round": 17,
+    "race_name": "Formula 1 Singapore Airlines Singapore Grand Prix 2026",
+    "date": "2026-10-11",
+    "winner": "Max Verstappen",
+    "driver_id": "max-verstappen",
+    "team": "Red Bull",
+    "team_id": "red-bull"
+   },
+   {
+    "round": 18,
+    "race_name": "Formula 1 MSC Cruises United States Grand Prix 2026",
+    "date": "2026-10-25",
+    "winner": "Kimi Antonelli",
+    "driver_id": "kimi-antonelli",
+    "team": "Mercedes",
+    "team_id": "mercedes"
+   },
+   {
+    "round": 19,
+    "race_name": "Formula 1 Gran Premio de la Ciudad de México 2026",
+    "date": "2026-11-01",
+    "winner": "Max Verstappen",
+    "driver_id": "max-verstappen",
+    "team": "Red Bull",
+    "team_id": "red-bull"
+   },
+   {
+    "round": 20,
+    "race_name": "Formula 1 MSC Cruises Grande Prêmio de São Paulo 2026",
+    "date": "2026-11-08",
+    "winner": "Lando Norris",
+    "driver_id": "lando-norris",
+    "team": "McLaren",
+    "team_id": "mclaren"
+   }
+  ]
+ },
+ "season_1957": {
+  "season": 1957,
+  "is_in_progress": false,
+  "driver_champion": {
+   "name": "Juan Manuel Fangio",
+   "last_name": "Fangio",
+   "code": "FAN",
+   "team": "Maserati",
+   "points": 40.0,
+   "wins": 4,
+   "nationality": "Argentina",
+   "title_decided": true
+  },
+  "constructor_champion": null,
+  "round_count": 8,
+  "rounds_completed": 8,
+  "decided_at": {
+   "round": 6,
+   "date": "1957-08-04",
+   "place": "Nürburg"
+  },
+  "runner_up": {
+   "name": "Stirling Moss",
+   "last_name": "Moss",
+   "points": 25.0
+  },
+  "race_winners": [
+   {
+    "round": 1,
+    "race_name": "Gran Premio de Argentina 1957",
+    "date": "1957-01-13",
+    "winner": "Juan Manuel Fangio",
+    "driver_id": "juan-manuel-fangio",
+    "team": "Maserati",
+    "team_id": "maserati"
+   },
+   {
+    "round": 2,
+    "race_name": "Grand Prix de Monaco 1957",
+    "date": "1957-05-19",
+    "winner": "Juan Manuel Fangio",
+    "driver_id": "juan-manuel-fangio",
+    "team": "Maserati",
+    "team_id": "maserati"
+   },
+   {
+    "round": 3,
+    "race_name": "1957 Indianapolis 500",
+    "date": "1957-05-30",
+    "winner": "Sam Hanks",
+    "driver_id": "sam-hanks",
+    "team": "Epperly",
+    "team_id": "epperly"
+   },
+   {
+    "round": 4,
+    "race_name": "Grand Prix de France 1957",
+    "date": "1957-07-07",
+    "winner": "Juan Manuel Fangio",
+    "driver_id": "juan-manuel-fangio",
+    "team": "Maserati",
+    "team_id": "maserati"
+   },
+   {
+    "round": 5,
+    "race_name": "1957 RAC British Grand Prix",
+    "date": "1957-07-20",
+    "winner": "Tony Brooks",
+    "driver_id": "tony-brooks",
+    "team": "Vanwall",
+    "team_id": "vanwall"
+   },
+   {
+    "round": 5,
+    "race_name": "1957 RAC British Grand Prix",
+    "date": "1957-07-20",
+    "winner": "Stirling Moss",
+    "driver_id": "stirling-moss",
+    "team": "Vanwall",
+    "team_id": "vanwall"
+   },
+   {
+    "round": 6,
+    "race_name": "Grosser Preis von Deutschland 1957",
+    "date": "1957-08-04",
+    "winner": "Juan Manuel Fangio",
+    "driver_id": "juan-manuel-fangio",
+    "team": "Maserati",
+    "team_id": "maserati"
+   },
+   {
+    "round": 7,
+    "race_name": "Gran Premio di Pescara 1957",
+    "date": "1957-08-18",
+    "winner": "Stirling Moss",
+    "driver_id": "stirling-moss",
+    "team": "Vanwall",
+    "team_id": "vanwall"
+   },
+   {
+    "round": 8,
+    "race_name": "Gran Premio d'Italia 1957",
+    "date": "1957-09-08",
+    "winner": "Stirling Moss",
+    "driver_id": "stirling-moss",
+    "team": "Vanwall",
+    "team_id": "vanwall"
+   }
+  ]
+ }
+}

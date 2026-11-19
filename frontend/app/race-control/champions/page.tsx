@@ -1,6 +1,6 @@
-import { getChampions, getChampionStats } from "@/app/lib/server/champions";
+import { getChampions, getChampionStats, getLatestChampion } from "@/app/lib/server/champions";
 
-import { ChampionsView, type ChampionsSeed } from "./ChampionsView";
+import { ChampionsView } from "./ChampionsView";
 
 import type { Metadata } from "next";
 
@@ -17,11 +17,9 @@ export const metadata: Metadata = {
     "Every Formula 1 World Drivers' and Constructors' Champion since 1950, with points, wins, and the races that decided each title.",
 };
 
-export default async function ChampionsPage() {
-  // Cached independently, so the slower one never delays the other.
-  const [champions, stats] = await Promise.all([getChampions(), getChampionStats()]);
-
-  const seed: ChampionsSeed = { champions, stats };
-
-  return <ChampionsView seed={seed} />;
+/** Awaits nothing: the promises go to the sections, which take them up behind their own boundaries. */
+export default function ChampionsPage() {
+  return (
+    <ChampionsView seeds={{ latest: getLatestChampion(), stats: getChampionStats(), champions: getChampions() }} />
+  );
 }

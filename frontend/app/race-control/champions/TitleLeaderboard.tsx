@@ -1,68 +1,63 @@
 "use client";
 
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { use } from "react";
 
 import type { TitleEntry } from "@/app/lib/server/champions";
-import { Panel, rcFont } from "@/app/race-control/components/RaceControlPrimitives";
-import { driverLabel } from "@/app/ui/names/names";
+import { getTeamColor } from "@/app/lib/teamColors";
+import { Panel } from "@/app/race-control/components/RaceControlPrimitives";
+import { DriverName } from "@/app/ui/names/DriverName";
+import { TeamName } from "@/app/ui/names/TeamName";
+import { PanelHeading } from "@/app/ui/PanelHeading";
+import { RankBars, type RankBarItem } from "@/app/ui/RankBars";
+import { Section } from "@/app/ui/section/Section";
+import { rc } from "@/app/ui/tokens";
 
-interface TitleLeaderboardProps {
-  title: string;
-  entries: TitleEntry[];
-  color: string;
+import { leaderboardTitle, leaders } from "./championsModel";
+import { useChampionStats, type ChampionsSeeds } from "./useChampionsSections";
+
+type Kind = "drivers" | "constructors";
+
+const COPY: Record<Kind, { eyebrow: string; label: string }> = {
+  drivers: { eyebrow: "Drivers", label: "Drivers' titles" },
+  constructors: { eyebrow: "Constructors", label: "Constructors' titles" },
+};
+
+function items(entries: TitleEntry[], kind: Kind): RankBarItem[] {
+  return entries.map((entry) => ({
+    id: entry.name,
+    label:
+      kind === "drivers" ? <DriverName name={entry.name} lastName={entry.last_name} /> : <TeamName name={entry.name} />,
+    value: entry.titles,
+    // Gold is a title; a constructor's bar is its team colour (data).
+    color: kind === "drivers" ? rc.gold : getTeamColor(entry.name),
+  }));
 }
 
-/** f1db's surname on a driver row ("Fangio"); a constructor row has none and keeps its name. */
-function axisLabel(entry: TitleEntry): string {
-  return driverLabel({ name: entry.name, lastName: entry.last_name }, "last");
-}
-
-function LeaderboardTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TitleEntry }> }) {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
+function LeaderboardCard({ entries, kind }: { entries: TitleEntry[]; kind: Kind }) {
+  const shown = leaders(entries);
   return (
-    <div
-      className="rounded-lg border px-3 py-2 text-sm shadow-xl"
-      style={{ background: "#0F1210", borderColor: "rgba(255,255,255,0.12)" }}
-    >
-      <p className="font-black uppercase tracking-wider text-white" style={rcFont}>
-        {driverLabel({ name: entry.name, lastName: entry.last_name }, "full")}
-      </p>
-      <p className="mt-0.5 font-mono text-neutral-300">
-        {entry.titles} {entry.titles === 1 ? "title" : "titles"}
-      </p>
-    </div>
+    <Panel className="p-5 sm:p-6">
+      <PanelHeading eyebrow={COPY[kind].eyebrow} title={leaderboardTitle(entries, kind) ?? undefined} />
+      {shown.length === 0 ? (
+        <p className="text-sm text-rc-ink-3">No titles recorded.</p>
+      ) : (
+        <RankBars items={items(shown, kind)} label={COPY[kind].label} max={shown[0].titles} />
+      )}
+    </Panel>
   );
 }
 
-export function TitleLeaderboard({ title, entries, color }: TitleLeaderboardProps) {
-  const data = entries.slice(0, 10).map((e) => ({ ...e, label: axisLabel(e) }));
-  const max = data.length ? Math.max(...data.map((d) => d.titles)) : 1;
-
+/** The two title leaderboards, drivers and constructors. */
+export function TitleLeaderboards({ seeds }: { seeds: Pick<ChampionsSeeds, "stats"> }) {
+  const stats = useChampionStats(use(seeds.stats));
   return (
-    <Panel className="p-4">
-      <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7F8797]" style={rcFont}>
-        {title}
-      </p>
-      <ResponsiveContainer width="100%" height={Math.max(220, data.length * 28)}>
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 20, bottom: 0, left: 8 }}>
-          <XAxis type="number" domain={[0, max]} hide />
-          <YAxis
-            type="category"
-            dataKey="label"
-            width={120}
-            tick={{ fill: "#d4d4d4", fontSize: 11, fontWeight: 700 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip content={<LeaderboardTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-          <Bar dataKey="titles" radius={[0, 4, 4, 0]} maxBarSize={18}>
-            {data.map((entry) => (
-              <Cell key={entry.name} fill={color} fillOpacity={0.85} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </Panel>
+    <Section state={stats} label="Title leaderboards" skeletonClassName="h-[420px]">
+      {stats.data && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <LeaderboardCard entries={stats.data.most_driver_titles ?? []} kind="drivers" />
+          <LeaderboardCard entries={stats.data.most_constructor_titles ?? []} kind="constructors" />
+        </div>
+      )}
+    </Section>
   );
 }

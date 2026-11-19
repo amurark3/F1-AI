@@ -108,3 +108,27 @@ def test_a_non_numeric_year_is_rejected_by_validation(client):
     # `/champions/stats` must keep winning over `/champions/{year}`; anything
     # else non-numeric is a 422 rather than reaching the data layer.
     assert client.get("/champions/not-a-year").status_code == 422
+
+
+@pytest.mark.unit
+def test_latest_returns_the_data_layers_dict_and_is_not_read_as_a_year(client, monkeypatch):
+    latest = {"season": 2026, "name": "Kimi Antonelli"}
+    monkeypatch.setattr(champions_router, "latest_champion", lambda: latest)
+
+    response = client.get("/champions/latest")
+
+    assert response.status_code == 200
+    assert response.json() == latest
+
+
+@pytest.mark.unit
+def test_latest_returns_a_client_safe_error_on_failure(client, monkeypatch):
+    def explode():
+        raise ValueError("no such table: season_driver_standing")
+
+    monkeypatch.setattr(champions_router, "latest_champion", explode)
+
+    body = client.get("/champions/latest").json()
+
+    assert "error_id" in body
+    assert "season_driver_standing" not in str(body)

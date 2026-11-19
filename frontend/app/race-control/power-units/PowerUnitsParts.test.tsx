@@ -7,7 +7,7 @@ import { DIRECTORY_2026, POWER_UNITS_2026 } from "@/test/fixtures";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
-import { SeatNames, UnavailableNote } from "./PowerUnitsParts";
+import { NoteList, SeatNames, UnavailableNote } from "./PowerUnitsParts";
 
 vi.mock("@/app/hooks/useServerStatus", () => ({ useServerStatus: vi.fn() }));
 
@@ -37,6 +37,20 @@ describe("SeatNames", () => {
 
     expect(container).not.toHaveTextContent("Shared seat");
     expect(container).not.toHaveTextContent("#");
+  });
+});
+
+describe("NoteList", () => {
+  it("lists notes, linking those with a document, and draws nothing for none", () => {
+    const { container, rerender } = renderWithProviders(
+      <NoteList notes={[{ text: "Plain note" }, { text: "Linked note", url: "https://fia/1" }]} />,
+    );
+
+    expect(screen.getByText("Plain note")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Linked note" })).toHaveAttribute("href", "https://fia/1");
+
+    rerender(<NoteList notes={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
 

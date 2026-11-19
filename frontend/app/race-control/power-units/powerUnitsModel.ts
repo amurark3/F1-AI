@@ -173,13 +173,6 @@ export interface PowerUnitsResponse {
   error_id?: string;
 }
 
-/** F1 red for anything beyond the allowance — the one colour that means "penalty". */
-export const OVER_COLOR = "#E10600";
-/** Amber for what is not known yet: a ruling still to come, or one not found. */
-export const PENDING_COLOR = "#F5C542";
-/** Muted ink for units within the allowance on a neutral surface. */
-export const NEUTRAL_INK = "#7F8797";
-
 const UTC_STAMP = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
   day: "2-digit",
@@ -293,17 +286,9 @@ export function shortDay(isoDate: string | null | undefined): string {
   return Number.isNaN(moment.getTime()) ? isoDate : SHORT_DAY.format(moment);
 }
 
-export const STATUS_LABELS: Record<PenaltyStatus, string> = {
-  none: "Within allowance",
-  decided: "Stewards decided",
-  pending: "Decision pending",
-  not_found: "No decision found",
-};
-
-export function statusColor(status: PenaltyStatus): string {
-  if (status === "decided") return OVER_COLOR;
-  if (status === "pending" || status === "not_found") return PENDING_COLOR;
-  return "#00FF78";
+/** The driver who raced a car in the most rounds, the first of them on a tie. */
+export function regularStint(car: PowerUnitCar): DriverStint {
+  return car.drivers.reduce((most, stint) => (stint.rounds.length > most.rounds.length ? stint : most));
 }
 
 export interface LogEntry {

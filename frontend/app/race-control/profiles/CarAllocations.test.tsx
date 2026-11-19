@@ -45,7 +45,10 @@ describe("CarAllocations on a team page", () => {
     renderCard(MERCEDES);
 
     expect(
-      await screen.findByRole("heading", { level: 3, name: "Both cars are past the allocation: 90 grid places lost" }),
+      await screen.findByRole("heading", {
+        level: 3,
+        name: "Both cars are past the allocation: 90 grid places imposed",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Power units" })).toBeInTheDocument();
     expect(screen.getByText("Elements used against the season's allocation")).toBeInTheDocument();
@@ -98,7 +101,7 @@ describe("CarAllocations on a team page", () => {
     expect(unused.querySelectorAll("[data-pip='empty']")).toHaveLength(1);
   });
 
-  it("prints the grid places lost, and a dash for none", async () => {
+  it("prints the grid places imposed, and a dash for none", async () => {
     renderCard({ kind: "team", teamId: "ferrari" });
 
     const row = (await screen.findAllByRole("row"))[1];

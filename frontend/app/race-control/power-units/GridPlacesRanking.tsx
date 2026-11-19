@@ -9,7 +9,7 @@ import { RankBars } from "@/app/ui/RankBars";
 import { Section } from "@/app/ui/section/Section";
 
 import { roundRuns, type DriverStint, type PowerUnitsResponse } from "./powerUnitsModel";
-import { SeatNames, UnavailableNote } from "./PowerUnitsParts";
+import { NoteList, SeatNames, UnavailableNote } from "./PowerUnitsParts";
 import {
   gridPlaceRanking,
   listSeparator,
@@ -89,25 +89,10 @@ function Ranking({ data, year }: { data: PowerUnitsResponse; year: number }) {
 }
 
 function SourceNote({ data }: { data: PowerUnitsResponse }) {
-  const notes = sourceNotes(data);
   return (
     <div className="mt-3.5 font-mono text-[10px] uppercase leading-[1.6] tracking-[0.1em] text-rc-ink-3">
       <p>{SOURCE_LINE}</p>
-      {notes.length > 0 && (
-        <ul className="mt-1.5 space-y-1 text-rc-ink-2">
-          {notes.map((note) => (
-            <li key={note.text}>
-              {note.url ? (
-                <a href={note.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-rc-ink">
-                  {note.text}
-                </a>
-              ) : (
-                note.text
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <NoteList notes={sourceNotes(data)} />
     </div>
   );
 }

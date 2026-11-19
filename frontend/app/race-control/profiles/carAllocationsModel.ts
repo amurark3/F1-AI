@@ -33,9 +33,9 @@ function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-function lostSuffix(cars: readonly PowerUnitCar[]): string {
+function imposedSuffix(cars: readonly PowerUnitCar[]): string {
   const places = cars.reduce((sum, car) => sum + car.penalties.grid_places, 0);
-  return places > 0 ? `: ${plural(places, "grid place")} lost` : "";
+  return places > 0 ? `: ${plural(places, "grid place")} imposed` : "";
 }
 
 type Limited = ElementUsage & { allowance: number };
@@ -68,7 +68,7 @@ function fleetTitle(cars: readonly PowerUnitCar[]): string {
 /** The card's finding, computed from the cars it lists (at least one). */
 export function carAllocationsTitle(cars: readonly PowerUnitCar[]): string {
   const sole = soleCar(cars);
-  return `${sole ? soleCarTitle(sole) : fleetTitle(cars)}${lostSuffix(cars)}`;
+  return `${sole ? soleCarTitle(sole) : fleetTitle(cars)}${imposedSuffix(cars)}`;
 }
 
 function hasPenalties(car: PowerUnitCar): boolean {
@@ -117,7 +117,7 @@ function rulingExtra(count: number, one: string, many: string): string | null {
   return count === 1 ? one : many;
 }
 
-/** The grid-places cell: the places lost (null for none) and any pit-lane or back-of-grid starts. */
+/** The grid-places cell: the places imposed (null for none) and any pit-lane or back-of-grid starts. */
 export function gridPlacesCell(totals: PenaltyTotals): { places: number | null; extras: string[] } {
   const extras = [
     totals.pit_lane_starts > 0 ? `+ ${totals.pit_lane_starts} pit lane` : null,

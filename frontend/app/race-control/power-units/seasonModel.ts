@@ -7,6 +7,7 @@ import {
   formatUtc,
   outcomeLabel,
   penaltyLog,
+  regularStint,
   roundRuns,
   roundsByNumber,
   seasonTotals,
@@ -20,7 +21,7 @@ import type { TeamsResponse } from "../standings/teamsModel";
 
 const ENGINE = "ICE";
 
-function plural(count: number): string {
+export function plural(count: number): string {
   return count === 1 ? "" : "s";
 }
 
@@ -58,11 +59,16 @@ export interface Kpi {
   sub: string;
 }
 
+/** What the lead tile adds when a weekend's ruling is still to come, or was not found. */
+export function rulingSuffix(pending: number, notFound: number): string {
+  let suffix = "";
+  if (pending > 0) suffix += ` · ${pending} weekend${pending === 1 ? "'s ruling" : "s' rulings"} still pending`;
+  if (notFound > 0) suffix += ` · ${notFound} weekend${plural(notFound)} past the allocation with no ruling found`;
+  return suffix;
+}
+
 function gridPlacesSub(pending: number, notFound: number): string {
-  let sub = "by power-unit penalties this season";
-  if (pending > 0) sub += ` · ${pending} weekend${pending === 1 ? "'s ruling" : "s' rulings"} still pending`;
-  if (notFound > 0) sub += ` · ${notFound} weekend${plural(notFound)} past the allocation with no ruling found`;
-  return sub;
+  return `by power-unit penalties this season${rulingSuffix(pending, notFound)}`;
 }
 
 /** The three season figures: places imposed, cars over on engines, pit-lane starts. */
@@ -172,13 +178,13 @@ export interface SharedSeatStory {
   except: string;
 }
 
-/** The shared car with the most grid places lost: who raced it, and in which rounds the others did. */
+/** The shared car with the most grid places imposed: who raced it, and in which rounds the others did. */
 export function sharedSeatStory(cars: readonly PowerUnitCar[]): SharedSeatStory | null {
   const [car] = cars
     .filter((candidate) => candidate.drivers.length > 1)
     .sort((a, b) => b.penalties.grid_places - a.penalties.grid_places || a.car_number - b.car_number);
   if (!car) return null;
-  const regular = car.drivers.reduce((most, stint) => (stint.rounds.length > most.rounds.length ? stint : most));
+  const regular = regularStint(car);
   const others = car.drivers.filter((stint) => stint !== regular);
   return { car, regular, others, except: roundRuns(others.flatMap((other) => other.rounds)) };
 }
@@ -203,7 +209,10 @@ function collectionLabel(data: PowerUnitsResponse): string | null {
 export function sourceNotes(data: PowerUnitsResponse): SourceNote[] {
   const label = collectionLabel(data);
   const checkedAt = data.freshness?.checked_at;
-  const collection = label ? [{ text: checkedAt ? `${label} · last checked ${formatUtc(checkedAt)}` : label }] : [];
+  const error = data.freshness?.error ? ` · ${data.freshness.error}` : "";
+  const collection = label
+    ? [{ text: `${checkedAt ? `${label} · last checked ${formatUtc(checkedAt)}` : label}${error}` }]
+    : [];
   const unread = data.unread.map((item) => ({
     text: `${item.event}: ${item.title} could not be read (${item.reason}); counts that depend on it may be incomplete`,
     url: item.url,

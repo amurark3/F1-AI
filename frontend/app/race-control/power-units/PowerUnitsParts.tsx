@@ -3,6 +3,7 @@ import { DriverName } from "@/app/ui/names/DriverName";
 import { StateTag } from "../grand-prix/StateTag";
 
 import type { PowerUnitCar, PowerUnitsResponse } from "./powerUnitsModel";
+import type { SourceNote } from "./seasonModel";
 
 /**
  * The drivers who raced a car, by surname. A stand-in races under his own
@@ -26,6 +27,26 @@ export function SeatNames({ car, year, tagShared = false }: { car: PowerUnitCar;
         </span>
       )}
     </>
+  );
+}
+
+/** What the reader should know before trusting the figures: one line each, linked to the FIA document when there is one. */
+export function NoteList({ notes }: { notes: readonly SourceNote[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <ul className="mt-1.5 space-y-1 text-rc-ink-2">
+      {notes.map((note) => (
+        <li key={note.text}>
+          {note.url ? (
+            <a href={note.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-rc-ink">
+              {note.text}
+            </a>
+          ) : (
+            note.text
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

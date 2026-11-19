@@ -8,7 +8,9 @@ import {
   kpis,
   latestPenalty,
   listSeparator,
+  plural,
   rankingTitle,
+  rulingSuffix,
   sharedSeatStory,
   sourceNotes,
   standingsOrder,
@@ -24,6 +26,17 @@ function car(data: PowerUnitsResponse, number: number): PowerUnitCar {
   if (!found) throw new Error(`no car ${number}`);
   return found;
 }
+
+describe("plural and rulingSuffix", () => {
+  it("pluralises, and words the rulings still to come", () => {
+    expect([plural(1), plural(2)]).toEqual(["", "s"]);
+    expect(rulingSuffix(0, 0)).toBe("");
+    expect(rulingSuffix(1, 0)).toBe(" · 1 weekend's ruling still pending");
+    expect(rulingSuffix(2, 1)).toBe(
+      " · 2 weekends' rulings still pending · 1 weekend past the allocation with no ruling found",
+    );
+  });
+});
 
 describe("heroModel", () => {
   it("names the round and the latest FIA document, and says engines are over", () => {
@@ -419,6 +432,16 @@ describe("sourceNotes", () => {
         })(),
       ),
     ).toEqual([]);
+  });
+
+  it("appends the collection error to the collection line, and only there", () => {
+    const failed = structuredClone(DATA);
+    failed.freshness = { ...failed.freshness!, outcome: "aborted", error: "fia.com timed out" };
+    expect(sourceNotes(failed)[0].text).toMatch(/^Last check failed · last checked .* · fia\.com timed out$/);
+
+    const quiet = structuredClone(DATA);
+    quiet.freshness = { ...quiet.freshness!, error: "stale error" };
+    expect(sourceNotes(quiet)).toEqual([]);
   });
 
   it("flags allowances that are missing or pinned by hand", () => {

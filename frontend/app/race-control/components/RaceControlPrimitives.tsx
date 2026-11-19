@@ -7,7 +7,6 @@
  * HTML — these are imported by almost every page, so a stray `"use client"`
  * here would pull all of them into the browser bundle for no benefit.
  */
-import { StatTile, StatTiles } from "@/app/ui/StatTile";
 import { rc } from "@/app/ui/tokens";
 
 import type { ReactNode } from "react";
@@ -61,11 +60,6 @@ export function PageStack({ children, className = "" }: { children: ReactNode; c
   return <div className={`flex w-full min-w-0 flex-col gap-5 ${className}`}>{children}</div>;
 }
 
-/** A row of {@link MetricCard}s: the kit's `StatTiles`, between two hairlines. */
-export function MetricRow({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <StatTiles className={`mb-5 ${className}`}>{children}</StatTiles>;
-}
-
 export function WorkspaceSplit({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`${className} flex w-full min-w-0 flex-col gap-5 [&>*]:min-w-0 [&>*]:basis-auto`}>{children}</div>
@@ -74,25 +68,6 @@ export function WorkspaceSplit({ children, className = "" }: { children: ReactNo
 
 export function WrapRow({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`flex w-full min-w-0 flex-wrap gap-3 ${className}`}>{children}</div>;
-}
-
-/**
- * One headline figure, drawn by the kit's `StatTile`: an eyebrow label, the
- * figure in display type and a caption. Neutral ink only; a figure's colour
- * would have to carry a meaning, and an icon adds none.
- */
-export function MetricCard({
-  label,
-  value,
-  sub,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  className?: string;
-}) {
-  return <StatTile label={label} value={value} sub={sub} className={className} />;
 }
 
 /**

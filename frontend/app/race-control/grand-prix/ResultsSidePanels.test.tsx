@@ -44,7 +44,10 @@ describe("FastestLapPanel", () => {
 
 describe("DebriefLinkPanel", () => {
   it("links to the debrief", () => {
-    renderWithProviders(<DebriefLinkPanel />);
-    expect(screen.getByRole("link", { name: "Read the debrief" })).toHaveAttribute("href", "/race-control/debriefs");
+    renderWithProviders(<DebriefLinkPanel round={19} />);
+    expect(screen.getByRole("link", { name: "Read the debrief" })).toHaveAttribute(
+      "href",
+      "/race-control/debriefs?round=19",
+    );
   });
 });

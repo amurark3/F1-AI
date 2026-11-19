@@ -57,7 +57,7 @@ describe("GridTab", () => {
       "href",
       "/race-control/grand-prix?round=19&tab=results",
     );
-    expect(screen.getByRole("link", { name: "Debrief" })).toHaveAttribute("href", "/race-control/debriefs");
+    expect(screen.getByRole("link", { name: "Debrief" })).toHaveAttribute("href", "/race-control/debriefs?round=19");
     expect(screen.queryByText(/grid to the flag/i)).not.toBeInTheDocument();
   });
 

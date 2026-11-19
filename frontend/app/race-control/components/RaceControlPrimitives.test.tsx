@@ -1,5 +1,4 @@
 import { render, screen, within } from "@testing-library/react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { f1, rc } from "@/app/ui/tokens";
@@ -7,8 +6,6 @@ import { f1, rc } from "@/app/ui/tokens";
 import {
   InfoRow,
   InlineNotice,
-  MetricCard,
-  MetricRow,
   PageLoader,
   PageStack,
   Panel,
@@ -83,48 +80,13 @@ describe("layout rows", () => {
         <PageStack>a</PageStack>
         <WorkspaceSplit>b</WorkspaceSplit>
         <WrapRow>c</WrapRow>
-        <MetricRow>d</MetricRow>
       </>,
     );
 
-    const [stack, split, wrap, row] = Array.from(container.children);
+    const [stack, split, wrap] = Array.from(container.children);
     expect(stack).toHaveClass("gap-5");
     expect(split).toHaveClass("gap-5");
     expect(wrap).toHaveClass("gap-3");
-    expect(row).toHaveClass("mb-5", "border-y");
-  });
-});
-
-describe("MetricCard", () => {
-  it("draws the kit's stat tile: an eyebrow, the figure in display type and a caption", () => {
-    render(<MetricCard label="Driver Leader" value="Kimi Antonelli" sub="Mercedes · 380 pts" className="extra" />);
-
-    const figure = screen.getByText("Kimi Antonelli");
-    expect(figure).toHaveClass("font-display", "text-[40px]", "text-rc-ink");
-    expect(screen.getByText("Driver Leader")).toHaveClass("font-mono", "uppercase", "text-rc-ink-3");
-    expect(screen.getByText("Mercedes · 380 pts")).toHaveClass("text-rc-ink-3");
-    expect(figure.parentElement).toHaveClass("extra");
-  });
-
-  it("carries no icon and no colour of its own", () => {
-    const html = renderToStaticMarkup(<MetricCard label="Teams" value="11" />);
-
-    expect(html).not.toContain("<svg");
-    expect(html).not.toContain("style=");
-    expect(html).not.toMatch(DRS_GREEN);
-  });
-
-  it("sits in a MetricRow as one tile of a hairlined row", () => {
-    render(
-      <MetricRow className="mt-2">
-        <MetricCard label="Wins" value="9" />
-        <MetricCard label="Podiums" value="15" />
-      </MetricRow>,
-    );
-
-    const row = screen.getByText("Wins").closest(".border-y");
-    expect(row).toHaveClass("mb-5", "mt-2", "lg:grid-flow-col");
-    expect(row?.children).toHaveLength(2);
   });
 });
 

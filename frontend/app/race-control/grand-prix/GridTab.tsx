@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { grandPrixHref } from "@/app/lib/entityLinks";
+import { debriefHref, grandPrixHref } from "@/app/lib/entityLinks";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 import { Segmented } from "@/app/ui/Segmented";
 
@@ -41,7 +41,7 @@ function AfterTheStartPanel({ round }: { round: number | null }) {
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         )}
-        <Link href="/race-control/debriefs" className={LINK}>
+        <Link href={debriefHref(round)} className={LINK}>
           Debrief
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>

@@ -1,0 +1,190 @@
+<!doctype html>
+<!--
+  P6.4b · Champions season page · /race-control/champions/[year]
+  The drill-down from champions.html's "Every champion" wall cells. Main state: 2026, clinched but
+  still running (f1db v2026.20.0 holds rounds 1–20 of 23; Antonelli clinched in round 19).
+  Every figure comes from the real f1db through get_season_detail() plus the p6.4-brief §4.1 helpers
+  (_round_counts, _decider). Nothing is invented. The open variant is mocked; see "Other title states".
+
+  DATA SOURCE PER SECTION (one endpoint, GET /api/champions/{year})
+  - Crumbs (All champions · ‹ 2025): no data. They come from the route param and FIRST_SEASON..currentSeason().
+  - Hero (kit PageHero, plain, no aside):
+      eyebrow ← titleState(d) + season · h1 ← driver_champion.name
+      meta    ← driver_champion.team + decided_at {round, place} + round_count − rounds_completed
+  - Stat tiles (kit StatTiles; Points is the lead tile):
+      Points       ← driver_champion.points; sub from titleState, rounds_completed, round_count
+      Wins         ← driver_champion.wins; unit "of {rounds_completed}"
+      Margin/Lead  ← driver_champion.points − runner_up.points; sub runner_up.name + runner_up.points
+      Constructors ← constructor_champion {name, points, title_decided}, or null before 1958
+  - 01 Race winners (kit SectionHead; aside ← rounds_completed, round_count):
+      Round-by-round card ← race_winners[].{round, winner, team}, round_count, rounds_completed,
+                            decided_at.{round, place}, driver_champion.{name, last_name, wins}
+                            (a win dot = race_winners[].winner equals driver_champion.name)
+      Winner rows         ← race_winners[].{round, winner, driver_id, team, team_id, race_name, date};
+                            decided_at.round (the tag); round_count − rounds_completed (the last row)
+  - Other title states: mockup reference only, not part of the page.
+
+  LOADING (PLAN Loading rule: the page awaits only params; no section waits on another)
+  - The crumbs and the stepper paint at once. They need no data.
+  - Three sections each use() the same seed (getSeasonDetail(year)) behind their own Suspense and
+    skeleton, and each runs useSection on `${API_BASE}/api/champions/${year}`. That is one SWR key,
+    so one request:
+      1. hero + tiles, skeleton ≈ h-[330px]
+      2. round-by-round card, ≈ h-[220px]
+      3. winner rows, ≈ h-[560px]
+    A section that throws shows the kit failure card (label "{year} season"); the other two stay.
+    Each section carries the kit stale mark.
+
+  STATE LABELS (every string a state produces; {…} computed)
+  - titleState: open | clinched | final.
+      open:     the drivers' title is not decided
+      clinched: decided, rounds_completed < round_count
+      final:    decided, every round run
+  - Eyebrow:
+      clinched   "{Y} World Champion · clinched" (gold)
+      final      "{Y} World Champion" (gold)
+      open       "{Y} championship leader" (ink-3; the rule is brand red, no gold anywhere)
+      no driver  "{Y} season", with h1 "No champion recorded"
+  - Meta:
+      clinched   "{Team} · Title decided in round {R}, {Place}. {K} rounds still to run."
+      final      the same without the last sentence
+      open       "{Team} · Leads after round {N} of {M}; the title is still open."
+      decided with no decided_at: "{Team}" only
+  - Tiles:
+      Points      sub "final total" | "after round {N} of {M}"
+      Wins        unit "of {N}"
+      Margin      (decided) or Lead (open), sub "over {Name} · {pts} pts"
+      Constructors' champion, sub "{pts} pts", plus " after round {N} of {M}" while the season runs
+      Constructors' leader, sub "{pts} pts after round {N} of {M}"
+      Constructors' champion "—", sub "title awarded from 1958"
+  - SectionHead aside: "{N} of {M} rounds".
+  - Round-by-round title (computed): "{w} wins for {Last}, " + one of
+      "decided with {k} rounds to spare" | "decided at the last round" | "title still open after round {N}"
+    Singular forms: "1 win", "1 round".
+  - Ribbon flag: "Title decided · {Place}" ("Title decided" with no place).
+    Tick tooltip: "R{n} · {winner} · {team}", "… · shared drive", or "R{n} · still to run".
+  - Legend: "{Last}'s win" · "Title decided" (only when decided) · "Still to run" (only while running) ·
+    "Bar = the winning car's team".
+  - Row tags: "Title decided" (gold), "Shared drive". Last row: "R{a}–R{b} · {k} rounds still to run"
+    (or "R{a} · 1 round still to run").
+  - Empty: "No race has a result yet." Failure: the kit card.
+
+  DEPARTURES FROM p6.4-brief §5.5 (and why)
+  1. Gold appears only once the drivers' title is decided. In the open state the eyebrow is ink-3 and
+     PageHero takes its default red accent. §5.5 passed a gold accent and a gold eyebrow in every
+     state, but a leader is not a champion (D5).
+  2. The Margin/Lead sub adds the runner-up's points ("over Max Verstappen · 279 pts"). Today's page
+     prints them and §5.5 dropped them.
+  3. The constructors' sub says "after round N of M" whenever the season is still running, decided or
+     not. 2026's 652 is not final. §5.5 printed a bare "652 pts" for a decided title.
+  4. A new "Round by round" card heads section 01. It uses the SeasonRail tick grammar:
+       - a bar in the winning car's team colour
+       - a short dim tick for a round still to run
+       - an ink dot for the champion's (or leader's) win
+       - a gold line, a gold round number and a flag for the title decider
+     Its title is computed. Why: the season's shape and the moment the title was decided show at a
+     glance; the list alone needs 20 rows to say that. It is built from the same payload: static
+     ticks, no chart library.
+  5. Winner rows:
+       - a date column (the payload has `date`)
+       - the decider row: a gold round number and a "Title decided" tag
+       - two P1 rows on one round fold into one row ("Tony Brooks / Stirling Moss") with a
+         "Shared drive" tag (1957 R5)
+       - a last "R21–R23 · 3 rounds still to run" row
+       - phones show the team on line 2. §5.5 hid it there, which left only the colour edge, and
+         colour alone can't carry meaning.
+  6. Rows run in two columns at ≥ 1100 px (CSS columns, so the order goes down each column). At
+     1440 px, one column of 20 rows is a 1100 px strip, mostly empty.
+  7. A season stepper (‹ 2025 · 2027 ›, only neighbours that exist) sits beside the back link. On a
+     drill-down, browsing sideways is the next question. Drop it if P6.4b must stay strictly in scope.
+  Kept from §5.5: Wins "of {rounds_completed}". Today's page says "of {race_winners.length}", which
+  reads "of 9" for 1957 because round 5 has two winners; f1db has 8 rounds.
+
+  DROPPED FROM TODAY'S PAGE
+  - The driver code in the champion tile (ANT): the h1 is the full name, and the code adds nothing.
+  - The "{year} Season" h1: the year is in the eyebrow, the <title> and the stepper. The h1 is the
+    champion (§5.5).
+  - The "In Progress" pill: labelled states replace it (· clinched, "after round N of M",
+    "N rounds still to run").
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — 2026 season (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>:root{--dim:#3a4254} /* globals.css --rc-dim: marks that aren't the story */
+.crumbs{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:-12px}
+.crumbs a{display:inline-flex;align-items:center;gap:8px;min-height:44px;font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);transition:color .15s}
+.crumbs a:hover{color:var(--ink)}.crumbs .steps{display:flex;gap:22px}
+.shero{padding-top:12px}.shero h1{font-size:clamp(48px,5.4vw,84px);margin-top:14px}.shero .rule{margin:22px 0 16px}.shero .meta{color:var(--ink-2);font-size:15px;max-width:70ch}
+.tiles{margin-top:32px}.tiles small,.vk small{display:block;margin-top:4px}
+.section-head{flex-wrap:wrap;row-gap:8px}
+/* Round by round: the SeasonRail tick grammar, widened to fill the card */
+.ribbon{list-style:none;padding:36px 0 0;margin:18px 0 0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:4px}
+.rd{position:relative;display:grid;grid-template-rows:12px 28px auto;align-items:end}
+.rd>i{justify-self:center;align-self:center;width:5px;height:5px;border-radius:50%}.rd>i.w{background:var(--ink)}
+.rd>b{display:block;height:28px;border-radius:2px;background:var(--c);opacity:.9}
+.rd.up>b{height:10px;background:var(--dim);opacity:1}
+.rd .k{display:block;margin-top:8px;text-align:center;font:500 10px/1 var(--mono);color:var(--ink-3)}
+.rd.dec .k{color:var(--gold);font-weight:600}
+.rd.dec::before{content:"";position:absolute;left:50%;margin-left:-1px;top:-24px;height:36px;width:2px;background:var(--gold)}.rd>i.w{position:relative;z-index:1}
+.flag{position:absolute;top:-36px;white-space:nowrap;font:600 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.flag.start{left:50%;margin-left:-1px}.flag.end{right:50%;margin-right:-1px}
+.legend .kd{width:5px;height:5px;border-radius:50%;background:var(--ink)}.legend .kg{width:2px;height:12px;border-radius:0;background:var(--gold)}.legend .ku{width:10px;height:5px;background:var(--dim)}
+.ribbon.compact{padding-top:30px;margin-top:12px}.ribbon.compact .rd{grid-template-rows:10px 18px auto}.ribbon.compact .rd>b{height:18px}.ribbon.compact .rd.up>b{height:7px}
+.ribbon.compact .rd .k{font-size:9px;margin-top:6px}.ribbon.compact .flag{top:-30px;font-size:9px}.ribbon.compact .rd.dec::before{top:-18px;height:28px}
+/* Winner rows: Command Center grammar, team-colour edge */
+.winners{list-style:none;padding:0;margin:24px 0 0;columns:2;column-gap:48px;border-top:1px solid var(--line)}
+.winners li{break-inside:avoid;display:grid;grid-template-columns:36px 3px minmax(0,1fr) auto 44px;gap:12px;align-items:center;min-height:58px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.winners .r{font:600 12px/1 var(--mono);color:var(--ink-3)}.winners li.dec .r{color:var(--gold)}
+.winners .e{width:3px;height:20px;border-radius:1px}
+.winners .wn{min-width:0}.winners .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.winners .rn{margin-top:3px;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.winners .rn .tagx{margin-right:2px}.winners .tp{display:none}
+.winners .t{font-size:12px;color:var(--ink-2);white-space:nowrap}.winners .d{font:500 11px/1 var(--mono);color:var(--ink-3);text-align:right;white-space:nowrap}
+.winners li.todo{display:flex;gap:12px;min-height:48px}.winners li.todo .r{min-width:36px}.winners li.todo .e{background:var(--dim)}.winners li.todo .rn{margin:0;font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.lnk{transition:color .15s}.lnk:hover{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--ink-3)}
+/* Other states: compact strips (mockup reference only) */
+.vstack{display:grid;gap:20px}
+.vstrip{padding:24px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px 40px;align-items:end}
+.vlabel,.vr,.winners.mini,.vnote{grid-column:1/-1}
+.vlabel .tagx{white-space:nowrap;flex:none}.vlabel{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
+.vh h3{font-size:clamp(34px,3.4vw,46px);margin-top:10px}.vh .rule{width:64px;margin:14px 0 10px}.vh .meta{color:var(--ink-2);font-size:13px}
+.vk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.vk>div{padding:14px 14px 14px 0;min-width:0}.vk>div+div{border-left:1px solid var(--line);padding-left:14px}
+.vk .eyebrow{display:block;min-height:2em;line-height:1}.vk b{display:block;margin-top:8px;font:800 30px/1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vk small{color:var(--ink-3);font-size:11px}
+.vr h4{font:800 20px/1.05 var(--display);text-transform:uppercase;margin-top:6px;text-wrap:balance}
+.winners.mini{margin-top:0;columns:1}.vnote{margin-top:0}
+@media (max-width:1100px){.winners{columns:1}.vstrip{grid-template-columns:1fr}}
+@media (max-width:600px){
+  .ribbon{gap:2px}.rd .k{visibility:hidden}.rd.keep .k{visibility:visible}
+  .winners li{grid-template-columns:30px 3px minmax(0,1fr) 40px;gap:10px}.winners .t{display:none}.winners .tp{display:inline}
+  .vstrip{padding:18px}.vk{grid-template-columns:1fr 1fr}.vk>div:nth-child(3){border-left:0;padding-left:0}.vk>div:nth-child(n+3){border-top:1px solid var(--line)}
+  .card{padding:18px}
+}</style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="#">Race Control</a><a href="grand-prix.html">Grand Prix</a><a href="telemetry.html">Telemetry</a><a href="standings.html">Standings</a><a href="teams.html">Teams</a><a href="power-units.html">Power Units</a><a href="engineer.html">AI Engineer</a><a href="champions.html" aria-current="page">More ▾</a></nav><div class="status"><span class="dot"></span>R21 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+
+    <main class="wrap page">
+<nav class="crumbs" aria-label="Seasons"><a href="champions.html"><span aria-hidden="true">←</span> All champions</a><span class="steps"><a href="#" aria-label="2025 season"><span aria-hidden="true">‹</span> 2025</a></span></nav>
+
+<section aria-label="2026 champion">
+<header class="shero"><p class="eyebrow" style="color:var(--gold)">2026 World Champion · clinched</p><h1 class="display">Kimi Antonelli</h1><div class="rule grow-x" style="background:var(--gold)"></div><p class="meta">Mercedes · Title decided in round 19, Mexico City. 3 rounds still to run.</p></header>
+<div class="kpis tiles"><div><span class="eyebrow">Points</span><b>390<span class="unit">pts</span></b><small>after round 20 of 23</small></div><div><span class="eyebrow">Wins</span><b>9<span class="unit">of 20</span></b></div><div><span class="eyebrow">Margin</span><b>111<span class="unit">pts</span></b><small>over Max Verstappen · 279 pts</small></div><div><span class="eyebrow">Constructors&#x27; champion</span><b>Mercedes</b><small>652 pts after round 20 of 23</small></div></div>
+</section>
+
+<section class="block" aria-labelledby="winners-h"><div class="section-head"><span class="idx">01</span><h2 id="winners-h">Race winners</h2><span class="aside eyebrow">20 of 23 rounds</span></div>
+  <figure class="panel card"><p class="eyebrow">Round by round</p><h3>9 wins for Antonelli, decided with 4 rounds to spare</h3><ol class="ribbon" style="--n:23" aria-label="2026, round by round: 9 wins for Antonelli, decided with 4 rounds to spare"><li class="rd keep" title="R1 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">1</span></li><li class="rd" title="R2 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">2</span></li><li class="rd" title="R3 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">3</span></li><li class="rd" title="R4 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">4</span></li><li class="rd" title="R5 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">5</span></li><li class="rd" title="R6 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">6</span></li><li class="rd" title="R7 · Lewis Hamilton · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">7</span></li><li class="rd" title="R8 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">8</span></li><li class="rd" title="R9 · Charles Leclerc · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">9</span></li><li class="rd" title="R10 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">10</span></li><li class="rd" title="R11 · Lando Norris · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">11</span></li><li class="rd" title="R12 · Lando Norris · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">12</span></li><li class="rd" title="R13 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">13</span></li><li class="rd" title="R14 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">14</span></li><li class="rd" title="R15 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">15</span></li><li class="rd" title="R16 · Max Verstappen · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">16</span></li><li class="rd" title="R17 · Max Verstappen · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">17</span></li><li class="rd" title="R18 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">18</span></li><li class="rd dec keep" title="R19 · Max Verstappen · Red Bull"><span class="flag end">Title decided · Mexico City</span><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">19</span></li><li class="rd" title="R20 · Lando Norris · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">20</span></li><li class="rd up" title="R21 · still to run"><i aria-hidden="true"></i><b></b><span class="k">21</span></li><li class="rd up" title="R22 · still to run"><i aria-hidden="true"></i><b></b><span class="k">22</span></li><li class="rd keep up" title="R23 · still to run"><i aria-hidden="true"></i><b></b><span class="k">23</span></li></ol><div class="legend"><span><i class="kd"></i>Antonelli’s win</span><span><i class="kg"></i>Title decided</span><span><i class="ku"></i>Still to run</span><span>Bar = the winning car’s team</span></div></figure>
+  <ol class="winners" aria-label="2026 race winners"><li><span class="r">R1</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">George Russell</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Qatar Airways Australian Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">8 Mar</span></li><li><span class="r">R2</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Heineken Chinese Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">15 Mar</span></li><li><span class="r">R3</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Aramco Japanese Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">29 Mar</span></li><li><span class="r">R4</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Crypto.com Miami Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">3 May</span></li><li><span class="r">R5</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Lenovo Grand Prix du Canada 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">24 May</span></li><li><span class="r">R6</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Louis Vuitton Grand Prix de Monaco 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">7 Jun</span></li><li><span class="r">R7</span><i class="e" style="background:#E8002D"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Lewis Hamilton</a></p><p class="rn"><span class="tp">Ferrari · </span>Formula 1 MSC Cruises Gran Premio de Barcelona-Catalunya 2026</p></div><span class="t"><a class="lnk" href="team.html">Ferrari</a></span><span class="d">14 Jun</span></li><li><span class="r">R8</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">George Russell</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Lenovo Austrian Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">28 Jun</span></li><li><span class="r">R9</span><i class="e" style="background:#E8002D"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Charles Leclerc</a></p><p class="rn"><span class="tp">Ferrari · </span>Formula 1 Pirelli British Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Ferrari</a></span><span class="d">5 Jul</span></li><li><span class="r">R10</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Moët &amp; Chandon Belgian Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">19 Jul</span></li><li><span class="r">R11</span><i class="e" style="background:#FF8000"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Lando Norris</a></p><p class="rn"><span class="tp">McLaren · </span>Formula 1 AWS Hungarian Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">McLaren</a></span><span class="d">26 Jul</span></li><li><span class="r">R12</span><i class="e" style="background:#FF8000"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Lando Norris</a></p><p class="rn"><span class="tp">McLaren · </span>Formula 1 Heineken Dutch Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">McLaren</a></span><span class="d">23 Aug</span></li><li><span class="r">R13</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Pirelli Gran Premio d&#x27;Italia 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">6 Sep</span></li><li><span class="r">R14</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 TAG Heuer Gran Premio de España 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">13 Sep</span></li><li><span class="r">R15</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">George Russell</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 Qatar Airways Azerbaijan Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">26 Sep</span></li><li><span class="r">R16</span><i class="e" style="background:#3671C6"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Max Verstappen</a></p><p class="rn"><span class="tp">Red Bull · </span>Formula 1 Gulf Air Bahrain Grand Prix in Malaysia 2026</p></div><span class="t"><a class="lnk" href="team.html">Red Bull</a></span><span class="d">4 Oct</span></li><li><span class="r">R17</span><i class="e" style="background:#3671C6"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Max Verstappen</a></p><p class="rn"><span class="tp">Red Bull · </span>Formula 1 Singapore Airlines Singapore Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Red Bull</a></span><span class="d">11 Oct</span></li><li><span class="r">R18</span><i class="e" style="background:#27F4D2"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Kimi Antonelli</a></p><p class="rn"><span class="tp">Mercedes · </span>Formula 1 MSC Cruises United States Grand Prix 2026</p></div><span class="t"><a class="lnk" href="team.html">Mercedes</a></span><span class="d">25 Oct</span></li><li class="dec"><span class="r">R19</span><i class="e" style="background:#3671C6"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Max Verstappen</a></p><p class="rn"><span class="tagx gold">Title decided</span> <span class="tp">Red Bull · </span>Formula 1 Gran Premio de la Ciudad de México 2026</p></div><span class="t"><a class="lnk" href="team.html">Red Bull</a></span><span class="d">1 Nov</span></li><li><span class="r">R20</span><i class="e" style="background:#FF8000"></i><div class="wn"><p class="n"><a class="lnk" href="driver.html">Lando Norris</a></p><p class="rn"><span class="tp">McLaren · </span>Formula 1 MSC Cruises Grande Prêmio de São Paulo 2026</p></div><span class="t"><a class="lnk" href="team.html">McLaren</a></span><span class="d">8 Nov</span></li><li class="todo"><span class="r">R21–R23</span><i class="e"></i><p class="rn">3 rounds still to run</p></li></ol>
+  <p class="note">Source: f1db · 2026 after round 20 of 23</p>
+</section>
+
+<section class="block" aria-labelledby="states-h"><div class="section-head"><span class="idx">··</span><h2 id="states-h">Other title states</h2><span class="aside eyebrow">Mockup reference · not on the page</span></div>
+  <div class="vstack"><article class="panel vstrip"><p class="vlabel"><span class="tagx gold">Final</span> 2010 · the title went to the last round</p><header class="vh"><p class="eyebrow" style="color:var(--gold)">2010 World Champion</p><h3 class="display">Sebastian Vettel</h3><div class="rule grow-x" style="background:var(--gold)"></div><p class="meta">Red Bull · Title decided in round 19, Abu Dhabi.</p></header><div class="vk"><div><span class="eyebrow">Points</span><b>256<span class="unit">pts</span></b><small>final total</small></div><div><span class="eyebrow">Wins</span><b>5<span class="unit">of 19</span></b></div><div><span class="eyebrow">Margin</span><b>4<span class="unit">pts</span></b><small>over Fernando Alonso · 252 pts</small></div><div><span class="eyebrow">Constructors&#x27; champion</span><b>Red Bull</b><small>498 pts</small></div></div><div class="vr"><p class="eyebrow">Round by round</p><h4>5 wins for Vettel, decided at the last round</h4><ol class="ribbon compact" style="--n:19" aria-label="2010, round by round: 5 wins for Vettel, decided at the last round"><li class="rd keep" title="R1 · Fernando Alonso · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">1</span></li><li class="rd" title="R2 · Jenson Button · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">2</span></li><li class="rd" title="R3 · Sebastian Vettel · Red Bull"><i class="w" aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">3</span></li><li class="rd" title="R4 · Jenson Button · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">4</span></li><li class="rd" title="R5 · Mark Webber · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">5</span></li><li class="rd" title="R6 · Mark Webber · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">6</span></li><li class="rd" title="R7 · Lewis Hamilton · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">7</span></li><li class="rd" title="R8 · Lewis Hamilton · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">8</span></li><li class="rd" title="R9 · Sebastian Vettel · Red Bull"><i class="w" aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">9</span></li><li class="rd" title="R10 · Mark Webber · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">10</span></li><li class="rd" title="R11 · Fernando Alonso · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">11</span></li><li class="rd" title="R12 · Mark Webber · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">12</span></li><li class="rd" title="R13 · Lewis Hamilton · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">13</span></li><li class="rd" title="R14 · Fernando Alonso · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">14</span></li><li class="rd" title="R15 · Fernando Alonso · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">15</span></li><li class="rd" title="R16 · Sebastian Vettel · Red Bull"><i class="w" aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">16</span></li><li class="rd" title="R17 · Fernando Alonso · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">17</span></li><li class="rd" title="R18 · Sebastian Vettel · Red Bull"><i class="w" aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">18</span></li><li class="rd dec keep" title="R19 · Sebastian Vettel · Red Bull"><span class="flag end">Title decided · Abu Dhabi</span><i class="w" aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">19</span></li></ol></div><p class="note vnote">f1db: /api/champions/2010 · round_count 19 = rounds_completed 19 · decided_at R19 Abu Dhabi</p></article><article class="panel vstrip"><p class="vlabel"><span class="tagx gold">Final · no constructors&#x27; title</span> 1957 · before the constructors&#x27; championship existed</p><header class="vh"><p class="eyebrow" style="color:var(--gold)">1957 World Champion</p><h3 class="display">Juan Manuel Fangio</h3><div class="rule grow-x" style="background:var(--gold)"></div><p class="meta">Maserati · Title decided in round 6, Nürburg.</p></header><div class="vk"><div><span class="eyebrow">Points</span><b>40<span class="unit">pts</span></b><small>final total</small></div><div><span class="eyebrow">Wins</span><b>4<span class="unit">of 8</span></b></div><div><span class="eyebrow">Margin</span><b>15<span class="unit">pts</span></b><small>over Stirling Moss · 25 pts</small></div><div><span class="eyebrow">Constructors&#x27; champion</span><b>—</b><small>title awarded from 1958</small></div></div><div class="vr"><p class="eyebrow">Round by round</p><h4>4 wins for Fangio, decided with 2 rounds to spare</h4><ol class="ribbon compact" style="--n:8" aria-label="1957, round by round: 4 wins for Fangio, decided with 2 rounds to spare"><li class="rd keep" title="R1 · Juan Manuel Fangio · Maserati"><i class="w" aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">1</span></li><li class="rd" title="R2 · Juan Manuel Fangio · Maserati"><i class="w" aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">2</span></li><li class="rd" title="R3 · Sam Hanks · Epperly"><i aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">3</span></li><li class="rd" title="R4 · Juan Manuel Fangio · Maserati"><i class="w" aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">4</span></li><li class="rd" title="R5 · Tony Brooks / Stirling Moss · Vanwall · shared drive"><i aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">5</span></li><li class="rd dec keep" title="R6 · Juan Manuel Fangio · Maserati"><span class="flag end">Title decided · Nürburg</span><i class="w" aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">6</span></li><li class="rd" title="R7 · Stirling Moss · Vanwall"><i aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">7</span></li><li class="rd keep" title="R8 · Stirling Moss · Vanwall"><i aria-hidden="true"></i><b style="--c:#6B7280"></b><span class="k">8</span></li></ol></div><ol class="winners mini"><li><span class="r">R5</span><i class="e" style="background:#6B7280"></i><div class="wn"><p class="n">Tony Brooks / Stirling Moss</p><p class="rn"><span class="tagx">Shared drive</span> <span class="tp">Vanwall · </span>1957 RAC British Grand Prix</p></div><span class="t">Vanwall</span><span class="d">20 Jul</span></li><li class="dec"><span class="r">R6</span><i class="e" style="background:#6B7280"></i><div class="wn"><p class="n">Juan Manuel Fangio</p><p class="rn"><span class="tagx gold">Title decided</span> <span class="tp">Maserati · </span>Grosser Preis von Deutschland 1957</p></div><span class="t">Maserati</span><span class="d">4 Aug</span></li></ol><p class="note vnote">f1db: /api/champions/1957 · constructor_champion null · round 5 has two P1 rows (Brooks started, Moss finished: a shared drive)</p></article><article class="panel vstrip"><p class="vlabel"><span class="tagx">Open · mocked</span> 2026 as it stood after round 18, before the clinch</p><header class="vh"><p class="eyebrow">2026 championship leader</p><h3 class="display">Kimi Antonelli</h3><div class="rule grow-x" style="background:var(--red)"></div><p class="meta">Mercedes · Leads after round 18 of 23; the title is still open.</p></header><div class="vk"><div><span class="eyebrow">Points</span><b>365<span class="unit">pts</span></b><small>after round 18 of 23</small></div><div><span class="eyebrow">Wins</span><b>9<span class="unit">of 18</span></b></div><div><span class="eyebrow">Lead</span><b>123<span class="unit">pts</span></b><small>over George Russell · 242 pts</small></div><div><span class="eyebrow">Constructors&#x27; leader</span><b>Mercedes</b><small>607 pts after round 18 of 23</small></div></div><div class="vr"><p class="eyebrow">Round by round</p><h4>9 wins for Antonelli, title still open after round 18</h4><ol class="ribbon compact" style="--n:23" aria-label="2026, round by round: 9 wins for Antonelli, title still open after round 18"><li class="rd keep" title="R1 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">1</span></li><li class="rd" title="R2 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">2</span></li><li class="rd" title="R3 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">3</span></li><li class="rd" title="R4 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">4</span></li><li class="rd" title="R5 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">5</span></li><li class="rd" title="R6 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">6</span></li><li class="rd" title="R7 · Lewis Hamilton · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">7</span></li><li class="rd" title="R8 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">8</span></li><li class="rd" title="R9 · Charles Leclerc · Ferrari"><i aria-hidden="true"></i><b style="--c:#E8002D"></b><span class="k">9</span></li><li class="rd" title="R10 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">10</span></li><li class="rd" title="R11 · Lando Norris · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">11</span></li><li class="rd" title="R12 · Lando Norris · McLaren"><i aria-hidden="true"></i><b style="--c:#FF8000"></b><span class="k">12</span></li><li class="rd" title="R13 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">13</span></li><li class="rd" title="R14 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">14</span></li><li class="rd" title="R15 · George Russell · Mercedes"><i aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">15</span></li><li class="rd" title="R16 · Max Verstappen · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">16</span></li><li class="rd" title="R17 · Max Verstappen · Red Bull"><i aria-hidden="true"></i><b style="--c:#3671C6"></b><span class="k">17</span></li><li class="rd" title="R18 · Kimi Antonelli · Mercedes"><i class="w" aria-hidden="true"></i><b style="--c:#27F4D2"></b><span class="k">18</span></li><li class="rd up" title="R19 · still to run"><i aria-hidden="true"></i><b></b><span class="k">19</span></li><li class="rd up" title="R20 · still to run"><i aria-hidden="true"></i><b></b><span class="k">20</span></li><li class="rd up" title="R21 · still to run"><i aria-hidden="true"></i><b></b><span class="k">21</span></li><li class="rd up" title="R22 · still to run"><i aria-hidden="true"></i><b></b><span class="k">22</span></li><li class="rd keep up" title="R23 · still to run"><i aria-hidden="true"></i><b></b><span class="k">23</span></li></ol></div><p class="note vnote">Mocked from f1db&#x27;s race_driver_standing / race_constructor_standing after round 18 (championship_won 0); the API only serves the latest standings</p></article></div>
+</section>
+    </main>
+  </body>
+</html>

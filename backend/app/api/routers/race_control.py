@@ -1,6 +1,7 @@
 """HTTP router for Race Control v2 endpoints."""
 
 import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
@@ -8,6 +9,9 @@ from fastapi import APIRouter
 from app.api.errors import client_error
 from app.api.schemas.race_control import RulebookSearchRequest
 from app.services import rulebook
+from app.services.debrief_laps import build_debrief_laps
+from app.services.debrief_overtakes import build_debrief_overtakes
+from app.services.debrief_penalties import build_debrief_penalties
 from app.services.race_control import (
     build_overview,
     build_overview_circuit,
@@ -271,10 +275,34 @@ async def get_debrief(year: int, round_num: int) -> dict:
         return {
             "year": year,
             "round": round_num,
-            "podium": [],
-            "takeaways": [],
             **client_error("api.race_control_debrief.error", exc, year=year, round=round_num),
         }
+
+
+async def _debrief_part(name: str, builder: Callable[[int, int], dict], year: int, round_num: int) -> dict:
+    try:
+        return await asyncio.to_thread(builder, year, round_num)
+    except Exception as exc:
+        return {
+            "year": year,
+            "round": round_num,
+            **client_error(f"api.race_control_debrief_{name}.error", exc, year=year, round=round_num),
+        }
+
+
+@router.get("/debrief/{year}/{round_num}/laps")
+async def get_debrief_laps(year: int, round_num: int) -> dict:
+    return await _debrief_part("laps", build_debrief_laps, year, round_num)
+
+
+@router.get("/debrief/{year}/{round_num}/penalties")
+async def get_debrief_penalties(year: int, round_num: int) -> dict:
+    return await _debrief_part("penalties", build_debrief_penalties, year, round_num)
+
+
+@router.get("/debrief/{year}/{round_num}/overtakes")
+async def get_debrief_overtakes(year: int, round_num: int) -> dict:
+    return await _debrief_part("overtakes", build_debrief_overtakes, year, round_num)
 
 
 @router.post("/rulebook/search")

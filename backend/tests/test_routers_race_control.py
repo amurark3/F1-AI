@@ -187,14 +187,45 @@ def test_debrief_returns_the_service_payload(client, monkeypatch):
 
 
 @pytest.mark.unit
-def test_debrief_failure_keeps_the_race_identity_and_empty_arrays(client, monkeypatch):
+def test_debrief_failure_keeps_the_race_identity(client, monkeypatch):
     monkeypatch.setattr(rc_router, "build_race_debrief", _boom)
 
     body = client.get("/race-control/debrief/2026/4").json()
 
     assert (body["year"], body["round"]) == (2026, 4)
-    assert body["podium"] == []
-    assert body["takeaways"] == []
+    assert "error_id" in body
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("part", "builder"),
+    [
+        ("laps", "build_debrief_laps"),
+        ("penalties", "build_debrief_penalties"),
+        ("overtakes", "build_debrief_overtakes"),
+    ],
+)
+def test_each_debrief_section_delegates_to_its_builder(client, monkeypatch, part, builder):
+    monkeypatch.setattr(rc_router, builder, lambda year, round_num: {"year": year, "round": round_num, "part": part})
+
+    assert client.get(f"/race-control/debrief/2026/19/{part}").json() == {"year": 2026, "round": 19, "part": part}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("part", "builder"),
+    [
+        ("laps", "build_debrief_laps"),
+        ("penalties", "build_debrief_penalties"),
+        ("overtakes", "build_debrief_overtakes"),
+    ],
+)
+def test_a_failing_debrief_section_answers_the_error_envelope(client, monkeypatch, part, builder):
+    monkeypatch.setattr(rc_router, builder, _boom)
+
+    body = client.get(f"/race-control/debrief/2026/19/{part}").json()
+
+    assert (body["year"], body["round"]) == (2026, 19)
     assert "error_id" in body
 
 

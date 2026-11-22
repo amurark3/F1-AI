@@ -10,6 +10,7 @@ import { PanelHeading } from "@/app/ui/PanelHeading";
 import { Panel } from "../components/RaceControlPrimitives";
 import { StateTag } from "../grand-prix/StateTag";
 
+import { MeasuredReadings } from "./MeasuredReadings";
 import { WeatherGlyph } from "./WeatherGlyph";
 import { compassPoint, railFill, rainColor, summariseWeekend } from "./weekendModel";
 
@@ -156,6 +157,7 @@ function SessionCard({ row, index }: { row: SessionWeatherRow; index: number }) 
       ) : (
         <NoForecast opens={row.forecast_opens} />
       )}
+      <MeasuredReadings row={row} />
     </article>
   );
 }
@@ -235,6 +237,7 @@ export function WeekendForecast({ weather }: { weather: SessionWeather | null | 
           <div className="flex flex-wrap gap-2">
             {weather?.as_of_label && <StateTag>{weather.as_of_label}</StateTag>}
             <StateTag tone="blue">Open-Meteo · hourly</StateTag>
+            {sessions.some((row) => row.measured) && <StateTag>OpenF1 · trackside</StateTag>}
           </div>
         }
       />
@@ -258,9 +261,11 @@ export function WeekendForecast({ weather }: { weather: SessionWeather | null | 
 
       <p className="mt-4 text-xs leading-relaxed text-rc-ink-3">
         {weather?.note && <span className="text-rc-ink-2">{weather.note} </span>}
-        Each session reads the hours it runs through: worst-hour rain and wind, average temperature. Completed sessions
-        show the model&apos;s reading for that hour, not trackside sensors; track temperature is estimated from air
-        temperature and cloud. {weather?.attribution ?? "Weather data by Open-Meteo.com"}.
+        Each session reads the hours it runs through: worst-hour rain and wind, average temperature. The forecast&apos;s
+        track temperature is estimated from air temperature and cloud. Trackside rows are OpenF1&apos;s circuit weather
+        station, read about once a minute: track and air are the session average (track with its low–high), rain is
+        whether any reading reported rainfall, never an amount.{" "}
+        {weather?.attribution ?? "Weather data by Open-Meteo.com"}.
       </p>
     </Panel>
   );

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+from urllib.parse import urlparse
 
 from langchain_core.tools import tool
 import structlog
 from tavily import TavilyClient
 
+from app.api.tools.provenance import Provenance, Sourced, chip
 from app.data.weather import get_weather_for_circuit
 
 logger = structlog.get_logger()
@@ -107,7 +109,8 @@ def get_weather_conditions(location: str) -> str:
         if strategy_impact:
             lines.append(f"**Strategy impact:** {strategy_impact}")
 
-        return "\n".join(lines)
+        provenance = Provenance(sources=(chip("OpenWeatherMap"),), subject=f"{circuit_name} weather")
+        return Sourced("\n".join(lines), provenance)
 
     except Exception as e:
         logger.exception("tool.weather_conditions.error", error=str(e))
@@ -129,6 +132,8 @@ def perform_web_search(query: str) -> str:
         results = response.get("results", [])
         if not results:
             return "No search results found."
-        return "\n\n".join(f"Source: {r['title']}\nSnippet: {r['content']}\nURL: {r['url']}" for r in results)
+        text = "\n\n".join(f"Source: {r['title']}\nSnippet: {r['content']}\nURL: {r['url']}" for r in results)
+        hosts = dict.fromkeys(urlparse(r["url"]).netloc.removeprefix("www.") for r in results)
+        return Sourced(text, Provenance(sources=tuple(hosts)))
     except Exception as e:
         return f"Search failed: {e}"

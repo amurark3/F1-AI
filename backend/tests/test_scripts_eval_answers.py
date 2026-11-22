@@ -166,7 +166,7 @@ async def test_ask_collects_the_answer_the_tools_used_and_their_tables(monkeypat
         messages.append(ToolMessage(tool_call_id="c1", content="| a | team |", name="query_f1_database"))
         yield "[TOOL_START]Query F1 Database[/TOOL_START]"
         yield "[TOOL_END]Query F1 Database[/TOOL_END]"
-        yield "Verstappen won."
+        yield '[ANSWER_DATA]{"subject": null,\n"sources": ["f1db"], "charts": []}[/ANSWER_DATA]Verstappen won.'
 
     monkeypatch.setattr(chat_router, "_guarded_stream", _stream)
 

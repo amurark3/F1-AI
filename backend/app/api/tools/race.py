@@ -8,7 +8,8 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
-from app.api.tools.rounds import resolve_round
+from app.api.tools.provenance import Provenance, Sourced, chip, classification_chips, f1db_chip
+from app.api.tools.rounds import resolve_event
 from app.api.tools.sessions import NO_TIME, driver_label, points_cell, source_line, time_cell
 from app.data.openf1.session_laps import load_session_laps
 from app.services.analysis.lap_selection import fastest_valid_lap
@@ -47,7 +48,8 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
     # indicators relative to driver2. The laps are OpenF1's; a deleted lap is not a candidate.
     logger.info("tool.compare_drivers", driver1=driver1, driver2=driver2, grand_prix=grand_prix, year=year)
     try:
-        session = load_session_laps(year, resolve_round(year, grand_prix), "Q")
+        round_num, event_name = resolve_event(year, grand_prix)
+        session = load_session_laps(year, round_num, "Q")
         if session is None:
             return f"No qualifying session found for {grand_prix} {year}."
 
@@ -66,7 +68,7 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
         # Positive = d1 is slower than d2. None where a sector time is missing.
         total, s1, s2, s3 = lap_deltas(_lap_times(d1_lap), _lap_times(d2_lap), LAP_DELTA_COLUMNS)
 
-        return (
+        text = (
             f"### Telemetry: {grand_prix} {year}\n"
             f"**{d1_code} vs {d2_code}**\n\n"
             f"| Sector | Gap ({d1_code} to {d2_code}) | Status |\n"
@@ -76,6 +78,8 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
             f"| Sector 2 | {format_delta(s2)} | {delta_indicator(s2)} |\n"
             f"| Sector 3 | {format_delta(s3)} | {delta_indicator(s3)} |"
         )
+        provenance = Provenance(sources=(chip("OpenF1 laps", "qualifying"),), subject=f"{event_name} {year} qualifying")
+        return Sourced(text, provenance)
 
     except Exception as e:
         return f"Comparison failed: {e}"
@@ -110,7 +114,7 @@ def get_race_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.race_results", grand_prix=grand_prix, year=year)
     try:
-        round_num = resolve_round(year, grand_prix)
+        round_num, event_name = resolve_event(year, grand_prix)
         race = build_session_result(year, round_num, "race")
         if race is None:
             return f"No race classification is published for {grand_prix} {year} yet."
@@ -131,7 +135,10 @@ def get_race_results(year: int, grand_prix: str) -> str:
                 f"| {pos} | {driver_label(row['driver_name'], row['driver_code'])} | {(row['team'] or NO_TIME)[:15]} "
                 f"| {start} | {_change_cell(start, place)} | {time_cell(row)} | {points_cell(row['points'])} |"
             )
-        return "\n".join(summary)
+        sources = classification_chips(race["sources"], final=race["final"])
+        if grid:
+            sources = (*sources, f1db_chip("starting grid"))
+        return Sourced("\n".join(summary), Provenance(sources=sources, subject=f"{event_name} {year}"))
 
     except Exception as e:
         return f"Failed to fetch race results: {e}"
@@ -153,10 +160,16 @@ def get_race_anomalies(year: int, round_num: int) -> str:
             return f"No completed-race data available for {year} Round {round_num}."
         anomalies = result.get("anomalies", [])
         if not anomalies:
-            return f"### {year} Round {round_num}: no major anomalies — a clean, orderly race."
+            return Sourced(
+                f"### {year} Round {round_num}: no major anomalies — a clean, orderly race.",
+                Provenance(sources=(f1db_chip(f"R{round_num} result"),), subject=f"{year} round {round_num}"),
+            )
         lines = [f"### Notable stories — {year} Round {round_num}", ""]
         lines.extend(f"- {a['detail']}" for a in anomalies)
-        return "\n".join(lines)
+        return Sourced(
+            "\n".join(lines),
+            Provenance(sources=(f1db_chip(f"R{round_num} result"),), subject=f"{year} round {round_num}"),
+        )
     except Exception as exc:
         logger.warning("tool.race_anomalies.error", error=str(exc))
         return f"Anomaly analysis failed: {exc}"

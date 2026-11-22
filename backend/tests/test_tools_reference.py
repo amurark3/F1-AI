@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.api.tools import reference as reference_module
+from app.api.tools import provenance as provenance_module, reference as reference_module
 from app.api.tools.reference import consult_rulebook, query_f1_database
 from app.data.f1db_query import QueryValidationError
 from app.rag import pgvector_store
@@ -464,3 +464,30 @@ def test_a_tally_failure_drops_the_tallies_not_the_rows(monkeypatch):
     answer = query_f1_database.invoke({"sql": "SELECT round, winner, team FROM x"})
 
     assert answer.endswith("| 12 | Lando Norris | McLaren |")
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def version(monkeypatch):
+    monkeypatch.setattr(provenance_module, "installed_version", lambda: "v2026.20.0")
+
+
+@pytest.mark.unit
+def test_rows_carry_an_f1db_sql_chip_and_no_subject(version, monkeypatch):
+    _install_query(monkeypatch, _ROWS)
+
+    answer = query_f1_database.invoke({"sql": "SELECT winner FROM x"})
+
+    assert answer.provenance.sources == ("f1db v2026.20.0 · SQL query",)
+    assert answer.provenance.subject is None
+
+
+@pytest.mark.unit
+def test_an_empty_result_carries_no_provenance(monkeypatch):
+    _install_query(monkeypatch, {**_ROWS, "rows": [], "row_count": 0})
+
+    assert type(query_f1_database.invoke({"sql": "SELECT x"})) is str

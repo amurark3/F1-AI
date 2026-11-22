@@ -144,3 +144,25 @@ def test_a_pit_lane_starter_without_a_qualifying_position_reads_plainly(monkeypa
     monza = next(line for line in run(driver="HAD", year=2026).splitlines() if line.startswith("- R13"))
     assert monza.endswith("; started from the pit lane")
     assert "PNone" not in monza
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+def test_the_chip_names_when_the_documents_were_checked_and_the_season():
+    for result in (run(year=2026), run(driver="HAD", year=2026)):
+        assert result.provenance.subject == "2026 power units"
+        assert result.provenance.sources == (f"FIA documents · checked {CHECKED_AT[:10]}",)
+
+
+def test_the_chip_is_plain_when_no_check_is_recorded(monkeypatch):
+    monkeypatch.setattr(provenance, "load_status", lambda year: None)
+    clear_cache()
+
+    assert run(year=2026).provenance.sources == ("FIA documents",)
+
+
+def test_an_unmatched_driver_carries_no_provenance():
+    assert type(run(driver="Nobody", year=2026)) is str

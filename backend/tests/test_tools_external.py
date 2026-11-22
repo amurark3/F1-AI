@@ -224,3 +224,44 @@ def test_a_malformed_result_row_fails_the_whole_search_rather_than_half_renderin
     _install_tavily(monkeypatch, {"results": [{"title": "t", "content": "c"}]})
 
     assert perform_web_search.invoke({"query": "who won"}).startswith("Search failed:")
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_a_forecast_names_its_circuit_and_source(monkeypatch):
+    _install_weather(monkeypatch, _weather())
+
+    report = get_weather_conditions.invoke({"location": "Monaco"})
+
+    assert report.provenance.subject == "Circuit de Monaco weather"
+    assert report.provenance.sources == ("OpenWeatherMap",)
+
+
+@pytest.mark.unit
+def test_search_chips_are_each_hosts_once_without_www(monkeypatch):
+    _install_tavily(
+        monkeypatch,
+        {
+            "results": [
+                {"title": "A", "content": "a", "url": "https://www.example.com/a"},
+                {"title": "B", "content": "b", "url": "https://other.org/b"},
+                {"title": "C", "content": "c", "url": "https://example.com/c"},
+            ]
+        },
+    )
+
+    answer = perform_web_search.invoke({"query": "f1"})
+
+    assert answer.provenance.sources == ("example.com", "other.org")
+    assert answer.provenance.subject is None
+
+
+@pytest.mark.unit
+def test_an_empty_search_carries_no_provenance(monkeypatch):
+    _install_tavily(monkeypatch, {"results": []})
+
+    assert type(perform_web_search.invoke({"query": "f1"})) is str

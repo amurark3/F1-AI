@@ -1,16 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-export interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-export interface Chat {
-  id: string;
-  title: string;
-  updatedAt: number;
-  messages: Message[];
-}
+import type { Chat, Message } from "./engineerModel";
 
 const STORAGE_KEY = "f1ai_chats";
 const MAX_TITLE_LENGTH = 50;
@@ -61,11 +51,6 @@ function subscribe(onStoreChange: () => void): () => void {
   };
 }
 
-function readChats(): Chat[] {
-  if (typeof window === "undefined") return NO_CHATS;
-  return getSnapshot();
-}
-
 function writeChats(chats: Chat[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
   for (const listener of listeners) listener();
@@ -77,69 +62,63 @@ function titleFor(chat: Chat, msg: Message): string {
   return msg.content.length > MAX_TITLE_LENGTH ? `${head}...` : head;
 }
 
+/** The threads in this browser (`f1ai_chats`), newest first; every change writes a new list. */
 export function useLocalChats() {
   const chats = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const createChat = useCallback((): Chat => {
-    const chat: Chat = {
-      id: crypto.randomUUID(),
-      title: "New Chat",
-      updatedAt: Date.now(),
-      messages: [],
-    };
-    writeChats([chat, ...readChats()]);
+    const chat: Chat = { id: crypto.randomUUID(), title: "New Chat", updatedAt: Date.now(), messages: [] };
+    writeChats([chat, ...getSnapshot()]);
     return chat;
   }, []);
 
-  const deleteChat = useCallback((id: string) => {
-    writeChats(readChats().filter((c) => c.id !== id));
+  /** Removes a thread and hands back what it removed, with its place in the list; `null` for an unknown id. */
+  const deleteChat = useCallback((id: string): { chat: Chat; index: number } | null => {
+    const all = getSnapshot();
+    const index = all.findIndex((c) => c.id === id);
+    if (index === -1) return null;
+    writeChats(all.filter((_, i) => i !== index));
+    return { chat: all[index], index };
   }, []);
 
-  const updateChat = useCallback((id: string, updater: (c: Chat) => Chat) => {
-    const all = readChats();
-    const idx = all.findIndex((c) => c.id === id);
+  /** Puts a deleted thread back at its place, or at the end if the list is shorter now. */
+  const restoreChat = useCallback((chat: Chat, index: number) => {
+    const all = getSnapshot();
+    const at = Math.min(index, all.length);
+    writeChats([...all.slice(0, at), chat, ...all.slice(at)]);
+  }, []);
+
+  const addMessage = useCallback((chatId: string, msg: Message) => {
+    const all = getSnapshot();
+    const idx = all.findIndex((c) => c.id === chatId);
     if (idx === -1) return;
-    const updated: Chat = { ...updater(all[idx]), updatedAt: Date.now() };
-    // Move the updated chat to the top of the list.
+    const chat = all[idx];
+    const updated: Chat = {
+      ...chat,
+      messages: [...chat.messages, msg],
+      title: titleFor(chat, msg),
+      updatedAt: Date.now(),
+    };
+    // The thread that just changed moves to the top of the list.
     writeChats([updated, ...all.filter((_, i) => i !== idx)]);
   }, []);
 
-  const addMessage = useCallback(
-    (chatId: string, msg: Message) => {
-      updateChat(chatId, (c) => ({
-        ...c,
-        messages: [...c.messages, msg],
-        title: titleFor(c, msg),
-      }));
-    },
-    [updateChat],
-  );
-
-  const updateLastMessage = useCallback((chatId: string, content: string) => {
-    const all = readChats();
+  /** Replaces the thread's last message whole. Streaming keeps list order, so this does not re-sort. */
+  const updateLastMessage = useCallback((chatId: string, message: Message) => {
+    const all = getSnapshot();
     const chat = all.find((c) => c.id === chatId);
     if (!chat || chat.messages.length === 0) return;
-    const lastIdx = chat.messages.length - 1;
-    // Streaming updates keep list order stable, so this does not re-sort.
     writeChats(
       all.map((c) =>
-        c.id === chatId
-          ? {
-              ...c,
-              messages: c.messages.map((m, i) => (i === lastIdx ? { ...m, content } : m)),
-              updatedAt: Date.now(),
-            }
-          : c,
+        c.id === chatId ? { ...c, messages: [...c.messages.slice(0, -1), message], updatedAt: Date.now() } : c,
       ),
     );
   }, []);
 
-  return {
-    chats,
-    createChat,
-    deleteChat,
-    addMessage,
-    updateLastMessage,
-    updateChat,
-  };
+  /** Replaces a thread's messages (regenerate drops the answer it is replacing). */
+  const setMessages = useCallback((chatId: string, messages: Message[]) => {
+    writeChats(getSnapshot().map((c) => (c.id === chatId ? { ...c, messages } : c)));
+  }, []);
+
+  return { chats, createChat, deleteChat, restoreChat, addMessage, updateLastMessage, setMessages };
 }

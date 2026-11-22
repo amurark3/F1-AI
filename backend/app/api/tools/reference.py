@@ -8,6 +8,7 @@ import os
 from langchain_core.tools import tool
 import structlog
 
+from app.api.tools.provenance import Provenance, Sourced, f1db_chip
 from app.api.tools.tallies import tally_lines
 from app.config import RULEBOOK_TOP_K
 from app.data.f1db_query import (
@@ -125,7 +126,8 @@ def query_f1_database(sql: str) -> str:
     lines.append("| " + " | ".join(columns) + " |")
     lines.append("| " + " | ".join("---" for _ in columns) + " |")
     lines.extend("| " + " | ".join(str(row.get(c, "")) for c in columns) + " |" for row in rows)
-    return "\n".join(lines) + _tallies_note(columns, rows) + _dataset_notes()
+    text = "\n".join(lines) + _tallies_note(columns, rows) + _dataset_notes()
+    return Sourced(text, Provenance(sources=(f1db_chip("SQL query"),)))
 
 
 def _tallies_note(columns: list[str], rows: list[dict]) -> str:

@@ -14,6 +14,8 @@ export interface RankBarItem {
   tag?: ReactNode;
   /** The bar's length, on a scale from zero. */
   value: number;
+  /** The most the value can still become; drawn as a dashed run past the bar. */
+  reach?: number;
   /** The figure to show when it reads better than the bare number: "36%", "+0.123 s/lap". */
   valueText?: string;
   /** A second figure after the value, in the caption tone: the gap to the leader. */
@@ -75,9 +77,14 @@ function figure(item: RankBarItem): string {
 export function RankBars({ items, label, max, highlight, size = "regular", className = "" }: RankBarsProps) {
   const hasRank = items.some((item) => item.rank !== undefined);
   const hasAside = items.some((item) => item.aside !== undefined);
+  const scale = max ?? Math.max(0, ...items.flatMap((item) => [item.value, item.reach ?? 0]).filter(Number.isFinite));
   const percents = barPercents(
     items.map((item) => item.value),
-    max,
+    scale,
+  );
+  const reachPercents = barPercents(
+    items.map((item) => item.reach ?? item.value),
+    scale,
   );
 
   return (
@@ -109,6 +116,13 @@ export function RankBars({ items, label, max, highlight, size = "regular", class
               {item.tag != null && <span className="ml-2">{item.tag}</span>}
             </span>
             <span aria-hidden="true" className={`relative rounded-[3px] bg-rc-ink/3 ${BAR_HEIGHT[size]}`}>
+              {reachPercents[index] > percents[index] && (
+                <span
+                  data-reach
+                  className="absolute inset-y-0 rounded-[3px] border border-dashed border-rc-ink/30"
+                  style={{ left: `${percents[index]}%`, width: `${reachPercents[index] - percents[index]}%` }}
+                />
+              )}
               <span
                 data-fill
                 className="absolute inset-y-0 left-0 origin-left rounded-[3px] motion-safe:animate-fill-x"

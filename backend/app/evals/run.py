@@ -14,12 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import re
 import sys
 
 import structlog
 
-from app.api.routers.chat import RATE_LIMITED_NOTICE, ask_anonymously
+from app.api.routers.chat import RATE_LIMITED_NOTICE, STREAM_MARKER, ask_anonymously
 from app.evals.dataset import GOLDEN_QA, GoldenQA
 from app.evals.judge import judge_answer, keyword_score
 
@@ -29,8 +28,6 @@ DEFAULT_GATE = 0.7
 RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_PAUSE_SECONDS = 20
 
-_TOOL_MARKER = re.compile(r"\[TOOL_(?:START|END)\].*?\[/TOOL_(?:START|END)\]")
-
 
 async def _run_agent(question: str) -> str:
     """The answer the chat would stream for ``question``, without its tool markers.
@@ -39,7 +36,7 @@ async def _run_agent(question: str) -> str:
     final-turn handling — so the eval scores the agent that actually ships.
     """
     streamed, _history = await ask_anonymously(question)
-    return _TOOL_MARKER.sub("", streamed).strip()
+    return STREAM_MARKER.sub("", streamed).strip()
 
 
 async def _answer(question: str) -> str:

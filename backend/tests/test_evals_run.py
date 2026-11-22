@@ -59,6 +59,14 @@ async def test_tool_markers_are_stripped_from_the_scored_answer(monkeypatch):
     assert await run._run_agent("Most Monaco wins?") == "Ayrton Senna, 6 wins."
 
 
+@pytest.mark.unit
+async def test_an_answer_data_block_is_stripped_from_the_scored_answer(monkeypatch):
+    ask, _ = _streamed('[ANSWER_DATA]{"subject": "x",\n"sources": []}[/ANSWER_DATA]Ayrton Senna, 6 wins.')
+    monkeypatch.setattr(run, "ask_anonymously", ask)
+
+    assert await run._run_agent("Most Monaco wins?") == "Ayrton Senna, 6 wins."
+
+
 def _golden(qa_id: str = "wdc-2021") -> GoldenQA:
     return GoldenQA(id=qa_id, question="Who won 2021?", must_include=["Verstappen"], rubric="Names Verstappen.")
 

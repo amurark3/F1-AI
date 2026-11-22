@@ -9,7 +9,8 @@ from __future__ import annotations
 from langchain_core.tools import tool
 import structlog
 
-from app.api.tools.rounds import resolve_round
+from app.api.tools.provenance import Provenance, Sourced, classification_chips
+from app.api.tools.rounds import resolve_event
 from app.data.qualifying_times import QualifyingCar, QualifyingTimes, qualifying_times
 from app.services.race_results import build_session_result, clock
 
@@ -70,7 +71,8 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.sprint_results", grand_prix=grand_prix, year=year)
     try:
-        sprint = build_session_result(year, resolve_round(year, grand_prix), "sprint")
+        round_num, event_name = resolve_event(year, grand_prix)
+        sprint = build_session_result(year, round_num, "sprint")
         if sprint is None:
             return (
                 f"No sprint classification is published for {grand_prix} {year} (not a sprint weekend, or not run yet)."
@@ -92,7 +94,11 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
             "",
             *_header("Time/Status", "Pts"),
         ]
-        return "\n".join([*heading, *rows])
+        provenance = Provenance(
+            sources=classification_chips(sprint["sources"], final=sprint["final"]),
+            subject=f"{event_name} {year} sprint",
+        )
+        return Sourced("\n".join([*heading, *rows]), provenance)
     except Exception as e:
         return f"Could not fetch Sprint results: {e}"
 
@@ -113,18 +119,22 @@ def _segment_table(cars: tuple[QualifyingCar, ...], index: int, title: str, labe
     return [title, *_header(f"{label} Time"), *rows]
 
 
-def _qualifying_report(table: QualifyingTimes, prefix: str, pole: str, heading: str) -> str:
+def _qualifying_report(table: QualifyingTimes, prefix: str, heading: str, subject: str) -> Sourced:
     """The Q1/Q2/Q3 tables (``prefix`` "Q" or "SQ"), or an ordered list when the cars carry no segment times."""
     cars = table.cars
+    pole = "Sprint Pole Position" if prefix == "SQ" else "Pole Position"
     titles = (f"### {prefix}1 Results ({heading})", f"### {prefix}2 Results", f"### {prefix}3 Results ({pole})")
     tables = [_segment_table(cars, index, title, f"{prefix}{index + 1}") for index, title in enumerate(titles)]
     shown = [lines for lines in tables if lines]
+    provenance = Provenance(
+        sources=classification_chips(({"source": table.source},), final=table.final), subject=subject
+    )
     if shown:
         body = [line for lines in shown[:-1] for line in (*lines, "\n---\n")] + shown[-1]
-        return "\n".join([source_line(table.final), "", *body])
+        return Sourced("\n".join([source_line(table.final), "", *body]), provenance)
     ordered = sorted(cars, key=lambda car: car.position or len(cars) + 1)
     rows = [_row(car.position or car.note, car.name, car.code, car.team, NO_TIME) for car in ordered]
-    return "\n".join(
+    text = "\n".join(
         [
             f"### {prefix} Classification ({heading})",
             source_line(table.final),
@@ -133,6 +143,7 @@ def _qualifying_report(table: QualifyingTimes, prefix: str, pole: str, heading: 
             *rows,
         ]
     )
+    return Sourced(text, provenance)
 
 
 @tool
@@ -144,10 +155,11 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.sprint_qualifying", grand_prix=grand_prix, year=year)
     try:
-        table = qualifying_times(year, resolve_round(year, grand_prix), "SQ")
+        round_num, event_name = resolve_event(year, grand_prix)
+        table = qualifying_times(year, round_num, "SQ")
         if table is None:
             return f"No sprint qualifying results are published for {grand_prix} {year} (not a sprint weekend, or not run yet)."
-        return _qualifying_report(table, "SQ", "Sprint Pole Position", f"{grand_prix} {year}")
+        return _qualifying_report(table, "SQ", f"{grand_prix} {year}", f"{event_name} {year} sprint qualifying")
     except Exception as e:
         return f"Could not fetch Sprint Qualifying. Note: {grand_prix} {year} might not be a Sprint weekend. Error: {e}"
 
@@ -165,9 +177,10 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
     """
     logger.info("tool.qualifying", grand_prix=grand_prix, year=year)
     try:
-        table = qualifying_times(year, resolve_round(year, grand_prix), "Q")
+        round_num, event_name = resolve_event(year, grand_prix)
+        table = qualifying_times(year, round_num, "Q")
         if table is None:
             return f"No qualifying results are published for {grand_prix} {year} yet."
-        return _qualifying_report(table, "Q", "Pole Position", f"{grand_prix} {year}")
+        return _qualifying_report(table, "Q", f"{grand_prix} {year}", f"{event_name} {year} qualifying")
     except Exception as e:
         return f"Failed to fetch qualifying results: {e}"

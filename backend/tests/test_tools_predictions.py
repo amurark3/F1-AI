@@ -400,3 +400,44 @@ def test_a_history_with_only_unread_editions_still_says_so():
     )
 
     assert lines[-2] == "  - Not read (data unavailable): 2025"
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_a_prediction_names_its_model_and_data_sources(monkeypatch):
+    _install_prediction(
+        monkeypatch,
+        {
+            "grand_prix": "Monaco Grand Prix",
+            "predictions": [_driver(1)],
+            "data_sources": ["f1db", "fastf1"],
+            "accuracy": {},
+            "warnings": [],
+        },
+    )
+
+    briefing = get_race_predictions.invoke({"year": 2026, "round_num": 4})
+
+    assert briefing.provenance.subject == "Monaco Grand Prix 2026 prediction"
+    assert briefing.provenance.sources == ("F1 AI prediction model", "f1db", "fastf1")
+
+
+@pytest.mark.unit
+def test_a_strategy_names_its_event_and_source(monkeypatch):
+    _install_strategy(monkeypatch, {"grand_prix": "Monaco Grand Prix", "stints": [_stint(1)]})
+
+    report = get_pit_strategy.invoke({"year": 2026, "round_num": 4, "driver_code": "VER"})
+
+    assert report.provenance.subject == "Monaco Grand Prix 2026 strategy"
+    assert report.provenance.sources == ("OpenF1 laps and stints",)
+
+
+@pytest.mark.unit
+def test_a_failed_analysis_carries_no_provenance(monkeypatch):
+    _install_strategy(monkeypatch, {"error": "No data"})
+
+    assert type(get_pit_strategy.invoke({"year": 2026, "round_num": 4})) is str

@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-18): the redesign half of P6 is done** (P6.1, P6.3 + P6.3b, P6.4 + P6.4b) and pushed as one PR (user: "Finish only P6 for now. Complete and raise a PR"). P6.2 (radio moments) is a feature and stays for after the redesign. **Don't start P7** until the user says so (user, 2026-11-18). Then: P7.1, P7.2, P7.5; D3.1 (bug, own PR); the features (P7.4, P7.6, P6.2, P8).
+- **Now (2026-11-18): the redesign half of P6 is done** (P6.1, P6.3 + P6.3b, P6.4 + P6.4b) and pushed as one PR (user: "Finish only P6 for now. Complete and raise a PR"). P6.2 (radio moments) is a feature and stays for after the redesign. **P7 is approved** (user, 2026-11-22: "start when the weekly limit resumes"): start once the weekly usage limit resets. Then: P7.1, P7.2, P7.5; D3.1 (bug, own PR); the features (P7.4, P7.6, P6.2, P8).
 - **Merged:** PR #102 (2026-11-14), PR #103 (D1 + P4, 2026-11-15) PR #105 (P5 + N1, 2026-11-17; rows and log in the archive) and PR #106 (D2.1 + the analytics consent banner, 2026-11-18). PR #102's production steps are done.
 - **Two branches (user, 2026-11-09):**
   - **`feat/oracle-backend`** (pushed): all of P0c. P0c.1–P0c.8 are at `3821aa5`, ready for its PR `feat: always-on backend on Oracle Cloud`, which the user opens. Cutover follows `docs/deploy/ORACLE.md` §2 once the Oracle VM exists; the user's agent is still retrying for A1 capacity. Then P0c.9. Work on it only in a separate git worktree, never on `dev`.

@@ -37,7 +37,8 @@ from app.services.live_timing import parse_iso
 logger = structlog.get_logger()
 
 SESSION_LAPS_KIND = "session_laps"
-SESSION_LAPS_VERSION = 2
+# 3: untimed deletions placed by the message's "LAP n" (D3.1).
+SESSION_LAPS_VERSION = 3
 QUALIFYING_CODES = frozenset({"Q", "SQ"})
 # App session code -> the session as the FIA's deleted-lap sheets print it.
 # shortcut: the sprint names are assumed (no sprint weekend in the store yet); check them against one.
@@ -130,7 +131,7 @@ def _fetch(year: int, round_num: int, code: str) -> SessionLaps | None:
         laps = laps_from_openf1(get_json(client, "laps", query))
         messages = get_json(client, "race_control", query)
         classification = get_json(client, "session_result", query) if code in QUALIFYING_CODES else []
-    deleted = deleted_laps(standing_deletions(messages), laps)
+    deleted = deleted_laps(standing_deletions(messages), laps, code)
     return SessionLaps(
         session=session,
         year=year,

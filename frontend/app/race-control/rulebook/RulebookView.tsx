@@ -1,252 +1,92 @@
 "use client";
 
-import { BookOpenCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import useSWRMutation from "swr/mutation";
 
 import { API_BASE } from "@/app/constants/api";
+import { PageHero } from "@/app/ui/PageHero";
+import { Section } from "@/app/ui/section/Section";
+import { describeFailure } from "@/app/ui/section/sectionState";
 
-import {
-  InlineNotice,
-  Panel,
-  SectionHeader,
-  SectionLoader,
-  StatusPill,
-  WorkspaceSplit,
-  rcFont,
-} from "../components/RaceControlPrimitives";
+import { RulebookAnswer } from "./RulebookAnswer";
+import { QUICK_QUESTIONS, answerState, type RulebookResult } from "./rulebookModel";
 
-interface SearchArgs {
-  query: string;
-  category: string;
-}
+const SEARCH_URL = `${API_BASE}/api/race-control/rulebook/search`;
 
-interface RulebookResult {
-  query: string;
-  category: string;
-  source: "chroma-rag" | "fallback";
-  error?: string | null;
-  answer: string;
-  citations: Array<{ document: string; year: string; category?: string; page?: string | null; snippet: string }>;
-}
-
-async function searchRulebook(url: string, { arg }: { arg: SearchArgs }) {
+async function search(url: string, { arg }: { arg: { query: string } }): Promise<RulebookResult> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(arg),
   });
-  if (!res.ok) throw new Error(`Rulebook search failed: ${res.status}`);
-  return res.json() as Promise<RulebookResult>;
-}
-
-const QUICK_QUESTIONS = [
-  "What can we change under parc ferme?",
-  "What makes a pit release unsafe?",
-  "How should we think about cost cap operational constraints?",
-  "What 2026 technical changes affect strategy?",
-];
-
-/** Badge label for the answer source: fallback, live citation, or idle. */
-function sourceStatusLabel(result: RulebookResult | undefined): string {
-  if (result?.source === "fallback") return "Limited";
-  return result ? "Cited" : "Ready";
+  if (!res.ok) throw new Error(`The rulebook search failed (HTTP ${res.status}).`);
+  return (await res.json()) as RulebookResult;
 }
 
 export function RulebookView() {
-  const [query, setQuery] = useState("What can we change under parc ferme?");
-  const [category, setCategory] = useState("Sporting");
-  const { trigger, data, error, isMutating } = useSWRMutation<RulebookResult, Error, string, SearchArgs>(
-    `${API_BASE}/api/race-control/rulebook/search`,
-    searchRulebook,
+  const [query, setQuery] = useState("");
+  const [asked, setAsked] = useState<string | null>(null);
+  const { trigger, data, error, isMutating } = useSWRMutation<RulebookResult, Error, string, { query: string }>(
+    SEARCH_URL,
+    search,
   );
-  const runSearch = () => trigger({ query, category });
+
+  const ask = (question: string) => {
+    setAsked(question);
+    void trigger({ query: question }, { throwOnError: false });
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = query.trim();
+    if (trimmed !== "") ask(trimmed);
+  };
+  const state = {
+    ...answerState(isMutating, error, data, (failure) => describeFailure(failure, false)),
+    refreshing: isMutating,
+  };
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Visual Regulations Assistant"
-        title="Rulebook Desk"
-        description="Turn FIA sporting, technical, and financial regulation questions into operational constraints with cited snippets."
-      />
-
-      <Panel className="mb-7 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <BookOpenCheck className="mt-1 h-5 w-5 shrink-0 text-[#00FF78]" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-neutral-400" style={rcFont}>
-                Regulation Sources
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-white" style={rcFont}>
-                FIA PDFs, cited answers, operational constraints
-              </h2>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusPill>2024-2026 corpus</StatusPill>
-            <StatusPill color="#3671C6">Source snippets</StatusPill>
-          </div>
-        </div>
-      </Panel>
-
-      <WorkspaceSplit className="xl:[&>*:first-child]:basis-[42%] xl:[&>*:last-child]:flex-1">
-        <RulebookSearchForm
-          category={category}
-          query={query}
-          isMutating={isMutating}
-          onCategoryChange={setCategory}
-          onQueryChange={setQuery}
-          onSearch={() => void runSearch()}
-        />
-
-        {isMutating ? (
-          <SectionLoader
-            title="Searching regulation index"
-            detail="Looking for cited FIA snippets and translating them into an operational answer."
-          />
-        ) : (
-          <RulebookAnswer data={data} category={category} hasError={Boolean(error)} onRetry={() => void runSearch()} />
-        )}
-      </WorkspaceSplit>
-    </div>
-  );
-}
-
-interface RulebookSearchFormProps {
-  category: string;
-  query: string;
-  isMutating: boolean;
-  onCategoryChange: (value: string) => void;
-  onQueryChange: (value: string) => void;
-  onSearch: () => void;
-}
-
-function RulebookSearchForm({
-  category,
-  query,
-  isMutating,
-  onCategoryChange,
-  onQueryChange,
-  onSearch,
-}: RulebookSearchFormProps) {
-  return (
-    <Panel className="p-5">
-      <h2 className="text-xl font-black italic uppercase text-white mb-5" style={rcFont}>
-        Search Regulations
-      </h2>
-      <label className="block mb-4">
-        <span className="block text-xs font-black uppercase tracking-[0.18em] text-neutral-300 mb-2">Category</span>
-        <select
-          value={category}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          className="h-12 w-full rounded-lg bg-[#151817] border border-white/12 px-3 text-base text-white outline-none focus:border-rc-red-text/70"
-        >
-          {["Sporting", "Technical", "Financial", "All"].map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
-      </label>
-      <label className="block mb-4">
-        <span className="block text-xs font-black uppercase tracking-[0.18em] text-neutral-300 mb-2">Question</span>
-        <textarea
+      <PageHero eyebrow="Rulebook · FIA Formula One Regulations and stewards' decisions" title="Ask the rulebook" />
+      <form role="search" aria-label="Ask the rulebook" onSubmit={submit} className="mt-6 flex gap-2.5">
+        <input
+          type="text"
+          aria-label="Question"
+          maxLength={300}
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          rows={5}
-          className="w-full rounded-lg bg-[#151817] border border-white/12 px-3 py-3 text-base text-white outline-none resize-none focus:border-rc-red-text/70"
+          onChange={(event) => setQuery(event.target.value)}
+          className="h-14 min-w-0 flex-1 rounded-md border border-rc-line bg-(--surface) px-[18px] text-[17px] text-rc-ink"
         />
-      </label>
-      <button
-        onClick={onSearch}
-        disabled={isMutating || !query.trim()}
-        className="w-full rounded-lg bg-[#00FF78] px-4 py-3 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
-      >
-        {isMutating ? "Searching..." : "Search rulebook"}
-      </button>
-
-      <div className="mt-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400 mb-3">Fast questions</p>
-        <div className="space-y-2">
-          {QUICK_QUESTIONS.map((item) => (
+        <button
+          type="submit"
+          className="inline-flex h-14 shrink-0 items-center bg-f1-red px-6 font-display text-[19px] font-extrabold uppercase leading-none tracking-[0.02em] text-rc-ink transition-[filter] hover:brightness-110"
+        >
+          Search
+        </button>
+      </form>
+      <ul aria-label="Quick questions" className="mt-3.5 flex flex-wrap gap-2">
+        {QUICK_QUESTIONS.map((question) => (
+          <li key={question}>
             <button
-              key={item}
-              onClick={() => onQueryChange(item)}
-              className="w-full text-left rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5 text-sm text-neutral-300 hover:text-white"
+              type="button"
+              onClick={() => {
+                setQuery(question);
+                ask(question);
+              }}
+              className="rounded-full border border-rc-line px-3.5 py-2 text-[13px] text-rc-ink-2 transition-colors hover:border-rc-ink-3 hover:text-rc-ink"
             >
-              {item}
+              {question}
             </button>
-          ))}
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-function RulebookAnswer({
-  data,
-  category,
-  hasError,
-  onRetry,
-}: {
-  data: RulebookResult | undefined;
-  category: string;
-  hasError: boolean;
-  onRetry: () => void;
-}) {
-  return (
-    <Panel className="p-5" accent="#00FF78">
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400 mb-2" style={rcFont}>
-            Operational Answer
-          </p>
-          <h2 className="text-2xl font-black italic uppercase text-white leading-none" style={rcFont}>
-            {data?.category ?? category} Regulations
-          </h2>
-        </div>
-        <StatusPill color={data?.source === "fallback" ? "#FFF200" : "#00FF78"}>{sourceStatusLabel(data)}</StatusPill>
-      </div>
-      {hasError && (
-        <div className="mb-5">
-          <InlineNotice title="Rulebook Search Unavailable" tone="error">
-            The regulation search did not return a result.
-            <button onClick={onRetry} className="ml-2 font-bold text-white underline decoration-white/30">
-              Retry
-            </button>
-          </InlineNotice>
-        </div>
-      )}
-      {data?.error && (
-        <div className="mb-5">
-          <InlineNotice title="Citation Search Limited" tone="warning">
-            The regulation index could not return cited excerpts for this search. The answer below is a general
-            operations note.
-          </InlineNotice>
-        </div>
-      )}
-      <p className="text-base text-neutral-300 leading-relaxed mb-6">
-        {data?.answer ?? "Search a regulation topic to see the operational answer and source snippets."}
-      </p>
-
-      <h3 className="text-sm font-black uppercase tracking-wider text-neutral-400 mb-3">Citations</h3>
-      <div className="space-y-3">
-        {(data?.citations ?? []).map((citation, index) => (
-          <div key={`${citation.document}-${index}`} className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <StatusPill color="#3671C6">{citation.year}</StatusPill>
-              {citation.category && <StatusPill color="#FF8000">{citation.category}</StatusPill>}
-              {citation.page && <StatusPill color="#BE3AFF">Page {citation.page}</StatusPill>}
-            </div>
-            <p className="mb-2 text-sm font-bold text-white">{citation.document}</p>
-            <p className="text-sm text-neutral-400 leading-relaxed">{citation.snippet}</p>
-          </div>
+          </li>
         ))}
-        {data?.citations.length === 0 && (
-          <InlineNotice title="No Citations" tone="warning">
-            Try broadening the category filter or using a shorter regulation topic.
-          </InlineNotice>
-        )}
-      </div>
-    </Panel>
+      </ul>
+      {asked !== null && (
+        <Section state={{ ...state, retry: () => ask(asked) }} label="Answer" skeletonClassName="h-72" className="mt-7">
+          {data && data.status !== "unavailable" && (
+            <RulebookAnswer answer={data} retry={() => ask(asked)} refreshing={isMutating} />
+          )}
+        </Section>
+      )}
+    </div>
   );
 }

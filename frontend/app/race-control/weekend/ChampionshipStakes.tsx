@@ -3,12 +3,12 @@
 import { useState } from "react";
 
 import type { ChampionshipTable } from "@/app/lib/clinch";
-import { standingsLabel } from "@/app/lib/standingsFreshness";
 import { getTeamColor } from "@/app/lib/teamColors";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
 import { PanelHeading } from "@/app/ui/PanelHeading";
 import { Segmented } from "@/app/ui/Segmented";
+import { SourceBadge } from "@/app/ui/SourceBadge";
 
 import { Panel } from "../components/RaceControlPrimitives";
 import { DriverLink, TeamLink } from "../profiles/EntityLinks";
@@ -126,7 +126,6 @@ function StakesTable({ stakes, table, venue }: { stakes: TableStakes; table: Tab
 export function ChampionshipStakes({ stakes, venue }: { stakes: Stakes | null | undefined; venue: string }) {
   const [table, setTable] = useState<Table>("drivers");
   const current = stakes?.[table] ?? null;
-  const freshness = standingsLabel(stakes);
   return (
     <Panel className="flex h-full flex-col p-5 sm:p-6">
       <PanelHeading
@@ -142,7 +141,11 @@ export function ChampionshipStakes({ stakes, venue }: { stakes: Stakes | null | 
       )}
       {stakes && (
         <p className="mt-auto pt-4 font-mono text-[10px] uppercase leading-[1.6] tracking-[0.1em] text-rc-ink-3">
-          {freshness ? `Standings ${freshness} · ` : ""}
+          {stakes.as_of_round ? (
+            <>
+              Standings <SourceBadge freshness={stakes} /> ·{" "}
+            </>
+          ) : null}
           {stakes.races_left} races · {stakes.sprints_left} sprints to count
           {current ? ` · ${formatPoints(current.max_available)} pts max` : ""}
           {current && reachLine(current) !== null

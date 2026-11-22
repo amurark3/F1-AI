@@ -12,10 +12,10 @@ import StartLightGantry, { litCountForStage } from "./StartLightGantry";
  */
 export type OverlayPhase = "warming" | "unreachable" | "launching";
 
-const COPY: Record<OverlayPhase, { eyebrow: string; title: string; eyebrowColor: string }> = {
-  warming: { eyebrow: "Formation lap", title: "Waking the server", eyebrowColor: "#7F8797" },
-  unreachable: { eyebrow: "Red flag", title: "Server isn't responding", eyebrowColor: "#E10600" },
-  launching: { eyebrow: "Lights out", title: "Server ready", eyebrowColor: "#00FF78" },
+const COPY: Record<OverlayPhase, { eyebrow: string; title: string; eyebrowTone: string }> = {
+  warming: { eyebrow: "Formation lap", title: "Waking the server", eyebrowTone: "text-rc-ink-3" },
+  unreachable: { eyebrow: "Red flag", title: "Server isn't responding", eyebrowTone: "text-rc-red-text" },
+  launching: { eyebrow: "Lights out", title: "Server ready", eyebrowTone: "text-rc-ink" },
 };
 
 const FALLBACK_DETAIL: Record<OverlayPhase, string> = {
@@ -23,9 +23,6 @@ const FALLBACK_DETAIL: Record<OverlayPhase, string> = {
   unreachable: "It hasn't answered for a few minutes — it may be redeploying or down.",
   launching: "Go racing.",
 };
-
-const rcMono = { fontFamily: "var(--font-geist-mono, var(--font-geist-sans, monospace))" };
-const barlow = { fontFamily: "var(--font-barlow, var(--font-geist-sans))" };
 
 /** Whole seconds since `since`, ticking once a second while `since` is set. */
 function useElapsedSeconds(since: number | null): number {
@@ -54,8 +51,7 @@ function UnreachableActions({ onRetry, onContinue }: { onRetry: () => void; onCo
         type="button"
         autoFocus
         onClick={onRetry}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#E10600] px-5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-[#FF1E10] focus-visible:outline-rc-ink"
-        style={barlow}
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-f1-red px-5 font-display text-sm font-bold uppercase tracking-widest text-rc-ink transition-colors hover:bg-f1-red/85 focus-visible:outline-rc-ink"
       >
         <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
         Try again
@@ -63,8 +59,7 @@ function UnreachableActions({ onRetry, onContinue }: { onRetry: () => void; onCo
       <button
         type="button"
         onClick={onContinue}
-        className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#1E2633] px-5 text-xs font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-        style={barlow}
+        className="inline-flex min-h-11 items-center justify-center rounded-md border border-rc-line px-5 font-display text-sm font-bold uppercase tracking-widest text-rc-ink-2 transition-colors hover:border-rc-ink-3 hover:text-rc-ink"
       >
         Continue anyway
       </button>
@@ -116,7 +111,7 @@ export default function ServerWarmingOverlay({
       aria-modal={!launching}
       aria-labelledby={titleId}
       aria-describedby={detailId}
-      className={`fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#07090D]/80 backdrop-blur-md motion-reduce:animate-none ${
+      className={`fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-background/80 backdrop-blur-md motion-reduce:animate-none ${
         launching ? "pointer-events-none animate-overlay-out" : "animate-overlay-in"
       }`}
     >
@@ -124,7 +119,7 @@ export default function ServerWarmingOverlay({
         <div
           ref={cardRef}
           tabIndex={-1}
-          className="w-full max-w-sm rounded-2xl border border-[#1E2633] bg-[#0D111B]/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.6)] outline-none sm:max-w-md sm:p-8 short:p-5"
+          className="w-full max-w-sm rounded-2xl border border-rc-line bg-(--surface)/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.6)] outline-none sm:max-w-md sm:p-8 short:p-5"
         >
           <StartLightGantry
             lit={phase === "unreachable" ? 0 : litCountForStage(stage)}
@@ -133,28 +128,26 @@ export default function ServerWarmingOverlay({
           />
 
           <p
-            className="mt-6 text-[10px] font-bold uppercase tracking-[0.25em] sm:text-[11px] short:mt-4"
-            style={{ ...rcMono, color: copy.eyebrowColor }}
+            className={`mt-6 font-mono text-[10px] font-bold uppercase tracking-[0.25em] sm:text-[11px] short:mt-4 ${copy.eyebrowTone}`}
           >
             {copy.eyebrow}
           </p>
           <h2
             id={titleId}
-            className="mt-2 text-xl font-black uppercase italic leading-tight tracking-tight text-white sm:text-2xl"
-            style={barlow}
+            className="mt-2 font-display text-2xl font-bold uppercase leading-tight tracking-tight text-rc-ink sm:text-3xl"
           >
             {copy.title}
           </h2>
-          <p id={detailId} role="status" aria-live="polite" className="mt-2 text-sm text-[#AEB5C4]">
+          <p id={detailId} role="status" aria-live="polite" className="mt-2 text-sm text-rc-ink-2">
             {phase === "warming" ? (detail ?? FALLBACK_DETAIL.warming) : FALLBACK_DETAIL[phase]}
           </p>
 
           {phase === "warming" && (
             <>
-              <p className="mt-4 text-xs tabular-nums text-[#7F8797] short:mt-2" style={rcMono}>
+              <p className="mt-4 font-mono text-xs tabular-nums text-rc-ink-3 short:mt-2">
                 {formatElapsed(elapsed)} elapsed
               </p>
-              <p className="mt-4 border-t border-[#1E2633] pt-4 text-xs leading-relaxed text-[#7F8797] short:mt-3 short:pt-3">
+              <p className="mt-4 border-t border-rc-line pt-4 text-xs leading-relaxed text-rc-ink-3 short:mt-3 short:pt-3">
                 The free-tier server sleeps when idle. A cold start usually takes under a minute.
               </p>
             </>

@@ -8,7 +8,9 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
+from app.api.tools.provenance import Provenance, Sourced, f1db_chip
 from app.api.tools.standings_facts import freshness_line, title_line
+from app.api.tools.standings_provenance import standings_provenance
 from app.data.current_standings import current_standings
 from app.data.f1db_calendar import season_schedule
 from app.services.race_control.table_reach import constructors_reach, drivers_reach
@@ -31,7 +33,8 @@ def get_driver_standings(year: int) -> str:
         standings = current_standings(year)
         if not standings.drivers:
             return f"No driver standings found for {year}."
-        return "\n".join(
+        reach = drivers_reach(standings)
+        text = "\n".join(
             (
                 f"### Driver Standings ({year})",
                 freshness_line(standings),
@@ -43,9 +46,10 @@ def get_driver_standings(year: int) -> str:
                     for row in standings.drivers
                 ),
                 "",
-                title_line(drivers_reach(standings), "Drivers'"),
+                title_line(reach, "Drivers'"),
             )
         )
+        return Sourced(text, standings_provenance(standings, reach, "drivers"))
     except Exception as e:
         logger.exception("tool.driver_standings.error", error=str(e))
         return f"Failed to fetch driver standings: {e}"
@@ -66,7 +70,8 @@ def get_constructor_standings(year: int) -> str:
         standings = current_standings(year)
         if not standings.teams:
             return f"No constructor standings found for {year}."
-        return "\n".join(
+        reach = constructors_reach(standings)
+        text = "\n".join(
             (
                 f"### Constructor Standings ({year})",
                 freshness_line(standings),
@@ -75,9 +80,10 @@ def get_constructor_standings(year: int) -> str:
                 "| :-- | :--- | :----- | :--- |",
                 *(f"| {row.position} | {row.key} | {row.points:g} | {row.wins} |" for row in standings.teams),
                 "",
-                title_line(constructors_reach(standings), "Constructors'"),
+                title_line(reach, "Constructors'"),
             )
         )
+        return Sourced(text, standings_provenance(standings, reach, "constructors"))
     except Exception as e:
         logger.exception("tool.constructor_standings.error", error=str(e))
         return f"Failed to fetch constructor standings: {e}"
@@ -137,7 +143,7 @@ def get_season_schedule(year: int) -> str:
         # Provide explicit context for the LLM to avoid hallucinating race names.
         output.append(f"\n**Context:** The last completed race was the **{last_completed}**.")
 
-        return "\n".join(output)
+        return Sourced("\n".join(output), Provenance(sources=(f1db_chip("calendar"),), subject=f"{year} calendar"))
 
     except Exception as e:
         return f"Failed to fetch schedule: {e}"

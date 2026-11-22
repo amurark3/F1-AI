@@ -5,6 +5,7 @@ from __future__ import annotations
 from langchain_core.tools import tool
 import structlog
 
+from app.api.tools.provenance import Provenance, Sourced, chip
 from app.data.strategy import analyze_pit_strategy
 from app.services.predictions import get_or_compute_race_prediction
 
@@ -90,7 +91,10 @@ def get_race_predictions(year: int, round_num: int) -> str:
         if warnings:
             lines.append(f"**Note:** {'; '.join(warnings)}")
 
-        return "\n".join(lines)
+        provenance = Provenance(
+            sources=("F1 AI prediction model", *data_sources), subject=f"{gp_name} {year} prediction"
+        )
+        return Sourced("\n".join(lines), provenance)
 
     except Exception as e:
         logger.exception("tool.race_predictions.error", error=str(e))
@@ -230,7 +234,10 @@ def get_pit_strategy(year: int, round_num: int, driver_code: str | None = None) 
         lines.extend(_historical_lines(result.get("historical_strategies", {})))
         lines.extend(_safety_car_lines(result))
 
-        return "\n".join(lines)
+        return Sourced(
+            "\n".join(lines),
+            Provenance(sources=(chip("OpenF1 laps and stints"),), subject=f"{gp_name} {year} strategy"),
+        )
 
     except Exception as e:
         logger.exception("tool.pit_strategy.error", error=str(e))

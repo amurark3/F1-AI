@@ -112,6 +112,23 @@ describe("RankBars", () => {
     expect(fillOf(missing)).toHaveStyle({ width: "0%" });
   });
 
+  it("draws the run a value can still reach as a dashed track after its bar, and scales to it", () => {
+    const items: RankBarItem[] = [
+      { id: "a", label: "A", value: 50, reach: 100, color: "#111111" },
+      { id: "b", label: "B", value: 80, reach: 80, color: "#222222" },
+      { id: "c", label: "C", value: 20, color: "#333333" },
+    ];
+    render(<RankBars items={items} label="Reach" />);
+
+    const [first, second, third] = rows("Reach");
+    const run = first.querySelector<HTMLElement>("[data-reach]");
+    expect(run).toHaveStyle({ left: "50%", width: "50%" });
+    expect(run).toHaveClass("border-dashed");
+    expect(second.querySelector("[data-reach]")).toBeNull();
+    expect(third.querySelector("[data-reach]")).toBeNull();
+    expect(fillOf(second)).toHaveStyle({ width: "80%" });
+  });
+
   it("scales against a caller's maximum", () => {
     render(<RankBars items={RISK} label="Risk" max={40} />);
     expect(fillOf(rows("Risk")[0])).toHaveStyle({ width: "90%" });

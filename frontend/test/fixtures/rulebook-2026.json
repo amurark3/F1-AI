@@ -1,0 +1,205 @@
+{
+  "answered_ai": {
+    "query": "When is a driver required to start from the pit lane?",
+    "year": 2026,
+    "status": "answered",
+    "reason": null,
+    "articles": [
+      {
+        "cite": 1,
+        "codes": ["B3.5.3", "B3.4.2", "B3.4.3", "B3.5.4"],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "their Cars before each of them leaves the Pit Lane for the ﬁrst time during the sprint qualifying session and the qualifying session. B3.5.3 When deemed to be in parc fermé, other than when the Cars are sealed in accordance with Article B3.4.2 or B3.4.3, only the work listed in Appendix B2 may be carried out. B3.5.4 Any parts which are removed from the Car in order to carry out any work speciﬁcally permitted in Article B3.5.3, or any parts removed to carry out essential safety checks, must remain close to the Car and, at all times, be visible to the scrutineer assigned to the relevant Car . Furthermore, any parts removed from the Car in order to carry out any such work must be reﬁtted before the Car leaves the Pit Lane. Any work not listed in Article B3. 5.3 may only be undertaken with the approval of the Technical Delegate following a written request from the Competitor concerned. It must be clear that any"
+      },
+      {
+        "cite": 2,
+        "codes": [],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "Any work not listed in Article B3. 5.3 may only be undertaken with the approval of the Technical Delegate following a written request from the Competitor concerned. It must be clear that any replacement part a Competitor wishes to ﬁt is the same in design and similar in mass, inertia and function to the original. Any parts which are removed shall be retained by the FIA. If a Competitor wishes to change a part during the sprint qualifying session, qualifying session, on the grid before the start of the Sprint and between reconnaissance laps and / or on the grid before the start of the Race, this may be done without ﬁrst seeking the permission of the Technical Delegate, provided it is reasonable for the relevant Competitor to believe permission would be given if there was time to ask and the broken or damaged part remains in full view of the scrutineer assigned to the Car at all times."
+      },
+      {
+        "cite": 3,
+        "codes": ["B3.5.5", "B3.5.6"],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "if there was time to ask and the broken or damaged part remains in full view of the scrutineer assigned to the Car at all times. B3.5.5 Exceptionally, at each Alternative Format Competition , requests made under Article B3. 5.4 for replacement parts that are different in design will be considered for approval where the Competitor can demonstrate there is a shortage of parts, and provided that the replacement part is of a speciﬁcation that has been previously used in a Sprint Qualifying session, a Qualifying session or a TTCS. In such cases, the Competitor must inform the FIA in writing prior to the start of the Sprint of any parts where this may be necessary. B3.5.6 At the end of each Sprint Qualifying and Qualifying the FIA will select speciﬁc Cars to undergo further checks. Once informed their Car has been selected the Competitor concerned must take the Car to the Parc Fermé immediately."
+      }
+    ],
+    "decisions": {
+      "match": "article",
+      "status": "matched",
+      "events": 1,
+      "total": 1,
+      "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
+      "words": [],
+      "items": [
+        {
+          "number": 65,
+          "event": "Mexico City Grand Prix",
+          "title": "Doc 65 - Infringement - Car 30 - Changes made during Parc Ferme",
+          "car": 30,
+          "driver": "Liam Lawson",
+          "session": "Qualifying",
+          "offence": "Changes made during Parc Ferme",
+          "decision": "Required to start the Race from the pit lane.",
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
+          "published": "01.11.26 19:22",
+          "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
+          "cite": 4,
+          "matched": ["B3.4.3", "B3.5.3", "B3.5.4"]
+        }
+      ]
+    },
+    "summary": {
+      "heading": "A car that broke parc fermé starts from the pit lane",
+      "paragraph": "While in parc fermé, only the work listed in Appendix B2 may be carried out [1]. The stewards cited **Article B3.5.3** at the Mexico City Grand Prix, document 65, car 30 (Liam Lawson), and required him to **start the Race from the pit lane** [4].",
+      "written_by": "ai",
+      "why": null
+    }
+  },
+  "answered_computed": {
+    "query": "When is a driver required to start from the pit lane?",
+    "year": 2026,
+    "status": "answered",
+    "reason": null,
+    "articles": [
+      {
+        "cite": 1,
+        "codes": ["B3.5.3", "B3.4.2", "B3.4.3", "B3.5.4"],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "their Cars before each of them leaves the Pit Lane for the ﬁrst time during the sprint qualifying session and the qualifying session. B3.5.3 When deemed to be in parc fermé, other than when the Cars are sealed in accordance with Article B3.4.2 or B3.4.3, only the work listed in Appendix B2 may be carried out. B3.5.4 Any parts which are removed from the Car in order to carry out any work speciﬁcally permitted in Article B3.5.3, or any parts removed to carry out essential safety checks, must remain close to the Car and, at all times, be visible to the scrutineer assigned to the relevant Car . Furthermore, any parts removed from the Car in order to carry out any such work must be reﬁtted before the Car leaves the Pit Lane. Any work not listed in Article B3. 5.3 may only be undertaken with the approval of the Technical Delegate following a written request from the Competitor concerned. It must be clear that any"
+      },
+      {
+        "cite": 2,
+        "codes": [],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "Any work not listed in Article B3. 5.3 may only be undertaken with the approval of the Technical Delegate following a written request from the Competitor concerned. It must be clear that any replacement part a Competitor wishes to ﬁt is the same in design and similar in mass, inertia and function to the original. Any parts which are removed shall be retained by the FIA. If a Competitor wishes to change a part during the sprint qualifying session, qualifying session, on the grid before the start of the Sprint and between reconnaissance laps and / or on the grid before the start of the Race, this may be done without ﬁrst seeking the permission of the Technical Delegate, provided it is reasonable for the relevant Competitor to believe permission would be given if there was time to ask and the broken or damaged part remains in full view of the scrutineer assigned to the Car at all times."
+      },
+      {
+        "cite": 3,
+        "codes": ["B3.5.5", "B3.5.6"],
+        "source": "Section B · Sporting",
+        "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
+        "page": 29,
+        "excerpt": "if there was time to ask and the broken or damaged part remains in full view of the scrutineer assigned to the Car at all times. B3.5.5 Exceptionally, at each Alternative Format Competition , requests made under Article B3. 5.4 for replacement parts that are different in design will be considered for approval where the Competitor can demonstrate there is a shortage of parts, and provided that the replacement part is of a speciﬁcation that has been previously used in a Sprint Qualifying session, a Qualifying session or a TTCS. In such cases, the Competitor must inform the FIA in writing prior to the start of the Sprint of any parts where this may be necessary. B3.5.6 At the end of each Sprint Qualifying and Qualifying the FIA will select speciﬁc Cars to undergo further checks. Once informed their Car has been selected the Competitor concerned must take the Car to the Parc Fermé immediately."
+      }
+    ],
+    "decisions": {
+      "match": "article",
+      "status": "matched",
+      "events": 1,
+      "total": 1,
+      "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
+      "words": [],
+      "items": [
+        {
+          "number": 65,
+          "event": "Mexico City Grand Prix",
+          "title": "Doc 65 - Infringement - Car 30 - Changes made during Parc Ferme",
+          "car": 30,
+          "driver": "Liam Lawson",
+          "session": "Qualifying",
+          "offence": "Changes made during Parc Ferme",
+          "decision": "Required to start the Race from the pit lane.",
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
+          "published": "01.11.26 19:22",
+          "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
+          "cite": 4,
+          "matched": ["B3.4.3", "B3.5.3", "B3.5.4"]
+        }
+      ]
+    },
+    "summary": {
+      "heading": "The closest rule: Articles B3.5.3, B3.4.2, B3.4.3 and 1 more",
+      "paragraph": "The closest passage in the FIA 2026 F1 Regulations is **Articles B3.5.3, B3.4.2, B3.4.3 and 1 more (Section B · Sporting, page 29)** [1]. Related passages: [2] [3]. The stewards cited Articles B3.4.3, B3.5.3 and B3.5.4 in 1 decision collected from 1 event in 2026. At the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [4]",
+      "written_by": "computed",
+      "why": "ai_unavailable"
+    }
+  },
+  "keyword": {
+    "query": "When is a driver required to start from the pit lane?",
+    "year": 2026,
+    "status": "keyword",
+    "reason": "Regulation search is off on this server: it needs a model this server doesn't have the memory to run. The regulations were not searched.",
+    "articles": [],
+    "decisions": {
+      "match": "keyword",
+      "status": "matched",
+      "events": 1,
+      "total": 6,
+      "articles": [],
+      "words": ["required", "start", "pit", "lane"],
+      "items": [
+        {
+          "number": 65,
+          "event": "Mexico City Grand Prix",
+          "title": "Doc 65 - Infringement - Car 30 - Changes made during Parc Ferme",
+          "car": 30,
+          "driver": "Liam Lawson",
+          "session": "Qualifying",
+          "offence": "Changes made during Parc Ferme",
+          "decision": "Required to start the Race from the pit lane.",
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
+          "published": "01.11.26 19:22",
+          "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
+          "cite": 1,
+          "matched": ["required", "start", "pit", "lane"]
+        },
+        {
+          "number": 71,
+          "event": "Mexico City Grand Prix",
+          "title": "Doc 71 - Infringement - Car 11 - Pit Lane Speeding",
+          "car": 11,
+          "driver": "Sergio Perez",
+          "session": "Race",
+          "offence": "Pit Lane Speeding",
+          "decision": "5 second time penalty.",
+          "articles": ["B1.6.3a"],
+          "published": "01.11.26 22:44",
+          "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_11_-_pit_lane_speeding.pdf",
+          "cite": 2,
+          "matched": ["pit", "lane"]
+        },
+        {
+          "number": 68,
+          "event": "Mexico City Grand Prix",
+          "title": "Doc 68 - Infringement - Car 55 - Pit Lane Speeding",
+          "car": 55,
+          "driver": "Carlos Sainz",
+          "session": "Reconnaissance Laps",
+          "offence": "Pit Lane Speeding",
+          "decision": "The competitor (Atlassian Williams F1 Team) is fined €1000.",
+          "articles": ["B1.6.3a"],
+          "published": "01.11.26 21:14",
+          "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_55_-_pit_lane_speeding.pdf",
+          "cite": 3,
+          "matched": ["pit", "lane"]
+        }
+      ]
+    },
+    "summary": {
+      "heading": "6 stewards' decisions share words with the question",
+      "paragraph": "Found by the words required, start, pit, lane in the stewards' decisions collected from 1 event in 2026, not matched to an article of the regulations. The closest: at the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [1] 3 of 6 are cited below.",
+      "written_by": "computed",
+      "why": "ai_unavailable"
+    }
+  },
+  "unavailable": {
+    "query": "When is a driver required to start from the pit lane?",
+    "year": 2026,
+    "status": "unavailable",
+    "reason": "Regulation search is off on this server: it needs a model this server doesn't have the memory to run. The regulations were not searched. The stewards' decisions could not be read either.",
+    "articles": [],
+    "decisions": null,
+    "summary": null
+  }
+}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.tools.rounds import resolve_round
+from app.api.tools.rounds import resolve_event, resolve_round
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("calendar_f1db")]
 
@@ -31,3 +31,13 @@ def test_a_name_resolves_to_its_round(name, round_num):
 def test_a_name_matching_no_round_is_refused(name):
     with pytest.raises(ValueError, match="No 2026 Grand Prix matches"):
         resolve_round(2026, name)
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+def test_an_event_resolves_to_its_round_and_name():
+    assert resolve_event(2026, "Mexico") == (19, "Mexican Grand Prix")
+    assert resolve_event(2026, "6")[0] == 6

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
 import {
@@ -162,6 +162,12 @@ describe("the Predictions tab (Mexico City)", () => {
 
   it("keeps the after-qualifying tab locked until qualifying has run", async () => {
     const upcoming = SEASON_2026.schedule.find((race) => race.status === "upcoming")!;
+    // The lock reads the real clock; pin it to the day before this fixture race's qualifying.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse(upcoming.sessions!.Qualifying) - 86_400_000);
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     answerSnapshots({ predictions: [] }, { predictions: [] });
     const { user } = open(
       "order",

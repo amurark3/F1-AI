@@ -148,28 +148,31 @@ function DataTable({
   heads: string[];
 }) {
   return (
-    <table className="sr-only">
-      <caption>{label}</caption>
-      <thead>
-        <tr>
-          {heads.map((head) => (
-            <th key={head} scope="col">
-              {head}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {lines.map(({ item, delta, startText, endText }) => (
-          <tr key={item.id}>
-            <th scope="row">{item.name ?? item.label}</th>
-            <td>{startText}</td>
-            <td>{endText}</td>
-            <td>{item.incomplete ? "not compared" : spokenChange(delta, scale)}</td>
+    // A table ignores `overflow: hidden`, so the clipping box is a div: the table alone ran past a phone's edge.
+    <div className="sr-only">
+      <table>
+        <caption>{label}</caption>
+        <thead>
+          <tr>
+            {heads.map((head) => (
+              <th key={head} scope="col">
+                {head}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {lines.map(({ item, delta, startText, endText }) => (
+            <tr key={item.id}>
+              <th scope="row">{item.name ?? item.label}</th>
+              <td>{startText}</td>
+              <td>{endText}</td>
+              <td>{item.incomplete ? "not compared" : spokenChange(delta, scale)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

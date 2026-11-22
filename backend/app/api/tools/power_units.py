@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from langchain_core.tools import tool
 import structlog
 
+from app.api.tools.provenance import Provenance, Sourced
 from app.data.fia_documents.text import compact
 from app.services.power_units import build_power_units
 
@@ -56,6 +57,11 @@ def _freshness_line(payload: dict) -> str:
         return "When the FIA documents were last checked is not recorded."
     note = " — this is more than a day old, so newer documents may be missing" if fresh.get("stale") else ""
     return f"FIA documents last checked {checked}{note}."
+
+
+def _source_chip(payload: dict) -> str:
+    checked = (payload.get("freshness") or {}).get("checked_at")
+    return f"FIA documents · checked {checked[:10]}" if checked else "FIA documents"
 
 
 def _season_table(payload: dict) -> str:
@@ -147,11 +153,13 @@ def get_power_unit_usage(driver: str | None = None, year: int | None = None) -> 
         return "Power-unit usage is unavailable right now — the FIA document store could not be read."
     if not payload["available"]:
         return payload["reason"]
+    provenance = Provenance(sources=(_source_chip(payload),), subject=f"{payload['year']} power units")
     if not driver:
-        return _season_table(payload)
+        return Sourced(_season_table(payload), provenance)
     cars = [car for car in payload["cars"] if _matches(car, driver)]
     if not cars:
         return f"No {season} car matches '{driver}'. Try a driver's surname, three-letter code or car number."
     # The driver's own car first, then any car they stood in for.
     own = [car for car in cars if _matches({**car, "drivers": [car["driver"]]}, driver)]
-    return "\n\n".join(_car_detail(car, payload) for car in [*own, *(car for car in cars if car not in own)])
+    text = "\n\n".join(_car_detail(car, payload) for car in [*own, *(car for car in cars if car not in own)])
+    return Sourced(text, provenance)

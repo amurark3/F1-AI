@@ -163,9 +163,24 @@ def search(query: str, year: int, *, category: str | None = None, k: int = 24) -
     """
     if not RULEBOOK_ENABLED or not query.strip():
         return []
+    try:
+        return _nearest(query, year, category, k)
+    except Exception:  # an embedding failure is silent; a database failure was logged
+        return []
+
+
+def search_strict(query: str, year: int, *, category: str | None = None, k: int = 24) -> list[RulebookHit]:
+    """:func:`search`, but an unembeddable or failed query raises, so "nothing found" differs from "could not search"."""
+    if not RULEBOOK_ENABLED or not query.strip():
+        return []
+    return _nearest(query, year, category, k)
+
+
+def _nearest(query: str, year: int, category: str | None, k: int) -> list[RulebookHit]:
+    """The ``k`` nearest chunks. Raises when the query can't be embedded; logs, then raises, when the database fails."""
     vector = embed(query)
     if vector is None:
-        return []
+        raise RuntimeError("the question could not be embedded")
     literal = to_pgvector_literal(vector)
 
     # Params in statement order: similarity vector, year, [category], ORDER BY
@@ -183,7 +198,7 @@ def search(query: str, year: int, *, category: str | None = None, k: int = 24) -
             rows = conn.execute(statement, params).fetchall()
     except Exception as exc:
         logger.warning("rulebook_pg.search_failed", year=year, error=str(exc))
-        return []
+        raise
 
     return [
         RulebookHit(

@@ -55,7 +55,6 @@ DEFAULT_SAMPLES = 3
 DEFAULT_PAUSE_SECONDS = 10.0
 
 _TOOL_MARKER = re.compile(r"\[TOOL_START\](.*?)\[/TOOL_START\]")
-_ANY_MARKER = re.compile(r"\[TOOL_(?:START|END)\].*?\[/TOOL_(?:START|END)\]")
 _ABSOLUTE = re.compile(r"\b(?:only|never|none|first)\b", re.IGNORECASE)
 _STATUS_PREFIXES = (
     ("**System Error:**", "error"),
@@ -219,7 +218,7 @@ async def ask(text: str) -> Transcript:
     """One question through the real agent, as an anonymous user (no memory writes)."""
     streamed, messages = await chat.ask_anonymously(text)
     return Transcript(
-        answer=_ANY_MARKER.sub("", streamed).strip(),
+        answer=chat.STREAM_MARKER.sub("", streamed).strip(),
         tool_texts=tuple(str(m.content) for m in messages if isinstance(m, ToolMessage)),
         tools=tuple(_TOOL_MARKER.findall(streamed)),
     )

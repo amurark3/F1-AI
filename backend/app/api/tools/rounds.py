@@ -8,8 +8,12 @@ same f1db calendar everything else does.
 from __future__ import annotations
 
 import difflib
+from typing import TYPE_CHECKING
 
 from app.data.f1db_calendar import season_schedule
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 CLOSE_MATCH_CUTOFF = 0.6
 
@@ -18,13 +22,7 @@ def _plain(text: object) -> str:
     return str(text).lower().replace("grand prix", "").strip()
 
 
-def resolve_round(year: int, grand_prix: str) -> int:
-    """The round for a round number or a (partial) event, place or country name.
-
-    The event's own name beats its place, which beats its country (Miami and Las
-    Vegas share a country with Austin). Raises ``ValueError`` when nothing fits.
-    """
-    schedule = season_schedule(year)
+def _round_for(schedule: pd.DataFrame, year: int, grand_prix: str) -> int:
     text = _plain(grand_prix)
     if text.isdigit() and int(text) in set(schedule["RoundNumber"]):
         return int(text)
@@ -38,3 +36,20 @@ def resolve_round(year: int, grand_prix: str) -> int:
     if close:
         return names[close[0]]
     raise ValueError(f"No {year} Grand Prix matches '{grand_prix}'")
+
+
+def resolve_event(year: int, grand_prix: str) -> tuple[int, str]:
+    """The round and its ``EventName`` for a round number or a (partial) event, place or country name.
+
+    The event's own name beats its place, which beats its country (Miami and Las
+    Vegas share a country with Austin). Raises ``ValueError`` when nothing fits.
+    """
+    schedule = season_schedule(year)
+    number = _round_for(schedule, year, grand_prix)
+    row = schedule[schedule["RoundNumber"] == number].iloc[0]
+    return number, str(row["EventName"])
+
+
+def resolve_round(year: int, grand_prix: str) -> int:
+    """The round for a Grand Prix name; see :func:`resolve_event`."""
+    return resolve_event(year, grand_prix)[0]

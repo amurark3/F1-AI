@@ -188,6 +188,15 @@ def test_rulebook_search_request_requires_only_a_query():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("query", ["", "x" * 301])
+def test_rulebook_search_request_bounds_the_query_length(query):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        RulebookSearchRequest(query=query)
+
+
+@pytest.mark.unit
 def test_rulebook_search_request_coerces_a_numeric_year():
     assert RulebookSearchRequest(query="drs", year="2026").year == 2026
 

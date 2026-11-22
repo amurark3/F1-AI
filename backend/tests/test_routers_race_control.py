@@ -230,30 +230,14 @@ def test_a_failing_debrief_section_answers_the_error_envelope(client, monkeypatc
 
 
 @pytest.mark.unit
-def test_rulebook_search_echoes_the_request_alongside_the_results(client, monkeypatch):
-    monkeypatch.setattr(
-        rc_router.rulebook,
-        "search_rulebook",
-        lambda query, category, year: {"results": [{"text": "Article 26.1"}]},
-    )
-
-    body = client.post("/race-control/rulebook/search", json={"query": "parc ferme"}).json()
-
-    assert body["query"] == "parc ferme"
-    # Unset filters echo as "All" so the UI can render its filter chips.
-    assert body["category"] == "All"
-    assert body["year"] == "All"
-    assert body["results"][0]["text"] == "Article 26.1"
-
-
-@pytest.mark.unit
-def test_rulebook_search_forwards_the_category_and_year_filters(client, monkeypatch):
+def test_rulebook_search_returns_the_service_payload_and_forwards_the_request(client, monkeypatch):
     seen: list[tuple] = []
-    monkeypatch.setattr(
-        rc_router.rulebook,
-        "search_rulebook",
-        lambda query, category, year: seen.append((query, category, year)) or {"results": []},
-    )
+
+    def fake(query, category, year):
+        seen.append((query, category, year))
+        return {"status": "answered", "articles": []}
+
+    monkeypatch.setattr(rc_router.rulebook, "search_rulebook", fake)
 
     body = client.post(
         "/race-control/rulebook/search",
@@ -261,13 +245,13 @@ def test_rulebook_search_forwards_the_category_and_year_filters(client, monkeypa
     ).json()
 
     assert seen == [("drs", "Sporting", 2026)]
-    assert body["category"] == "Sporting"
-    assert body["year"] == 2026
+    assert body == {"status": "answered", "articles": []}
 
 
 @pytest.mark.unit
-def test_rulebook_search_requires_a_query(client):
-    assert client.post("/race-control/rulebook/search", json={}).status_code == 422
+@pytest.mark.parametrize("payload", [{}, {"query": ""}, {"query": "x" * 301}])
+def test_rulebook_search_rejects_a_missing_empty_or_overlong_query(client, payload):
+    assert client.post("/race-control/rulebook/search", json=payload).status_code == 422
 
 
 @pytest.mark.unit

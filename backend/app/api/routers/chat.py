@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 import json
+import re
 import threading
 
 from fastapi import APIRouter
@@ -14,6 +15,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.runnables import Runnable
 import structlog
 
+from app.api.answer_data import answer_data
 from app.api.answer_repair import checked_answer
 from app.api.errors import client_error_text
 from app.api.llm import (
@@ -27,11 +29,15 @@ from app.api.llm import (
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
 from app.api.tools import TOOL_LIST, TOOL_MAP
+from app.api.tools.provenance import Provenance, Sourced
 from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS, LLMProvider
 from app.data.memory import build_memory_context, save_message
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["chat"])
+
+# Every marker the stream carries besides the answer itself.
+STREAM_MARKER = re.compile(r"\[(TOOL_START|TOOL_END|ANSWER_DATA)\].*?\[/\1\]", re.DOTALL)
 
 
 # The chat model is built lazily on first use, not at import. Constructing it
@@ -202,8 +208,8 @@ async def _save_reply(conversation: _Conversation, content: object) -> None:
         await asyncio.to_thread(save_message, conversation.user_id, conversation.thread_id, "assistant", str(content))
 
 
-async def _invoke_tool(tool_call: dict) -> str:
-    """Run one tool and return what the model should read back.
+async def _invoke_tool(tool_call: dict) -> tuple[str, Provenance | None]:
+    """Run one tool and return what the model should read back, and where it came from.
 
     A timeout or an exception becomes text the model can route around rather
     than an error that ends the stream.
@@ -216,11 +222,14 @@ async def _invoke_tool(tool_call: dict) -> str:
         )
     except TimeoutError:
         logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
-        return f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again."
+        return (
+            f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again.",
+            None,
+        )
     except Exception as exc:
         logger.exception("tool.error", tool=name, error=str(exc))
-        return f"Error executing tool '{name}': {exc}"
-    return str(result)
+        return f"Error executing tool '{name}': {exc}", None
+    return str(result), result.provenance if isinstance(result, Sourced) else None
 
 
 async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> AsyncGenerator[str]:
@@ -235,8 +244,8 @@ async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> A
             continue
         friendly = name.replace("_", " ").title()
         yield f"[TOOL_START]{friendly}[/TOOL_START]"
-        result = await _invoke_tool(tool_call)
-        messages.append(ToolMessage(tool_call_id=tool_call["id"], content=result, name=name))
+        content, provenance = await _invoke_tool(tool_call)
+        messages.append(ToolMessage(tool_call_id=tool_call["id"], content=content, name=name, artifact=provenance))
         yield f"[TOOL_END]{friendly}[/TOOL_END]"
 
 
@@ -268,6 +277,21 @@ async def _finalise(
     return checked
 
 
+async def _final_chunk(
+    messages: list[BaseMessage], provider: LLMProvider, conversation: _Conversation, answer: str
+) -> str:
+    """The checked answer, led by its ``[ANSWER_DATA]`` block when its tool results carried provenance.
+
+    The data is read after the check, so an engine that fails during the repair
+    and fails over never leaves its data behind.
+    """
+    checked = await _finalise(messages, provider, conversation, answer)
+    data = answer_data(messages)
+    if data is None:
+        return checked
+    return f"[ANSWER_DATA]{json.dumps(data, ensure_ascii=False)}[/ANSWER_DATA]{checked}"
+
+
 async def _agent_stream(
     messages: list[BaseMessage],
     provider: LLMProvider,
@@ -279,7 +303,7 @@ async def _agent_stream(
     for turn in range(1, MAX_AGENT_TURNS + 1):
         if not response.tool_calls:
             logger.info("agent.generating_response", provider=provider.name)
-            yield await _finalise(messages, provider, conversation, message_text(response))
+            yield await _final_chunk(messages, provider, conversation, message_text(response))
             return
 
         logger.info("agent.turn", turn=turn, tool_count=len(response.tool_calls))
@@ -293,7 +317,7 @@ async def _agent_stream(
     answer = message_text(response)
     if answer:
         logger.info("agent.forced_answer", turns=MAX_AGENT_TURNS)
-        yield await _finalise(messages, provider, conversation, answer)
+        yield await _final_chunk(messages, provider, conversation, answer)
         return
 
     yield "**System Notice:** Reached the maximum number of reasoning steps. Please try a more specific question."
@@ -363,7 +387,7 @@ def _today() -> str:
 async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:
     """One question through the agent outside HTTP, saving nothing — for the eval.
 
-    Returns the streamed text, tool markers included, and the whole message
+    Returns the streamed text, markers included, and the whole message
     history: its ToolMessages are the tables the answer was built from.
     """
     request = ChatRequest(messages=[{"role": "user", "content": question}])

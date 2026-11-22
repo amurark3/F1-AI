@@ -24,7 +24,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.api.tools import race as module
+from app.api.tools import provenance as provenance_module, race as module
 from app.api.tools.race import compare_drivers, get_race_anomalies, get_race_results
 from app.data.openf1 import session_laps
 from app.services import race_results
@@ -43,7 +43,7 @@ def _load(path: Path) -> list[dict]:
 
 
 def _round(monkeypatch: pytest.MonkeyPatch, number: int) -> None:
-    monkeypatch.setattr(module, "resolve_round", lambda _year, _name: number)
+    monkeypatch.setattr(module, "resolve_event", lambda _year, _name: (number, "Mexican Grand Prix"))
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +130,7 @@ def test_a_comparison_failure_is_reported_rather_than_raised(monkeypatch):
     def refuse(_year, _name):
         raise ValueError("No 2026 Grand Prix matches 'Nowhere'")
 
-    monkeypatch.setattr(module, "resolve_round", refuse)
+    monkeypatch.setattr(module, "resolve_event", refuse)
 
     result = compare_drivers.invoke({"year": 2026, "grand_prix": "Nowhere", "driver1": "HAM", "driver2": "RUS"})
 
@@ -197,7 +197,7 @@ def test_a_race_results_failure_is_reported_rather_than_raised(monkeypatch):
     def refuse(_year, _name):
         raise ValueError("f1db is locked")
 
-    monkeypatch.setattr(module, "resolve_round", refuse)
+    monkeypatch.setattr(module, "resolve_event", refuse)
 
     assert (
         get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
@@ -268,3 +268,52 @@ def test_an_anomaly_failure_is_reported_rather_than_raised(monkeypatch):
     _install_anomalies(monkeypatch, RuntimeError("f1db is locked"))
 
     assert get_race_anomalies.invoke({"year": 2026, "round_num": 4}) == "Anomaly analysis failed: f1db is locked"
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def version(monkeypatch):
+    monkeypatch.setattr(provenance_module, "installed_version", lambda: "v2026.20.0")
+
+
+def test_a_comparison_carries_its_event_and_source(mexico_qualifying):
+    table = compare_drivers.invoke({"year": 2026, "grand_prix": "Mexico", "driver1": "Hamilton", "driver2": "RUS"})
+
+    assert table.provenance.subject == "Mexican Grand Prix 2026 qualifying"
+    assert table.provenance.sources == ("OpenF1 laps · qualifying",)
+
+
+def test_a_race_classification_names_its_sources_and_the_grid(mexico_race, version):
+    table = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    assert table.provenance.subject == "Mexican Grand Prix 2026"
+    assert table.provenance.sources == ("f1db v2026.20.0", "f1db v2026.20.0 · starting grid")
+
+
+def test_a_race_without_a_published_grid_has_no_grid_chip(mexico_race, version, monkeypatch):
+    monkeypatch.setattr(module, "official_grid", lambda _year, _round: {})
+
+    table = get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    assert table.provenance.sources == ("f1db v2026.20.0",)
+
+
+def test_a_missing_race_has_no_provenance(mexico_race, monkeypatch):
+    monkeypatch.setattr(module, "build_session_result", lambda *_args: None)
+
+    assert type(get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})) is str
+
+
+def test_the_anomalies_name_the_round_they_read(version, monkeypatch):
+    _install_anomalies(monkeypatch, {"available": True, "anomalies": [{"detail": "HAM gained 12 places"}]})
+    stories = get_race_anomalies.invoke({"year": 2026, "round_num": 4})
+    _install_anomalies(monkeypatch, {"available": True, "anomalies": []})
+    quiet = get_race_anomalies.invoke({"year": 2026, "round_num": 4})
+
+    for result in (stories, quiet):
+        assert result.provenance.subject == "2026 round 4"
+        assert result.provenance.sources == ("f1db v2026.20.0 · R4 result",)

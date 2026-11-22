@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import BrandLockup from "./BrandLockup";
+import BrandLockup, { BrandMark } from "./BrandLockup";
 
 /** The tab icon Next.js serves; the header mark must draw exactly this. */
 const ICON_SVG = readFileSync(join(import.meta.dirname, "../icon.svg"), "utf8");
@@ -44,6 +44,13 @@ describe("BrandLockup", () => {
     const mark = renderedMark();
     expect(mark.getAttribute("viewBox")).toBe(icon.getAttribute("viewBox"));
     expect(shapes(mark)).toEqual(shapes(icon));
+  });
+
+  it("draws the mark alone at the size the caller gives", () => {
+    const { container } = render(<BrandMark className="size-[22px]" />);
+    const mark = container.querySelector("svg");
+    expect(mark).toHaveClass("size-[22px]");
+    expect(shapes(mark as Element)).toEqual(shapes(renderedMark()));
   });
 
   it("hides the mark from assistive tech, since the lockup carries the name", () => {

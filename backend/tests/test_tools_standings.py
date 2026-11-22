@@ -24,7 +24,7 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import pytest
 
-from app.api.tools import standings as standings_module
+from app.api.tools import provenance as provenance_module, standings as standings_module
 from app.api.tools.standings import (
     get_constructor_standings,
     get_driver_standings,
@@ -330,3 +330,52 @@ def test_a_schedule_failure_is_reported_rather_than_raised(monkeypatch):
     _install_schedule(monkeypatch, ConnectionError("ergast unreachable"))
 
     assert get_season_schedule.invoke({"year": 2026}) == "Failed to fetch schedule: ergast unreachable"
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def version(monkeypatch):
+    monkeypatch.setattr(provenance_module, "installed_version", lambda: "v2026.20.0")
+
+
+@pytest.mark.unit
+def test_a_table_with_a_title_fight_carries_its_chart_and_chips(monkeypatch):
+    _serve(monkeypatch, [], _teams())
+
+    table = get_constructor_standings.invoke({"year": 2026})
+
+    assert table.provenance.subject == "2026 standings after round 22"
+    assert table.provenance.chart.championship == "constructors"
+    assert [row.key for row in table.provenance.chart.rows] == ["McLaren", "Ferrari"]
+    assert table.provenance.sources == ("2 races + 1 sprint left · 101 pts max",)
+
+
+@pytest.mark.unit
+def test_a_decided_title_draws_no_chart(monkeypatch):
+    _serve(monkeypatch, _drivers(), [])
+
+    drivers = get_driver_standings.invoke({"year": 2026})
+
+    assert drivers.provenance.chart is None
+    assert drivers.provenance.subject == "2026 standings after round 22"
+
+
+@pytest.mark.unit
+def test_the_schedule_names_its_year_and_source(version, monkeypatch):
+    _install_schedule(monkeypatch, _schedule([pd.Timestamp(_now() - timedelta(days=5))]))
+
+    table = get_season_schedule.invoke({"year": 2026})
+
+    assert table.provenance.subject == "2026 calendar"
+    assert table.provenance.sources == ("f1db v2026.20.0 · calendar",)
+
+
+@pytest.mark.unit
+def test_a_failure_carries_no_provenance(monkeypatch):
+    monkeypatch.setattr(standings_module, "current_standings", _boom)
+
+    assert type(get_driver_standings.invoke({"year": 2026})) is str

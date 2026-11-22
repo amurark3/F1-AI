@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from app.api.tools import sessions as module
+from app.api.tools import provenance as provenance_module, sessions as module
 from app.api.tools.sessions import get_qualifying_results, get_sprint_qualifying_results, get_sprint_results
 from app.data import qualifying_times as times_module, race_classification
 from app.data.qualifying_times import QualifyingTimes
@@ -30,7 +30,7 @@ MEXICO = Path(__file__).parent / "fixtures" / "mexico_2026_r19"
 
 
 def _round(monkeypatch: pytest.MonkeyPatch, number: int) -> None:
-    monkeypatch.setattr(module, "resolve_round", lambda _year, _name: number)
+    monkeypatch.setattr(module, "resolve_event", lambda _year, _name: (number, "Mexican Grand Prix"))
 
 
 def _no_openf1(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -122,7 +122,7 @@ def test_a_failure_is_reported_not_raised(monkeypatch):
     def refuse(_year, _name):
         raise ValueError("No 2026 Grand Prix matches 'Nowhere'")
 
-    monkeypatch.setattr(module, "resolve_round", refuse)
+    monkeypatch.setattr(module, "resolve_event", refuse)
     args = {"year": 2026, "grand_prix": "Nowhere"}
 
     assert (
@@ -162,3 +162,59 @@ def test_driver_label_degrades_to_what_is_known():
     assert module.driver_label("Kimi Antonelli", "ANT") == "Kimi Antonelli (ANT)"
     assert module.driver_label("", "ANT") == "ANT"
     assert module.driver_label("", "") == "-"
+
+
+# ---------------------------------------------------------------------------
+# Provenance: the subject and chips each success carries; a failure stays plain text
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def version(monkeypatch):
+    monkeypatch.setattr(provenance_module, "installed_version", lambda: "v2026.20.0")
+
+
+def test_a_qualifying_table_carries_its_event_and_source(qualifying_f1db, version, monkeypatch):
+    _round(monkeypatch, 19)
+
+    table = get_qualifying_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    assert table.provenance.subject == "Mexican Grand Prix 2026 qualifying"
+    assert table.provenance.sources == ("f1db v2026.20.0",)
+
+
+def test_a_provisional_qualifying_says_so_in_its_chip(version, monkeypatch):
+    _round(monkeypatch, 19)
+    cars = (times_module.QualifyingCar("RUS", "George Russell", "Mercedes", 1, (None, None, None), None),)
+    monkeypatch.setattr(
+        module, "qualifying_times", lambda *_args: QualifyingTimes("openf1-session-result", False, cars)
+    )
+
+    table = get_qualifying_results.invoke({"year": 2026, "grand_prix": "Mexico"})
+
+    assert table.provenance.sources == ("OpenF1 session results · provisional",)
+
+
+def test_a_sprint_qualifying_carries_its_subject(qualifying_f1db, version, monkeypatch):
+    _round(monkeypatch, 2)
+
+    table = get_sprint_qualifying_results.invoke({"year": 2026, "grand_prix": "China"})
+
+    assert table.provenance.subject == "Mexican Grand Prix 2026 sprint qualifying"
+
+
+def test_a_sprint_carries_its_subject_and_classification_chips(race_results_f1db, version, monkeypatch):
+    _round(monkeypatch, 2)
+    _no_openf1(monkeypatch)
+
+    sprint = get_sprint_results.invoke({"year": 2026, "grand_prix": "China"})
+
+    assert sprint.provenance.subject == "Mexican Grand Prix 2026 sprint"
+    assert sprint.provenance.sources == ("f1db v2026.20.0",)
+
+
+def test_a_missing_session_has_no_provenance(monkeypatch):
+    _round(monkeypatch, 19)
+    monkeypatch.setattr(module, "qualifying_times", lambda *_args: None)
+
+    assert type(get_qualifying_results.invoke({"year": 2026, "grand_prix": "Mexico"})) is str

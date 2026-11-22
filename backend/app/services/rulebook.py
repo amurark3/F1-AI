@@ -1,17 +1,24 @@
-"""Structured FIA rulebook search for Race Control surfaces (pgvector-backed)."""
+"""The Rulebook page's search: regulation passages, the stewards' decisions that applied them, and the text."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 import os
+import re
 
 import structlog
 
 from app.config import ENABLE_LOCAL_MODELS, RULEBOOK_TOP_K
-from app.rag.pgvector_store import RULEBOOK_ENABLED, search as rulebook_search
+from app.data.fia_documents.store import FiaStoreError
+from app.rag.pgvector_store import RULEBOOK_ENABLED, RulebookHit, search_strict as rulebook_search
 from app.rag.rerank import rerank
+from app.services import rulebook_answer, rulebook_decisions
+from app.services.rulebook_decisions import article_codes
 
 logger = structlog.get_logger()
+
+PAGE_EXCERPTS = 3
+_SECTION = re.compile(r"Section ([A-F]) \[([^\]]+)\]")
 
 
 def resolve_rulebook_year(year: int | None = None) -> int:
@@ -25,98 +32,82 @@ def resolve_rulebook_year(year: int | None = None) -> int:
     return current_year
 
 
-def fallback_rulebook_search(
-    _query: str, category: str | None = None, year: int | None = None, error: str | None = None
-) -> dict:
-    resolved_year = resolve_rulebook_year(year)
-    document = category if category and category != "All" else "FIA regulations corpus"
+def _source(metadata: dict) -> str:
+    section = _SECTION.search(metadata.get("filename", ""))
+    if section:
+        return f"Section {section[1]} · {section[2]}"
+    return f"{metadata.get('type') or 'Regulatory'} Regulations"
 
+
+def _article(cite: int, hit: RulebookHit) -> dict:
+    metadata = hit.metadata or {}
+    page = metadata.get("page")
+    excerpt = " ".join(hit.page_content.split())
     return {
-        "answer": "Rulebook search is unavailable because the cited regulation index could not be loaded. No uncited regulation answer was generated.",
-        "source": "fallback",
-        "error": error,
-        "citations": [
-            {
-                "document": document,
-                "year": str(resolved_year),
-                "category": category or "All",
-                "page": None,
-                "snippet": "Citation preview unavailable because the vector search could not answer this request.",
-            }
-        ],
+        "cite": cite,
+        "codes": list(article_codes(excerpt)),
+        "source": _source(metadata),
+        "document": metadata.get("filename", "Unknown regulation PDF"),
+        "page": int(page) + 1 if isinstance(page, (int, float)) else None,
+        "excerpt": excerpt,
     }
 
 
-def _page_label(page: int | None) -> str | None:
-    # pgvector stores a 0-indexed page; present it 1-indexed for humans.
-    if isinstance(page, (int, float)):
-        return str(int(page) + 1)
-    return None
+def _payload(query: str, year: int, status: str, reason: str | None, **parts: object) -> dict:
+    return {
+        "query": query,
+        "year": year,
+        "status": status,
+        "reason": reason,
+        "articles": [],
+        "decisions": None,
+        "summary": None,
+        **parts,
+    }
+
+
+def _regulation_hits(query: str, category: str | None, year: int) -> tuple[list, str | None]:
+    """The reranked passages, or the reason the regulations were not searched."""
+    if not RULEBOOK_ENABLED:
+        return [], "The regulation index isn't set up on this server, so the regulations were not searched."
+    if not ENABLE_LOCAL_MODELS:
+        return [], (
+            "Regulation search is off on this server: it needs a model this server doesn't have the memory "
+            "to run. The regulations were not searched."
+        )
+    try:
+        candidates = rulebook_search(query, year, category=category, k=RULEBOOK_TOP_K * 4)
+        hits = rerank(query, candidates, PAGE_EXCERPTS) if candidates else []
+    except Exception as exc:
+        logger.warning("rulebook.search.failed", year=year, category=category, error=str(exc))
+        return [], "The regulation search failed, so the regulations were not searched. Try again shortly."
+    if not hits:
+        return [], f"The FIA {year} F1 Regulations aren't in the search index yet."
+    return hits, None
 
 
 def search_rulebook(query: str, category: str | None = None, year: int | None = None) -> dict:
     clean_query = query.strip()
     resolved_year = resolve_rulebook_year(year)
-
     if not clean_query:
-        return fallback_rulebook_search(query, category, resolved_year, "Enter a regulation question before searching.")
+        return _payload(clean_query, resolved_year, "unavailable", "Enter a question to search the regulations.")
 
-    if not RULEBOOK_ENABLED:
-        return fallback_rulebook_search(
-            clean_query,
-            category,
-            resolved_year,
-            "Rulebook vector store not configured (DATABASE_URL unset). Run `python -m app.rag.ingest`.",
-        )
-
-    if not ENABLE_LOCAL_MODELS:
-        # Without this branch the query would embed to None, retrieve nothing,
-        # and the response would read "no excerpts matched" — telling the user
-        # the regulations do not cover their question when in fact the search
-        # never ran. Report the real reason instead.
-        return fallback_rulebook_search(
-            clean_query,
-            category,
-            resolved_year,
-            "Rulebook search is disabled on this deployment: embedding a query "
-            "needs a model this instance does not have the memory to load.",
+    hits, reason = _regulation_hits(clean_query, category, resolved_year)
+    if hits:
+        articles = [_article(cite, hit) for cite, hit in enumerate(hits, start=1)]
+        codes = [tuple(article["codes"]) for article in articles]
+        decisions = rulebook_decisions.matching(resolved_year, codes, first_cite=len(articles) + 1)
+        summary = rulebook_answer.write_summary(clean_query, resolved_year, articles, decisions)
+        return _payload(
+            clean_query, resolved_year, "answered", None, articles=articles, decisions=decisions, summary=summary
         )
 
     try:
-        # Over-fetch by similarity from pgvector, then cross-encoder rerank.
-        candidates = rulebook_search(clean_query, resolved_year, category=category, k=RULEBOOK_TOP_K * 4)
-        hits = rerank(clean_query, candidates, RULEBOOK_TOP_K)
-    except Exception as exc:
-        logger.warning("rulebook.search.failed", year=resolved_year, category=category, error=str(exc))
-        return fallback_rulebook_search(clean_query, category, resolved_year, str(exc))
-
-    if not hits:
-        return {
-            "answer": f"No cited regulation excerpts matched '{clean_query}' in the {resolved_year} {category or 'All'} corpus.",
-            "source": "pgvector-rag",
-            "error": None,
-            "citations": [],
-        }
-
-    citations = []
-    for hit in hits:
-        metadata = hit.metadata or {}
-        citations.append(
-            {
-                "document": metadata.get("filename", "Unknown regulation PDF"),
-                "year": str(metadata.get("source_year", resolved_year)),
-                "category": metadata.get("type", category or "All"),
-                "page": _page_label(metadata.get("page")),
-                "snippet": hit.page_content.replace("\n", " ").strip()[:700],
-            }
+        decisions = rulebook_decisions.keyword_matching(resolved_year, clean_query)
+    except FiaStoreError as exc:
+        logger.warning("rulebook.decisions.unavailable", year=resolved_year, error=str(exc))
+        return _payload(
+            clean_query, resolved_year, "unavailable", f"{reason} The stewards' decisions could not be read either."
         )
-
-    return {
-        "answer": (
-            f"Found {len(citations)} cited regulation excerpt{'s' if len(citations) != 1 else ''} "
-            f"for this ops question. Review the snippets before making a final sporting, technical, or financial call."
-        ),
-        "source": "pgvector-rag",
-        "error": None,
-        "citations": citations,
-    }
+    summary = rulebook_answer.write_summary(clean_query, resolved_year, [], decisions)
+    return _payload(clean_query, resolved_year, "keyword", reason, decisions=decisions, summary=summary)

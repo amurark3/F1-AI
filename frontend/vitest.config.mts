@@ -131,6 +131,8 @@ const COVERAGE_INCLUDE = [
   // P6.4 + P6.4b: the Champions page and its season pages.
   "app/champions/**",
   "app/race-control/champions/**",
+  // P7.2: the Rulebook page.
+  "app/race-control/rulebook/**",
 ];
 
 /** Every metric must reach this in every included file. */

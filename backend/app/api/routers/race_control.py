@@ -307,12 +307,7 @@ async def get_debrief_overtakes(year: int, round_num: int) -> dict:
 
 @router.post("/rulebook/search")
 async def search_rulebook(request: RulebookSearchRequest) -> dict:
-    return {
-        "query": request.query,
-        "category": request.category or "All",
-        "year": request.year or "All",
-        **await asyncio.to_thread(rulebook.search_rulebook, request.query, request.category, request.year),
-    }
+    return await asyncio.to_thread(rulebook.search_rulebook, request.query, request.category, request.year)
 
 
 @router.get("/intel/{team_slug}")

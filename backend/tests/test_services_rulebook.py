@@ -1,14 +1,12 @@
-"""Tests for app.services.rulebook — cited FIA regulation search.
+"""Tests for app.services.rulebook: the Rulebook page's search.
 
-The risk here is a *confident uncited answer*. Every degraded path — no vector
-store, no embedding model, an unreachable database, an empty query — must come
-back tagged ``source="fallback"`` with an explicit reason, never as a plausible
-"the regulations do not cover that" verdict from a search that never ran. The
-fallback's placeholder citation exists so the UI cannot render an answer with
-no provenance attached.
+The risk is a confident answer from a search that never ran. Every degraded
+path (no index, no embedding model, a failing search, an empty index) must say
+which, search the stewards' decisions by words instead, and never put exception
+text or an invented citation in front of the reader.
 
-The pgvector and cross-encoder boundaries are faked; neither torch nor a
-database connection is involved.
+The pgvector and cross-encoder boundaries are faked; the stewards' decisions are
+the real R19 documents in a file store.
 """
 
 from __future__ import annotations
@@ -16,9 +14,21 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from fia_documents_support import hold
 import pytest
 
-from app.services import rulebook
+from app.data.fia_documents import store
+from app.data.fia_documents.store import FiaStoreError
+from app.services import rulebook, rulebook_decisions
+from app.utils.ttl_cache import TtlCache
+
+QUESTION = "When is a driver required to start from the pit lane?"
+# Section B, page 29 (0-indexed 28) of the 2026 Sporting Regulations.
+PARC_FERME = (
+    "B3.5.3 When deemed to be in parc fermé, other than when the Cars are sealed in accordance with "
+    "Article B3.4.2 or B3.4.3, only the work listed in Appendix B2 may be carried out."
+)
+SPORTING_FILE = "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf"
 
 
 @dataclass(frozen=True)
@@ -29,11 +39,33 @@ class _Hit:
     metadata: dict | None = field(default=None)
 
 
+def _sporting(text: str = PARC_FERME, page: int | None = 28) -> _Hit:
+    return _Hit(text, {"type": "Sporting", "filename": SPORTING_FILE, "page": page, "source_year": "2026"})
+
+
+@pytest.fixture(autouse=True)
+def fresh_season_cache(monkeypatch):
+    monkeypatch.setattr(rulebook_decisions, "_SEASONS", TtlCache())
+
+
 @pytest.fixture
 def enabled(monkeypatch):
     """Turn on both gates so the retrieval path is the one under test."""
     monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", True)
     monkeypatch.setattr(rulebook, "ENABLE_LOCAL_MODELS", True)
+
+
+@pytest.fixture
+def summary(monkeypatch):
+    """Replace the model-written text with a marker, recording what it was given."""
+    seen: list[tuple] = []
+
+    def write(query, year, articles, decisions):
+        seen.append((query, year, articles, decisions))
+        return {"heading": "h", "paragraph": "p", "written_by": "ai", "why": None}
+
+    monkeypatch.setattr(rulebook.rulebook_answer, "write_summary", write)
+    return seen
 
 
 def _freeze_clock(monkeypatch, moment: datetime) -> None:
@@ -58,9 +90,9 @@ def test_an_explicit_year_is_never_second_guessed():
         (datetime(2026, 6, 1, tzinfo=UTC), True, 2026),
         # December, but before the roll-over date.
         (datetime(2026, 12, 5, tzinfo=UTC), True, 2026),
-        # Late December with next year's PDFs on disk — roll forward.
+        # Late December with next year's PDFs on disk: roll forward.
         (datetime(2026, 12, 20, tzinfo=UTC), True, 2027),
-        # Late December but nothing ingested yet — stay put rather than search
+        # Late December but nothing ingested yet: stay put rather than search
         # a corpus that does not exist.
         (datetime(2026, 12, 20, tzinfo=UTC), False, 2026),
     ],
@@ -77,159 +109,171 @@ def test_year_rolls_forward_only_once_next_seasons_corpus_exists(
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    ("stored_page", "expected"),
-    [(0, "1"), (12, "13"), (4.0, "5"), (None, None), ("iv", None)],
-)
-def test_page_label_is_presented_one_indexed(stored_page, expected):
-    # pgvector stores 0-indexed pages; a citation that says "page 0" is unusable.
-    assert rulebook._page_label(stored_page) == expected
+def test_a_blank_question_is_unavailable_and_searches_nothing(monkeypatch):
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: pytest.fail("a blank question must not search"))
 
+    result = rulebook.search_rulebook("   ", year=2026)
 
-@pytest.mark.unit
-def test_fallback_carries_a_placeholder_citation_and_refuses_to_answer():
-    result = rulebook.fallback_rulebook_search("pit limit", category="Sporting", year=2025, error="boom")
-
-    assert result["source"] == "fallback"
-    assert result["error"] == "boom"
-    assert "No uncited regulation answer was generated" in result["answer"]
-    assert result["citations"] == [
-        {
-            "document": "Sporting",
-            "year": "2025",
-            "category": "Sporting",
-            "page": None,
-            "snippet": "Citation preview unavailable because the vector search could not answer this request.",
-        }
-    ]
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("category", [None, "All"])
-def test_fallback_without_a_category_names_the_whole_corpus(category):
-    result = rulebook.fallback_rulebook_search("q", category=category, year=2026)
-
-    assert result["citations"][0]["document"] == "FIA regulations corpus"
-    assert result["citations"][0]["category"] == "All"
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("query", ["", "   "])
-def test_a_blank_query_asks_for_input_instead_of_searching(query, monkeypatch, enabled):
-    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: pytest.fail("must not search on a blank query"))
-
-    result = rulebook.search_rulebook(query, year=2026)
-
-    assert result["error"] == "Enter a regulation question before searching."
-
-
-@pytest.mark.unit
-def test_an_unconfigured_vector_store_says_so(monkeypatch):
-    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", False)
-
-    result = rulebook.search_rulebook("pit lane speed", year=2026)
-
-    assert result["source"] == "fallback"
-    assert "DATABASE_URL unset" in result["error"]
-
-
-@pytest.mark.unit
-def test_disabled_local_models_report_the_real_reason_not_an_empty_corpus(monkeypatch):
-    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", True)
-    monkeypatch.setattr(rulebook, "ENABLE_LOCAL_MODELS", False)
-
-    result = rulebook.search_rulebook("pit lane speed", year=2026)
-
-    # Saying "no excerpts matched" here would assert the regulations are silent
-    # on the question when the search never ran at all.
-    assert "no excerpts matched" not in result["answer"]
-    assert "does not have the memory to load" in result["error"]
-
-
-@pytest.mark.unit
-def test_a_store_outage_degrades_to_the_cited_fallback(monkeypatch, enabled):
-    def explode(*_args, **_kwargs):
-        raise ConnectionError("connection reset by peer")
-
-    monkeypatch.setattr(rulebook, "rulebook_search", explode)
-
-    result = rulebook.search_rulebook("safety car restart", category="Sporting", year=2026)
-
-    assert result["source"] == "fallback"
-    assert result["error"] == "connection reset by peer"
-
-
-@pytest.mark.unit
-def test_no_matching_excerpts_returns_an_empty_citation_list(monkeypatch, enabled):
-    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: [])
-    monkeypatch.setattr(rulebook, "rerank", lambda *a, **k: [])
-
-    result = rulebook.search_rulebook("hovercraft rules", category="Technical", year=2026)
-
-    assert result["citations"] == []
-    assert result["source"] == "pgvector-rag"
-    assert "'hovercraft rules'" in result["answer"]
-    assert "2026 Technical corpus" in result["answer"]
-
-
-@pytest.mark.unit
-def test_hits_become_citations_with_document_page_and_snippet(monkeypatch, enabled):
-    requested: list[tuple] = []
-
-    def fake_search(query, year, *, category, k):
-        requested.append((query, year, category, k))
-        return ["candidate"] * 4
-
-    monkeypatch.setattr(rulebook, "rulebook_search", fake_search)
-    monkeypatch.setattr(
-        rulebook,
-        "rerank",
-        lambda *a, **k: [
-            _Hit(
-                "Pit lane speed\nis limited to 80 km/h.",
-                {"filename": "sporting.pdf", "source_year": "2025", "type": "Sporting", "page": 41},
-            ),
-            _Hit("A second excerpt."),
-        ],
+    assert (result["status"], result["decisions"], result["summary"], result["articles"]) == (
+        "unavailable",
+        None,
+        None,
+        [],
     )
-
-    result = rulebook.search_rulebook("pit lane speed", category="Sporting", year=2026)
-
-    # Over-fetch by 4x before reranking, and the trimmed query is what is sent.
-    assert requested == [("pit lane speed", 2026, "Sporting", rulebook.RULEBOOK_TOP_K * 4)]
-    assert result["citations"][0] == {
-        "document": "sporting.pdf",
-        "year": "2025",
-        "category": "Sporting",
-        "page": "42",
-        "snippet": "Pit lane speed is limited to 80 km/h.",
-    }
-    # A hit with no metadata still yields a citation rather than being dropped.
-    assert result["citations"][1] == {
-        "document": "Unknown regulation PDF",
-        "year": "2026",
-        "category": "Sporting",
-        "page": None,
-        "snippet": "A second excerpt.",
-    }
-    assert "Found 2 cited regulation excerpts" in result["answer"]
+    assert result["reason"] == "Enter a question to search the regulations."
 
 
 @pytest.mark.unit
-def test_a_single_hit_is_described_in_the_singular(monkeypatch, enabled):
-    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: ["candidate"])
-    monkeypatch.setattr(rulebook, "rerank", lambda *a, **k: [_Hit("Only one.", {})])
+@pytest.mark.parametrize(
+    ("rulebook_on", "models_on", "reason"),
+    [
+        (False, True, "The regulation index isn't set up on this server, so the regulations were not searched."),
+        (
+            True,
+            False,
+            "Regulation search is off on this server: it needs a model this server doesn't have the memory to run. "
+            "The regulations were not searched.",
+        ),
+    ],
+)
+def test_a_switched_off_index_falls_back_to_keyword_matches(
+    monkeypatch, tmp_path, summary, rulebook_on, models_on, reason
+):
+    hold(monkeypatch, tmp_path)
+    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", rulebook_on)
+    monkeypatch.setattr(rulebook, "ENABLE_LOCAL_MODELS", models_on)
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: pytest.fail("the index is off"))
 
-    result = rulebook.search_rulebook("q", year=2026)
+    result = rulebook.search_rulebook(f"  {QUESTION}  ", year=2026)
 
-    assert "Found 1 cited regulation excerpt " in result["answer"]
+    assert (result["status"], result["reason"], result["articles"], result["query"]) == (
+        "keyword",
+        reason,
+        [],
+        QUESTION,
+    )
+    assert result["decisions"]["match"] == "keyword"
+    assert result["decisions"]["items"][0]["number"] == 65
+    assert summary[0][2] == []
 
 
 @pytest.mark.unit
-def test_snippets_are_truncated_so_a_citation_cannot_become_the_answer(monkeypatch, enabled):
-    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: ["candidate"])
-    monkeypatch.setattr(rulebook, "rerank", lambda *a, **k: [_Hit("x" * 2000, {})])
+def test_a_failing_search_reports_a_fixed_reason_without_the_exception_text(enabled, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
 
-    result = rulebook.search_rulebook("q", year=2026)
+    def broken(*args, **kwargs):
+        raise RuntimeError("password=hunter2 connection refused")
 
-    assert len(result["citations"][0]["snippet"]) == 700
+    monkeypatch.setattr(rulebook, "rulebook_search", broken)
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert result["status"] == "keyword"
+    assert result["reason"] == "The regulation search failed, so the regulations were not searched. Try again shortly."
+    assert "hunter2" not in str(result)
+
+
+@pytest.mark.unit
+def test_a_failing_rerank_reports_the_same_fixed_reason(enabled, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: [_sporting()])
+
+    def broken(*args):
+        raise RuntimeError("torch exploded")
+
+    monkeypatch.setattr(rulebook, "rerank", broken)
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert result["reason"].startswith("The regulation search failed")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("candidates", [[], None])
+def test_an_empty_index_says_the_year_is_not_indexed(enabled, monkeypatch, tmp_path, candidates):
+    hold(monkeypatch, tmp_path)
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: candidates or [])
+    monkeypatch.setattr(rulebook, "rerank", lambda q, c, k: c[:k])
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert result["status"] == "keyword"
+    assert result["reason"] == "The FIA 2026 F1 Regulations aren't in the search index yet."
+
+
+@pytest.mark.unit
+def test_keyword_mode_with_an_unreadable_store_is_unavailable_with_both_reasons(monkeypatch, summary):
+    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", False)
+    monkeypatch.setattr(store, "events", lambda year: (_ for _ in ()).throw(FiaStoreError("down")))
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert (result["status"], result["decisions"], result["summary"]) == ("unavailable", None, None)
+    assert result["reason"] == (
+        "The regulation index isn't set up on this server, so the regulations were not searched. "
+        "The stewards' decisions could not be read either."
+    )
+    assert summary == []
+
+
+@pytest.mark.unit
+def test_an_answered_search_quotes_three_passages_and_matches_decisions_by_article(
+    enabled, monkeypatch, tmp_path, summary
+):
+    hold(monkeypatch, tmp_path)
+    asked: list[tuple] = []
+
+    def search(query, year, **kwargs):
+        asked.append((query, year, kwargs))
+        return [_sporting(), _sporting("a\n\n  b  c", page=None), _sporting("nothing numbered"), _sporting("fourth")]
+
+    monkeypatch.setattr(rulebook, "rulebook_search", search)
+    monkeypatch.setattr(rulebook, "rerank", lambda q, c, k: c[:k])
+
+    result = rulebook.search_rulebook(QUESTION, "Sporting", 2026)
+
+    assert asked == [(QUESTION, 2026, {"category": "Sporting", "k": 24})]
+    assert (result["status"], result["reason"], result["year"]) == ("answered", None, 2026)
+    first, second, third = result["articles"]
+    assert (first["cite"], first["codes"], first["page"]) == (1, ["B3.5.3", "B3.4.2", "B3.4.3"], 29)
+    assert first["source"] == "Section B · Sporting"
+    assert first["document"] == SPORTING_FILE
+    assert (second["excerpt"], second["page"], second["codes"]) == ("a b c", None, [])
+    assert third["cite"] == 3
+    assert result["decisions"]["match"] == "article"
+    assert [item["number"] for item in result["decisions"]["items"]] == [65]
+    assert result["decisions"]["items"][0]["cite"] == 4
+    assert result["summary"]["written_by"] == "ai"
+    assert summary[0][:2] == (QUESTION, 2026)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("metadata", "source"),
+    [
+        ({"filename": "FIA 2025 F1 Regulations - Section C [Technical] - Iss 01.pdf"}, "Section C · Technical"),
+        ({"filename": "old_rules.pdf", "type": "Financial"}, "Financial Regulations"),
+        ({"filename": "old_rules.pdf"}, "Regulatory Regulations"),
+        ({}, "Regulatory Regulations"),
+    ],
+)
+def test_the_source_names_the_section_or_falls_back_to_the_document_type(metadata, source):
+    assert rulebook._source(metadata) == source
+    assert rulebook._article(1, _Hit("x", metadata or None))["source"] == source
+
+
+@pytest.mark.unit
+def test_an_article_without_a_filename_is_not_given_an_invented_one():
+    assert rulebook._article(1, _Hit("x", None))["document"] == "Unknown regulation PDF"
+
+
+@pytest.mark.unit
+def test_the_store_failing_in_answered_mode_still_answers_with_the_passages(enabled, monkeypatch, summary):
+    monkeypatch.setattr(store, "events", lambda year: (_ for _ in ()).throw(FiaStoreError("down")))
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: [_sporting()])
+    monkeypatch.setattr(rulebook, "rerank", lambda q, c, k: c[:k])
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert result["status"] == "answered"
+    assert result["decisions"]["status"] == "unavailable"

@@ -409,3 +409,46 @@ def test_rulebook_hit_defaults_to_an_empty_metadata_dict():
 
     first.metadata["page"] = 1
     assert second.metadata == {}, "each hit needs its own metadata dict, not a shared default"
+
+
+@pytest.mark.unit
+def test_search_strict_returns_nothing_when_disabled_or_blank(monkeypatch):
+    monkeypatch.setattr(pgvector_store, "RULEBOOK_ENABLED", False)
+    assert pgvector_store.search_strict("pit lane", 2025) == []
+
+    monkeypatch.setattr(pgvector_store, "RULEBOOK_ENABLED", True)
+    assert pgvector_store.search_strict("  ", 2025) == []
+
+
+@pytest.mark.unit
+def test_search_strict_raises_when_the_query_cannot_be_embedded(monkeypatch):
+    monkeypatch.setattr(pgvector_store, "RULEBOOK_ENABLED", True)
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: None)
+
+    with pytest.raises(RuntimeError, match="could not be embedded"):
+        pgvector_store.search_strict("pit lane", 2025)
+
+
+@pytest.mark.unit
+def test_search_strict_raises_after_logging_a_failed_query(monkeypatch):
+    warnings: list[str] = []
+    _install_connection(monkeypatch, _FakeConnection(fail_on="SELECT content"))
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: [0.5])
+    monkeypatch.setattr(
+        pgvector_store,
+        "logger",
+        SimpleNamespace(warning=lambda event, **kw: warnings.append(event), info=lambda *a, **kw: None),
+    )
+
+    with pytest.raises(Exception, match="connection reset by peer"):
+        pgvector_store.search_strict("pit lane", 2025)
+
+    assert warnings == ["rulebook_pg.search_failed"]
+
+
+@pytest.mark.unit
+def test_search_strict_returns_the_same_hits_as_search(monkeypatch):
+    _install_connection(monkeypatch, _FakeConnection(rows=[("text", "Sporting", "f.pdf", 3, 0.5)]))
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: [0.5])
+
+    assert pgvector_store.search_strict("pit lane", 2025) == pgvector_store.search("pit lane", 2025)

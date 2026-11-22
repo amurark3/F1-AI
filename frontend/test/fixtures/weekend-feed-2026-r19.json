@@ -1,0 +1,5824 @@
+{
+ "year": 2026,
+ "round": 19,
+ "event": "Mexico City Grand Prix",
+ "latest": 86,
+ "events": [
+  {
+   "number": 86,
+   "title": "Doc 86 - Final Race Classification",
+   "kind": "classification",
+   "published": "02.11.26 02:50",
+   "published_at": "2026-11-02T01:50:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_final_race_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 86,
+    "session": "Race",
+    "final": true,
+    "entries": [
+     {
+      "position": 1,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:28.772",
+      "gap": null,
+      "interval": null,
+      "points": 25,
+      "fastest": "1:19.328",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:29.571",
+      "gap": "0.799",
+      "interval": "0.799",
+      "points": 18,
+      "fastest": "1:19.268",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:32.778",
+      "gap": "4.006",
+      "interval": "3.207",
+      "points": 15,
+      "fastest": "1:19.427",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:39.479",
+      "gap": "10.707",
+      "interval": "6.701",
+      "points": 12,
+      "fastest": "1:19.851",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:40.550",
+      "gap": "11.778",
+      "interval": "1.071",
+      "points": 10,
+      "fastest": "1:19.800",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:41.035",
+      "gap": "12.263",
+      "interval": "0.485",
+      "points": 8,
+      "fastest": "1:20.147",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:49.671",
+      "gap": "20.899",
+      "interval": "8.636",
+      "points": 6,
+      "fastest": "1:20.713",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:50.813",
+      "gap": "22.041",
+      "interval": "1.142",
+      "points": 4,
+      "fastest": "1:20.872",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:51.275",
+      "gap": "22.503",
+      "interval": "0.462",
+      "points": 2,
+      "fastest": "1:20.244",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:54.145",
+      "gap": "25.373",
+      "interval": "2.870",
+      "points": 1,
+      "fastest": "1:20.984",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:56.334",
+      "gap": "27.562",
+      "interval": "2.189",
+      "points": null,
+      "fastest": "1:21.114",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:57.410",
+      "gap": "28.638",
+      "interval": "1.076",
+      "points": null,
+      "fastest": "1:21.339",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:58.247",
+      "gap": "29.475",
+      "interval": "0.837",
+      "points": null,
+      "fastest": "1:20.690",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": true
+     },
+     {
+      "position": 14,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:58.749",
+      "gap": "29.977",
+      "interval": "0.502",
+      "points": null,
+      "fastest": "1:20.732",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:58.976",
+      "gap": "30.204",
+      "interval": "0.227",
+      "points": null,
+      "fastest": "1:20.750",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": true
+     },
+     {
+      "position": 16,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:59.467",
+      "gap": "30.695",
+      "interval": "0.491",
+      "points": null,
+      "fastest": "1:21.256",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:21:20.255",
+      "gap": "51.483",
+      "interval": "20.788",
+      "points": null,
+      "fastest": "1:20.754",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": true
+     },
+     {
+      "position": null,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 58,
+      "time": "2:01:05.146",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:20.555",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 47,
+      "time": "1:46:35.258",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:21.068",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 42,
+      "time": "1:00:09.846",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:22.487",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 5,
+      "time": "7:37.297",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:23.696",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 5,
+      "time": "7:41.100",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:23.544",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [
+     {
+      "car": 81,
+      "ruling": "10 second time penalty",
+      "reason": "Causing a collision",
+      "document": 79
+     },
+     {
+      "car": 10,
+      "ruling": "Stop and go penalty converted to 30 second time penalty",
+      "reason": "Failing to slow for double-waved yellow flags",
+      "document": 84
+     },
+     {
+      "car": 43,
+      "ruling": "10 second time penalty",
+      "reason": "Failing to slow for yellow flags",
+      "document": 85
+     }
+    ],
+    "fastest_lap": {
+     "car": 44,
+     "driver": "Lewis HAMILTON",
+     "team": "Scuderia Ferrari HP",
+     "time": "1:19.268",
+     "lap": 50
+    }
+   },
+   "unread": null
+  },
+  {
+   "number": 85,
+   "title": "Doc 85 - Infringement - Car 43 - Failing to slow under yellow flags",
+   "kind": "penalty",
+   "published": "02.11.26 02:35",
+   "published_at": "2026-11-02T01:35:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_43_-_failing_to_slow_under_yellow_flags.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 85,
+    "status": "decided",
+    "car": 43,
+    "driver": "Franco Colapinto",
+    "competitor": "BWT Alpine F1 Team",
+    "session": "Race",
+    "incident_time": "16:04",
+    "offence": "Failing to slow under yellow flags",
+    "articles": [
+     "B1.8.4a"
+    ],
+    "decision": "10 second time penalty imposed after the Race. 1 penalty points (total of 5 for the 12 month period).",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 10
+     },
+     {
+      "kind": "penalty_points",
+      "value": 1
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 84,
+   "title": "Doc 84 - Infringement - Car 10 - Failing to slow under yellow flags",
+   "kind": "penalty",
+   "published": "02.11.26 02:34",
+   "published_at": "2026-11-02T01:34:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_10_-_failing_to_slow_under_yellow_flags.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 84,
+    "status": "decided",
+    "car": 10,
+    "driver": "Pierre Gasly",
+    "competitor": "BWT Alpine F1 Team",
+    "session": "Race",
+    "incident_time": "16:04",
+    "offence": "Failing to slow under yellow flags",
+    "articles": [
+     "B1.8.4b"
+    ],
+    "decision": "Stop and go penalty imposed after the Race. 2 penalty points (total of 2 for the 12 month period).",
+    "outcomes": [
+     {
+      "kind": "stop_and_go",
+      "value": null
+     },
+     {
+      "kind": "penalty_points",
+      "value": 2
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 83,
+   "title": "Doc 83 - Infringement - Car 63 - Failure to attend mandatory post-race commitments",
+   "kind": "penalty",
+   "published": "02.11.26 02:33",
+   "published_at": "2026-11-02T01:33:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_63_-_failure_to_attend_mandatory_post-race_commitments.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 83,
+    "status": "decided",
+    "car": 63,
+    "driver": "George Russell",
+    "competitor": "Mercedes-AMG PETRONAS F1 Team",
+    "session": "Race",
+    "incident_time": "16:40",
+    "offence": "Failure to attend mandatory post-race commitments",
+    "articles": [
+     "B10.1.4e"
+    ],
+    "decision": "The competitor (Mercedes-AMG PETRONAS F1 Team) is fined \u20ac5,000.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 5000
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 82,
+   "title": "Doc 82 - Summons - Car 63 - Alleged failure to attend mandatory post-race commitments",
+   "kind": "penalty",
+   "published": "02.11.26 01:43",
+   "published_at": "2026-11-02T00:43:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_63_-_alleged_failure_to_attend_mandatory_post-race_commitments.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 82,
+    "status": "summoned",
+    "car": 63,
+    "driver": "George Russell",
+    "competitor": "Mercedes-AMG PETRONAS F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged failure to attend mandatory post-race commitments",
+    "articles": [
+     "B10.1.4e"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "19:00"
+   },
+   "unread": null
+  },
+  {
+   "number": 80,
+   "title": "Doc 80 - Infringement - Race Deleted Lap Times",
+   "kind": "deleted_laps",
+   "published": "02.11.26 01:05",
+   "published_at": "2026-11-02T00:05:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_race_deleted_lap_times.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 80,
+    "session": "Race",
+    "date": "2026-11-01",
+    "reason": "track_limits",
+    "fact": "The F1 Cars below did not use the track at turns 1, 2, 11 and 12.",
+    "laps": [
+     {
+      "car": 81,
+      "turn": 12,
+      "entrant": "Oscar Piastri McLaren Mastercard F1 Team",
+      "time_of_day": "14:10:09",
+      "lap_time": "1:22.907"
+     },
+     {
+      "car": 23,
+      "turn": 12,
+      "entrant": "Alexander Albon Atlassian Williams F1 Team",
+      "time_of_day": "14:10:16",
+      "lap_time": "1:23.467"
+     },
+     {
+      "car": 18,
+      "turn": 11,
+      "entrant": "Lance Stroll Aston Martin Aramco F1 Team",
+      "time_of_day": "14:10:38",
+      "lap_time": "1:22.552"
+     },
+     {
+      "car": 81,
+      "turn": 12,
+      "entrant": "Oscar Piastri McLaren Mastercard F1 Team",
+      "time_of_day": "14:34:07",
+      "lap_time": "1:22.148"
+     },
+     {
+      "car": 5,
+      "turn": 2,
+      "entrant": "Gabriel Bortoleto Audi Revolut F1 Team",
+      "time_of_day": "14:29:29",
+      "lap_time": "1:24.109"
+     },
+     {
+      "car": 50,
+      "turn": 12,
+      "entrant": "Ryo Hirakawa TGR Haas F1 Team",
+      "time_of_day": "14:38:53",
+      "lap_time": "1:25.108"
+     },
+     {
+      "car": 5,
+      "turn": 1,
+      "entrant": "Gabriel Bortoleto Audi Revolut F1 Team",
+      "time_of_day": "14:48:48",
+      "lap_time": "1:23.328"
+     },
+     {
+      "car": 10,
+      "turn": 12,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "14:55:20",
+      "lap_time": "1:23.262"
+     },
+     {
+      "car": 1,
+      "turn": 12,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "15:56:06",
+      "lap_time": "1:20.455"
+     },
+     {
+      "car": 27,
+      "turn": 1,
+      "entrant": "Nico Hulkenberg Audi Revolut F1 Team",
+      "time_of_day": "15:59:36",
+      "lap_time": "1:22.395"
+     },
+     {
+      "car": 10,
+      "turn": 1,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "16:12:18",
+      "lap_time": "1:23.100"
+     },
+     {
+      "car": 50,
+      "turn": 12,
+      "entrant": "Ryo Hirakawa TGR Haas F1 Team",
+      "time_of_day": "16:15:56",
+      "lap_time": "1:22.640"
+     },
+     {
+      "car": 1,
+      "turn": 12,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "16:23:50",
+      "lap_time": "1:21.953"
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 79,
+   "title": "Doc 79 - Infringement - Car 81 - Causing a collision",
+   "kind": "penalty",
+   "published": "02.11.26 00:57",
+   "published_at": "2026-11-01T23:57:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_81_-_causing_a_collision.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 79,
+    "status": "decided",
+    "car": 81,
+    "driver": "Oscar Piastri",
+    "competitor": "McLaren Mastercard F1 Team",
+    "session": "Race",
+    "incident_time": "16:04",
+    "offence": "Causing a collision",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": "10 second time penalty imposed after the Race.",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 10
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 78,
+   "title": "Doc 78 - Summons - Car 43 - Alleged failure to slow for yellow flags",
+   "kind": "penalty",
+   "published": "02.11.26 00:46",
+   "published_at": "2026-11-01T23:46:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_43_-_alleged_failure_to_slow_for_yellow_flags.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 78,
+    "status": "summoned",
+    "car": 43,
+    "driver": "Franco Colapinto",
+    "competitor": "BWT Alpine F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged failure to slow for yellow flags",
+    "articles": [
+     "ISC Appendix H Article 2.5.5 b)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "18:00"
+   },
+   "unread": null
+  },
+  {
+   "number": 77,
+   "title": "Doc 77 - Summons - Car 10 - Alleged failure to slow for yellow flags",
+   "kind": "penalty",
+   "published": "02.11.26 00:46",
+   "published_at": "2026-11-01T23:46:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_10_-_alleged_failure_to_slow_for_yellow_flags.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 77,
+    "status": "summoned",
+    "car": 10,
+    "driver": "Pierre Gasly",
+    "competitor": "BWT Alpine F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged failure to slow for yellow flags",
+    "articles": [
+     "ISC Appendix H Article 2.5.5 b)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "18:00"
+   },
+   "unread": null
+  },
+  {
+   "number": 76,
+   "title": "Doc 76 - Decision - Car 10 - Alleged leaving the track and gaining an advantage",
+   "kind": "penalty",
+   "published": "02.11.26 00:12",
+   "published_at": "2026-11-01T23:12:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_decision_-_car_10_-_alleged_leaving_the_track_and_gaining_an_advantage.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 76,
+    "status": "decided",
+    "car": 10,
+    "driver": "Pierre Gasly",
+    "competitor": "BWT Alpine F1 Team",
+    "session": "Race",
+    "incident_time": "16:12",
+    "offence": "Alleged leaving the track and gaining an advantage",
+    "articles": [
+     "B1.8.6"
+    ],
+    "decision": "No further action.",
+    "outcomes": [
+     {
+      "kind": "no_further_action",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 75,
+   "title": "Doc 75 - Provisional Race Classification",
+   "kind": "classification",
+   "published": "01.11.26 23:53",
+   "published_at": "2026-11-01T22:53:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_provisional_race_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 75,
+    "session": "Race",
+    "final": false,
+    "entries": [
+     {
+      "position": 1,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:28.772",
+      "gap": null,
+      "interval": null,
+      "points": 25,
+      "fastest": "1:19.328",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:29.571",
+      "gap": "0.799",
+      "interval": "0.799",
+      "points": 18,
+      "fastest": "1:19.268",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:32.778",
+      "gap": "4.006",
+      "interval": "3.207",
+      "points": 15,
+      "fastest": "1:19.427",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:39.479",
+      "gap": "10.707",
+      "interval": "6.701",
+      "points": 12,
+      "fastest": "1:19.851",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:40.550",
+      "gap": "11.778",
+      "interval": "1.071",
+      "points": 10,
+      "fastest": "1:19.800",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:41.035",
+      "gap": "12.263",
+      "interval": "0.485",
+      "points": 8,
+      "fastest": "1:20.147",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:48.247",
+      "gap": "19.475",
+      "interval": "7.212",
+      "points": 6,
+      "fastest": "1:20.690",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:48.976",
+      "gap": "20.204",
+      "interval": "0.729",
+      "points": 4,
+      "fastest": "1:20.750",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:49.671",
+      "gap": "20.899",
+      "interval": "0.695",
+      "points": 2,
+      "fastest": "1:20.713",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:50.255",
+      "gap": "21.483",
+      "interval": "0.584",
+      "points": 1,
+      "fastest": "1:20.754",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:50.813",
+      "gap": "22.041",
+      "interval": "0.558",
+      "points": null,
+      "fastest": "1:20.872",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:51.275",
+      "gap": "22.503",
+      "interval": "0.462",
+      "points": null,
+      "fastest": "1:20.244",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:54.145",
+      "gap": "25.373",
+      "interval": "2.870",
+      "points": null,
+      "fastest": "1:20.984",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:56.334",
+      "gap": "27.562",
+      "interval": "2.189",
+      "points": null,
+      "fastest": "1:21.114",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:57.410",
+      "gap": "28.638",
+      "interval": "1.076",
+      "points": null,
+      "fastest": "1:21.339",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:58.749",
+      "gap": "29.977",
+      "interval": "1.339",
+      "points": null,
+      "fastest": "1:20.732",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 71,
+      "time": "2:20:59.467",
+      "gap": "30.695",
+      "interval": "0.718",
+      "points": null,
+      "fastest": "1:21.256",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 58,
+      "time": "2:01:05.146",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:20.555",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 47,
+      "time": "1:46:35.258",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:21.068",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 42,
+      "time": "1:00:09.846",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:22.487",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 5,
+      "time": "7:37.297",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:23.696",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "not_classified",
+      "reason": "DNF",
+      "laps": 5,
+      "time": "7:41.100",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": "1:23.544",
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [],
+    "fastest_lap": {
+     "car": 44,
+     "driver": "Lewis HAMILTON",
+     "team": "Scuderia Ferrari HP",
+     "time": "1:19.268",
+     "lap": 50
+    }
+   },
+   "unread": null
+  },
+  {
+   "number": 74,
+   "title": "Doc 74 - Infringement - Car 27 - Causing a collision",
+   "kind": "penalty",
+   "published": "01.11.26 23:47",
+   "published_at": "2026-11-01T22:47:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_27_-_causing_a_collision.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 74,
+    "status": "decided",
+    "car": 27,
+    "driver": "Nico Hulkenberg",
+    "competitor": "Audi Revolut F1 Team",
+    "session": "Race",
+    "incident_time": "15:48",
+    "offence": "Causing a collision",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": "10 second time penalty.",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 10
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 73,
+   "title": "Doc 73 - Summons - Car 41 - T2 Incident with car 81",
+   "kind": "penalty",
+   "published": "01.11.26 23:47",
+   "published_at": "2026-11-01T22:47:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_41_-_t2_incident_with_car_81.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 73,
+    "status": "summoned",
+    "car": 41,
+    "driver": "Arvid Lindblad",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "T2 Incident with car 81",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "17:15"
+   },
+   "unread": null
+  },
+  {
+   "number": 72,
+   "title": "Doc 72 - Summons - Car 81 - T2 Incident with car 41",
+   "kind": "penalty",
+   "published": "01.11.26 23:47",
+   "published_at": "2026-11-01T22:47:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_81_-_t2_incident_with_car_41.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 72,
+    "status": "summoned",
+    "car": 81,
+    "driver": "Oscar Piastri",
+    "competitor": "McLaren Mastercard F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "T2 Incident with car 41",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "17:15"
+   },
+   "unread": null
+  },
+  {
+   "number": 71,
+   "title": "Doc 71 - Infringement - Car 11 - Pit Lane Speeding",
+   "kind": "penalty",
+   "published": "01.11.26 22:44",
+   "published_at": "2026-11-01T21:44:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_11_-_pit_lane_speeding.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 71,
+    "status": "decided",
+    "car": 11,
+    "driver": "Sergio Perez",
+    "competitor": "Cadillac Formula 1 Team",
+    "session": "Race",
+    "incident_time": "15:04",
+    "offence": "Pit Lane Speeding",
+    "articles": [
+     "B1.6.3a"
+    ],
+    "decision": "5 second time penalty.",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 5
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 70,
+   "title": "Doc 70 - Infringement - Car 63 - Causing a collision",
+   "kind": "penalty",
+   "published": "01.11.26 23:48",
+   "published_at": "2026-11-01T22:48:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_63_-_causing_a_collision.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 70,
+    "status": "decided",
+    "car": 63,
+    "driver": "George Russell",
+    "competitor": "Mercedes-AMG PETRONAS F1 Team",
+    "session": "Race",
+    "incident_time": "14:04",
+    "offence": "Causing a collision",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": "10 second time penalty.",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 10
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 69,
+   "title": "Doc 69 - Infringement - Car 16 - Left the track and gained a lasting advantage",
+   "kind": "penalty",
+   "published": "01.11.26 21:54",
+   "published_at": "2026-11-01T20:54:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_16_-_left_the_track_and_gained_a_lasting_advantage.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 69,
+    "status": "decided",
+    "car": 16,
+    "driver": "Charles Leclerc",
+    "competitor": "Scuderia Ferrari HP",
+    "session": "Race",
+    "incident_time": "14:03",
+    "offence": "Left the track and gained a lasting advantage",
+    "articles": [
+     "B1.8.6"
+    ],
+    "decision": "5 second time penalty.",
+    "outcomes": [
+     {
+      "kind": "time_penalty",
+      "value": 5
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 68,
+   "title": "Doc 68 - Infringement - Car 55 - Pit Lane Speeding",
+   "kind": "penalty",
+   "published": "01.11.26 21:14",
+   "published_at": "2026-11-01T20:14:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_55_-_pit_lane_speeding.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 68,
+    "status": "decided",
+    "car": 55,
+    "driver": "Carlos Sainz",
+    "competitor": "Atlassian Williams F1 Team",
+    "session": "Reconnaissance Laps",
+    "incident_time": "13:22",
+    "offence": "Pit Lane Speeding",
+    "articles": [
+     "B1.6.3a"
+    ],
+    "decision": "The competitor (Atlassian Williams F1 Team) is fined \u20ac1000.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 1000
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 67,
+   "title": "Doc 67 - Final Starting Grid",
+   "kind": "grid",
+   "published": "01.11.26 20:00",
+   "published_at": "2026-11-01T19:00:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_final_starting_grid.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 67,
+    "final": true,
+    "slots": [
+     {
+      "position": 1,
+      "car": 44,
+      "entrant": "Lewis HAMILTONScuderia Ferrari HP",
+      "time": "1:16.514",
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 63,
+      "entrant": "George RUSSELLMercedes-AMG PETRONAS F1 Team",
+      "time": "1:16.523",
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 16,
+      "entrant": "Charles LECLERCScuderia Ferrari HP",
+      "time": "1:16.633",
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 12,
+      "entrant": "Kimi ANTONELLIMercedes-AMG PETRONAS F1 Team",
+      "time": "1:16.707",
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 3,
+      "entrant": "Max VERSTAPPEN Oracle Red Bull Racing",
+      "time": "1:16.692",
+      "penalised": true
+     },
+     {
+      "position": 6,
+      "car": 1,
+      "entrant": "Lando NORRISMcLaren Mastercard F1 Team",
+      "time": "1:16.824",
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 6,
+      "entrant": "Isack HADJAROracle Red Bull Racing",
+      "time": "1:16.900",
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 41,
+      "entrant": "Arvid LINDBLADVisa Cash App Racing Bulls F1 Team",
+      "time": "1:17.117",
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 10,
+      "entrant": "Pierre GASLYBWT Alpine F1 Team",
+      "time": "1:17.153",
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 27,
+      "entrant": "Nico HULKENBERGAudi Revolut F1 Team",
+      "time": "1:17.306",
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 43,
+      "entrant": "Franco COLAPINTOBWT Alpine F1 Team",
+      "time": "1:17.640",
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 81,
+      "entrant": "Oscar PIASTRIMcLaren Mastercard F1 Team",
+      "time": "1:17.646",
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 5,
+      "entrant": "Gabriel BORTOLETOAudi Revolut F1 Team",
+      "time": "1:17.680",
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 87,
+      "entrant": "Oliver BEARMANTGR Haas F1 Team",
+      "time": "1:18.083",
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 55,
+      "entrant": "Carlos SAINZAtlassian Williams F1 Team",
+      "time": "1:18.885",
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 23,
+      "entrant": "Alexander ALBONAtlassian Williams F1 Team",
+      "time": "1:18.630",
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 14,
+      "entrant": "Fernando ALONSOAston Martin Aramco F1 Team",
+      "time": "1:18.908",
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 50,
+      "entrant": "Ryo HIRAKAWATGR Haas F1 Team",
+      "time": "1:18.958",
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 18,
+      "entrant": "Lance STROLLAston Martin Aramco F1 Team",
+      "time": "1:19.072",
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 11,
+      "entrant": "Sergio PEREZCadillac Formula 1 Team",
+      "time": "1:19.105",
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 77,
+      "entrant": "Valtteri BOTTAS Cadillac Formula 1 Team",
+      "time": "1:19.852",
+      "penalised": true
+     }
+    ],
+    "pit_lane": [
+     {
+      "car": 30,
+      "entrant": "Liam LAWSON Visa Cash App Racing Bulls F1 Team"
+     }
+    ],
+    "notes": [
+     {
+      "car": 30,
+      "ruling": "Permitted to start",
+      "reason": null,
+      "document": 58
+     }
+    ],
+    "penalties": [
+     {
+      "car": 77,
+      "ruling": "50 place grid penalty",
+      "reason": "Additional power unit elements have been used",
+      "document": 17
+     },
+     {
+      "car": 3,
+      "ruling": "1 place grid penalty",
+      "reason": "Causing a collision",
+      "document": 33
+     },
+     {
+      "car": 30,
+      "ruling": "1 place grid penalty",
+      "reason": "Driving erratically",
+      "document": 34
+     },
+     {
+      "car": 30,
+      "ruling": "Required to start from the pit lane",
+      "reason": "Car modified whilst under Parc Ferm\u00e9 conditions and additional power unit elements have been used",
+      "document": 65
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 66,
+   "title": "Doc 66 - Parts and Parameters been replaced and or changed during Parc Ferme",
+   "kind": "grid",
+   "published": "01.11.26 19:51",
+   "published_at": "2026-11-01T18:51:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_parts_and_parameters_been_replaced_and_or_changed_during_parc_ferme.pdf",
+   "withdrawn": null,
+   "data": null,
+   "unread": null
+  },
+  {
+   "number": 65,
+   "title": "Doc 65 - Infringement - Car 30 - Changes made during Parc Ferme",
+   "kind": "penalty",
+   "published": "01.11.26 19:22",
+   "published_at": "2026-11-01T18:22:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 65,
+    "status": "decided",
+    "car": 30,
+    "driver": "Liam Lawson",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": "Qualifying",
+    "incident_time": "10:56",
+    "offence": "Changes made during Parc Ferme",
+    "articles": [
+     "B3.4.3",
+     "B3.5.3",
+     "B3.5.4"
+    ],
+    "decision": "Required to start the Race from the pit lane.",
+    "outcomes": [
+     {
+      "kind": "pit_lane_start",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 64,
+   "title": "Doc 64 - Parc Ferme Issues",
+   "kind": "grid",
+   "published": "01.11.26 18:23",
+   "published_at": "2026-11-01T17:23:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_parc_ferme_issues.pdf",
+   "withdrawn": null,
+   "data": null,
+   "unread": null
+  },
+  {
+   "number": 60,
+   "title": "Doc 60 - Provisional Starting Grid",
+   "kind": "grid",
+   "published": "01.11.26 02:15",
+   "published_at": "2026-11-01T01:15:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_provisional_starting_grid.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 60,
+    "final": false,
+    "slots": [
+     {
+      "position": 1,
+      "car": 44,
+      "entrant": "Lewis HAMILTONScuderia Ferrari HP",
+      "time": "1:16.514",
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 63,
+      "entrant": "George RUSSELLMercedes-AMG PETRONAS F1 Team",
+      "time": "1:16.523",
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 16,
+      "entrant": "Charles LECLERCScuderia Ferrari HP",
+      "time": "1:16.633",
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 12,
+      "entrant": "Kimi ANTONELLIMercedes-AMG PETRONAS F1 Team",
+      "time": "1:16.707",
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 3,
+      "entrant": "Max VERSTAPPEN Oracle Red Bull Racing",
+      "time": "1:16.692",
+      "penalised": true
+     },
+     {
+      "position": 6,
+      "car": 1,
+      "entrant": "Lando NORRISMcLaren Mastercard F1 Team",
+      "time": "1:16.824",
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 6,
+      "entrant": "Isack HADJAROracle Red Bull Racing",
+      "time": "1:16.900",
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 41,
+      "entrant": "Arvid LINDBLADVisa Cash App Racing Bulls F1 Team",
+      "time": "1:17.117",
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 10,
+      "entrant": "Pierre GASLYBWT Alpine F1 Team",
+      "time": "1:17.153",
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 27,
+      "entrant": "Nico HULKENBERGAudi Revolut F1 Team",
+      "time": "1:17.306",
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 43,
+      "entrant": "Franco COLAPINTOBWT Alpine F1 Team",
+      "time": "1:17.640",
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 81,
+      "entrant": "Oscar PIASTRIMcLaren Mastercard F1 Team",
+      "time": "1:17.646",
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 5,
+      "entrant": "Gabriel BORTOLETOAudi Revolut F1 Team",
+      "time": "1:17.680",
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 87,
+      "entrant": "Oliver BEARMANTGR Haas F1 Team",
+      "time": "1:18.083",
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 55,
+      "entrant": "Carlos SAINZAtlassian Williams F1 Team",
+      "time": "1:18.885",
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 23,
+      "entrant": "Alexander ALBONAtlassian Williams F1 Team",
+      "time": "1:18.630",
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 14,
+      "entrant": "Fernando ALONSOAston Martin Aramco F1 Team",
+      "time": "1:18.908",
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 50,
+      "entrant": "Ryo HIRAKAWATGR Haas F1 Team",
+      "time": "1:18.958",
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 18,
+      "entrant": "Lance STROLLAston Martin Aramco F1 Team",
+      "time": "1:19.072",
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 11,
+      "entrant": "Sergio PEREZCadillac Formula 1 Team",
+      "time": "1:19.105",
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 77,
+      "entrant": "Valtteri BOTTAS Cadillac Formula 1 Team",
+      "time": "1:19.852",
+      "penalised": true
+     },
+     {
+      "position": 22,
+      "car": 30,
+      "entrant": "Liam LAWSON Visa Cash App Racing Bulls F1 Team",
+      "time": null,
+      "penalised": true
+     }
+    ],
+    "pit_lane": [],
+    "notes": [
+     {
+      "car": 30,
+      "ruling": "Permitted to start",
+      "reason": null,
+      "document": 58
+     }
+    ],
+    "penalties": [
+     {
+      "car": 77,
+      "ruling": "50 place grid penalty",
+      "reason": "Additional power unit elements have been used",
+      "document": 17
+     },
+     {
+      "car": 3,
+      "ruling": "1 place grid penalty",
+      "reason": "Causing a collision",
+      "document": 33
+     },
+     {
+      "car": 30,
+      "ruling": "1 place grid penalty",
+      "reason": "Driving erratically",
+      "document": 34
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 59,
+   "title": "Doc 59 - Final Qualifying Classification",
+   "kind": "classification",
+   "published": "01.11.26 02:10",
+   "published_at": "2026-11-01T01:10:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_final_qualifying_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 59,
+    "session": "Qualifying",
+    "final": true,
+    "entries": [
+     {
+      "position": 1,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.341",
+      "q2": "1:16.953",
+      "q3": "1:16.514",
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.659",
+      "q2": "1:17.027",
+      "q3": "1:16.523",
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.506",
+      "q2": "1:16.944",
+      "q3": "1:16.633",
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.942",
+      "q2": "1:16.876",
+      "q3": "1:16.692",
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.918",
+      "q2": "1:17.133",
+      "q3": "1:16.707",
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.733",
+      "q2": "1:16.728",
+      "q3": "1:16.824",
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.385",
+      "q2": "1:17.047",
+      "q3": "1:16.900",
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.210",
+      "q2": "1:17.135",
+      "q3": "1:17.117",
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.194",
+      "q2": "1:17.278",
+      "q3": "1:17.153",
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.868",
+      "q2": "1:17.306",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.517",
+      "q2": "1:17.640",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.659",
+      "q2": "1:17.646",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.727",
+      "q2": "1:17.680",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.083",
+      "q2": "1:18.083",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.521",
+      "q2": "1:18.885",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.630",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.908",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.958",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.072",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.105",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.852",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": null,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "disqualified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": true
+     }
+    ],
+    "penalties": [
+     {
+      "car": 30,
+      "ruling": "Disqualified",
+      "reason": "Technical nonconformity",
+      "document": 57
+     }
+    ],
+    "fastest_lap": {
+     "car": 44,
+     "driver": "Lewis HAMILTON",
+     "team": "Scuderia Ferrari HP",
+     "time": "1:16.514",
+     "lap": null
+    }
+   },
+   "unread": null
+  },
+  {
+   "number": 58,
+   "title": "Doc 58 - Decision - Car 30 - Permission to start",
+   "kind": "grid",
+   "published": "01.11.26 02:06",
+   "published_at": "2026-11-01T01:06:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_decision_-_car_30_-_permission_to_start.pdf",
+   "withdrawn": null,
+   "data": null,
+   "unread": null
+  },
+  {
+   "number": 57,
+   "title": "Doc 57 - Infringement - Car 30 - Technical nonconformity",
+   "kind": "penalty",
+   "published": "01.11.26 02:06",
+   "published_at": "2026-11-01T01:06:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_technical_nonconformity.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 57,
+    "status": "decided",
+    "car": 30,
+    "driver": "Liam Lawson",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": "Qualifying",
+    "incident_time": "15:47",
+    "offence": "Technical nonconformity",
+    "articles": [
+     "C5.12.6",
+     "C5.12.7"
+    ],
+    "decision": "Car 30 is disqualified from the results of the Provisional Qualifying Classifications.",
+    "outcomes": [
+     {
+      "kind": "disqualified",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 55,
+   "title": "Doc 55 - Summons - Car 30 - Alleged MGU-K infringement",
+   "kind": "penalty",
+   "published": "01.11.26 00:06",
+   "published_at": "2026-10-31T23:06:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_30_-_alleged_mgu-k_infringement.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 55,
+    "status": "summoned",
+    "car": 30,
+    "driver": "Liam Lawson",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged MGU-K infringement",
+    "articles": [
+     "C5.12.6",
+     "C5.12.7"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "17:30"
+   },
+   "unread": null
+  },
+  {
+   "number": 52,
+   "title": "Doc 52 - Infringement - Car 6 - Crossing the white line at pit entry",
+   "kind": "penalty",
+   "published": "31.10.26 23:53",
+   "published_at": "2026-10-31T22:53:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_6_-_crossing_the_white_line_at_pit_entry.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 52,
+    "status": "decided",
+    "car": 6,
+    "driver": "Isack Hadjar",
+    "competitor": "Oracle Red Bull Racing",
+    "session": "Qualifying",
+    "incident_time": "16:00",
+    "offence": "Crossing the white line at pit entry",
+    "articles": [
+     "ISC 12.2.1.i"
+    ],
+    "decision": "Driver: Reprimand (Driving). This is the driver\u2019s 1st reprimand of the season.",
+    "outcomes": [
+     {
+      "kind": "reprimand",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 51,
+   "title": "Doc 51 - Infringement - Car 55 - Failed to follow Race Directors instructions - Turn 11",
+   "kind": "penalty",
+   "published": "31.10.26 23:52",
+   "published_at": "2026-10-31T22:52:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_55_-_failed_to_follow_race_directors_instructions_-_turn_11.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 51,
+    "status": "decided",
+    "car": 55,
+    "driver": "Carlos Sainz",
+    "competitor": "Atlassian Williams F1 Team",
+    "session": "Qualifying",
+    "incident_time": "15:47",
+    "offence": "Failed to follow Race Directors instructions - Turn 11",
+    "articles": [
+     "ISC 12.2.1.i"
+    ],
+    "decision": "Driver: Warning.",
+    "outcomes": [
+     {
+      "kind": "warning",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 49,
+   "title": "Doc 49 - Infringement - Qualifying Deleted Lap Times - Double Yellow",
+   "kind": "deleted_laps",
+   "published": "31.10.26 23:39",
+   "published_at": "2026-10-31T22:39:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_qualifying_deleted_lap_times_-_double_yellow.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 49,
+    "session": "Qualifying",
+    "date": "2026-10-31",
+    "reason": "yellow_flags",
+    "fact": "The F1 Cars passed through a double waved yellow flag marshalling sector.",
+    "laps": [
+     {
+      "car": 10,
+      "turn": 8,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "15:24:11",
+      "lap_time": null
+     },
+     {
+      "car": 16,
+      "turn": 8,
+      "entrant": "Charles Leclerc Scuderia Ferrari HP",
+      "time_of_day": "15:24:08",
+      "lap_time": "1:41.066"
+     },
+     {
+      "car": 55,
+      "turn": 9,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "15:24:08",
+      "lap_time": "1:31.549"
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 48,
+   "title": "Doc 48 - Infringement - Qualifying Deleted Lap Times",
+   "kind": "deleted_laps",
+   "published": "31.10.26 23:35",
+   "published_at": "2026-10-31T22:35:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_qualifying_deleted_lap_times.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 48,
+    "session": "Qualifying",
+    "date": "2026-10-31",
+    "reason": "track_limits",
+    "fact": "The F1 Cars below did not use the track at turns 1, 4, 9, 11, 12, 13 and 14.",
+    "laps": [
+     {
+      "car": 18,
+      "turn": 4,
+      "entrant": "Lance Stroll Aston Martin Aramco F1 Team",
+      "time_of_day": "15:02:38",
+      "lap_time": "1:29.337"
+     },
+     {
+      "car": 6,
+      "turn": 12,
+      "entrant": "Isack Hadjar Oracle Red Bull Racing",
+      "time_of_day": "15:06:15",
+      "lap_time": "1:19.035"
+     },
+     {
+      "car": 11,
+      "turn": 1,
+      "entrant": "Sergio Perez Cadillac Formula 1 Team",
+      "time_of_day": "15:15:49",
+      "lap_time": null
+     },
+     {
+      "car": 10,
+      "turn": 9,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "15:18:09",
+      "lap_time": null
+     },
+     {
+      "car": 18,
+      "turn": 9,
+      "entrant": "Lance Stroll Aston Martin Aramco F1 Team",
+      "time_of_day": "15:24:07",
+      "lap_time": null
+     },
+     {
+      "car": 44,
+      "turn": 13,
+      "entrant": "Lewis Hamilton Scuderia Ferrari HP",
+      "time_of_day": "15:36:40",
+      "lap_time": "1:23.081"
+     },
+     {
+      "car": 55,
+      "turn": 11,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "15:43:38",
+      "lap_time": null
+     },
+     {
+      "car": 87,
+      "turn": 12,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "15:47:02",
+      "lap_time": "1:17.847"
+     },
+     {
+      "car": 6,
+      "turn": 14,
+      "entrant": "Isack Hadjar Oracle Red Bull Racing",
+      "time_of_day": "16:00:28",
+      "lap_time": null
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 46,
+   "title": "Doc 46 - Provisional Qualifying Classification",
+   "kind": "classification",
+   "published": "31.10.26 23:21",
+   "published_at": "2026-10-31T22:21:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_provisional_qualifying_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 46,
+    "session": "Qualifying",
+    "final": false,
+    "entries": [
+     {
+      "position": 1,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.341",
+      "q2": "1:16.953",
+      "q3": "1:16.514",
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.659",
+      "q2": "1:17.027",
+      "q3": "1:16.523",
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.506",
+      "q2": "1:16.944",
+      "q3": "1:16.633",
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.942",
+      "q2": "1:16.876",
+      "q3": "1:16.692",
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.918",
+      "q2": "1:17.133",
+      "q3": "1:16.707",
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.733",
+      "q2": "1:16.728",
+      "q3": "1:16.824",
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.385",
+      "q2": "1:17.047",
+      "q3": "1:16.900",
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.097",
+      "q2": "1:17.207",
+      "q3": "1:17.029",
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.210",
+      "q2": "1:17.135",
+      "q3": "1:17.117",
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.194",
+      "q2": "1:17.278",
+      "q3": "1:17.153",
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.868",
+      "q2": "1:17.306",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.517",
+      "q2": "1:17.640",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.659",
+      "q2": "1:17.646",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:17.727",
+      "q2": "1:17.680",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.083",
+      "q2": "1:18.083",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.521",
+      "q2": "1:18.885",
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.630",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.908",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:18.958",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.072",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.105",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 22,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": null,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": "1:19.852",
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [],
+    "fastest_lap": {
+     "car": 44,
+     "driver": "Lewis HAMILTON",
+     "team": "Scuderia Ferrari HP",
+     "time": "1:16.514",
+     "lap": null
+    }
+   },
+   "unread": null
+  },
+  {
+   "number": 45,
+   "title": "Doc 45 - Infringement - Car 14 - Failed to replace the steering wheel after leaving the car",
+   "kind": "penalty",
+   "published": "31.10.26 22:47",
+   "published_at": "2026-10-31T21:47:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_14_-_failed_to_replace_the_steering_wheel_after_leaving_the_car.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 45,
+    "status": "decided",
+    "car": 14,
+    "driver": "Fernando Alonso",
+    "competitor": "Aston Martin Aramco F1 Team",
+    "session": "Qualifying",
+    "incident_time": "15:08",
+    "offence": "Failed to replace the steering wheel after leaving the car",
+    "articles": [
+     "B1.8.8"
+    ],
+    "decision": "Driver: Reprimand (Driving). This is the driver\u2019s 1st reprimand of the season.",
+    "outcomes": [
+     {
+      "kind": "reprimand",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 44,
+   "title": "Doc 44 - Infringement - Free Practice 3 Deleted Lap Times",
+   "kind": "deleted_laps",
+   "published": "31.10.26 19:53",
+   "published_at": "2026-10-31T18:53:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_free_practice_3_deleted_lap_times.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 44,
+    "session": "Free Practice 3",
+    "date": "2026-10-31",
+    "reason": "track_limits",
+    "fact": "The F1 Cars below did not use the track at turns 1, 4, 5, 8, 9, 11 and 12.",
+    "laps": [
+     {
+      "car": 10,
+      "turn": 12,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "11:35:28",
+      "lap_time": null
+     },
+     {
+      "car": 10,
+      "turn": 12,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "11:36:50",
+      "lap_time": "1:20.820"
+     },
+     {
+      "car": 14,
+      "turn": 1,
+      "entrant": "Fernando Alonso Aston Martin Aramco F1 Team",
+      "time_of_day": "11:42:51",
+      "lap_time": null
+     },
+     {
+      "car": 87,
+      "turn": 11,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "11:47:58",
+      "lap_time": "1:20.460"
+     },
+     {
+      "car": 44,
+      "turn": 12,
+      "entrant": "Lewis Hamilton Scuderia Ferrari HP",
+      "time_of_day": "11:50:02",
+      "lap_time": "1:19.006"
+     },
+     {
+      "car": 1,
+      "turn": 8,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "11:48:05",
+      "lap_time": "1:34.963"
+     },
+     {
+      "car": 27,
+      "turn": 12,
+      "entrant": "Nico Hulkenberg Audi Revolut F1 Team",
+      "time_of_day": "11:57:43",
+      "lap_time": "1:22.102"
+     },
+     {
+      "car": 10,
+      "turn": 9,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "11:51:31",
+      "lap_time": null
+     },
+     {
+      "car": 43,
+      "turn": 1,
+      "entrant": "Franco Colapinto BWT Alpine F1 Team",
+      "time_of_day": "12:02:34",
+      "lap_time": "1:48.466"
+     },
+     {
+      "car": 1,
+      "turn": 12,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "12:05:33",
+      "lap_time": "1:27.615"
+     },
+     {
+      "car": 87,
+      "turn": 4,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:08:13",
+      "lap_time": "1:30.556"
+     },
+     {
+      "car": 87,
+      "turn": 1,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:09:28",
+      "lap_time": null
+     },
+     {
+      "car": 10,
+      "turn": 12,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "12:10:45",
+      "lap_time": "1:23.257"
+     },
+     {
+      "car": 55,
+      "turn": 1,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "12:10:16",
+      "lap_time": "1:31.902"
+     },
+     {
+      "car": 10,
+      "turn": 9,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "12:12:06",
+      "lap_time": null
+     },
+     {
+      "car": 10,
+      "turn": 11,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "12:21:18",
+      "lap_time": "1:19.517"
+     },
+     {
+      "car": 23,
+      "turn": 1,
+      "entrant": "Alexander Albon Atlassian Williams F1 Team",
+      "time_of_day": "12:22:42",
+      "lap_time": "1:50.433"
+     },
+     {
+      "car": 44,
+      "turn": 1,
+      "entrant": "Lewis Hamilton Scuderia Ferrari HP",
+      "time_of_day": "12:22:53",
+      "lap_time": "1:38.382"
+     },
+     {
+      "car": 3,
+      "turn": 4,
+      "entrant": "Max Verstappen Oracle Red Bull Racing",
+      "time_of_day": "12:23:22",
+      "lap_time": "1:37.802"
+     },
+     {
+      "car": 63,
+      "turn": 5,
+      "entrant": "George Russell Mercedes-AMG PETRONAS F1 Team",
+      "time_of_day": "12:23:29",
+      "lap_time": "1:36.602"
+     },
+     {
+      "car": 1,
+      "turn": 11,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "12:29:08",
+      "lap_time": "1:46.345"
+     },
+     {
+      "car": 44,
+      "turn": 1,
+      "entrant": "Lewis Hamilton Scuderia Ferrari HP",
+      "time_of_day": "12:28:40",
+      "lap_time": "1:27.756"
+     },
+     {
+      "car": 23,
+      "turn": 1,
+      "entrant": "Alexander Albon Atlassian Williams F1 Team",
+      "time_of_day": "12:29:31",
+      "lap_time": "1:37.221"
+     },
+     {
+      "car": 23,
+      "turn": 9,
+      "entrant": "Alexander Albon Atlassian Williams F1 Team",
+      "time_of_day": "12:30:15",
+      "lap_time": "1:37.221"
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 43,
+   "title": "Doc 43 - Free Practice 3 Classification",
+   "kind": "classification",
+   "published": "31.10.26 19:49",
+   "published_at": "2026-10-31T18:49:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_free_practice_3_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 43,
+    "session": "Free Practice 3",
+    "final": false,
+    "entries": [
+     {
+      "position": 1,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 26,
+      "time": "1:17.600",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 24,
+      "time": "1:17.601",
+      "gap": "0.001",
+      "interval": "0.001",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 21,
+      "time": "1:17.717",
+      "gap": "0.117",
+      "interval": "0.116",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 20,
+      "time": "1:17.795",
+      "gap": "0.195",
+      "interval": "0.078",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 21,
+      "time": "1:17.951",
+      "gap": "0.351",
+      "interval": "0.156",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 18,
+      "time": "1:18.069",
+      "gap": "0.469",
+      "interval": "0.118",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 27,
+      "time": "1:18.107",
+      "gap": "0.507",
+      "interval": "0.038",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 19,
+      "time": "1:18.109",
+      "gap": "0.509",
+      "interval": "0.002",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 28,
+      "time": "1:18.113",
+      "gap": "0.513",
+      "interval": "0.004",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 29,
+      "time": "1:18.137",
+      "gap": "0.537",
+      "interval": "0.024",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 32,
+      "time": "1:18.560",
+      "gap": "0.960",
+      "interval": "0.423",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:18.652",
+      "gap": "1.052",
+      "interval": "0.092",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 26,
+      "time": "1:18.674",
+      "gap": "1.074",
+      "interval": "0.022",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 25,
+      "time": "1:18.850",
+      "gap": "1.250",
+      "interval": "0.176",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 22,
+      "time": "1:18.927",
+      "gap": "1.327",
+      "interval": "0.077",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 22,
+      "time": "1:19.214",
+      "gap": "1.614",
+      "interval": "0.287",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 26,
+      "time": "1:19.301",
+      "gap": "1.701",
+      "interval": "0.087",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 21,
+      "time": "1:19.376",
+      "gap": "1.776",
+      "interval": "0.075",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 32,
+      "time": "1:19.504",
+      "gap": "1.904",
+      "interval": "0.128",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 22,
+      "time": "1:20.342",
+      "gap": "2.742",
+      "interval": "0.838",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 2,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 22,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 1,
+      "time": null,
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [],
+    "fastest_lap": null
+   },
+   "unread": null
+  },
+  {
+   "number": 42,
+   "title": "Doc 42 - Infringment - Car 77 - Pit Lane Speeding",
+   "kind": "penalty",
+   "published": "31.10.26 19:09",
+   "published_at": "2026-10-31T18:09:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringment_-_car_77_-_pit_lane_speeding.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 42,
+    "status": "decided",
+    "car": 77,
+    "driver": "Valtteri Bottas",
+    "competitor": "Cadillac Formula 1 Team",
+    "session": "Free Practice 3",
+    "incident_time": "11:51",
+    "offence": "Pit Lane Speeding",
+    "articles": [
+     "B1.6.3a"
+    ],
+    "decision": "The competitor (Cadillac Formula 1 Team) is fined \u20ac100.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 100
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 41,
+   "title": "Doc 41 - Infringement - Car 6 - Misconduct",
+   "kind": "penalty",
+   "published": "31.10.26 17:51",
+   "published_at": "2026-10-31T16:51:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_6_-_misconduct.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 41,
+    "status": "decided",
+    "car": 6,
+    "driver": "Isack Hadjar",
+    "competitor": "Oracle Red Bull Racing",
+    "session": "Free Practice 1",
+    "incident_time": "12:20",
+    "offence": "Misconduct",
+    "articles": [
+     "ISC 12.2.1.l"
+    ],
+    "decision": "Driver: Formal warning.",
+    "outcomes": [
+     {
+      "kind": "warning",
+      "value": null
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 37,
+   "title": "Doc 37 - Revised Entry List",
+   "kind": "entry_list",
+   "published": "31.10.26 15:40",
+   "published_at": "2026-10-31T14:40:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_revised_entry_list.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 37,
+    "revised": true,
+    "rows": [
+     {
+      "car": 81,
+      "tla": "PIA",
+      "driver": "Oscar Piastri",
+      "nationality": "AUS",
+      "team": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 1,
+      "tla": "NOR",
+      "driver": "Lando Norris",
+      "nationality": "GBR",
+      "team": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 63,
+      "tla": "RUS",
+      "driver": "George Russell",
+      "nationality": "GBR",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "constructor": "Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 12,
+      "tla": "ANT",
+      "driver": "Kimi Antonelli",
+      "nationality": "ITA",
+      "team": "Mercedes -AMG PETRONAS F1 Team",
+      "constructor": "Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 3,
+      "tla": "VER",
+      "driver": "Max Verstappen",
+      "nationality": "NED",
+      "team": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 6,
+      "tla": "HAD",
+      "driver": "Isack Hadjar",
+      "nationality": "FRA",
+      "team": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 16,
+      "tla": "LEC",
+      "driver": "Charles Leclerc",
+      "nationality": "MON",
+      "team": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 44,
+      "tla": "HAM",
+      "driver": "Lewis Hamilton",
+      "nationality": "GBR",
+      "team": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 23,
+      "tla": "ALB",
+      "driver": "Alexander Albon",
+      "nationality": "THA",
+      "team": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 55,
+      "tla": "SAI",
+      "driver": "Carlos Sainz",
+      "nationality": "ESP",
+      "team": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 41,
+      "tla": "LIN",
+      "driver": "Arvid Lindblad",
+      "nationality": "GBR",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 30,
+      "tla": "LAW",
+      "driver": "Liam Lawson",
+      "nationality": "NZL",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 18,
+      "tla": "STR",
+      "driver": "Lance Stroll",
+      "nationality": "CAN",
+      "team": "Aston Martin Aramco F1 Team",
+      "constructor": "Aston Martin Aramco Honda",
+      "reserve": false
+     },
+     {
+      "car": 14,
+      "tla": "ALO",
+      "driver": "Fernando Alonso",
+      "nationality": "ESP",
+      "team": "Aston Martin Aram co F1 Team",
+      "constructor": "Aston Ma rtin Aramco Honda",
+      "reserve": false
+     },
+     {
+      "car": 50,
+      "tla": "HIR",
+      "driver": "Ryo Hirakawa",
+      "nationality": "JPN",
+      "team": "TGR Haas F1 Team",
+      "constructor": "Haas Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 87,
+      "tla": "BEA",
+      "driver": "Oliver Bearman",
+      "nationality": "GBR",
+      "team": "TGR Haas F1 Team",
+      "constructor": "Haas Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 27,
+      "tla": "HUL",
+      "driver": "Nico Hulkenberg",
+      "nationality": "GER",
+      "team": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "reserve": false
+     },
+     {
+      "car": 5,
+      "tla": "BOR",
+      "driver": "Gabriel Bortoleto",
+      "nationality": "BRA",
+      "team": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "reserve": false
+     },
+     {
+      "car": 10,
+      "tla": "GAS",
+      "driver": "Pierre Gasly",
+      "nationality": "FRA",
+      "team": "BWT Alpine F1 Team",
+      "constructor": "Alpine Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 43,
+      "tla": "COL",
+      "driver": "Franco Colapinto",
+      "nationality": "ARG",
+      "team": "BWT Alpine F1 Team",
+      "constructor": "Alpine Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 11,
+      "tla": "PER",
+      "driver": "Sergio Perez",
+      "nationality": "MEX",
+      "team": "Cadillac Formula 1 Team",
+      "constructor": "Cadillac Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 77,
+      "tla": "BOT",
+      "driver": "Valtteri Bottas",
+      "nationality": "FIN",
+      "team": "Cadilla c Formula 1 Team",
+      "constructor": "Cadillac Ferrari",
+      "reserve": false
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 36,
+   "title": "Doc 36 - Decision - Driver Change TGR Haas F1 Team",
+   "kind": "entry_list",
+   "published": "31.10.26 15:36",
+   "published_at": "2026-10-31T14:36:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_decision_-_driver_change_tgr_haas_f1_team.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 36,
+    "team": "TGR Haas F1 Team",
+    "car": 31,
+    "outgoing": "Esteban Ocon",
+    "incoming": "Ryo Hirakawa",
+    "incoming_car": 50
+   },
+   "unread": null
+  },
+  {
+   "number": 35,
+   "title": "Doc 35 - Summons - Car 6 - Alleged misconduct",
+   "kind": "penalty",
+   "published": "31.10.26 03:58",
+   "published_at": "2026-10-31T02:58:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_6_-_alleged_misconduct.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 35,
+    "status": "summoned",
+    "car": 6,
+    "driver": "Isack Hadjar",
+    "competitor": "Oracle Red Bull Racing",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged misconduct",
+    "articles": [
+     "ISC 12.2.1.l"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "10:15"
+   },
+   "unread": null
+  },
+  {
+   "number": 34,
+   "title": "Doc 34 - Infringement - Car 30 - Turn 14 incident with Car 3",
+   "kind": "penalty",
+   "published": "31.10.26 03:53",
+   "published_at": "2026-10-31T02:53:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_turn_14_incident_with_car_3_.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 34,
+    "status": "decided",
+    "car": 30,
+    "driver": "Liam Lawson",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": "Free Practice 2",
+    "incident_time": "16:22",
+    "offence": "Turn 14 incident with Car 3",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 e)"
+    ],
+    "decision": "A drop of one grid position for the next race in which the driver competes. One penalty point is imposed, making a total of 4 for the 12 month period.",
+    "outcomes": [
+     {
+      "kind": "grid_drop",
+      "value": 1
+     },
+     {
+      "kind": "penalty_points",
+      "value": 1
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 33,
+   "title": "Doc 33 - Infringement - Car 3 - Turn 14 incident with Car 30",
+   "kind": "penalty",
+   "published": "31.10.26 03:52",
+   "published_at": "2026-10-31T02:52:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_3_-_turn_14_incident_with_car_30_.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 33,
+    "status": "decided",
+    "car": 3,
+    "driver": "Max Verstappen",
+    "competitor": "Oracle Red Bull Racing",
+    "session": "Free Practice 2",
+    "incident_time": "16:22",
+    "offence": "Turn 14 incident with Car 30",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 d)"
+    ],
+    "decision": "A drop of one grid position for the next race in which the driver competes. One penalty point is imposed, making a total of 1 for the 12 month period.",
+    "outcomes": [
+     {
+      "kind": "grid_drop",
+      "value": 1
+     },
+     {
+      "kind": "penalty_points",
+      "value": 1
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 32,
+   "title": "Doc 32 - Infringement - Car 5 - Covering components",
+   "kind": "penalty",
+   "published": "31.10.26 03:50",
+   "published_at": "2026-10-31T02:50:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_5_-_covering_components.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 32,
+    "status": "decided",
+    "car": 5,
+    "driver": "Gabriel Bortoleto",
+    "competitor": "Audi Revolut F1 Team",
+    "session": "Free Practice 2",
+    "incident_time": "16:29",
+    "offence": "Covering components",
+    "articles": [
+     "B3.3.1"
+    ],
+    "decision": "The competitor (Audi Revolut F1 Team) is fined \u20ac5,000.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 5000
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 30,
+   "title": "Doc 30 - Summons - Audi - Car 5 Covering of components",
+   "kind": "penalty",
+   "published": "31.10.26 02:07",
+   "published_at": "2026-10-31T01:07:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_audi_-_car_5_covering_of_components.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 30,
+    "status": "summoned",
+    "car": 5,
+    "driver": "Gabriel Bortoleto",
+    "competitor": "Audi Revolut F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Car 5 Covering of components",
+    "articles": [
+     "B3.3"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "19:30"
+   },
+   "unread": null
+  },
+  {
+   "number": 27,
+   "title": "Doc 27 - Infringement - Free Practice 2 Deleted Lap Times",
+   "kind": "deleted_laps",
+   "published": "31.10.26 00:22",
+   "published_at": "2026-10-30T23:22:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_free_practice_2_deleted_lap_times.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 27,
+    "session": "Free Practice 2",
+    "date": "2026-10-30",
+    "reason": "track_limits",
+    "fact": "The F1 Cars below did not use the track at turns 1, 3, 4, 5, 12 and 14.",
+    "laps": [
+     {
+      "car": 87,
+      "turn": 3,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "16:01:31",
+      "lap_time": null
+     },
+     {
+      "car": 77,
+      "turn": 4,
+      "entrant": "Valtteri Bottas Cadillac Formula 1 Team",
+      "time_of_day": "16:03:09",
+      "lap_time": "1:29.727"
+     },
+     {
+      "car": 10,
+      "turn": 4,
+      "entrant": "Pierre Gasly BWT Alpine F1 Team",
+      "time_of_day": "16:03:53",
+      "lap_time": "1:37.873"
+     },
+     {
+      "car": 81,
+      "turn": 1,
+      "entrant": "Oscar Piastri McLaren Mast ercard F1 Team",
+      "time_of_day": "16:08:05",
+      "lap_time": "1:48.598"
+     },
+     {
+      "car": 1,
+      "turn": 1,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "16:08:53",
+      "lap_time": null
+     },
+     {
+      "car": 6,
+      "turn": 12,
+      "entrant": "Isack Hadjar Oracle Red Bull Racing",
+      "time_of_day": "16:10:25",
+      "lap_time": "1:20.875"
+     },
+     {
+      "car": 3,
+      "turn": 14,
+      "entrant": "Max Verstappen Oracle Red Bull Racing",
+      "time_of_day": "16:11:30",
+      "lap_time": null
+     },
+     {
+      "car": 16,
+      "turn": 1,
+      "entrant": "Charles Leclerc Scuderia Ferrari HP",
+      "time_of_day": "16:12:55",
+      "lap_time": null
+     },
+     {
+      "car": 77,
+      "turn": 12,
+      "entrant": "Valtteri Bottas Cadillac Formula 1 Team",
+      "time_of_day": "16:20:36",
+      "lap_time": "1:25.031"
+     },
+     {
+      "car": 16,
+      "turn": 12,
+      "entrant": "Charles Leclerc Scuderia Ferrari HP",
+      "time_of_day": "16:22:25",
+      "lap_time": "1:24.027"
+     },
+     {
+      "car": 16,
+      "turn": 1,
+      "entrant": "Charles Leclerc Scuderia Ferrari HP",
+      "time_of_day": "16:25:01",
+      "lap_time": "1:46.178"
+     },
+     {
+      "car": 43,
+      "turn": 1,
+      "entrant": "Franco Colapinto BWT Alpine F1 Team",
+      "time_of_day": "16:26:02",
+      "lap_time": null
+     },
+     {
+      "car": 55,
+      "turn": 1,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "16:31:49",
+      "lap_time": "1:30.576"
+     },
+     {
+      "car": 27,
+      "turn": 12,
+      "entrant": "Nico Hulkenberg Audi Revolut F1 Team",
+      "time_of_day": "16:50:08",
+      "lap_time": "1:31.806"
+     },
+     {
+      "car": 1,
+      "turn": 12,
+      "entrant": "Lando Norris McLaren Mastercard F1 Team",
+      "time_of_day": "16:56:23",
+      "lap_time": "1:27.375"
+     },
+     {
+      "car": 16,
+      "turn": 12,
+      "entrant": "Charles Leclerc Scuderia Ferrari HP",
+      "time_of_day": "16:56:29",
+      "lap_time": "1:22.446"
+     },
+     {
+      "car": 55,
+      "turn": 5,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "16:57:52",
+      "lap_time": "1:25.336"
+     },
+     {
+      "car": 23,
+      "turn": 12,
+      "entrant": "Alexander Albon Atlassian Williams F1 Team",
+      "time_of_day": "16:59:25",
+      "lap_time": "1:28.899"
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 26,
+   "title": "Doc 26 - Free Practice 2 Classification",
+   "kind": "classification",
+   "published": "31.10.26 00:17",
+   "published_at": "2026-10-30T23:17:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_free_practice_2_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 26,
+    "session": "Free Practice 2",
+    "final": false,
+    "entries": [
+     {
+      "position": 1,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 35,
+      "time": "1:17.827",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 1,
+      "driver": "Lando NORRIS",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:17.930",
+      "gap": "0.103",
+      "interval": "0.103",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 63,
+      "driver": "George RUSSELL",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:17.933",
+      "gap": "0.106",
+      "interval": "0.003",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:18.044",
+      "gap": "0.217",
+      "interval": "0.111",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 3,
+      "driver": "Max VERSTAPPEN",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 26,
+      "time": "1:18.138",
+      "gap": "0.311",
+      "interval": "0.094",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:18.237",
+      "gap": "0.410",
+      "interval": "0.099",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 34,
+      "time": "1:18.389",
+      "gap": "0.562",
+      "interval": "0.152",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:18.407",
+      "gap": "0.580",
+      "interval": "0.018",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 30,
+      "driver": "Liam LAWSON",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 32,
+      "time": "1:18.455",
+      "gap": "0.628",
+      "interval": "0.048",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:18.469",
+      "gap": "0.642",
+      "interval": "0.014",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 13,
+      "time": "1:18.512",
+      "gap": "0.685",
+      "interval": "0.043",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:18.596",
+      "gap": "0.769",
+      "interval": "0.084",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 31,
+      "driver": "Esteban OCON",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 32,
+      "time": "1:18.774",
+      "gap": "0.947",
+      "interval": "0.178",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 32,
+      "time": "1:18.849",
+      "gap": "1.022",
+      "interval": "0.075",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 35,
+      "time": "1:19.023",
+      "gap": "1.196",
+      "interval": "0.174",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 43,
+      "driver": "Franco COLAPINTO",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 34,
+      "time": "1:19.132",
+      "gap": "1.305",
+      "interval": "0.109",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 28,
+      "time": "1:19.248",
+      "gap": "1.421",
+      "interval": "0.116",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:19.406",
+      "gap": "1.579",
+      "interval": "0.158",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 23,
+      "driver": "Alexander ALBON",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:19.578",
+      "gap": "1.751",
+      "interval": "0.172",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 18,
+      "driver": "Lance STROLL",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 24,
+      "time": "1:19.631",
+      "gap": "1.804",
+      "interval": "0.053",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 77,
+      "driver": "Valtteri BOTTAS",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:20.165",
+      "gap": "2.338",
+      "interval": "0.534",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 22,
+      "car": 5,
+      "driver": "Gabriel BORTOLETO",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 12,
+      "time": "1:20.174",
+      "gap": "2.347",
+      "interval": "0.009",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [],
+    "fastest_lap": null
+   },
+   "unread": null
+  },
+  {
+   "number": 25,
+   "title": "Doc 25 - Infringment - Car 14 - Pit Lane Speeding",
+   "kind": "penalty",
+   "published": "31.10.26 00:17",
+   "published_at": "2026-10-30T23:17:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringment_-_car_14_-_pit_lane_speeding_0.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 25,
+    "status": "decided",
+    "car": 14,
+    "driver": "Fernando Alonso",
+    "competitor": "Aston Martin Aramco F1 Team",
+    "session": "Free Practice 2",
+    "incident_time": "16:59",
+    "offence": "Pit Lane Speeding",
+    "articles": [
+     "B1.6.3a"
+    ],
+    "decision": "The competitor (Aston Martin Aramco F1 Team) is fined \u20ac100.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 100
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 24,
+   "title": "Doc 24 - Summons - Car 30 - Turn 14 Incident with Car 3",
+   "kind": "penalty",
+   "published": "30.10.26 23:43",
+   "published_at": "2026-10-30T22:43:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_30_-_turn_14_incident_with_car_3.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 24,
+    "status": "summoned",
+    "car": 30,
+    "driver": "Liam Lawson",
+    "competitor": "Visa Cash App Racing Bulls F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Turn 14 Incident with Car 3",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 e)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "17:45"
+   },
+   "unread": null
+  },
+  {
+   "number": 23,
+   "title": "Doc 23 - Summons - Car 3 - Turn 14 Incident with Car 30",
+   "kind": "penalty",
+   "published": "30.10.26 23:38",
+   "published_at": "2026-10-30T22:38:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_car_3_-_turn_14_incident_with_car_30.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 23,
+    "status": "summoned",
+    "car": 3,
+    "driver": "Max Verstappen",
+    "competitor": "Oracle Red Bull Racing",
+    "session": null,
+    "incident_time": null,
+    "offence": "Turn 14 Incident with Car 30",
+    "articles": [
+     "ISC Appendix L Chapter IV Article 2 e)"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "17:45"
+   },
+   "unread": null
+  },
+  {
+   "number": 22,
+   "title": "Doc 22 - Infringement - Car 98 - Released in an unsafe condition",
+   "kind": "penalty",
+   "published": "30.10.26 23:38",
+   "published_at": "2026-10-30T22:38:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_98_-_released_in_an_unsafe_condition.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 22,
+    "status": "decided",
+    "car": 98,
+    "driver": "Freddie Slater",
+    "competitor": "Audi Revolut F1 Team",
+    "session": "Free Practice 1",
+    "incident_time": "12:56",
+    "offence": "Released in an unsafe condition",
+    "articles": [
+     "B1.6.2b.i"
+    ],
+    "decision": "The competitor (Audi Revolut F1 Team) is fined \u20ac7,500.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 7500
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 21,
+   "title": "Doc 21 - Infringement - Free Practice 1 Deleted Lap Times - Double Yellow",
+   "kind": "deleted_laps",
+   "published": "30.10.26 21:27",
+   "published_at": "2026-10-30T20:27:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_free_practice_1_deleted_lap_times_-_double_yellow.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 21,
+    "session": "Free Practice 1",
+    "date": "2026-10-30",
+    "reason": "yellow_flags",
+    "fact": "The F1 Cars passed through a double waved yellow flag marshalling sector.",
+    "laps": [
+     {
+      "car": 62,
+      "turn": 10,
+      "entrant": "Gabriele Mini BWT Alpine F1 Team",
+      "time_of_day": "12:42:20",
+      "lap_time": null
+     },
+     {
+      "car": 87,
+      "turn": 11,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:42:20",
+      "lap_time": "1:58.813"
+     },
+     {
+      "car": 50,
+      "turn": 1,
+      "entrant": "Ryo Hirakawa TGR Haas F1 Team",
+      "time_of_day": "13:16:17",
+      "lap_time": null
+     },
+     {
+      "car": 44,
+      "turn": 1,
+      "entrant": "Lewis Hamilton Scuderia Ferrari HP",
+      "time_of_day": "13:16:19",
+      "lap_time": null
+     },
+     {
+      "car": 62,
+      "turn": 1,
+      "entrant": "Gabriele Mini BWT Alpine F1 Team",
+      "time_of_day": "13:16:24",
+      "lap_time": null
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 20,
+   "title": "Doc 20 - Infringement - Free Practice 1 Deleted Lap Times",
+   "kind": "deleted_laps",
+   "published": "30.10.26 21:27",
+   "published_at": "2026-10-30T20:27:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_free_practice_1_deleted_lap_times.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 20,
+    "session": "Free Practice 1",
+    "date": "2026-10-30",
+    "reason": "track_limits",
+    "fact": "The F1 Cars below did not use the track at turns 1, 2, 4, 6, 11, 12 and 14.",
+    "laps": [
+     {
+      "car": 27,
+      "turn": 14,
+      "entrant": "Nico Hulkenberg Audi Revolut F1 Team",
+      "time_of_day": "12:34:27",
+      "lap_time": null
+     },
+     {
+      "car": 87,
+      "turn": 12,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:34:13",
+      "lap_time": "1:23.165"
+     },
+     {
+      "car": 12,
+      "turn": 12,
+      "entrant": "Kimi Antonelli Mercedes-AMG PETRONAS F1 Team",
+      "time_of_day": "12:35:13",
+      "lap_time": "1:21.656"
+     },
+     {
+      "car": 91,
+      "turn": 2,
+      "entrant": "Nikola Tsolov Visa Cash App Racing Bulls F1 Team",
+      "time_of_day": "12:34:29",
+      "lap_time": "1:23.384"
+     },
+     {
+      "car": 87,
+      "turn": 2,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:36:33",
+      "lap_time": "1:21.884"
+     },
+     {
+      "car": 25,
+      "turn": 11,
+      "entrant": "Colton Herta Cadillac Formula 1 Team",
+      "time_of_day": "12:40:04",
+      "lap_time": "1:26.774"
+     },
+     {
+      "car": 87,
+      "turn": 2,
+      "entrant": "Oliver Bearman TGR Haas F1 Team",
+      "time_of_day": "12:39:48",
+      "lap_time": "1:20.852"
+     },
+     {
+      "car": 6,
+      "turn": 4,
+      "entrant": "Isack Hadjar Oracle Red Bull Racing",
+      "time_of_day": "12:39:27",
+      "lap_time": null
+     },
+     {
+      "car": 91,
+      "turn": 2,
+      "entrant": "Nikola Tsolov Visa Cash App Racing Bulls F1 Team",
+      "time_of_day": "12:40:54",
+      "lap_time": "1:21.589"
+     },
+     {
+      "car": 27,
+      "turn": 1,
+      "entrant": "Nico Hulkenberg Audi Revolut F1 Team",
+      "time_of_day": "12:44:20",
+      "lap_time": "1:40.212"
+     },
+     {
+      "car": 41,
+      "turn": 12,
+      "entrant": "Arvid Lindblad Visa Cash App Racing Bulls F1 Team",
+      "time_of_day": "12:46:34",
+      "lap_time": "1:21.597"
+     },
+     {
+      "car": 67,
+      "turn": 11,
+      "entrant": "Leonardo Fornaroli McLaren Mastercard F1 Team",
+      "time_of_day": "12:47:27",
+      "lap_time": null
+     },
+     {
+      "car": 81,
+      "turn": 1,
+      "entrant": "Oscar Piastri McLaren Mastercard F1 Team",
+      "time_of_day": "12:50:51",
+      "lap_time": "1:40.361"
+     },
+     {
+      "car": 91,
+      "turn": 6,
+      "entrant": "Nikola Tsolov Visa Cash App Racing Bulls F1 Team",
+      "time_of_day": "12:59:37",
+      "lap_time": null
+     },
+     {
+      "car": 55,
+      "turn": 1,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "12:59:11",
+      "lap_time": "1:25.673"
+     },
+     {
+      "car": 34,
+      "turn": 1,
+      "entrant": "Jak Crawford Aston Martin Aramco F1 Team",
+      "time_of_day": "12:59:23",
+      "lap_time": "1:47.770"
+     },
+     {
+      "car": 67,
+      "turn": 1,
+      "entrant": "Leonardo Fornaroli McLaren Mastercard F1 Team",
+      "time_of_day": "13:03:45",
+      "lap_time": "1:52.988"
+     },
+     {
+      "car": 41,
+      "turn": 14,
+      "entrant": "Arvid Lindblad Visa Cash App Racing Bulls F1 Team",
+      "time_of_day": "13:06:30",
+      "lap_time": "1:23.750"
+     },
+     {
+      "car": 12,
+      "turn": 4,
+      "entrant": "Kimi Antonelli Mercedes-AMG PETRONAS F1 Team",
+      "time_of_day": "13:08:07",
+      "lap_time": null
+     },
+     {
+      "car": 50,
+      "turn": 12,
+      "entrant": "Ryo Hirakawa TGR Haas F1 Team",
+      "time_of_day": "13:21:56",
+      "lap_time": "1:23.029"
+     },
+     {
+      "car": 55,
+      "turn": 4,
+      "entrant": "Carlos Sainz Atlassian Williams F1 Team",
+      "time_of_day": "13:24:03",
+      "lap_time": "1:33.033"
+     },
+     {
+      "car": 12,
+      "turn": 1,
+      "entrant": "Kimi Antonelli Mercedes-AMG PETRONAS F1 Team",
+      "time_of_day": "13:25:00",
+      "lap_time": "1:25.593"
+     },
+     {
+      "car": 98,
+      "turn": 1,
+      "entrant": "Freddie Slater Audi Revolut F1 Team",
+      "time_of_day": "13:23:57",
+      "lap_time": null
+     },
+     {
+      "car": 98,
+      "turn": 14,
+      "entrant": "Freddie Slater Audi Revolut F1 Team",
+      "time_of_day": "13:25:20",
+      "lap_time": null
+     },
+     {
+      "car": 62,
+      "turn": 1,
+      "entrant": "Gabriele Mini BWT Alpine F1 Team",
+      "time_of_day": "13:29:34",
+      "lap_time": "1:57.404"
+     },
+     {
+      "car": 46,
+      "turn": 4,
+      "entrant": "Luke Browning Atlassian Williams F1 Team",
+      "time_of_day": "13:30:31",
+      "lap_time": "1:24.480"
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 19,
+   "title": "Doc 19 - Free Practice 1 Classification",
+   "kind": "classification",
+   "published": "30.10.26 21:27",
+   "published_at": "2026-10-30T20:27:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_free_practice_1_classification.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 19,
+    "session": "Free Practice 1",
+    "final": false,
+    "entries": [
+     {
+      "position": 1,
+      "car": 16,
+      "driver": "Charles LECLERC",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 29,
+      "time": "1:18.128",
+      "gap": null,
+      "interval": null,
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 2,
+      "car": 12,
+      "driver": "Kimi ANTONELLI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:18.787",
+      "gap": "0.659",
+      "interval": "0.659",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 3,
+      "car": 72,
+      "driver": "Frederik VESTI",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 24,
+      "time": "1:18.861",
+      "gap": "0.733",
+      "interval": "0.074",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 4,
+      "car": 44,
+      "driver": "Lewis HAMILTON",
+      "team": "Scuderia Ferrari HP",
+      "status": "classified",
+      "reason": null,
+      "laps": 25,
+      "time": "1:18.866",
+      "gap": "0.738",
+      "interval": "0.005",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 5,
+      "car": 36,
+      "driver": "Ayumu IWASA",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 23,
+      "time": "1:19.113",
+      "gap": "0.985",
+      "interval": "0.247",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 6,
+      "car": 10,
+      "driver": "Pierre GASLY",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:19.210",
+      "gap": "1.082",
+      "interval": "0.097",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 7,
+      "car": 14,
+      "driver": "Fernando ALONSO",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 29,
+      "time": "1:19.357",
+      "gap": "1.229",
+      "interval": "0.147",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 8,
+      "car": 81,
+      "driver": "Oscar PIASTRI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:19.376",
+      "gap": "1.248",
+      "interval": "0.019",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 9,
+      "car": 87,
+      "driver": "Oliver BEARMAN",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 28,
+      "time": "1:19.412",
+      "gap": "1.284",
+      "interval": "0.036",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 10,
+      "car": 41,
+      "driver": "Arvid LINDBLAD",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:19.478",
+      "gap": "1.350",
+      "interval": "0.066",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 11,
+      "car": 6,
+      "driver": "Isack HADJAR",
+      "team": "Oracle Red Bull Racing",
+      "status": "classified",
+      "reason": null,
+      "laps": 21,
+      "time": "1:19.545",
+      "gap": "1.417",
+      "interval": "0.067",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 12,
+      "car": 91,
+      "driver": "Nikola TSOLOV",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 29,
+      "time": "1:19.604",
+      "gap": "1.476",
+      "interval": "0.059",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 13,
+      "car": 27,
+      "driver": "Nico HULKENBERG",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 27,
+      "time": "1:19.608",
+      "gap": "1.480",
+      "interval": "0.004",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 14,
+      "car": 62,
+      "driver": "Gabriele MINI",
+      "team": "BWT Alpine F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 22,
+      "time": "1:19.946",
+      "gap": "1.818",
+      "interval": "0.338",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 15,
+      "car": 50,
+      "driver": "Ryo HIRAKAWA",
+      "team": "TGR Haas F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:19.982",
+      "gap": "1.854",
+      "interval": "0.036",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 16,
+      "car": 55,
+      "driver": "Carlos SAINZ",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:20.006",
+      "gap": "1.878",
+      "interval": "0.024",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 17,
+      "car": 67,
+      "driver": "Leonardo FORNAROLI",
+      "team": "McLaren Mastercard F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 25,
+      "time": "1:20.235",
+      "gap": "2.107",
+      "interval": "0.229",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 18,
+      "car": 11,
+      "driver": "Sergio PEREZ",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 31,
+      "time": "1:20.395",
+      "gap": "2.267",
+      "interval": "0.160",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 19,
+      "car": 34,
+      "driver": "Jak CRAWFORD",
+      "team": "Aston Martin Aramco F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 15,
+      "time": "1:20.803",
+      "gap": "2.675",
+      "interval": "0.408",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 20,
+      "car": 46,
+      "driver": "Luke BROWNING",
+      "team": "Atlassian Williams F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 33,
+      "time": "1:20.869",
+      "gap": "2.741",
+      "interval": "0.066",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 21,
+      "car": 98,
+      "driver": "Freddie SLATER",
+      "team": "Audi Revolut F1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 14,
+      "time": "1:20.945",
+      "gap": "2.817",
+      "interval": "0.076",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     },
+     {
+      "position": 22,
+      "car": 25,
+      "driver": "Colton HERTA",
+      "team": "Cadillac Formula 1 Team",
+      "status": "classified",
+      "reason": null,
+      "laps": 30,
+      "time": "1:21.365",
+      "gap": "3.237",
+      "interval": "0.420",
+      "points": null,
+      "fastest": null,
+      "q1": null,
+      "q2": null,
+      "q3": null,
+      "penalised": false
+     }
+    ],
+    "penalties": [],
+    "fastest_lap": null
+   },
+   "unread": null
+  },
+  {
+   "number": 18,
+   "title": "Doc 18 - Infringment - Car 14 - Pit Lane Speeding",
+   "kind": "penalty",
+   "published": "30.10.26 21:33",
+   "published_at": "2026-10-30T20:33:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringment_-_car_14_-_pit_lane_speeding.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 18,
+    "status": "decided",
+    "car": 14,
+    "driver": "Fernando Alonso",
+    "competitor": "Aston Martin Aramco F1 Team",
+    "session": "Free Practice 1",
+    "incident_time": "13:17",
+    "offence": "Pit Lane Speeding",
+    "articles": [
+     "B1.6.3a"
+    ],
+    "decision": "The competitor (Aston Martin Aramco F1 Team) is fined \u20ac100.",
+    "outcomes": [
+     {
+      "kind": "fine",
+      "value": 100
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 17,
+   "title": "Doc 17 - Infringement - Car 77 - PU elements",
+   "kind": "penalty",
+   "published": "30.10.26 20:52",
+   "published_at": "2026-10-30T19:52:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_77_-_pu_elements.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 17,
+    "status": "decided",
+    "car": 77,
+    "driver": "Valtteri Bottas",
+    "competitor": "Cadillac Formula 1 Team",
+    "session": "Free Practice 1",
+    "incident_time": "13:05",
+    "offence": "PU elements",
+    "articles": [
+     "B8.2.2",
+     "B8.2.3"
+    ],
+    "decision": "Drop of 50 grid positions for the next Race in which the driver participates.",
+    "outcomes": [
+     {
+      "kind": "grid_drop",
+      "value": 50
+     }
+    ],
+    "hearing": null
+   },
+   "unread": null
+  },
+  {
+   "number": 16,
+   "title": "Doc 16 - Summons - Audi - Alleged release of car 98 in an unsafe condition",
+   "kind": "penalty",
+   "published": "30.10.26 20:52",
+   "published_at": "2026-10-30T19:52:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_summons_-_audi_-_alleged_release_of_car_98_in_an_unsafe_condition.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 16,
+    "status": "summoned",
+    "car": 98,
+    "driver": "Freddie Slater",
+    "competitor": "Audi Revolut F1 Team",
+    "session": null,
+    "incident_time": null,
+    "offence": "Alleged release of car 98 in an unsafe condition",
+    "articles": [
+     "B1.6.2b.i"
+    ],
+    "decision": null,
+    "outcomes": [],
+    "hearing": "14:00"
+   },
+   "unread": null
+  },
+  {
+   "number": 11,
+   "title": "Doc 11 - Entry List",
+   "kind": "entry_list",
+   "published": "30.10.26 16:40",
+   "published_at": "2026-10-30T15:40:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_entry_list.pdf",
+   "withdrawn": null,
+   "data": {
+    "document": 11,
+    "revised": false,
+    "rows": [
+     {
+      "car": 81,
+      "tla": "PIA",
+      "driver": "Oscar Piastri",
+      "nationality": "AUS",
+      "team": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 1,
+      "tla": "NOR",
+      "driver": "Lando Norris",
+      "nationality": "GBR",
+      "team": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 63,
+      "tla": "RUS",
+      "driver": "George Russell",
+      "nationality": "GBR",
+      "team": "Mercedes-AMG PETRONAS F1 Team",
+      "constructor": "Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 12,
+      "tla": "ANT",
+      "driver": "Kimi Antonelli",
+      "nationality": "ITA",
+      "team": "Mercedes -AMG PETRONAS F1 Team",
+      "constructor": "Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 3,
+      "tla": "VER",
+      "driver": "Max Verstappen",
+      "nationality": "NED",
+      "team": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 6,
+      "tla": "HAD",
+      "driver": "Isack Hadjar",
+      "nationality": "FRA",
+      "team": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 16,
+      "tla": "LEC",
+      "driver": "Charles Leclerc",
+      "nationality": "MON",
+      "team": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 44,
+      "tla": "HAM",
+      "driver": "Lewis Hamilton",
+      "nationality": "GBR",
+      "team": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 23,
+      "tla": "ALB",
+      "driver": "Alexander Albon",
+      "nationality": "THA",
+      "team": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 55,
+      "tla": "SAI",
+      "driver": "Carlos Sainz",
+      "nationality": "ESP",
+      "team": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 41,
+      "tla": "LIN",
+      "driver": "Arvid Lindblad",
+      "nationality": "GBR",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 30,
+      "tla": "LAW",
+      "driver": "Liam Lawson",
+      "nationality": "NZL",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls Red Bull Ford",
+      "reserve": false
+     },
+     {
+      "car": 18,
+      "tla": "STR",
+      "driver": "Lance Stroll",
+      "nationality": "CAN",
+      "team": "Aston Martin Aramco F1 Team",
+      "constructor": "Aston Martin Aramco Honda",
+      "reserve": false
+     },
+     {
+      "car": 14,
+      "tla": "ALO",
+      "driver": "Fernando Alonso",
+      "nationality": "ESP",
+      "team": "Aston Martin Aram co F1 Team",
+      "constructor": "Aston Ma rtin Aramco Honda",
+      "reserve": false
+     },
+     {
+      "car": 31,
+      "tla": "OCO",
+      "driver": "Esteban Ocon",
+      "nationality": "FRA",
+      "team": "TGR Haas F1 Team",
+      "constructor": "Haas Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 87,
+      "tla": "BEA",
+      "driver": "Oliver Bearman",
+      "nationality": "GBR",
+      "team": "TGR Haas F1 Team",
+      "constructor": "Haas Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 27,
+      "tla": "HUL",
+      "driver": "Nico Hulkenberg",
+      "nationality": "GER",
+      "team": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "reserve": false
+     },
+     {
+      "car": 5,
+      "tla": "BOR",
+      "driver": "Gabriel Bortoleto",
+      "nationality": "BRA",
+      "team": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "reserve": false
+     },
+     {
+      "car": 10,
+      "tla": "GAS",
+      "driver": "Pierre Gasly",
+      "nationality": "FRA",
+      "team": "BWT Alpine F1 Team",
+      "constructor": "Alpine Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 43,
+      "tla": "COL",
+      "driver": "Franco Colapinto",
+      "nationality": "ARG",
+      "team": "BWT Alpine F1 Team",
+      "constructor": "Alpine Mercedes",
+      "reserve": false
+     },
+     {
+      "car": 11,
+      "tla": "PER",
+      "driver": "Sergio Perez",
+      "nationality": "MEX",
+      "team": "Cadillac Formula 1 Team",
+      "constructor": "Cadillac Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 77,
+      "tla": "BOT",
+      "driver": "Valtteri Bottas",
+      "nationality": "FIN",
+      "team": "Cadillac Formula 1 Team",
+      "constructor": "Cadillac Ferrari",
+      "reserve": false
+     },
+     {
+      "car": 36,
+      "tla": "IWA",
+      "driver": "Ayumu Iwasa",
+      "nationality": "JPN",
+      "team": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing Red Bull Ford",
+      "reserve": true
+     },
+     {
+      "car": 72,
+      "tla": "VES",
+      "driver": "Frederik Vesti",
+      "nationality": "DEN",
+      "team": "Mercedes-A MG PETRONAS F1 Team",
+      "constructor": "Mercedes",
+      "reserve": true
+     },
+     {
+      "car": 67,
+      "tla": "FOR",
+      "driver": "Leonardo Fornaroli",
+      "nationality": "ITA",
+      "team": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren Mercedes",
+      "reserve": true
+     },
+     {
+      "car": 98,
+      "tla": "SLA",
+      "driver": "Freddie Slater",
+      "nationality": "GBR",
+      "team": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "reserve": true
+     },
+     {
+      "car": 91,
+      "tla": "TSO",
+      "driver": "Nikola Tsolov",
+      "nationality": "BUL",
+      "team": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls Red Bull Ford",
+      "reserve": true
+     },
+     {
+      "car": 25,
+      "tla": "HER",
+      "driver": "Colton Herta",
+      "nationality": "USA",
+      "team": "Cadillac Fo rmula 1 Team",
+      "constructor": "Cadillac Ferrari",
+      "reserve": true
+     },
+     {
+      "car": 46,
+      "tla": "BRO",
+      "driver": "Luke Browning",
+      "nationality": "GBR",
+      "team": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams Mercedes",
+      "reserve": true
+     },
+     {
+      "car": 34,
+      "tla": "CRA",
+      "driver": "Jak Crawford",
+      "nationality": "USA",
+      "team": "Aston Martin Aramco F1 Team",
+      "constructor": "Aston Martin Aramco Honda",
+      "reserve": true
+     },
+     {
+      "car": 62,
+      "tla": "MIN",
+      "driver": "Gabriele Mini",
+      "nationality": "ITA",
+      "team": "BWT Alpine F1 Team",
+      "constructor": "Alpine Mercedes",
+      "reserve": true
+     },
+     {
+      "car": 50,
+      "tla": "HIR",
+      "driver": "Ryo Hirakawa",
+      "nationality": "JPN",
+      "team": "TGR Haas F1 Team",
+      "constructor": "Haas Ferrari",
+      "reserve": true
+     }
+    ]
+   },
+   "unread": null
+  },
+  {
+   "number": 2,
+   "title": "Doc 2 - Competition Notes - Pirelli Preview",
+   "kind": "pirelli",
+   "published": "28.10.26 21:46",
+   "published_at": "2026-10-28T20:46:00+00:00",
+   "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_competition_notes_-_pirelli_preview.pdf",
+   "withdrawn": null,
+   "data": {
+    "hard": "C3",
+    "medium": "C4",
+    "soft": "C5",
+    "q3": "C5",
+    "mandatory_race": [
+     "C3",
+     "C4"
+    ]
+   },
+   "unread": null
+  }
+ ]
+}

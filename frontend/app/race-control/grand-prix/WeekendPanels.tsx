@@ -7,6 +7,7 @@ import { useSection } from "@/app/ui/section/useSection";
 import { Panel } from "../components/RaceControlPrimitives";
 import { ChampionshipStakes } from "../weekend/ChampionshipStakes";
 import { CircuitHistoryPanel } from "../weekend/CircuitHistoryPanel";
+import { FiaFeedPanel } from "../weekend/FiaFeedPanel";
 
 import { WeekendFacts } from "./WeekendFacts";
 import { WeekendGlance } from "./WeekendGlance";
@@ -60,6 +61,7 @@ function WeekendBody({ year, race }: { year: number; race: RaceEvent }) {
           <CircuitHistoryPanel record={circuit.data?.record} />
         </Section>
       </div>
+      <FiaFeedPanel year={year} race={race} />
       <WeekendStakes year={year} race={race} />
       <WeekendGlance year={year} round={race.round} />
     </div>

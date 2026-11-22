@@ -7,7 +7,7 @@ import dataclasses
 import pytest
 
 from app.data.fia_documents import feed, store
-from app.data.fia_documents.feed import FEED_TTL_SECONDS, document_event, fia_event, weekend_feed
+from app.data.fia_documents.feed import FEED_TTL_SECONDS, document_event, fia_event, published_at, weekend_feed
 from app.data.fia_documents.kinds import KIND_CLASSIFICATION, KIND_GRID, KIND_PENALTY
 from app.data.fia_documents.store import FiaStoreError, FileFiaStore
 from app.utils.ttl_cache import TtlCache
@@ -143,3 +143,41 @@ def test_a_store_outage_is_raised_not_shown_as_an_empty_weekend(monkeypatch, mex
 
     with pytest.raises(FiaStoreError, match="disk gone"):
         weekend_feed(2026, 19)
+
+
+@pytest.mark.parametrize(
+    ("published", "expected"),
+    [
+        ("02.11.26 00:57", "2026-11-01T23:57:00+00:00"),
+        ("02.11.26 02:50", "2026-11-02T01:50:00+00:00"),
+        ("05.07.26 15:00", "2026-07-05T13:00:00+00:00"),
+        ("", None),
+        ("soon", None),
+    ],
+)
+def test_the_printed_paris_time_becomes_utc(published, expected):
+    assert published_at(published) == expected
+
+
+def test_a_later_notice_marks_the_document_it_takes_back_as_withdrawn():
+    penalty = held("Doc 79 - Infringement - Car 81 - Causing a collision")
+    kept = dataclasses.replace(held("Doc 80 - Infringement - Race Deleted Lap Times"), withdrawn="off the event page")
+    notice = dataclasses.replace(
+        penalty, title="Doc 90 - Decision - Withdrawal of Document 79", text="Document 79 is withdrawn."
+    )
+    second = dataclasses.replace(
+        notice, title="Doc 91 - Decision - Withdrawal of Document 80", text="Document 80 is withdrawn."
+    )
+
+    events = feed._with_withdrawals((penalty, kept, notice, second))
+
+    assert {item["number"]: item["withdrawn"] for item in events} == {
+        91: None,
+        90: None,
+        80: "off the event page",
+        79: "withdrawn by Doc 90",
+    }
+
+
+def test_the_mexico_weekend_has_no_withdrawals():
+    assert all(item["withdrawn"] is None for item in weekend_feed(2026, 19)["events"])

@@ -10,9 +10,11 @@
  */
 
 /** Named presets, so a format is described by intent rather than by options. */
-export type TimeStyle = "weekday" | "day" | "dayShort" | "time" | "stamp" | "stampZone";
+export type TimeStyle = "clock" | "weekday" | "day" | "dayShort" | "time" | "stamp" | "stampZone";
 
 const STYLES: Record<TimeStyle, Intl.DateTimeFormatOptions> = {
+  /** "01:35 PM" — a feed row's time, the zone named once below. */
+  clock: { hour: "2-digit", minute: "2-digit" },
   /** "Fri, Sep 11" — session cards on the weekend clock. */
   weekday: { weekday: "short", month: "short", day: "numeric" },
   /** "Sep 11, 2026" — race dates in the prediction console. */

@@ -166,7 +166,7 @@ describe("SlopeChart", () => {
       ["Liam Lawson", "PL", "P7", "gained 15 places"],
       ["Arvid Lindblad", "P8", "DNF L58", "not compared"],
     ]);
-    expect(screen.getByRole("table")).toHaveClass("sr-only");
+    expect(screen.getByRole("table").parentElement).toHaveClass("sr-only");
   });
 
   it("reads values with the higher at the top, plain numbers and neutral change figures", () => {

@@ -93,7 +93,7 @@ function BrakingTable({ data }: { data: TrackMapResponse }) {
             <th className="py-1 font-normal">Slowest</th>
           </tr>
         </thead>
-        <tbody className="text-neutral-200">
+        <tbody className="text-rc-ink">
           {zones.map((zone, index) => (
             <tr key={zone.start} className="border-t border-[#161D28]">
               <td className="py-1 pr-3 text-[#7F8797]">{index + 1}</td>

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { rc } from "@/app/ui/tokens";
 import { PREDICTION_REVIEW_R19, SEASON_2026 } from "@/test/fixtures";
 
 import {
@@ -102,11 +103,11 @@ describe("countdownTo", () => {
 
 describe("colours and labels", () => {
   it("colours a model input by its status", () => {
-    expect(modelStatusColor("available")).toBe("#00FF78");
-    expect(modelStatusColor("missing")).toBe("#E10600");
-    expect(modelStatusColor("limited")).toBe("#F5C542");
-    expect(modelStatusColor("fallback")).toBe("#F5C542");
-    expect(modelStatusColor("anything else")).toBe("#3671C6");
+    expect(modelStatusColor("available")).toBe(rc.ink2);
+    expect(modelStatusColor("missing")).toBe(rc.redText);
+    expect(modelStatusColor("limited")).toBe(rc.blue);
+    expect(modelStatusColor("fallback")).toBe(rc.blue);
+    expect(modelStatusColor("anything else")).toBe(rc.ink3);
   });
 
   it("colours and signs a places delta", () => {

@@ -65,12 +65,12 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
         strokeLinejoin="round"
         filter={`url(#${glowId})`}
       />
-      <path d={path} fill="none" stroke="#1A2130" strokeWidth={CIRCUIT_TRACK.band} strokeLinejoin="round" />
+      <path d={path} fill="none" stroke={rc.line} strokeWidth={CIRCUIT_TRACK.band} strokeLinejoin="round" />
       <path
         id={trackId}
         d={path}
         fill="none"
-        stroke="#F4F6FA"
+        stroke={rc.ink}
         strokeWidth={CIRCUIT_TRACK.line}
         strokeLinejoin="round"
         pathLength={1}
@@ -103,7 +103,7 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
               <mpath href={`#${trackId}`} />
             </animateMotion>
           </circle>
-          <circle r={8} fill="#FFFFFF" stroke={rc.redText} strokeWidth={4}>
+          <circle r={8} fill={rc.ink} stroke={rc.redText} strokeWidth={4}>
             <animateMotion dur={`${LAP_SECONDS}s`} repeatCount="indefinite">
               <mpath href={`#${trackId}`} />
             </animateMotion>

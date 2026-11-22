@@ -1,3 +1,5 @@
+import { rc } from "@/app/ui/tokens";
+
 import type { DriverLookup, DriverPrediction, DriverStanding, PredictionPhase, RaceEvent } from "./predictionModel";
 
 export function confidenceMidpoint(prediction: DriverPrediction): number {
@@ -82,11 +84,12 @@ export function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** Available is a quiet caption, missing reads red, limited or fallback is info blue. */
 export function modelStatusColor(status: string): string {
-  if (status === "available") return "#00FF78";
-  if (status === "missing") return "#E10600";
-  if (status === "limited" || status === "fallback") return "#F5C542";
-  return "#3671C6";
+  if (status === "available") return rc.ink2;
+  if (status === "missing") return rc.redText;
+  if (status === "limited" || status === "fallback") return rc.blue;
+  return rc.ink3;
 }
 
 /** Whether a race is currently running. */

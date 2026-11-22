@@ -24,8 +24,7 @@ export function GridToFinish({ summary }: { summary: DebriefSummary }) {
     );
   }
   return (
-    // The kit's sr-only table can run past a phone's edge; clip it here (ui/ is off limits to this task).
-    <figure className={`${CARD} relative overflow-x-clip`}>
+    <figure className={CARD}>
       <PanelHeading
         eyebrow="Grid to finish"
         title={gridTitle(summary, directory)}

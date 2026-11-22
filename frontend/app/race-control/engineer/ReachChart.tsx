@@ -33,7 +33,7 @@ function item(row: ReachRow, chart: ReachChartData): RankBarItem {
  */
 export function ReachChart({ chart }: { chart: ReachChartData }) {
   return (
-    <figure className="my-2 rounded-md border border-rc-line bg-(--surface) px-[18px] py-4">
+    <figure className="my-2 rounded-md border border-rc-line bg-(--surface) px-[18px] py-4 text-sm">
       <figcaption className={`${EYEBROW} leading-snug`}>{chart.title}</figcaption>
       <RankBars
         className="mt-3"

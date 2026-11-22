@@ -119,7 +119,7 @@ export function PageLoader({
             <p className="text-2xl font-semibold text-white" style={rcFont}>
               {title}
             </p>
-            <p className="mt-2 max-w-2xl text-base leading-relaxed text-neutral-400">{detail}</p>
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-rc-ink-2">{detail}</p>
           </div>
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-f1-red/25 bg-f1-red/10">
             <Spinner className="h-5 w-5" />
@@ -161,7 +161,7 @@ export function SectionLoader({
             <p className="text-sm font-semibold text-white" style={rcFont}>
               {title}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-neutral-400">{detail}</p>
+            <p className="mt-1 text-sm leading-relaxed text-rc-ink-2">{detail}</p>
           </div>
         </div>
       </Panel>
@@ -191,7 +191,7 @@ export function InlineNotice({
   return (
     <div className={`rounded-md border px-4 py-3 ${styles}`}>
       <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{title}</p>
-      <div className="mt-1 text-sm leading-relaxed text-neutral-200">{children}</div>
+      <div className="mt-1 text-sm leading-relaxed text-rc-ink">{children}</div>
     </div>
   );
 }

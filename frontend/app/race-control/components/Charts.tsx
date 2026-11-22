@@ -19,7 +19,7 @@ import { rcFont } from "./RaceControlPrimitives";
 const CHART_COLORS = {
   grid: "rgba(255,255,255,0.06)",
   axis: "rgba(255,255,255,0.25)",
-  tooltip: { bg: "#0F1210", border: "rgba(255,255,255,0.12)" },
+  tooltip: { bg: rc.raised, border: rc.line },
 };
 
 function ChartTooltipContainer({ children }: { children: React.ReactNode }) {

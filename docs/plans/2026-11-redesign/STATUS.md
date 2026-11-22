@@ -54,7 +54,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P7.2 | Rulebook: cites articles + stewards' decisions | done | `5638e64`, `ac9653e` | **Done 2026-11-22.** Opus planner → `p7.2-brief.md`, Sonnet worktree executor; wording fix `ac9653e` ("1 event in 2026"). Backend 4912 passed at 100 %; Rulebook vitest 34 passed. Visual check (`f1-ai-b2`): idle, live keyword (R19 seeded), `answered_ai`, `answered_computed` at 1440×900 and 390×844, no horizontal scroll in any. |
 | P7.3 | Command Center polish | done | `062d2f3` (+ mockup and brief `412a06d`) | **Done 2026-11-18.** Mockup `command-center.html` and brief by an Opus planner, finalized by the coordinator (no `page.tsx` test: P3.6 rewrites it, so P7's `race-control/page` coverage moves to P3.6); executed by a Sonnet worktree agent, fast-forwarded. Frontend 1383 tests at 100 % per file; e2e 56 passed on `dev` after the merge. |
 | P7.4 | Weekend live feed UI (idea #1) | todo | | |
-| P7.5 | Sweep + SourceBadge everywhere (idea #5) | done | see log 2026-11-22 | Sweep grep empty outside the token files; 1850 tests, 100% coverage, lint clean, e2e 56 passed. |
+| P7.5 | Sweep + SourceBadge everywhere (idea #5) | done | `8becca1` | Sweep grep empty outside the token files; 1850 tests, 100% coverage, lint clean, e2e 56 passed. |
 | P7.6 | Forecast vs measured (idea #4; split from P7.3) | todo | | Feature: after the redesign. |
 | D3.1 | Race control's untimed lap deletions (bug) | todo | | Added 2026-11-18 (user): after P7.5, before the features; own PR. Evidence in the D2.3c log. |
 | P8.1 | Race Rewind (idea #6) | todo | | |

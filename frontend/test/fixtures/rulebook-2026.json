@@ -7,12 +7,7 @@
     "articles": [
       {
         "cite": 1,
-        "codes": [
-          "B3.5.3",
-          "B3.4.2",
-          "B3.4.3",
-          "B3.5.4"
-        ],
+        "codes": ["B3.5.3", "B3.4.2", "B3.4.3", "B3.5.4"],
         "source": "Section B · Sporting",
         "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
         "page": 29,
@@ -28,10 +23,7 @@
       },
       {
         "cite": 3,
-        "codes": [
-          "B3.5.5",
-          "B3.5.6"
-        ],
+        "codes": ["B3.5.5", "B3.5.6"],
         "source": "Section B · Sporting",
         "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
         "page": 29,
@@ -43,11 +35,7 @@
       "status": "matched",
       "events": 1,
       "total": 1,
-      "articles": [
-        "B3.4.3",
-        "B3.5.3",
-        "B3.5.4"
-      ],
+      "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
       "words": [],
       "items": [
         {
@@ -59,19 +47,11 @@
           "session": "Qualifying",
           "offence": "Changes made during Parc Ferme",
           "decision": "Required to start the Race from the pit lane.",
-          "articles": [
-            "B3.4.3",
-            "B3.5.3",
-            "B3.5.4"
-          ],
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
           "published": "01.11.26 19:22",
           "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
           "cite": 4,
-          "matched": [
-            "B3.4.3",
-            "B3.5.3",
-            "B3.5.4"
-          ]
+          "matched": ["B3.4.3", "B3.5.3", "B3.5.4"]
         }
       ]
     },
@@ -90,12 +70,7 @@
     "articles": [
       {
         "cite": 1,
-        "codes": [
-          "B3.5.3",
-          "B3.4.2",
-          "B3.4.3",
-          "B3.5.4"
-        ],
+        "codes": ["B3.5.3", "B3.4.2", "B3.4.3", "B3.5.4"],
         "source": "Section B · Sporting",
         "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
         "page": 29,
@@ -111,10 +86,7 @@
       },
       {
         "cite": 3,
-        "codes": [
-          "B3.5.5",
-          "B3.5.6"
-        ],
+        "codes": ["B3.5.5", "B3.5.6"],
         "source": "Section B · Sporting",
         "document": "FIA 2026 F1 Regulations - Section B [Sporting] - Iss 04 - 2025-12-10.pdf",
         "page": 29,
@@ -126,11 +98,7 @@
       "status": "matched",
       "events": 1,
       "total": 1,
-      "articles": [
-        "B3.4.3",
-        "B3.5.3",
-        "B3.5.4"
-      ],
+      "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
       "words": [],
       "items": [
         {
@@ -142,25 +110,17 @@
           "session": "Qualifying",
           "offence": "Changes made during Parc Ferme",
           "decision": "Required to start the Race from the pit lane.",
-          "articles": [
-            "B3.4.3",
-            "B3.5.3",
-            "B3.5.4"
-          ],
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
           "published": "01.11.26 19:22",
           "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
           "cite": 4,
-          "matched": [
-            "B3.4.3",
-            "B3.5.3",
-            "B3.5.4"
-          ]
+          "matched": ["B3.4.3", "B3.5.3", "B3.5.4"]
         }
       ]
     },
     "summary": {
       "heading": "The closest rule: Articles B3.5.3, B3.4.2, B3.4.3 and 1 more",
-      "paragraph": "The closest passage in the FIA 2026 F1 Regulations is **Articles B3.5.3, B3.4.2, B3.4.3 and 1 more (Section B · Sporting, page 29)** [1]. Related passages: [2] [3]. The stewards cited Articles B3.4.3, B3.5.3 and B3.5.4 in 1 decision from the 1 2026 event collected. At the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [4]",
+      "paragraph": "The closest passage in the FIA 2026 F1 Regulations is **Articles B3.5.3, B3.4.2, B3.4.3 and 1 more (Section B · Sporting, page 29)** [1]. Related passages: [2] [3]. The stewards cited Articles B3.4.3, B3.5.3 and B3.5.4 in 1 decision collected from 1 event in 2026. At the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [4]",
       "written_by": "computed",
       "why": "ai_unavailable"
     }
@@ -177,12 +137,7 @@
       "events": 1,
       "total": 6,
       "articles": [],
-      "words": [
-        "required",
-        "start",
-        "pit",
-        "lane"
-      ],
+      "words": ["required", "start", "pit", "lane"],
       "items": [
         {
           "number": 65,
@@ -193,20 +148,11 @@
           "session": "Qualifying",
           "offence": "Changes made during Parc Ferme",
           "decision": "Required to start the Race from the pit lane.",
-          "articles": [
-            "B3.4.3",
-            "B3.5.3",
-            "B3.5.4"
-          ],
+          "articles": ["B3.4.3", "B3.5.3", "B3.5.4"],
           "published": "01.11.26 19:22",
           "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_30_-_changes_made_during_parc_ferme.pdf",
           "cite": 1,
-          "matched": [
-            "required",
-            "start",
-            "pit",
-            "lane"
-          ]
+          "matched": ["required", "start", "pit", "lane"]
         },
         {
           "number": 71,
@@ -217,16 +163,11 @@
           "session": "Race",
           "offence": "Pit Lane Speeding",
           "decision": "5 second time penalty.",
-          "articles": [
-            "B1.6.3a"
-          ],
+          "articles": ["B1.6.3a"],
           "published": "01.11.26 22:44",
           "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_11_-_pit_lane_speeding.pdf",
           "cite": 2,
-          "matched": [
-            "pit",
-            "lane"
-          ]
+          "matched": ["pit", "lane"]
         },
         {
           "number": 68,
@@ -237,22 +178,17 @@
           "session": "Reconnaissance Laps",
           "offence": "Pit Lane Speeding",
           "decision": "The competitor (Atlassian Williams F1 Team) is fined €1000.",
-          "articles": [
-            "B1.6.3a"
-          ],
+          "articles": ["B1.6.3a"],
           "published": "01.11.26 21:14",
           "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_infringement_-_car_55_-_pit_lane_speeding.pdf",
           "cite": 3,
-          "matched": [
-            "pit",
-            "lane"
-          ]
+          "matched": ["pit", "lane"]
         }
       ]
     },
     "summary": {
       "heading": "6 stewards' decisions share words with the question",
-      "paragraph": "Found by the words required, start, pit, lane in the stewards' decisions collected from 1 2026 event, not matched to an article of the regulations. The closest: at the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [1] 3 of 6 are cited below.",
+      "paragraph": "Found by the words required, start, pit, lane in the stewards' decisions collected from 1 event in 2026, not matched to an article of the regulations. The closest: at the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [1] 3 of 6 are cited below.",
       "written_by": "computed",
       "why": "ai_unavailable"
     }

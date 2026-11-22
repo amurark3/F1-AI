@@ -14,7 +14,7 @@ def _plural(count: int, word: str) -> str:
 
 
 def _events(count: int, year: int) -> str:
-    return f"{count} {year} {'event' if count == 1 else 'events'}"
+    return f"{count} {'event' if count == 1 else 'events'} in {year}"
 
 
 def article_label(codes: list[str] | tuple[str, ...]) -> str | None:
@@ -59,8 +59,8 @@ def _decisions_sentence(year: int, articles: list[dict], decisions: dict) -> str
         return f"None of the stewards' decisions collected from {_events(events, year)} cites {article_label(union)}."
     tail = f" {shown} of them are cited below." if total > shown else ""
     return (
-        f"The stewards cited {article_label(decisions['articles'])} in {_plural(total, 'decision')} from the "
-        f"{_events(events, year)} collected.{tail} At {_quoted(decisions['items'][0])}"
+        f"The stewards cited {article_label(decisions['articles'])} in {_plural(total, 'decision')} collected "
+        f"from {_events(events, year)}.{tail} At {_quoted(decisions['items'][0])}"
     )
 
 

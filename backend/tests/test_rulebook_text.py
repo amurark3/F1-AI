@@ -63,8 +63,8 @@ def test_the_closest_rule_leads_with_its_articles_and_where_they_are():
     assert summary["heading"] == "The closest rule: Articles B3.5.3 and B3.5.4"
     assert summary["paragraph"] == (
         "The closest passage in the FIA 2026 F1 Regulations is **Articles B3.5.3 and B3.5.4 "
-        "(Section B · Sporting, page 29)** [1]. The stewards cited Article B3.5.3 in 1 decision from the "
-        "1 2026 event collected. At the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): "
+        "(Section B · Sporting, page 29)** [1]. The stewards cited Article B3.5.3 in 1 decision "
+        "collected from 1 event in 2026. At the Mexico City Grand Prix, document 65, car 30 (Liam Lawson): "
         "**“Required to start the Race from the pit lane.”** [4]"
     )
 
@@ -77,7 +77,7 @@ def test_related_passages_and_a_cut_off_decision_list_are_named():
     )
 
     assert " Related passages: [2] [3]." in summary["paragraph"]
-    assert "in 5 decisions from the 19 2026 events collected. 1 of them are cited below." in summary["paragraph"]
+    assert "in 5 decisions collected from 19 events in 2026. 1 of them are cited below." in summary["paragraph"]
 
 
 @pytest.mark.unit
@@ -106,11 +106,11 @@ def test_a_passage_without_an_article_number_is_named_by_its_place():
         (_decisions("none", events=0), "No 2026 stewards' decisions have been collected yet."),
         (
             _decisions("none", events=1),
-            "None of the stewards' decisions collected from 1 2026 event cites Articles B3.5.3 and B3.5.4.",
+            "None of the stewards' decisions collected from 1 event in 2026 cites Articles B3.5.3 and B3.5.4.",
         ),
         (
             _decisions("none", events=19),
-            "None of the stewards' decisions collected from 19 2026 events cites Articles B3.5.3 and B3.5.4.",
+            "None of the stewards' decisions collected from 19 events in 2026 cites Articles B3.5.3 and B3.5.4.",
         ),
     ],
 )
@@ -126,7 +126,7 @@ def test_keyword_summary_with_matches_says_they_are_not_article_matches():
 
     assert summary["heading"] == "6 stewards' decisions share words with the question"
     assert summary["paragraph"] == (
-        "Found by the words required, start, pit, lane in the stewards' decisions collected from 19 2026 events, "
+        "Found by the words required, start, pit, lane in the stewards' decisions collected from 19 events in 2026, "
         "not matched to an article of the regulations. The closest: at the Mexico City Grand Prix, document 65, "
         "car 30 (Liam Lawson): **“Required to start the Race from the pit lane.”** [1] 1 of 6 are cited below."
     )
@@ -138,7 +138,7 @@ def test_keyword_summary_for_one_match_uses_the_singular():
     summary = text.keyword_summary(2026, _decisions("matched", [_item(1)], words=["pit"], events=1))
 
     assert summary["heading"] == "1 stewards' decision shares words with the question"
-    assert "1 2026 event," in summary["paragraph"]
+    assert "1 event in 2026," in summary["paragraph"]
     assert "cited below" not in summary["paragraph"]
 
 
@@ -150,7 +150,7 @@ def test_keyword_summary_for_one_match_uses_the_singular():
         (_decisions("none", words=["pit"], events=0), "No 2026 stewards' decisions have been collected yet."),
         (
             _decisions("none", words=["pit", "lane"]),
-            "None of the stewards' decisions collected from 19 2026 events mentions pit, lane.",
+            "None of the stewards' decisions collected from 19 events in 2026 mentions pit, lane.",
         ),
     ],
 )

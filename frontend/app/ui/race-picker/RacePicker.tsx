@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 
 import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
@@ -7,6 +8,7 @@ import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
 import { DISPLAY } from "../typography";
 
 import { AllRacesPopover } from "./AllRacesPopover";
+import { FIRST_RACE_SEASON } from "./raceUrl";
 import { raceDay, seasonRail, shortRaceName, type RailTick } from "./railModel";
 import { SeasonRail } from "./SeasonRail";
 import { ThisRace } from "./ThisRace";
@@ -26,6 +28,54 @@ export interface RacePickerProps {
   onSelectRound: (round: number) => void;
   /** The race view that hosts the picker, when it also provides the switcher. */
   view?: RaceView;
+  /** Given, a season select leads the picker; the page writes the year (and drops the round) to its URL. */
+  onSelectYear?: (year: number) => void;
+}
+
+/** Every season the race views cover, newest first. */
+function raceSeasons(): number[] {
+  const latest = new Date().getFullYear();
+  return Array.from({ length: latest - FIRST_RACE_SEASON + 1 }, (_, index) => latest - index);
+}
+
+const SEASON_TEXT = "font-mono text-[10px] font-semibold uppercase leading-none tracking-[0.18em]";
+
+/**
+ * The season as the eyebrow over the round (`grand-prix.html` `.season-pick`): a native select, so phones get
+ * their own wheel, and a way back to the current season from an old one.
+ */
+function SeasonSelect({ year, onSelect }: { year: number; onSelect: (year: number) => void }) {
+  const seasons = raceSeasons();
+  const latest = seasons[0];
+  return (
+    <div className="mb-3 flex items-center gap-3.5">
+      <span className="relative inline-flex items-center">
+        {/* `color-scheme` keeps the opened list dark where the browser draws it from the page's colours. */}
+        <select
+          aria-label="Season"
+          value={year}
+          onChange={(event) => onSelect(Number(event.target.value))}
+          className={`${SEASON_TEXT} cursor-pointer appearance-none bg-transparent py-0.5 pr-4 text-rc-ink-2 [color-scheme:dark] hover:text-rc-ink`}
+        >
+          {seasons.map((season) => (
+            <option key={season} value={season}>
+              {season} season
+            </option>
+          ))}
+        </select>
+        <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-0 size-3 text-rc-ink-3" />
+      </span>
+      {year === latest ? null : (
+        <button
+          type="button"
+          onClick={() => onSelect(latest)}
+          className={`${SEASON_TEXT} text-rc-ink-3 transition-colors hover:text-rc-ink`}
+        >
+          Back to {latest} →
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** "R20", the race's name and where and when it runs. */
@@ -60,7 +110,7 @@ function CurrentRound({ tick }: { tick: RailTick | undefined }) {
  * each tick in the colour of the team that won it. It reports a choice and
  * leaves the URL to the page, which keeps its own `?round=` contract.
  */
-export function RacePicker({ year, races, selectedRound, onSelectRound, view }: RacePickerProps) {
+export function RacePicker({ year, races, selectedRound, onSelectRound, view, onSelectYear }: RacePickerProps) {
   const winners = useRaceWinners(year);
   const rail = useMemo(() => seasonRail(races, winners), [races, winners]);
   const current = rail.ticks.find((tick) => tick.race.round === selectedRound);
@@ -75,33 +125,36 @@ export function RacePicker({ year, races, selectedRound, onSelectRound, view }: 
         aria-label={`${year} race picker`}
         className="grid gap-x-10 gap-y-4 border-b border-rc-line pb-3.5 pt-2 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center"
       >
-        <div className="relative flex flex-wrap items-center gap-x-3.5 gap-y-3">
-          {hasRaces ? (
-            <>
-              <button
-                type="button"
-                aria-label="Previous round"
-                disabled={selected <= 0}
-                onClick={() => choose(selected - 1)}
-                className={STEP}
-              >
-                ‹
-              </button>
-              <CurrentRound tick={current} />
-              <button
-                type="button"
-                aria-label="Next round"
-                disabled={selected === -1 || selected === rail.ticks.length - 1}
-                onClick={() => choose(selected + 1)}
-                className={STEP}
-              >
-                ›
-              </button>
-              <AllRacesPopover ticks={rail.ticks} year={year} selected={selected} onSelect={choose} />
-            </>
-          ) : (
-            <p className="font-mono text-[11px] text-rc-ink-3">Season calendar unavailable.</p>
-          )}
+        <div>
+          {onSelectYear ? <SeasonSelect year={year} onSelect={onSelectYear} /> : null}
+          <div className="relative flex flex-wrap items-center gap-x-3.5 gap-y-3">
+            {hasRaces ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="Previous round"
+                  disabled={selected <= 0}
+                  onClick={() => choose(selected - 1)}
+                  className={STEP}
+                >
+                  ‹
+                </button>
+                <CurrentRound tick={current} />
+                <button
+                  type="button"
+                  aria-label="Next round"
+                  disabled={selected === -1 || selected === rail.ticks.length - 1}
+                  onClick={() => choose(selected + 1)}
+                  className={STEP}
+                >
+                  ›
+                </button>
+                <AllRacesPopover ticks={rail.ticks} year={year} selected={selected} onSelect={choose} />
+              </>
+            ) : (
+              <p className="font-mono text-[11px] text-rc-ink-3">Season calendar unavailable.</p>
+            )}
+          </div>
         </div>
         {hasRaces ? <SeasonRail rail={rail} year={year} selected={selected} onSelect={choose} /> : null}
       </div>

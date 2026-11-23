@@ -10,10 +10,17 @@ export interface DebriefUrl {
   /** The round the URL names; null when it names none or something that is no round. */
   round: number | null;
   select: (round: number) => void;
+  /** Opens another season at its default round. */
+  selectYear: (year: number) => void;
 }
 
 /** What the server render shows: the default round, before the URL can be read. */
-export const DEFAULT_DEBRIEF_URL: DebriefUrl = { year: null, round: null, select: () => undefined };
+export const DEFAULT_DEBRIEF_URL: DebriefUrl = {
+  year: null,
+  round: null,
+  select: () => undefined,
+  selectYear: () => undefined,
+};
 
 /** `?round=` as a positive integer, else null. */
 export function readRound(search: URLSearchParams): number | null {
@@ -33,5 +40,9 @@ export function useDebriefUrl(currentYear: number): DebriefUrl {
     (next: number) => router.replace(`${pathname}?${raceQuery(next, year)}`, { scroll: false }),
     [pathname, router, year],
   );
-  return useMemo(() => ({ year, round, select }), [round, select, year]);
+  const selectYear = useCallback(
+    (next: number) => router.replace(`${pathname}?${raceQuery(null, next)}`, { scroll: false }),
+    [pathname, router],
+  );
+  return useMemo(() => ({ year, round, select, selectYear }), [round, select, selectYear, year]);
 }

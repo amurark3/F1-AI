@@ -17,6 +17,8 @@ export interface RewindUrl {
   /** The step the URL names; null when it names none or something that is no step. */
   step: UrlStep | null;
   select: (round: number) => void;
+  /** Opens another season at its default round. */
+  selectYear: (year: number) => void;
   /** Writes the step without a router navigation: dragging the scrubber must not navigate per step. */
   setStep: (round: number, step: UrlStep) => void;
 }
@@ -27,6 +29,7 @@ export const DEFAULT_REWIND_URL: RewindUrl = {
   round: null,
   step: null,
   select: () => undefined,
+  selectYear: () => undefined,
   setStep: () => undefined,
 };
 
@@ -48,6 +51,10 @@ export function useRewindUrl(currentYear: number): RewindUrl {
     (next: number) => router.replace(`${pathname}?${raceQuery(next, year)}`, { scroll: false }),
     [pathname, router, year],
   );
+  const selectYear = useCallback(
+    (next: number) => router.replace(`${pathname}?${raceQuery(null, next)}`, { scroll: false }),
+    [pathname, router],
+  );
   const setStep = useCallback(
     (round: number, step: UrlStep) => {
       const query = raceQuery(round, year);
@@ -57,7 +64,7 @@ export function useRewindUrl(currentYear: number): RewindUrl {
     [pathname, year],
   );
   return useMemo(
-    () => ({ year, round: readRound(params), step: readStep(params), select, setStep }),
-    [params, select, setStep, year],
+    () => ({ year, round: readRound(params), step: readStep(params), select, selectYear, setStep }),
+    [params, select, selectYear, setStep, year],
   );
 }

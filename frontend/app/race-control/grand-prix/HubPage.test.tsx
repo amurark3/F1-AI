@@ -135,6 +135,13 @@ describe("the Grand Prix hub", () => {
     });
   });
 
+  it("opens another season at its default round and section", async () => {
+    const { user } = renderWithProviders(<GrandPrixHub seed={seed()} />);
+
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Season" }), "2024");
+    expect(nav.replace).toHaveBeenLastCalledWith("/race-control/grand-prix?year=2024", { scroll: false });
+  });
+
   it("drops the query when the selection is back to nothing", async () => {
     nav.search = "";
     const { user } = renderWithProviders(<GrandPrixHub seed={seed()} />);

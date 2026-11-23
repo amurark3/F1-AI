@@ -29,8 +29,16 @@ describe("useDebriefUrl", () => {
     expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?round=9", { scroll: false });
   });
 
+  it("opens another season at its default round", () => {
+    const { result } = renderHook(() => useDebriefUrl(2026));
+
+    result.current.selectYear(2024);
+    expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?year=2024", { scroll: false });
+  });
+
   it("has a default that selects nothing", () => {
     expect(DEFAULT_DEBRIEF_URL.round).toBeNull();
     expect(DEFAULT_DEBRIEF_URL.select(3)).toBeUndefined();
+    expect(DEFAULT_DEBRIEF_URL.selectYear(2024)).toBeUndefined();
   });
 });

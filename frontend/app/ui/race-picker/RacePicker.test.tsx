@@ -8,6 +8,7 @@ import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
 import { RacePicker } from "./RacePicker";
+import { FIRST_RACE_SEASON } from "./raceUrl";
 
 import type { ComponentProps } from "react";
 
@@ -198,6 +199,36 @@ describe("RacePicker", () => {
 
     expect(screen.getByText("Season calendar unavailable.")).toBeInTheDocument();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("has no season select unless the page takes a season", () => {
+    renderPicker();
+    expect(screen.queryByRole("combobox", { name: "Season" })).not.toBeInTheDocument();
+  });
+
+  it("offers every race season, newest first, and reports the one chosen", async () => {
+    const onSelectYear = vi.fn();
+    const { user } = renderPicker({ races: [], selectedRound: null, onSelectYear });
+
+    const season = screen.getByRole("combobox", { name: "Season" });
+    const years = within(season)
+      .getAllByRole("option")
+      .map((option) => Number((option as HTMLOptionElement).value));
+    expect(years[0]).toBe(new Date().getFullYear());
+    expect(years.at(-1)).toBe(FIRST_RACE_SEASON);
+    expect(season).toHaveValue("2026");
+    expect(screen.queryByRole("button", { name: /Back to/ })).not.toBeInTheDocument();
+    await user.selectOptions(season, "2024");
+    expect(onSelectYear).toHaveBeenCalledWith(2024);
+  });
+
+  it("offers a way back to the current season from an old one", async () => {
+    const onSelectYear = vi.fn();
+    const latest = new Date().getFullYear();
+    const { user } = renderPicker({ year: 2024, races: [], selectedRound: null, onSelectYear });
+
+    await user.click(screen.getByRole("button", { name: `Back to ${latest} →` }));
+    expect(onSelectYear).toHaveBeenCalledWith(latest);
   });
 
   it("asks for a round when the one asked for is not on the calendar", () => {

@@ -3,7 +3,7 @@
 import { RacePicker } from "@/app/ui/race-picker/RacePicker";
 import { FIRST_RACE_SEASON } from "@/app/ui/race-picker/raceUrl";
 import { useSchedule } from "@/app/ui/race-picker/useSchedule";
-import { DISPLAY, EYEBROW } from "@/app/ui/typography";
+import { DISPLAY } from "@/app/ui/typography";
 
 import { InlineNotice, PageStack } from "../components/RaceControlPrimitives";
 import { resolveDefaultRace } from "../grand-prix/predictionHelpers";
@@ -46,10 +46,6 @@ export function pickSession(sessions: WeekendSession[], tab: TabKey, asked: stri
   return PREFERRED[tab].find((code) => started.has(code)) ?? null;
 }
 
-function seasons(current: number): number[] {
-  return Array.from({ length: current - FIRST_RACE_SEASON + 1 }, (_, index) => current - index);
-}
-
 export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
   const { params, update } = useTelemetryParams(seed.year);
   const races = useSchedule(params.year, params.year === seed.year ? seed.schedule : null).races;
@@ -66,28 +62,13 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
         selectedRound={round}
         view="telemetry"
         onSelectRound={(next) => update({ round: next, ...CLEAR_SESSION_SELECTION })}
+        onSelectYear={(year) => update({ year, round: null, ...CLEAR_SESSION_SELECTION })}
       />
-      <header className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className={`${DISPLAY} text-4xl text-rc-ink sm:text-5xl`}>Telemetry Lab</h1>
-          <p className="mt-2 text-sm text-rc-ink-2">
-            Lap timing and car telemetry from OpenF1 since {FIRST_RACE_SEASON}.
-          </p>
-        </div>
-        <label className="flex shrink-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <span className={EYEBROW}>Season</span>
-          <select
-            value={params.year}
-            onChange={(event) => update({ year: Number(event.target.value), round: null, ...CLEAR_SESSION_SELECTION })}
-            className="h-[34px] cursor-pointer rounded border border-rc-line bg-background px-3 font-mono text-[11px] font-semibold tracking-[0.14em] text-rc-ink-2"
-          >
-            {seasons(seed.year).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </label>
+      <header className="min-w-0">
+        <h1 className={`${DISPLAY} text-4xl text-rc-ink sm:text-5xl`}>Telemetry Lab</h1>
+        <p className="mt-2 text-sm text-rc-ink-2">
+          Lap timing and car telemetry from OpenF1 since {FIRST_RACE_SEASON}.
+        </p>
       </header>
       <AnalysisToolbar
         tab={params.tab}

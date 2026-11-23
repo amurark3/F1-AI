@@ -19,6 +19,40 @@
         padding-top: 30px;
         padding-bottom: 14px;
       }
+      /* Season: the frame above the round, an eyebrow that opens the season list. */
+      .season-pick {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+      .season-select {
+        appearance: none;
+        cursor: pointer;
+        border: 0;
+        background: transparent
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='none' stroke='%239ba0a8' stroke-width='1.5'%3E%3Cpath d='M2 3.5l3 3 3-3'/%3E%3C/svg%3E")
+          right center / 10px no-repeat;
+        padding: 2px 16px 2px 0;
+        font: 600 10px/1 var(--mono);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+      .season-select:hover {
+        color: var(--ink);
+      }
+      .season-back {
+        all: unset;
+        cursor: pointer;
+        font: 600 10px/1 var(--mono);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .season-back:hover {
+        color: var(--ink);
+      }
       .current {
         display: flex;
         align-items: center;
@@ -541,6 +575,15 @@
 
     <div class="picker">
       <div class="wrap">
+        <div>
+        <div class="season-pick">
+          <select class="season-select" aria-label="Season">
+            <option>2026 season</option>
+            <option>2025 season</option>
+            <option>2024 season</option>
+            <option>2023 season</option>
+          </select>
+        </div>
         <div class="current">
           <button class="step" type="button" aria-label="Previous round">‹</button>
           <span class="rnum">R20</span>
@@ -550,6 +593,7 @@
           </div>
           <button class="step" type="button" aria-label="Next round">›</button>
           <button class="all" type="button">All races ▾</button>
+        </div>
         </div>
         <div class="season" role="listbox" aria-label="2026 season rounds">
           <span class="key">Tick colour · winning team</span>

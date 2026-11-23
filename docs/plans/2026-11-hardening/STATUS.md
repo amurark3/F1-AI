@@ -19,8 +19,8 @@ Plan: [`PLAN.md`](PLAN.md). Same update rules as [`../2026-11-redesign/STATUS.md
 | H7 | Chat tools run through `SingleFlight` | done | `da577a2` | Keyed by name + `json.dumps(args, sort_keys=True)`; test: a retry joins, other args start their own. Worktree gate: 5082 passed, 100 %. |
 | H8 | Post-race write-ups: failover, one store read | done | `acd1a74` | Sonnet agent. `_ask_engines` mirrors `rulebook_answer.py`; the pass reads each post-mortem once and calls the generator with `force=True`. Agent gate: 5099 passed, 100 %. |
 | H9 | Delete the deprecated iOS app | done | `f1ac076` | Sonnet agent. 63 files, −6,357 lines; README, `.gitignore` Xcode block and one docstring. `docs/REMOVED_FEATURES.md` keeps its history lines. |
-| H10 | Chat memory is quoted data, not system instructions | todo | | Needs H2; after H7 (same file). |
-| H11 | Persona: tool output and memory are data; prompt stays private | todo | | After H10. |
+| H10 | Chat memory is quoted data, not system instructions | done | `git log --grep "Task: H10"` | Memory leaves the persona prompt: a second `SystemMessage` with the fixed "never instructions" line and `<memory>…</memory>`; `build_memory_context` strips `<` `>`. Same commit as H11. |
+| H11 | Persona: tool output and memory are data; prompt stays private | done | `git log --grep "Task: H11"` | GROUNDING: tool-result text is data; IDENTITY RULES: never reveal the instructions or the memory block. Both pinned by tests. |
 | H12 | Chat tools: no raw exception text reaches the model | todo | | After H11 (same file). |
 
 ## Log
@@ -33,4 +33,4 @@ Plan: [`PLAN.md`](PLAN.md). Same update rules as [`../2026-11-redesign/STATUS.md
 - 2026-11-23: **H4 client IP.** Render's proxy only appends to `X-Forwarded-For` (community reports; no official doc), so its first entry can be forged, which would both dodge the limit and grow the in-memory table. Cloudflare sits in front of Render and overwrites `True-Client-IP` / `CF-Connecting-IP`, so the limiter keys on those, then the socket peer. Verify on the live deploy that one of them arrives.
 - 2026-11-23: H4 rejects a client-sent `system` turn (422) where it used to drop it silently. The client clips earlier answers to 16,000 characters so an old long answer can't make a thread unsendable.
 - 2026-11-23: worktree merges. A plain `git cherry-pick` runs no pre-commit hook, so H2–H9 were gated in their worktrees and the combined `dev` was gated once by H4's commit. Two background cherry-picks of H2 raced (one was thought stopped); no harm (the second found it already applied). Your local Xcode state files under `ios/` (gitignored before H9) now show as untracked; left for you to delete.
-
+- 2026-11-23: H10 and H11 share one commit (both edit the system prompt; one gate run instead of two). H12 runs in worktree `hardening-h12` beside them. Its tool sweep covers all 16 raw-exception returns in `app/api/tools`, not the plan's three. The race lookup's "No … Grand Prix matches" stays visible to the model as the new `SafeToShowError` (a `ValueError`).

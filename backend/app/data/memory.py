@@ -330,8 +330,11 @@ def set_profile(
     return get_profile(user_id)
 
 
+_NO_ANGLE_BRACKETS = str.maketrans("", "", "<>")
+
+
 def build_memory_context(user_id: str, query: str, thread_id: str | None = None) -> str:
-    """Assemble a system-prompt fragment from profile + recalled messages.
+    """Assemble the memory the chat quotes as data: profile + recalled messages.
 
     Returns an empty string when there is nothing personalised to add.
     """
@@ -355,4 +358,5 @@ def build_memory_context(user_id: str, query: str, thread_id: str | None = None)
         lines = [f"- ({r['role']}) {r['content'][:200]}" for r in strong]
         parts.append("RELEVANT PAST CONVERSATION:\n" + "\n".join(lines))
 
-    return "\n\n".join(parts)
+    # The chat quotes this inside <memory>…</memory>; no angle bracket may close it early.
+    return "\n\n".join(parts).translate(_NO_ANGLE_BRACKETS)

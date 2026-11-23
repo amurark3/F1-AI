@@ -456,11 +456,12 @@ def test_the_tool_result_is_fed_back_to_the_model(client, monkeypatch):
 
 
 @pytest.mark.unit
-def test_an_unknown_tool_is_skipped_rather_than_invented(client, monkeypatch):
-    _install_llm(
+def test_an_unknown_tool_runs_nothing_but_still_gets_a_reply(client, monkeypatch):
+    """Both engines reject (HTTP 400) a turn that leaves a tool call unanswered."""
+    llm = _install_llm(
         monkeypatch,
         [
-            AIMessage(content="", tool_calls=[_tool_call("summon_safety_car")]),
+            AIMessage(content="", tool_calls=[_tool_call("summon_safety_car", call_id="call-9")]),
             AIMessage(content="I cannot do that."),
         ],
     )
@@ -469,6 +470,8 @@ def test_an_unknown_tool_is_skipped_rather_than_invented(client, monkeypatch):
 
     assert "TOOL_START" not in body
     assert body.endswith("I cannot do that.")
+    replies = [m for m in llm.seen[-1] if isinstance(m, ToolMessage)]
+    assert [(m.tool_call_id, m.content) for m in replies] == [("call-9", "Unknown tool 'summon_safety_car'.")]
 
 
 @pytest.mark.unit

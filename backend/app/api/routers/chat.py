@@ -236,11 +236,13 @@ async def _run_tool_calls(response: AIMessage, messages: list[BaseMessage]) -> A
     """Execute every known tool the model asked for, bracketing each with markers.
 
     The markers drive the client's "running a tool" indicator. An unknown tool
-    is skipped rather than invented.
+    runs nothing and gets no markers, but still gets a reply: both engines
+    reject a turn that leaves any tool call unanswered.
     """
     for tool_call in response.tool_calls:
         name = tool_call["name"]
         if name not in TOOL_MAP:
+            messages.append(ToolMessage(tool_call_id=tool_call["id"], content=f"Unknown tool '{name}'.", name=name))
             continue
         friendly = name.replace("_", " ").title()
         yield f"[TOOL_START]{friendly}[/TOOL_START]"

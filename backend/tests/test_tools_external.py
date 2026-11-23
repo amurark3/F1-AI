@@ -22,6 +22,7 @@ import pytest
 
 from app.api.tools import external
 from app.api.tools.external import get_weather_conditions, perform_web_search
+from tests.tool_error_support import is_generic_failure
 
 
 def _weather(**fields) -> dict:
@@ -146,9 +147,7 @@ def test_a_fetch_failure_becomes_a_message_not_an_exception(monkeypatch):
     """The agent loop would otherwise report a generic tool error to the model."""
     _install_weather(monkeypatch, RuntimeError("openweathermap timed out"))
 
-    assert (
-        get_weather_conditions.invoke({"location": "Monaco"}) == "Weather data fetch failed: openweathermap timed out"
-    )
+    assert is_generic_failure(get_weather_conditions.invoke({"location": "Monaco"}), "Weather data fetch failed")
 
 
 @pytest.mark.unit
@@ -215,7 +214,7 @@ def test_a_missing_results_key_is_treated_as_no_results(monkeypatch):
 def test_a_provider_failure_is_reported_to_the_model(monkeypatch):
     _install_tavily(monkeypatch, RuntimeError("tavily 503"))
 
-    assert perform_web_search.invoke({"query": "who won"}) == "Search failed: tavily 503"
+    assert is_generic_failure(perform_web_search.invoke({"query": "who won"}), "Search failed")
 
 
 @pytest.mark.unit

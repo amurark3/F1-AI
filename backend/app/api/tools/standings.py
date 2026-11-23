@@ -8,6 +8,7 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, f1db_chip
 from app.api.tools.standings_facts import freshness_line, title_line
 from app.api.tools.standings_provenance import standings_provenance
@@ -52,7 +53,7 @@ def get_driver_standings(year: int) -> str:
         return Sourced(text, standings_provenance(standings, reach, "drivers"))
     except Exception as e:
         logger.exception("tool.driver_standings.error", error=str(e))
-        return f"Failed to fetch driver standings: {e}"
+        return f"Failed to fetch driver standings: {tool_error_text('tool.get_driver_standings.failed', e)}"
 
 
 @tool
@@ -86,7 +87,7 @@ def get_constructor_standings(year: int) -> str:
         return Sourced(text, standings_provenance(standings, reach, "constructors"))
     except Exception as e:
         logger.exception("tool.constructor_standings.error", error=str(e))
-        return f"Failed to fetch constructor standings: {e}"
+        return f"Failed to fetch constructor standings: {tool_error_text('tool.get_constructor_standings.failed', e)}"
 
 
 def _naive_utc(value: object) -> pd.Timestamp:
@@ -146,4 +147,4 @@ def get_season_schedule(year: int) -> str:
         return Sourced("\n".join(output), Provenance(sources=(f1db_chip("calendar"),), subject=f"{year} calendar"))
 
     except Exception as e:
-        return f"Failed to fetch schedule: {e}"
+        return f"Failed to fetch schedule: {tool_error_text('tool.get_season_schedule.failed', e)}"

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from app.api.errors import SafeToShowError
 from app.api.tools import provenance as provenance_module, sessions as module
 from app.api.tools.sessions import get_qualifying_results, get_sprint_qualifying_results, get_sprint_results
 from app.data import qualifying_times as times_module, race_classification
@@ -120,7 +121,7 @@ def test_a_qualifying_no_source_holds_says_so(monkeypatch):
 
 def test_a_failure_is_reported_not_raised(monkeypatch):
     def refuse(_year, _name):
-        raise ValueError("No 2026 Grand Prix matches 'Nowhere'")
+        raise SafeToShowError("No 2026 Grand Prix matches 'Nowhere'")
 
     monkeypatch.setattr(module, "resolve_event", refuse)
     args = {"year": 2026, "grand_prix": "Nowhere"}

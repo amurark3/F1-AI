@@ -8,6 +8,7 @@ from langchain_core.tools import tool
 import pandas as pd
 import structlog
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, chip, classification_chips, f1db_chip
 from app.api.tools.rounds import resolve_event
 from app.api.tools.sessions import NO_TIME, driver_label, points_cell, source_line, time_cell
@@ -82,7 +83,7 @@ def compare_drivers(year: int, grand_prix: str, driver1: str, driver2: str) -> s
         return Sourced(text, provenance)
 
     except Exception as e:
-        return f"Comparison failed: {e}"
+        return f"Comparison failed: {tool_error_text('tool.compare_drivers.failed', e)}"
 
 
 def _grid_cell(code: str, grid: dict[str, int | None]) -> str:
@@ -141,7 +142,7 @@ def get_race_results(year: int, grand_prix: str) -> str:
         return Sourced("\n".join(summary), Provenance(sources=sources, subject=f"{event_name} {year}"))
 
     except Exception as e:
-        return f"Failed to fetch race results: {e}"
+        return f"Failed to fetch race results: {tool_error_text('tool.get_race_results.failed', e)}"
 
 
 @tool
@@ -172,4 +173,4 @@ def get_race_anomalies(year: int, round_num: int) -> str:
         )
     except Exception as exc:
         logger.warning("tool.race_anomalies.error", error=str(exc))
-        return f"Anomaly analysis failed: {exc}"
+        return f"Anomaly analysis failed: {tool_error_text('tool.get_race_anomalies.failed', exc)}"

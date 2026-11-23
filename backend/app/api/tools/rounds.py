@@ -10,6 +10,7 @@ from __future__ import annotations
 import difflib
 from typing import TYPE_CHECKING
 
+from app.api.errors import SafeToShowError
 from app.data.f1db_calendar import season_schedule
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def _round_for(schedule: pd.DataFrame, year: int, grand_prix: str) -> int:
     close = difflib.get_close_matches(text, names, n=1, cutoff=CLOSE_MATCH_CUTOFF)
     if close:
         return names[close[0]]
-    raise ValueError(f"No {year} Grand Prix matches '{grand_prix}'")
+    raise SafeToShowError(f"No {year} Grand Prix matches '{grand_prix}'")
 
 
 def resolve_event(year: int, grand_prix: str) -> tuple[int, str]:

@@ -10,6 +10,7 @@ from langchain_core.tools import tool
 import structlog
 from tavily import TavilyClient
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, chip
 from app.data.weather import get_weather_for_circuit
 
@@ -114,7 +115,7 @@ def get_weather_conditions(location: str) -> str:
 
     except Exception as e:
         logger.exception("tool.weather_conditions.error", error=str(e))
-        return f"Weather data fetch failed: {e}"
+        return f"Weather data fetch failed: {tool_error_text('tool.get_weather_conditions.failed', e)}"
 
 
 @tool
@@ -136,4 +137,4 @@ def perform_web_search(query: str) -> str:
         hosts = dict.fromkeys(urlparse(r["url"]).netloc.removeprefix("www.") for r in results)
         return Sourced(text, Provenance(sources=tuple(hosts)))
     except Exception as e:
-        return f"Search failed: {e}"
+        return f"Search failed: {tool_error_text('tool.perform_web_search.failed', e)}"

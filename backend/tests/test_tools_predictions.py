@@ -25,6 +25,7 @@ from app.api.tools.predictions import (
     get_pit_strategy,
     get_race_predictions,
 )
+from tests.tool_error_support import is_generic_failure
 
 
 def _driver(position: int, **fields) -> dict:
@@ -214,9 +215,7 @@ def test_an_empty_prediction_set_with_no_warnings_still_explains_itself(monkeypa
 def test_a_service_crash_becomes_a_message_the_model_can_relay(monkeypatch):
     _install_prediction(monkeypatch, RuntimeError("model artefact missing"))
 
-    assert get_race_predictions.invoke({"year": 2026, "round_num": 4}) == (
-        "Prediction analysis failed: model artefact missing"
-    )
+    assert is_generic_failure(get_race_predictions.invoke({"year": 2026, "round_num": 4}), "Prediction analysis failed")
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +393,7 @@ def test_an_analysis_error_is_returned_instead_of_an_empty_report(monkeypatch):
 def test_a_strategy_crash_becomes_a_message_the_model_can_relay(monkeypatch):
     _install_strategy(monkeypatch, RuntimeError("fastf1 cache corrupt"))
 
-    assert get_pit_strategy.invoke({"year": 2026, "round_num": 3}) == "Strategy analysis failed: fastf1 cache corrupt"
+    assert is_generic_failure(get_pit_strategy.invoke({"year": 2026, "round_num": 3}), "Strategy analysis failed")
 
 
 @pytest.mark.unit

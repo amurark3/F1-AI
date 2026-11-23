@@ -24,12 +24,14 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app.api.errors import SafeToShowError
 from app.api.tools import provenance as provenance_module, race as module
 from app.api.tools.race import compare_drivers, get_race_anomalies, get_race_results
 from app.data.openf1 import session_laps
 from app.services import race_results
 from tests.fastf1_guard import no_fastf1  # noqa: F401
 from tests.openf1_support import fresh_cache, make_session, serve
+from tests.tool_error_support import is_generic_failure
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_fastf1")]
 
@@ -128,7 +130,7 @@ def test_a_round_with_no_qualifying_session_is_reported(mexico_qualifying):
 
 def test_a_comparison_failure_is_reported_rather_than_raised(monkeypatch):
     def refuse(_year, _name):
-        raise ValueError("No 2026 Grand Prix matches 'Nowhere'")
+        raise SafeToShowError("No 2026 Grand Prix matches 'Nowhere'")
 
     monkeypatch.setattr(module, "resolve_event", refuse)
 
@@ -199,9 +201,8 @@ def test_a_race_results_failure_is_reported_rather_than_raised(monkeypatch):
 
     monkeypatch.setattr(module, "resolve_event", refuse)
 
-    assert (
-        get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"})
-        == "Failed to fetch race results: f1db is locked"
+    assert is_generic_failure(
+        get_race_results.invoke({"year": 2026, "grand_prix": "Mexico"}), "Failed to fetch race results"
     )
 
 
@@ -267,7 +268,7 @@ def test_a_race_that_has_not_run_is_reported_as_having_no_data(monkeypatch):
 def test_an_anomaly_failure_is_reported_rather_than_raised(monkeypatch):
     _install_anomalies(monkeypatch, RuntimeError("f1db is locked"))
 
-    assert get_race_anomalies.invoke({"year": 2026, "round_num": 4}) == "Anomaly analysis failed: f1db is locked"
+    assert is_generic_failure(get_race_anomalies.invoke({"year": 2026, "round_num": 4}), "Anomaly analysis failed")
 
 
 # ---------------------------------------------------------------------------

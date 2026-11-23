@@ -595,7 +595,10 @@ def test_a_tool_exception_is_reported_to_the_model(client, monkeypatch):
     _post(client)
 
     tool_message = next(m for m in llm.seen[-1] if isinstance(m, ToolMessage))
-    assert "Error executing tool" in tool_message.content
+    assert tool_message.content.startswith("Tool 'get_race_results' failed:")
+    assert "reference:" in tool_message.content
+    # The raw text can carry hosts and connection strings, and the model may repeat it.
+    assert "pw@db.example" not in tool_message.content
 
 
 @pytest.mark.unit
@@ -879,4 +882,4 @@ class _SlowTool:
 
 class _ExplodingTool:
     def invoke(self, _args):
-        raise ValueError("f1db unavailable")
+        raise RuntimeError("postgres://user:pw@db.example:5432/f1")

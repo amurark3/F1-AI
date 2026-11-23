@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import os
+import sqlite3
 
 from langchain_core.tools import tool
 import structlog
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, f1db_chip
 from app.api.tools.tallies import tally_lines
 from app.config import RULEBOOK_TOP_K
@@ -85,7 +87,7 @@ def consult_rulebook(query: str, year: int | None = None) -> str:
         return header + "\n\n".join(results)
 
     except Exception as e:
-        return f"Rulebook lookup failed: {e}"
+        return f"Rulebook lookup failed: {tool_error_text('tool.consult_rulebook.failed', e)}"
 
 
 @tool
@@ -113,9 +115,13 @@ def query_f1_database(sql: str) -> str:
         result = run_readonly_query(sql)
     except QueryValidationError as exc:
         return f"Query rejected: {exc}"
-    except Exception as exc:
+    except sqlite3.Error as exc:
+        # SQLite's own message ("no such column: …") is what the model needs to
+        # fix its query, and it carries no host, path or credential.
         logger.warning("tool.query_f1_database.error", error=str(exc))
         return f"Query failed: {exc}. Check table/column names against the schema and try again."
+    except Exception as exc:
+        return f"Query failed: {tool_error_text('tool.query_f1_database.failed', exc)}"
 
     rows = result["rows"]
     columns = result["columns"]

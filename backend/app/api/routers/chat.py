@@ -17,7 +17,7 @@ import structlog
 
 from app.api.answer_data import answer_data
 from app.api.answer_repair import checked_answer
-from app.api.errors import client_error_text
+from app.api.errors import client_error_text, tool_error_text
 from app.api.llm import (
     available_providers,
     build_chat_llm,
@@ -230,8 +230,8 @@ async def _invoke_tool(tool_call: dict) -> tuple[str, Provenance | None]:
     try:
         result = await tool_runs.run(key, partial(TOOL_MAP[name].invoke, args), TOOL_TIMEOUT_SECONDS)
     except Exception as exc:
-        logger.exception("tool.error", tool=name, error=str(exc))
-        return f"Error executing tool '{name}': {exc}", None
+        # Raw exception text can carry hosts and connection strings, and the model may repeat it.
+        return f"Tool '{name}' failed: {tool_error_text('tool.error', exc, tool=name)}", None
     if result is None:
         logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
         return (

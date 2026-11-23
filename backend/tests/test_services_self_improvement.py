@@ -17,6 +17,8 @@ no real client is ever constructed.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from langchain_core.messages import AIMessage
 import pytest
 
@@ -67,7 +69,8 @@ def _install_llm(monkeypatch, llm) -> None:
     """Patch the lazily-imported engine factory the post-mortem reaches for."""
     from app.api import llm as llm_module
 
-    monkeypatch.setattr(llm_module, "build_chat_llm", lambda: llm)
+    monkeypatch.setattr(llm_module, "available_providers", lambda: (SimpleNamespace(name="primary"),))
+    monkeypatch.setattr(llm_module, "build_chat_llm", lambda provider: llm)
 
 
 @pytest.mark.unit
@@ -246,7 +249,7 @@ def test_an_llm_outage_yields_no_postmortem_rather_than_an_empty_one(store, monk
     def explode():
         raise RuntimeError("No chat engine is configured")
 
-    monkeypatch.setattr(llm_module, "build_chat_llm", explode)
+    monkeypatch.setattr(llm_module, "available_providers", explode)
 
     assert si.generate_miss_postmortem(2026, 2) is None
     assert store.writes == []
@@ -317,7 +320,7 @@ def test_a_pass_records_actuals_for_a_race_whose_call_is_only_in_its_snapshots(s
     )
     recorded: list[tuple[int, int]] = []
     monkeypatch.setattr(si, "record_actual_result", lambda y, r: recorded.append((y, r)))
-    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r: None)
+    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r, **_kw: None)
 
     assert si.run_self_improvement_pass(2026)["actuals_recorded"] == 1
     assert recorded == [(2026, 3)]
@@ -337,7 +340,7 @@ def test_a_pass_records_actuals_only_for_races_missing_them(store, monkeypatch):
     )
     recorded: list[tuple[int, int]] = []
     monkeypatch.setattr(si, "record_actual_result", lambda y, r: recorded.append((y, r)))
-    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r: None)
+    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r, **_kw: None)
 
     summary = si.run_self_improvement_pass(2026)
 
@@ -358,9 +361,100 @@ def test_a_pass_counts_only_newly_generated_postmortems(store, monkeypatch):
     )
     monkeypatch.setattr(si, "record_actual_result", lambda y, r: pytest.fail("actuals are already recorded"))
     generated: list[tuple[int, int]] = []
-    monkeypatch.setattr(si, "generate_miss_postmortem", lambda y, r: generated.append((y, r)) or {"summary": "x"})
+    monkeypatch.setattr(
+        si, "generate_miss_postmortem", lambda y, r, **_kw: generated.append((y, r)) or {"summary": "x"}
+    )
 
     summary = si.run_self_improvement_pass(2026)
 
     assert generated == [(2026, 2)], "the race that already has a post-mortem must be skipped"
     assert summary["postmortems_generated"] == 1
+
+
+class _OutageLLM:
+    def __init__(self, exc: Exception) -> None:
+        self.exc = exc
+
+    def invoke(self, messages):
+        raise self.exc
+
+
+class _HttpError(Exception):
+    status_code = 429
+
+
+def _evaluated_race(monkeypatch) -> None:
+    monkeypatch.setattr(si, "get_prediction_review", lambda *_: {"evaluated": True})
+    monkeypatch.setattr(si, "_load_prediction_history", dict)
+    monkeypatch.setattr(si, "graded_call", lambda entry: {})
+
+
+def _two_engines(monkeypatch, first, second) -> list[str]:
+    from app.api import llm as llm_module
+
+    primary, backup = SimpleNamespace(name="primary"), SimpleNamespace(name="backup")
+    rested: list[str] = []
+    monkeypatch.setattr(llm_module, "available_providers", lambda: (primary, backup))
+    monkeypatch.setattr(llm_module, "build_chat_llm", lambda provider: first if provider is primary else second)
+    monkeypatch.setattr(llm_module, "mark_unavailable", lambda provider, exc: rested.append(provider.name))
+    return rested
+
+
+@pytest.mark.unit
+def test_a_failing_first_engine_hands_the_write_up_to_the_second(store, monkeypatch):
+    _evaluated_race(monkeypatch)
+    rested = _two_engines(monkeypatch, _OutageLLM(_HttpError("quota")), _FakeLLM("from the backup"))
+
+    payload = si.generate_miss_postmortem(2026, 2)
+
+    assert payload["summary"] == "from the backup"
+    assert rested == ["primary"]
+
+
+@pytest.mark.unit
+def test_every_engine_failing_yields_no_postmortem(store, monkeypatch):
+    _evaluated_race(monkeypatch)
+    rested = _two_engines(monkeypatch, _OutageLLM(_HttpError("a")), _OutageLLM(_HttpError("b")))
+
+    assert si.generate_miss_postmortem(2026, 2) is None
+    assert rested == ["primary", "backup"]
+    assert store.writes == []
+
+
+@pytest.mark.unit
+def test_a_non_provider_error_stops_the_failover(store, monkeypatch):
+    _evaluated_race(monkeypatch)
+    rested = _two_engines(monkeypatch, _OutageLLM(ValueError("bad prompt")), _FakeLLM("never asked"))
+
+    assert si.generate_miss_postmortem(2026, 2) is None
+    assert rested == []
+
+
+@pytest.mark.unit
+def test_no_engines_at_all_yields_no_postmortem(store, monkeypatch):
+    from app.api import llm as llm_module
+
+    _evaluated_race(monkeypatch)
+    monkeypatch.setattr(llm_module, "available_providers", tuple)
+
+    assert si.generate_miss_postmortem(2026, 2) is None
+
+
+@pytest.mark.unit
+def test_a_pass_reads_each_races_postmortem_once(store, monkeypatch):
+    monkeypatch.setattr(
+        si,
+        "_load_prediction_history",
+        lambda: {
+            "(2026,1)": {"predicted_positions": {"VER": 1}, "actual_positions": {"VER": 1}},
+            "(2026,2)": {"predicted_positions": {"VER": 1}, "actual_positions": {"VER": 3}},
+        },
+    )
+    monkeypatch.setattr(si, "get_prediction_review", lambda *_: {"evaluated": False})
+    reads: list[tuple[int, int]] = []
+    stored = {(2026, 1): {"summary": "done"}}
+    monkeypatch.setattr(si, "get_postmortem", lambda y, r: reads.append((y, r)) or stored.get((y, r)))
+
+    si.run_self_improvement_pass(2026)
+
+    assert sorted(reads) == [(2026, 1), (2026, 2)]

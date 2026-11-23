@@ -137,6 +137,8 @@ const COVERAGE_INCLUDE = [
   "app/race-control/champions/**",
   // P7.2: the Rulebook page.
   "app/race-control/rulebook/**",
+  // P3.6: the pages hand their sections server promises instead of awaiting them.
+  "app/race-control/page.tsx",
 ];
 
 /** Every metric must reach this in every included file. */

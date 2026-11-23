@@ -11,7 +11,7 @@ import { useLocalChats } from "./useLocalChats";
 const USER_ID_KEY = "f1ai_user_id";
 
 /** Stable per-browser user id (localStorage), created lazily on first send. */
-function getOrCreateUserId(): string {
+function getOrCreateUserId(): string | null {
   try {
     let id = window.localStorage.getItem(USER_ID_KEY);
     if (!id) {
@@ -20,7 +20,7 @@ function getOrCreateUserId(): string {
     }
     return id;
   } catch {
-    return "anonymous";
+    return null; // no shared id: without storage the chat simply runs without memory
   }
 }
 
@@ -62,7 +62,7 @@ async function requestAnswer(history: Message[], chatId: string): Promise<Readab
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: history.map(({ role, content }) => ({ role, content })),
-        // A stable client id unlocks server-side personalisation and memory; the chat id scopes the thread.
+        // A stable client id unlocks server-side personalisation and memory (null: none); the chat id scopes the thread.
         user_id: getOrCreateUserId(),
         thread_id: chatId,
       }),

@@ -71,7 +71,7 @@ describe("useChat", () => {
     await waitFor(() => expect(result.current.messages.map((m) => m.role)).toEqual(["user", "assistant"]));
   });
 
-  it("falls back to an anonymous user when the browser keeps no id", async () => {
+  it("sends no user id when the browser keeps none", async () => {
     const { bodies } = serveChat();
     const getItem = window.localStorage.getItem.bind(window.localStorage);
     vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string) => {
@@ -82,7 +82,7 @@ describe("useChat", () => {
 
     await act(() => result.current.sendMessage("Hi"));
 
-    expect(bodies[0]).toMatchObject({ user_id: "anonymous" });
+    expect(bodies[0]).toMatchObject({ user_id: null });
   });
 
   it("reports a stream that breaks as unreachable and keeps only the question", async () => {

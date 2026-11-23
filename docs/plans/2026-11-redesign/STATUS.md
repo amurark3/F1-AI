@@ -36,7 +36,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P0c.9 | Decommission Render, Supabase and the Render-era workflows (7 stable days after cutover; next PR) | blocked | | On `feat/oracle-backend`, after the cutover plus 7 stable days. Never on `dev`. |
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
 | P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
-| P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, brief) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
+| P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, executor) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
 ## Log (append only; newest at the bottom)
@@ -52,4 +52,12 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
   - **Placement:** the top-bar status-chip slot carries Starting and Back online at every width, phones included. The real `StatusSlot` is `hidden sm:flex`, so the restart lights are its one phone exception. Stage detail sits in the kit `Tooltip`. Only Unreachable adds a bottom card (Try again and Dismiss need 44 px targets). The card is not a dialog: no focus move, nothing inert, no scroll lock.
   - **Copy:** "Server starting" with "3/5" (phone: "Starting"); "Back online"; "Not responding" (phone: "No response"); card "Server isn't responding". The tooltip names both cases: a restart after an update, or the free tier waking from sleep (about a minute).
   - **Lights out:** at 600 ms, then the strip goes at `LAUNCH_DURATION_MS` (1200 ms). The agent proposed the 600 ms; the plan only says "then plays lights out".
+- **2026-11-23 · P3.6 brief `p3.6-brief.md` (Opus planner); the coordinator accepted its defaults.**
+  - Only three pages still await data at page level: Command Center (`race-control/page.tsx:33`), Grand Prix (`grand-prix/page.tsx:33`, `:47`) and Telemetry (`telemetry/page.tsx:22`, behind a full-page `PageLoader`). P5–P8 already converted the others. The driver, team and car pages read the backend only in `generateMetadata` and `generateStaticParams`.
+  - **No endpoint splits and no backend change.** `/overview/{y}/shell` stays whole: the stakes need the selected race, and `RaceStatusChip` belongs to P3.5.
+  - **Split:** P3.6a Command Center, P3.6b Grand Prix (one Suspense boundary around the hub), P3.6c Telemetry (`TelemetryLab` frame; `PageLoader` deleted), P3.6d `e2e/non-blocking.spec.ts`.
+  - **Defaults accepted:**
+    - **Metadata:** link-preview bots may still wait on data-backed titles when the cache is cold. Browsers don't, because Next 16 streams metadata.
+    - **Grand Prix:** a cold uncached render swaps the empty hub for the full one only when all its server fetches finish.
+  - **Ports:** e2e uses the fixed port 3100 with `reuseExistingServer: false`, so parallel worktree runs clash, failing on "port in use". Executors wait for a free port. The coordinator runs the full suite after merging.
 

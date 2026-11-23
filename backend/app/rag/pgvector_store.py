@@ -22,6 +22,8 @@ import os
 
 import structlog
 
+from app.config import GEMINI_EMBEDDING_DIM
+from app.rag import gemini_embeddings
 from app.utils.embeddings import EMBEDDING_DIM, embed, embed_batch, to_pgvector_literal
 
 logger = structlog.get_logger()
@@ -56,6 +58,11 @@ ALTER TABLE rulebook_chunk
     ADD COLUMN IF NOT EXISTS content_tsv tsvector
     GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 CREATE INDEX IF NOT EXISTS rulebook_chunk_tsv_idx ON rulebook_chunk USING gin (content_tsv);
+
+-- Meaning search with no local model: filled by ``python -m app.rag.gemini_backfill``.
+ALTER TABLE rulebook_chunk ADD COLUMN IF NOT EXISTS embedding_gemini vector({GEMINI_EMBEDDING_DIM});
+CREATE INDEX IF NOT EXISTS rulebook_chunk_gemini_hnsw_idx
+    ON rulebook_chunk USING hnsw (embedding_gemini vector_cosine_ops);
 """
 
 
@@ -73,6 +80,17 @@ def _connect() -> psycopg.Connection:
     import psycopg
 
     return psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
+
+
+def connect() -> psycopg.Connection:
+    """A connection with the schema in place, for the operational modules beside this one."""
+    conn = _connect()
+    try:
+        ensure_schema_conn(conn)
+    except Exception:
+        conn.close()
+        raise
+    return conn
 
 
 def ensure_schema() -> None:
@@ -190,6 +208,25 @@ _KEYWORDS_BY_CATEGORY = """
     LIMIT %s
 """
 
+# Gemini half: rows the backfill has not reached yet are found by keywords only.
+_GEMINI_ALL_CATEGORIES = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding_gemini <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s AND embedding_gemini IS NOT NULL
+    ORDER BY embedding_gemini <=> %s::vector
+    LIMIT %s
+"""
+
+_GEMINI_BY_CATEGORY = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding_gemini <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s AND doc_type = %s AND embedding_gemini IS NOT NULL
+    ORDER BY embedding_gemini <=> %s::vector
+    LIMIT %s
+"""
+
 _YEAR_INDEXED = "SELECT EXISTS (SELECT 1 FROM rulebook_chunk WHERE source_year = %s)"
 
 _RRF_OFFSET = 60
@@ -226,29 +263,32 @@ def search_strict(query: str, year: int, *, category: str | None = None, k: int 
 
 
 def _find(query: str, year: int, category: str | None, k: int) -> list[RulebookHit]:
-    """Keyword hits always, merged with nearest-vector hits when a query embedder is loaded.
+    """Keyword hits always, merged with nearest-vector hits from each embedder that answers
+    (the local model when loaded, Gemini when its key is set and it is not resting).
 
     Logs, then raises, when the database fails.
     """
     by_category = bool(category) and category.lower() != "all"
     scope = [category] if by_category else []
     keyword_sql = _KEYWORDS_BY_CATEGORY if by_category else _KEYWORDS_ALL_CATEGORIES
-    vector = embed(query)
+    semantic = [
+        (_SEARCH_BY_CATEGORY if by_category else _SEARCH_ALL_CATEGORIES, embed(query)),
+        (_GEMINI_BY_CATEGORY if by_category else _GEMINI_ALL_CATEGORIES, gemini_embeddings.embed_query(query)),
+    ]
     try:
         with _connect() as conn:
             ensure_schema_conn(conn)
-            keyword_rows = conn.execute(keyword_sql, [query, str(year), *scope, k]).fetchall()
-            semantic_rows = []
-            if vector is not None:
+            rankings = [conn.execute(keyword_sql, [query, str(year), *scope, k]).fetchall()]
+            for vector_sql, vector in semantic:
+                if vector is None:
+                    continue
                 literal = to_pgvector_literal(vector)
-                vector_sql = _SEARCH_BY_CATEGORY if by_category else _SEARCH_ALL_CATEGORIES
                 # Statement order: similarity vector, year, [category], ORDER BY vector, limit.
-                params = [literal, str(year), *scope, literal, k]
-                semantic_rows = conn.execute(vector_sql, params).fetchall()
+                rankings.append(conn.execute(vector_sql, [literal, str(year), *scope, literal, k]).fetchall())
     except Exception as exc:
         logger.warning("rulebook_pg.search_failed", year=year, error=str(exc))
         raise
-    return _fuse([_hit(r, year) for r in keyword_rows], [_hit(r, year) for r in semantic_rows])[:k]
+    return _fuse(*[[_hit(r, year) for r in rows] for rows in rankings])[:k]
 
 
 def _hit(row: tuple, year: int) -> RulebookHit:

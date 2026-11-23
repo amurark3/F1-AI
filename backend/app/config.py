@@ -146,6 +146,13 @@ CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "data/chroma")
 
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 
+# Rulebook meaning search without a local model: Gemini's embedding API on the
+# chat fallback's free-tier key (GOOGLE_API_KEY). 768 of the model's 3072 dims
+# keeps the pgvector index small.
+GEMINI_EMBEDDING_MODEL = "gemini-embedding-001"
+GEMINI_EMBEDDING_DIM = 768
+GEMINI_EMBEDDING_TIMEOUT_SECONDS = 5.0
+
 # Master switch for loading torch models inside the web process: the
 # sentence-transformers embedder (rulebook queries, conversation memory) and the
 # cross-encoder reranker.

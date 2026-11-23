@@ -67,8 +67,9 @@ executed. It was also reachable by any unauthenticated caller.
 With the flag off (the default), nothing imports torch:
 
 - **Rulebook search** still works: it matches the question's words (and article
-  numbers) with Postgres full-text search, no model needed. With the flag on, the
-  embedding search is merged in.
+  numbers) with Postgres full-text search, no model needed. Meaning search comes
+  from Gemini's embedding API when `GOOGLE_API_KEY` is set (§6); with the flag
+  on, the local embedding search is merged in too.
 - **Chat** works normally and messages are still stored; only semantic recall
   and personalisation are skipped.
 - **Predictions, standings, champions, health** are unaffected.
@@ -82,13 +83,10 @@ env var: the instance also needs `pip install -r requirements-ingest.txt`. With
 the flag on but the package missing, the lazy import raises, is caught, and
 embeddings return `None` — degraded, not crashed.
 
-Restoring rulebook search in production means getting the embedding out of the
-web process. The most promising route is a Supabase Edge Function using the
-built-in `gte-small` model: it is 384-dimensional, matching the existing
-`vector(384)` columns exactly, so no schema migration is needed. It is a
-different model from all-MiniLM-L6-v2 though, so the whole corpus would have to
-be re-embedded through the same function, and the cross-encoder has no Supabase
-equivalent.
+Meaning search in production is the Gemini embedding API (`gemini-embedding-001`,
+768 dims, column `embedding_gemini`): one request per search, no model in
+memory. A failed or rate-limited request rests Gemini for 10 minutes and the
+search carries on with keywords. The cross-encoder reranker stays local-only.
 
 > Missing engine keys do not crash the service — only the chat endpoint fails;
 > health, predictions, standings, and rulebook still work. Set both keys so the
@@ -241,11 +239,11 @@ rulebook is populated separately in pgvector (§6).
 
 One Postgres database backs several things; tables are auto-created on first use:
 
-| Table                          | Written by                          | Purpose                                                   |
-| ------------------------------ | ----------------------------------- | --------------------------------------------------------- |
-| `app_documents`                | prediction cache + accuracy history | durable JSON docs (off Render's ephemeral disk)           |
-| `user_profile`, `chat_message` | chat memory                         | personalization + pgvector conversation recall            |
-| `rulebook_chunk`               | `app.rag.ingest`                    | FIA regulation embeddings (pgvector, 384-dim, HNSW index) |
+| Table                          | Written by                                  | Purpose                                                                 |
+| ------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------- |
+| `app_documents`                | prediction cache + accuracy history         | durable JSON docs (off Render's ephemeral disk)                         |
+| `user_profile`, `chat_message` | chat memory                                 | personalization + pgvector conversation recall                          |
+| `rulebook_chunk`               | `app.rag.ingest`, `app.rag.gemini_backfill` | FIA regulation text + embeddings (384-dim MiniLM, 768-dim Gemini, HNSW) |
 
 Requires the `vector` extension (auto-enabled by the app). Free-tier Supabase
 pauses after ~1 week idle — first request after a pause is slow.
@@ -291,6 +289,19 @@ python -m app.rag.ingest --force    # wipe + re-embed the whole corpus
 re-embeds automatically whenever a PDF under `backend/data/raw/**` changes on
 `main` (the `paths:` filter is the change detection). Also runnable from the
 Actions tab. Requires the `DATABASE_URL` GitHub Actions secret.
+
+**Gemini vectors** (meaning search without a local model):
+
+```bash
+# from backend/, with DATABASE_URL and GOOGLE_API_KEY set
+python -m app.rag.gemini_backfill   # fills rows WHERE embedding_gemini IS NULL
+```
+
+The workflow runs it after every re-embed. The free tier counts each passage as
+one request (100 a minute, plus a daily cap), so a full corpus can take more
+than one day: a 429 stops the run cleanly with filled/remaining counts. Continue
+with **Run workflow → backfill_only**, which skips the re-embed. A re-embed
+truncates the table, Gemini vectors included.
 
 **To update regulations:** drop the new PDF in `backend/data/raw/<year>/`, commit,
 merge → the workflow re-ingests to Supabase on its own.
@@ -374,11 +385,12 @@ curl -s https://f1-ai.onrender.com/api/ready | jq .f1db_sync
 
 ## 9. GitHub Actions secrets
 
-| Secret         | Used by         | Notes                                        |
-| -------------- | --------------- | -------------------------------------------- |
-| `DATABASE_URL` | ingest-rulebook | Supabase connection string                   |
-| `RETRAIN_PAT`  | retrain         | Optional — only if `main` requires approvals |
-| `HF_TOKEN`     | ingest-rulebook | Optional — faster model downloads            |
+| Secret           | Used by         | Notes                                                         |
+| ---------------- | --------------- | ------------------------------------------------------------- |
+| `DATABASE_URL`   | ingest-rulebook | Supabase connection string                                    |
+| `RETRAIN_PAT`    | retrain         | Optional — only if `main` requires approvals                  |
+| `HF_TOKEN`       | ingest-rulebook | Optional — faster model downloads                             |
+| `GOOGLE_API_KEY` | ingest-rulebook | Gemini vectors; AI Studio key from the **no-billing** project |
 
 Set at **GitHub → Settings → Secrets and variables → Actions**.
 

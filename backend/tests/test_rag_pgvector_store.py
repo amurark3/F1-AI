@@ -482,3 +482,100 @@ def test_search_strict_returns_the_same_hits_as_search(monkeypatch):
     monkeypatch.setattr(pgvector_store, "embed", lambda _q: [0.5])
 
     assert pgvector_store.search_strict("pit lane", 2025) == pgvector_store.search("pit lane", 2025)
+
+
+# ---------------------------------------------------------------------------
+# Gemini half (S.3): meaning search with no local model
+# ---------------------------------------------------------------------------
+
+
+class _QuotaError(Exception):
+    code = 429
+
+
+@pytest.mark.unit
+def test_the_schema_adds_the_gemini_column_and_its_cosine_index():
+    from app.config import GEMINI_EMBEDDING_DIM
+
+    ddl = pgvector_store._SCHEMA_SQL
+
+    assert f"ADD COLUMN IF NOT EXISTS embedding_gemini vector({GEMINI_EMBEDDING_DIM})" in ddl
+    assert "USING hnsw (embedding_gemini vector_cosine_ops)" in ddl
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("category", "statement", "scope"),
+    [
+        (None, pgvector_store._GEMINI_ALL_CATEGORIES, []),
+        ("Sporting", pgvector_store._GEMINI_BY_CATEGORY, ["Sporting"]),
+    ],
+)
+def test_a_gemini_vector_binds_in_statement_order(monkeypatch, category, statement, scope):
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[]))
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: None)
+    monkeypatch.setattr(pgvector_store.gemini_embeddings, "embed_query", lambda _q: [0.25])
+
+    pgvector_store.search("safety car", 2025, category=category, k=5)
+
+    assert [s for s, _ in conn.statements[1:]] == [
+        pgvector_store._KEYWORDS_BY_CATEGORY if scope else pgvector_store._KEYWORDS_ALL_CATEGORIES,
+        statement,
+    ]
+    assert conn.statements[2][1] == ["[0.250000]", "2025", *scope, "[0.250000]", 5]
+
+
+@pytest.mark.unit
+def test_with_both_embedders_all_three_rankings_are_fused(monkeypatch):
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[("text", "Sporting", "f.pdf", 3, 0.5)]))
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: [0.5])
+    monkeypatch.setattr(pgvector_store.gemini_embeddings, "embed_query", lambda _q: [0.25])
+
+    hits = pgvector_store.search("safety car", 2025)
+
+    assert [s for s, _ in conn.statements[1:]] == [
+        pgvector_store._KEYWORDS_ALL_CATEGORIES,
+        pgvector_store._SEARCH_ALL_CATEGORIES,
+        pgvector_store._GEMINI_ALL_CATEGORIES,
+    ]
+    assert [h.page_content for h in hits] == ["text"]
+
+
+@pytest.mark.unit
+def test_a_spent_gemini_quota_still_returns_keyword_hits_and_rests_gemini(monkeypatch):
+    from app.rag import gemini_embeddings
+
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[("pit text", "Sporting", "f.pdf", 40, 0.5)]))
+    monkeypatch.setattr(pgvector_store, "embed", lambda _q: None)
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    monkeypatch.setattr(gemini_embeddings, "_resting_until", 0.0)
+
+    def spent_quota(_texts, _task):
+        raise _QuotaError("429 RESOURCE_EXHAUSTED")
+
+    monkeypatch.setattr(gemini_embeddings, "_embed", spent_quota)
+
+    hits = pgvector_store.search("pit lane speed limit", 2025)
+
+    assert [h.metadata["page"] for h in hits] == [40]
+    assert [s for s, _ in conn.statements[1:]] == [pgvector_store._KEYWORDS_ALL_CATEGORIES]
+    assert gemini_embeddings.available() is False
+
+
+@pytest.mark.unit
+def test_connect_returns_a_connection_with_the_schema_applied(monkeypatch):
+    conn = _install_connection(monkeypatch, _FakeConnection())
+
+    assert pgvector_store.connect() is conn
+    assert conn.statements == [(pgvector_store._SCHEMA_SQL, None)]
+
+
+@pytest.mark.unit
+def test_connect_closes_the_connection_when_the_schema_fails(monkeypatch):
+    conn = _FakeConnection(fail_on="CREATE EXTENSION")
+    conn.close = lambda: setattr(conn, "closed", True)
+    _install_connection(monkeypatch, conn)
+
+    with pytest.raises(RuntimeError, match="connection reset"):
+        pgvector_store.connect()
+    assert conn.closed is True

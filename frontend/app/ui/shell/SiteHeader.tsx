@@ -22,7 +22,7 @@ function StatusSlot({ pathname }: { pathname: string }) {
 
 /**
  * The one top bar on every screen (the mockups' `.topbar`): the B1 lockup
- * home, the section links (or MENU below `xl`), the status slot, and the red
+ * home, the section links (or MENU below `lg`), the status slot, and the red
  * streak along its foot. It sticks to the top as the page scrolls.
  */
 export function SiteHeader({ pathname }: { pathname: string }) {

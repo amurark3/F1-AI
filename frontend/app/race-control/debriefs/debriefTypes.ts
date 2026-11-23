@@ -124,3 +124,42 @@ export interface DebriefOvertakes {
   total: number;
   drivers: OvertakeDriver[];
 }
+
+export type RadioMomentKind =
+  | "start"
+  | "safety_car"
+  | "safety_car_in"
+  | "vsc"
+  | "vsc_ending"
+  | "red_flag"
+  | "chequered"
+  | "stop"
+  | "penalty"
+  | "incident"
+  | "retirement";
+
+export interface RadioClip extends DebriefDriver {
+  colour: string;
+  /** 0 = before the driver's lap 1 began. */
+  lap: number;
+  at: string;
+  url: string;
+}
+
+export interface RadioMoment {
+  kind: RadioMomentKind;
+  lap: number;
+  at: string;
+  driver: DebriefDriver | null;
+  detail: string | null;
+  clips: RadioClip[];
+}
+
+export interface DebriefRadio {
+  available: boolean;
+  reason: string | null;
+  total: number;
+  utc_offset_minutes: number | null;
+  moments: RadioMoment[];
+  unattached: RadioClip[];
+}

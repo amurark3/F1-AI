@@ -22,7 +22,7 @@ describe("readRound", () => {
 
 describe("useDebriefUrl", () => {
   it("reads the round and writes a selection without scrolling", () => {
-    const { result } = renderHook(() => useDebriefUrl());
+    const { result } = renderHook(() => useDebriefUrl(2026));
 
     expect(result.current.round).toBe(7);
     result.current.select(9);

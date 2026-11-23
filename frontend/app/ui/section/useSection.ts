@@ -50,7 +50,7 @@ async function fetchSection<T>(url: string): Promise<T> {
  * the section fetches again the moment the probe says ready, rather than
  * waiting out SWR's retry backoff.
  */
-export function useSection<T>(url: string, { seed, config }: UseSectionOptions<T> = {}): SectionResult<T> {
+export function useSection<T>(url: string | null, { seed, config }: UseSectionOptions<T> = {}): SectionResult<T> {
   const restarting = isRestarting(useServerStatus().status);
   const { data, error, isValidating, mutate } = useSWR<T, Error>(url, fetchSection, {
     ...config,

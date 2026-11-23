@@ -20,7 +20,7 @@ const DRIVERS_URL = apiUrl("/api/race-control/drivers/2026");
 const SCHEDULE_URL = apiUrl("/api/schedule/2026");
 
 function url(changes: Partial<HubUrl> = {}): HubUrl {
-  return { round: null, tab: null, view: null, update: vi.fn(), ...changes };
+  return { year: null, round: null, tab: null, view: null, update: vi.fn(), ...changes };
 }
 
 function seedOf(changes: Partial<GrandPrixSeed> = {}): GrandPrixSeed {

@@ -8,16 +8,22 @@
  * document 86 and the penalties and grid come from the FIA's own text). OpenF1 was read
  * live. `summary` and `penalties` are therefore the real payloads; `laps` and `overtakes`
  * are OpenF1's rows as of the capture.
+ *
+ * `DEBRIEF_RADIO_R19` is `radio_payload(radio_inputs())` (`backend/app/services/debrief_radio.py`) over the
+ * R19 fixtures in `backend/tests/fixtures/mexico_2026_r19` (OpenF1 team radio, pit, laps, race control),
+ * captured 2026-11-23 on the local f1db.
  */
 
 import type {
   DebriefLaps,
   DebriefOvertakes,
   DebriefPenalties,
+  DebriefRadio,
   DebriefSummary,
 } from "@/app/race-control/debriefs/debriefTypes";
 
 import raw from "./debrief-2026-r19.json";
+import radioRaw from "./debrief-radio-2026-r19.json";
 
 export const DEBRIEF_R19 = raw as unknown as {
   summary: DebriefSummary;
@@ -25,3 +31,5 @@ export const DEBRIEF_R19 = raw as unknown as {
   penalties: DebriefPenalties;
   overtakes: DebriefOvertakes;
 };
+
+export const DEBRIEF_RADIO_R19 = radioRaw as DebriefRadio;

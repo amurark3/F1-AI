@@ -1,23 +1,30 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { MoreMenu } from "./MoreMenu";
+import { REFERENCE, type NavGroup } from "./navConfig";
+import { NavMenu } from "./NavMenu";
+
+function Menu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState<NavGroup["id"] | null>(null);
+  return <NavMenu group={REFERENCE} pathname={pathname} open={open === REFERENCE.id} onOpen={setOpen} />;
+}
 
 function setup(pathname = "/race-control/telemetry") {
   const user = userEvent.setup();
   const view = render(
     <>
-      <MoreMenu pathname={pathname} />
+      <Menu pathname={pathname} />
       <button type="button">Elsewhere</button>
     </>,
   );
-  return { user, ...view, trigger: screen.getByRole("button", { name: "More" }) };
+  return { user, ...view, trigger: screen.getByRole("button", { name: "Reference" }) };
 }
 
 const link = (name: string) => screen.getByRole("link", { name: new RegExp(`^${name}`) });
 
-describe("MoreMenu", () => {
+describe("NavMenu", () => {
   it("is a closed disclosure until pressed", () => {
     const { trigger } = setup();
 
@@ -26,7 +33,7 @@ describe("MoreMenu", () => {
     expect(trigger).toHaveClass("text-rc-ink-3");
   });
 
-  it("opens on a press to the three reference screens, each with its line, and closes on another", async () => {
+  it("opens on a press to the two Reference screens, each with its line, and closes on another", async () => {
     const { user, trigger } = setup();
 
     await user.click(trigger);
@@ -36,7 +43,6 @@ describe("MoreMenu", () => {
     expect(panel).toBeVisible();
     expect(screen.getAllByRole("link").map((el) => el.getAttribute("href"))).toEqual([
       "/race-control/champions",
-      "/race-control/debriefs",
       "/race-control/rulebook",
     ]);
     expect(link("Champions")).toHaveTextContent("ChampionsEvery world champion since 1950");
@@ -50,7 +56,7 @@ describe("MoreMenu", () => {
     const { user, trigger } = setup();
 
     await user.click(trigger);
-    link("Debriefs").focus();
+    link("Champions").focus();
     await user.keyboard("{Escape}");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(trigger).toHaveFocus();
@@ -90,19 +96,6 @@ describe("MoreMenu", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("closes on navigation", async () => {
-    const { user, trigger, rerender } = setup();
-
-    await user.click(trigger);
-    rerender(
-      <>
-        <MoreMenu pathname="/race-control/grand-prix" />
-        <button type="button">Elsewhere</button>
-      </>,
-    );
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-  });
-
   it("opens from the keyboard: ArrowDown lands on the first link, ArrowUp on the last, both wrap", async () => {
     const { user, trigger } = setup();
 
@@ -128,14 +121,14 @@ describe("MoreMenu", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("marks its section on one of its screens: the underline on More, aria-current on the link", async () => {
+  it("marks its section on one of its screens: the underline on Reference, aria-current on the link", async () => {
     const { user, trigger } = setup("/race-control/champions/1988");
 
     expect(trigger).toHaveClass("text-rc-ink");
     expect(trigger.querySelector("span.bg-f1-red")).not.toBeNull();
     await user.click(trigger);
     expect(link("Champions")).toHaveAttribute("aria-current", "true");
-    expect(link("Debriefs")).not.toHaveAttribute("aria-current");
+    expect(link("Rulebook")).not.toHaveAttribute("aria-current");
   });
 
   it("calls the link to this very page the page", async () => {

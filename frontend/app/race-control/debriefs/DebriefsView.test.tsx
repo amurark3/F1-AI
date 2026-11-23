@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
 import { DIRECTORY_2026, SEASON_2026 } from "@/test/fixtures";
-import { DEBRIEF_R19 } from "@/test/fixtures/debrief";
+import { DEBRIEF_R19, DEBRIEF_RADIO_R19 } from "@/test/fixtures/debrief";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -53,6 +53,7 @@ function serveRace(asked: string[] = []) {
     http.get(PART("/laps"), () => HttpResponse.json(DEBRIEF_R19.laps)),
     http.get(PART("/penalties"), () => HttpResponse.json(DEBRIEF_R19.penalties)),
     http.get(PART("/overtakes"), () => HttpResponse.json(DEBRIEF_R19.overtakes)),
+    http.get(PART("/radio"), () => HttpResponse.json(DEBRIEF_RADIO_R19)),
   );
 }
 
@@ -79,6 +80,9 @@ describe("the Debriefs page", () => {
     expect(await screen.findByRole("heading", { name: "Verstappen led from lap 44 to the flag" })).toBeInTheDocument();
     expect(container.querySelectorAll(".contents > .flex-1")).toHaveLength(71);
     expect(await screen.findByRole("heading", { name: "7 drivers penalised" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "14 of 27 clips came within a lap of a race moment" }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Hadjar made the most position changes" })).toBeInTheDocument();
     expect(await screen.findByText("273")).toBeInTheDocument();
     expect(screen.getByText(/Classification: f1db v2026.20.0/)).toBeInTheDocument();
@@ -91,6 +95,17 @@ describe("the Debriefs page", () => {
     expect(await screen.findByRole("button", { name: "Next round" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Previous round" }));
     expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?round=19", { scroll: false });
+  });
+
+  it("loads the selected historical season and keeps it when changing rounds", async () => {
+    nav.search = "round=19&year=2025";
+    const historical = SEASON_2026.schedule.filter(({ round }) => round === 18 || round === 19);
+    server.use(http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json(historical)));
+    const { user } = await renderPage();
+
+    const picker = await screen.findByRole("group", { name: "2025 race picker" });
+    await user.click(within(picker).getByRole("button", { name: "Previous round" }));
+    expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?round=18&year=2025", { scroll: false });
   });
 
   it("opens the latest completed round for a round off the calendar or still to run, from the server's seed", async () => {
@@ -167,7 +182,7 @@ describe("the Debriefs page", () => {
     server.use(http.get(SCHEDULE_URL, () => HttpResponse.json(upcoming)));
     await renderPage({ schedule: Promise.resolve(upcoming), summary: Promise.resolve(null) });
 
-    const hero = await screen.findByRole("heading", { level: 1, name: "Debriefs" });
+    const hero = await screen.findByRole("heading", { level: 1, name: "Debrief" });
     expect(hero).toBeInTheDocument();
     expect(
       within(hero.closest("header")!).getByText("The first debrief appears once a race of the season is classified."),

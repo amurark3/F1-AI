@@ -2,10 +2,10 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import HomePage from "./page";
-import { MORE_NAV, PRIMARY_NAV } from "./ui/shell/navConfig";
+import { NAV_GROUPS, NAV_LINKS } from "./ui/shell/navConfig";
 
 /** Every screen the site's navigation names: the homepage's links must land on these. */
-const NAV_HREFS = [...PRIMARY_NAV, ...MORE_NAV].map((link) => link.href);
+const NAV_HREFS = NAV_LINKS.map((link) => link.href);
 
 /** The text a reader gets: the page without the parts hidden from assistive tech (index numerals, motifs). */
 function readableText(container: HTMLElement): string {
@@ -26,20 +26,29 @@ describe("HomePage", () => {
     );
   });
 
-  it("orders the screens into the three sections of the mockup", () => {
+  it("orders the screens into the five sections of the mockup", () => {
     render(<HomePage />);
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
-      "Race weekend",
-      "Decision tools",
+      "Race Control",
+      "Races",
+      "Season",
       "Reference",
+      "AI Engineer",
     ]);
-    const reference = screen.getByRole("region", { name: "Reference" });
-    expect(
-      within(reference)
-        .getAllByRole("heading", { level: 3 })
-        .map((heading) => heading.textContent),
-    ).toEqual(["Champions", "Race Debriefs", "Rulebook"]);
+    for (const group of NAV_GROUPS) {
+      const section = screen.getByRole("region", { name: group.label });
+      expect(
+        within(section)
+          .getAllByRole("heading", { level: 3 })
+          .map((heading) => heading.textContent),
+      ).toEqual(group.links.map((link) => link.label));
+      expect(
+        within(section)
+          .getAllByRole("link")
+          .map((link) => link.getAttribute("href")),
+      ).toEqual(group.links.map((link) => link.href));
+    }
   });
 
   it("links only to screens in the site's navigation, and to every one of them", () => {
@@ -53,7 +62,12 @@ describe("HomePage", () => {
   it("offers the AI Engineer's kinds of question without a sample answer", () => {
     render(<HomePage />);
 
-    const questions = screen.getByRole("list", { name: "Questions to try" });
+    const raceControl = within(screen.getByRole("region", { name: "Race Control" }));
+    const engineer = within(screen.getByRole("region", { name: "AI Engineer" }));
+    expect(raceControl.getByRole("link")).toHaveAttribute("href", "/race-control");
+    expect(engineer.getByRole("link")).toHaveAttribute("href", "/race-control/engineer");
+
+    const questions = engineer.getByRole("list", { name: "Questions to try" });
     const asked = within(questions)
       .getAllByRole("listitem")
       .map((item) => item.textContent);

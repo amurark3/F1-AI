@@ -67,6 +67,31 @@ function CalendarMotif() {
   );
 }
 
+/** Debrief: the lead changes hands above a strip of race segments. */
+function LeadersMotif() {
+  return (
+    <svg viewBox="0 0 300 64" className="h-16 w-full">
+      <path d="M0 26 H112 L118 10 H300" fill="none" stroke={rc.dim} strokeWidth={2} />
+      <rect x="0" y="40" width="112" height="16" rx="1" fill={rc.ink2} opacity=".55" />
+      <rect x="115" y="40" width="66" height="16" rx="1" fill={rc.ink2} opacity=".3" />
+      <rect x="184" y="40" width="116" height="16" rx="1" fill={rc.ink2} opacity=".75" />
+    </svg>
+  );
+}
+
+/** Race Rewind: position changes with a scrubber marking the lap. */
+function RewindMotif() {
+  return (
+    <svg viewBox="0 0 300 64" className="h-16 w-full">
+      <path d="M0 8 H60 L80 30 H300" fill="none" stroke={rc.ink2} strokeWidth={2} />
+      <path d="M0 30 H60 L80 8 H170 L190 52 H300" fill="none" stroke={rc.dim} strokeWidth={2} />
+      <path d="M0 52 H170 L190 8 H300" fill="none" stroke={rc.ink2} strokeWidth={2} opacity=".55" />
+      <line x1="220" x2="220" y1="0" y2="64" stroke={rc.ink} strokeWidth="1.5" />
+      <circle cx="220" cy="60" r="4" fill={f1.red} />
+    </svg>
+  );
+}
+
 /** Telemetry Lab: two speed traces through the same corners, one in front. */
 const TRACES = {
   lead: "M0 50 C 30 50 40 12 70 12 S 95 14 105 40 S 130 58 150 30 S 185 8 210 10 S 240 46 255 52 S 285 20 300 16",
@@ -146,12 +171,38 @@ function PowerUnitsMotif() {
   );
 }
 
+/** Champions: a podium outline with the winner's step picked out in gold. */
+function PodiumMotif() {
+  return (
+    <svg viewBox="0 0 300 64" preserveAspectRatio="xMinYMid meet" className="h-16 w-full">
+      <path d="M2 58 V33 H100 M100 58 V12 M200 58 V12 M200 42 H298 V58" fill="none" stroke={rc.ink2} strokeWidth={2} />
+      <path d="M0 58 H300" stroke={rc.line} strokeWidth={2} />
+      <path d="M100 12 H200" stroke={rc.gold} strokeWidth={2} />
+    </svg>
+  );
+}
+
+/** Rulebook: a search lens beside lines of regulation text. */
+function RegulationsMotif() {
+  return (
+    <svg viewBox="0 0 300 64" preserveAspectRatio="xMinYMid meet" className="h-16 w-full">
+      <path d="M2 12 H171 M2 36 H153 M2 48 H116" fill="none" stroke={rc.dim} strokeWidth={2} />
+      <path d="M2 24 H187 M240 40 L257 57" fill="none" stroke={rc.ink2} strokeWidth={2} />
+      <circle cx="228" cy="28" r="17" fill="none" stroke={rc.ink2} strokeWidth={2} />
+    </svg>
+  );
+}
+
 const MOTIFS: Record<ToolMotif, () => React.JSX.Element> = {
   calendar: CalendarMotif,
+  leaders: LeadersMotif,
+  rewind: RewindMotif,
   traces: TracesMotif,
   standings: StandingsMotif,
   lineups: LineupsMotif,
   powerUnits: PowerUnitsMotif,
+  podium: PodiumMotif,
+  regulations: RegulationsMotif,
 };
 
 /** The motif strip at the top of a decision-tool card. */

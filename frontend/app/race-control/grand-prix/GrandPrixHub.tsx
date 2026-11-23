@@ -8,7 +8,22 @@ import { DEFAULT_HUB_URL, useHubUrlState } from "./useHubUrlState";
 import type { GrandPrixSeed } from "./hubSeed";
 
 function UrlBoundView({ seed }: { seed: GrandPrixSeed }) {
-  return <GrandPrixView seed={seed} url={useHubUrlState()} />;
+  const url = useHubUrlState(seed.year);
+  const year = url.year ?? seed.year;
+  const seasonSeed: GrandPrixSeed =
+    year === seed.year
+      ? seed
+      : {
+          year,
+          schedule: null,
+          drivers: null,
+          snapshots: { pre_qualifying: null, post_qualifying: null },
+          snapshotRound: null,
+          grid: null,
+          sessions: null,
+          strategy: null,
+        };
+  return <GrandPrixView key={year} seed={seasonSeed} url={url} />;
 }
 
 /**

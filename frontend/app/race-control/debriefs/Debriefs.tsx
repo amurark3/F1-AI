@@ -7,8 +7,19 @@ import { DEFAULT_DEBRIEF_URL, useDebriefUrl } from "./useDebriefUrl";
 
 import type { DebriefSeeds } from "./useDebriefSections";
 
+const EMPTY_SEEDS: DebriefSeeds = { schedule: Promise.resolve(null), summary: Promise.resolve(null) };
+
 function UrlBoundView({ year, seeds }: { year: number; seeds: DebriefSeeds }) {
-  return <DebriefsView year={year} seeds={seeds} url={useDebriefUrl()} />;
+  const url = useDebriefUrl(year);
+  const selectedYear = url.year ?? year;
+  return (
+    <DebriefsView
+      key={selectedYear}
+      year={selectedYear}
+      seeds={selectedYear === year ? seeds : EMPTY_SEEDS}
+      url={url}
+    />
+  );
 }
 
 /**

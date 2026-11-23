@@ -17,15 +17,19 @@ export function teamHref(teamId: string): string {
 }
 
 /** The debrief of a round's race; with no round, the page opens the latest one. */
-export function debriefHref(round: number | null): string {
-  return round === null ? "/race-control/debriefs" : `/race-control/debriefs?round=${round}`;
+export function debriefHref(round: number | null, year?: number): string {
+  const query = new URLSearchParams();
+  if (round !== null) query.set("round", String(round));
+  if (year !== undefined) query.set("year", String(year));
+  return query.size === 0 ? "/race-control/debriefs" : `/race-control/debriefs?${query}`;
 }
 
 /** A round of the Grand Prix Hub, opened on a given tab. */
-export function grandPrixHref(round: number, tab?: GrandPrixTab): string {
+export function grandPrixHref(round: number, tab?: GrandPrixTab, year?: number): string {
   const query = new URLSearchParams({ round: String(round) });
   if (tab) {
     query.set("tab", tab);
   }
+  if (year !== undefined) query.set("year", String(year));
   return `/race-control/grand-prix?${query.toString()}`;
 }

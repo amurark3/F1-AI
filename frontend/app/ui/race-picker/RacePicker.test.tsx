@@ -193,21 +193,10 @@ describe("RacePicker", () => {
     expect(screen.queryByRole("listbox", { name: "All 2026 races" })).not.toBeInTheDocument();
   });
 
-  it("leads with a season select when the page offers past seasons", async () => {
-    const onSelectYear = vi.fn();
-    const { user } = renderPicker({ seasons: { years: [2026, 2025, 2024, 2023], onSelect: onSelectYear } });
-
-    const season = screen.getByRole("combobox", { name: "Season" });
-    expect(season).toHaveValue("2026");
-    await user.selectOptions(season, "2024");
-    expect(onSelectYear).toHaveBeenCalledWith(2024);
-  });
-
-  it("says so when the calendar is empty, keeping the season select", () => {
-    renderPicker({ races: [], selectedRound: null, seasons: { years: [2026, 2025], onSelect: vi.fn() } });
+  it("says so when the calendar is empty", () => {
+    renderPicker({ races: [], selectedRound: null });
 
     expect(screen.getByText("Season calendar unavailable.")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Season" })).toBeInTheDocument();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 

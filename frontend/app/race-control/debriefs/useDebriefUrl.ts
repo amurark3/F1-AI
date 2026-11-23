@@ -3,14 +3,17 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
+import { raceQuery, readRaceYear } from "@/app/ui/race-picker/raceUrl";
+
 export interface DebriefUrl {
+  year: number | null;
   /** The round the URL names; null when it names none or something that is no round. */
   round: number | null;
   select: (round: number) => void;
 }
 
 /** What the server render shows: the default round, before the URL can be read. */
-export const DEFAULT_DEBRIEF_URL: DebriefUrl = { round: null, select: () => undefined };
+export const DEFAULT_DEBRIEF_URL: DebriefUrl = { year: null, round: null, select: () => undefined };
 
 /** `?round=` as a positive integer, else null. */
 export function readRound(search: URLSearchParams): number | null {
@@ -19,14 +22,16 @@ export function readRound(search: URLSearchParams): number | null {
 }
 
 /** The round held in the URL, and a way to change it without a scroll jump. */
-export function useDebriefUrl(): DebriefUrl {
+export function useDebriefUrl(currentYear: number): DebriefUrl {
   const search = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const round = useMemo(() => readRound(new URLSearchParams(search.toString())), [search]);
+  const params = useMemo(() => new URLSearchParams(search.toString()), [search]);
+  const year = readRaceYear(params, currentYear);
+  const round = readRound(params);
   const select = useCallback(
-    (next: number) => router.replace(`${pathname}?round=${next}`, { scroll: false }),
-    [pathname, router],
+    (next: number) => router.replace(`${pathname}?${raceQuery(next, year)}`, { scroll: false }),
+    [pathname, router, year],
   );
-  return useMemo(() => ({ round, select }), [round, select]);
+  return useMemo(() => ({ year, round, select }), [round, select, year]);
 }

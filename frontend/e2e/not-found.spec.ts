@@ -1,11 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { MORE_NAV, PRIMARY_NAV } from "../app/ui/shell/navConfig";
+import { COMMAND_CENTER_LINK, ENGINEER_LINK, NAV_LINKS } from "../app/ui/shell/navConfig";
 
 import { mockBackend } from "./support/mockBackend";
 
-/** Every screen, in the order the top bar and the More menu list them. */
-const SCREENS = [...PRIMARY_NAV, ...MORE_NAV];
+/** Every screen, in the order the grouped navigation list them. */
+const SCREENS = NAV_LINKS;
 
 const footerLinks = (page: Page) =>
   page.getByRole("contentinfo").getByRole("navigation", { name: "Footer" }).getByRole("link");
@@ -36,14 +36,15 @@ test("an unknown address answers 404 with the styled page, in the shell, and a w
   await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toHaveCount(0);
 });
 
-test("the footer lists the same screens as the top bar and the More menu, on every framed page", async ({ page }) => {
+test("the footer lists the same screens as the grouped navigation, on every framed page", async ({ page }) => {
   for (const path of ["/race-control", "/no-such-page"]) {
     await page.goto(path);
 
     await expect(footerLinks(page)).toHaveText(SCREENS.map(({ label }) => label));
     expect(await hrefs(footerLinks(page))).toEqual(SCREENS.map(({ href }) => href));
-    await expect(page.getByRole("banner").getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveText(
-      PRIMARY_NAV.map(({ label }) => label),
-    );
+    await expect(page.getByRole("banner").getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveText([
+      COMMAND_CENTER_LINK.label,
+      ENGINEER_LINK.label,
+    ]);
   }
 });

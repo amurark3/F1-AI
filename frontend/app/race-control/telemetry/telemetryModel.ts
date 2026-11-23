@@ -14,9 +14,6 @@ export const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "tyres", label: "Tyre Degradation" },
 ];
 
-/** OpenF1 holds lap and car data from this season on. */
-export const FIRST_SEASON = 2023;
-
 export type UnavailableReason =
   | "no_session"
   | "no_driver"

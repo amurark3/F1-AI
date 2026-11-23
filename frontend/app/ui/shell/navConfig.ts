@@ -1,7 +1,5 @@
 /**
- * The site's navigation, in one place: the top bar's links, the screens kept
- * under "More", and which routes the shell frames how. No React, so the
- * header, the mobile menu and (P3.4) the footer all read the same lists.
+ * The site's navigation, shared by the top bar, drawer, footer and homepage.
  */
 
 export interface NavLink {
@@ -11,26 +9,77 @@ export interface NavLink {
   exact?: boolean;
   /** Other paths the link owns, so their pages light it too. */
   owns?: readonly string[];
-  /** One line on what the screen holds, shown in the More menu. */
+  /** One line on what the screen holds, shown in the grouped menus. */
   description?: string;
 }
 
-/** The top bar, left to right (docs/design/redesign: every mockup's `.nav`). */
-export const PRIMARY_NAV: readonly NavLink[] = [
-  { href: "/race-control", label: "Race Control", exact: true },
-  { href: "/race-control/grand-prix", label: "Grand Prix" },
-  { href: "/race-control/telemetry", label: "Telemetry" },
-  { href: "/race-control/standings", label: "Standings" },
-  { href: "/race-control/constructors", label: "Teams", owns: ["/race-control/drivers"] },
-  { href: "/race-control/power-units", label: "Power Units" },
-  { href: "/race-control/engineer", label: "AI Engineer" },
-];
+export const COMMAND_CENTER_LINK = { href: "/race-control", label: "Race Control", exact: true } as const;
+export const ENGINEER_LINK = { href: "/race-control/engineer", label: "AI Engineer" } as const;
 
-/** The reference screens behind the "More" menu (PLAN, Locked decisions: Navigation). */
-export const MORE_NAV: readonly NavLink[] = [
-  { href: "/race-control/champions", label: "Champions", description: "Every world champion since 1950" },
-  { href: "/race-control/debriefs", label: "Debriefs", description: "What happened in each race, and why" },
-  { href: "/race-control/rulebook", label: "Rulebook", description: "Search the FIA regulations" },
+type RaceNavLink = NavLink & { description: string; switcherLabel?: string; afterRace?: true };
+
+export const RACE_VIEWS = {
+  "grand-prix": {
+    href: "/race-control/grand-prix",
+    label: "Grand Prix",
+    description: "Weekend, sessions, grid, results, predictions",
+  },
+  telemetry: {
+    href: "/race-control/telemetry",
+    label: "Telemetry",
+    description: "Laps, speed traces and tyres",
+  },
+  debrief: {
+    href: "/race-control/debriefs",
+    label: "Debrief",
+    description: "What happened in the race, and why",
+    afterRace: true,
+  },
+  rewind: {
+    href: "/race-control/rewind",
+    label: "Race Rewind",
+    description: "Replay the running order lap by lap",
+    switcherLabel: "Rewind",
+    afterRace: true,
+  },
+} as const satisfies Record<string, RaceNavLink>;
+
+export type RaceView = keyof typeof RACE_VIEWS;
+export const RACES = { id: "races", label: "Races", links: Object.values(RACE_VIEWS) } as const;
+
+export const SEASON = {
+  id: "season",
+  label: "Season",
+  links: [
+    { href: "/race-control/standings", label: "Standings", description: "Championship gaps and who can still win" },
+    {
+      href: "/race-control/constructors",
+      label: "Teams & drivers",
+      description: "Line-ups and every driver's finishes",
+      owns: ["/race-control/drivers"],
+    },
+    { href: "/race-control/power-units", label: "Power Units", description: "Engine allocations and grid penalties" },
+  ],
+} as const;
+
+export const REFERENCE = {
+  id: "reference",
+  label: "Reference",
+  links: [
+    { href: "/race-control/champions", label: "Champions", description: "Every world champion since 1950" },
+    { href: "/race-control/rulebook", label: "Rulebook", description: "Search the FIA regulations" },
+  ],
+} as const;
+
+export const NAV_GROUPS = [RACES, SEASON, REFERENCE] as const;
+export type NavGroup = (typeof NAV_GROUPS)[number];
+
+export const NAV_LINKS: readonly NavLink[] = [
+  COMMAND_CENTER_LINK,
+  ...RACES.links,
+  ...SEASON.links,
+  ...REFERENCE.links,
+  ENGINEER_LINK,
 ];
 
 /** How the shell frames a route's content. */
@@ -47,7 +96,7 @@ const BARE_ROUTES: readonly string[] = ["/"];
  * themselves, so they get no page wrap and no footer. Each prints the F1
  * disclaimer itself.
  */
-const WORKSPACE_ROUTES: readonly string[] = ["/race-control/engineer"];
+const WORKSPACE_ROUTES: readonly string[] = [ENGINEER_LINK.href];
 
 /** True when `pathname` is `path` or a page below it (whole segments only). */
 function within(path: string, pathname: string): boolean {
@@ -71,11 +120,6 @@ const ARIA_CURRENT = { page: "page", section: "true" } as const;
 export function ariaCurrent(link: NavLink, pathname: string): "page" | "true" | undefined {
   const state = currentState(link, pathname);
   return state === null ? undefined : ARIA_CURRENT[state];
-}
-
-/** True on any screen kept under "More", so its trigger shows the current section. */
-export function isMoreCurrent(pathname: string): boolean {
-  return MORE_NAV.some((link) => currentState(link, pathname) !== null);
 }
 
 /** How the shell frames `pathname`; an unknown path gets the page wrap. */

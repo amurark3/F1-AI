@@ -138,6 +138,7 @@ describe("TelemetryView", () => {
     server.use(http.get(apiUrl("/api/schedule/2026"), () => HttpResponse.json([])));
     renderView("", { year: 2026, schedule: [] });
     expect(await screen.findByText("Season calendar unavailable.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Season" })).toBeEnabled();
     expect(screen.queryByRole("radiogroup", { name: "Session" })).not.toBeInTheDocument();
   });
 
@@ -166,7 +167,9 @@ describe("TelemetryView changes", () => {
 
   it("writes a new season to the URL with no round", async () => {
     const { user } = renderView("round=19&session=Q&a=ANT");
-    await user.selectOptions(await screen.findByRole("combobox", { name: "Season" }), "2025");
+    const season = screen.getByRole("combobox", { name: "Season" });
+    expect(season).toHaveValue("2026");
+    await user.selectOptions(season, "2025");
     expect(lastQuery().get("year")).toBe("2025");
     for (const key of ["round", "session", "a", "lap", "segment"]) expect(lastQuery().has(key)).toBe(false);
   });

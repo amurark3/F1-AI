@@ -2,15 +2,25 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { SectionHead } from "@/app/ui/SectionHead";
+import { COMMAND_CENTER_LINK, ENGINEER_LINK, RACES, REFERENCE, SEASON } from "@/app/ui/shell/navConfig";
 import { WRAP } from "@/app/ui/shell/wrap";
 import { EYEBROW } from "@/app/ui/typography";
 
-import { AI_ENGINEER, COMMAND_CENTER, REFERENCE, TOOLS, type HomeLink } from "./content";
+import {
+  AI_ENGINEER,
+  COMMAND_CENTER,
+  RACE_CARDS,
+  REFERENCE_CARDS,
+  SEASON_CARDS,
+  type HomeLink,
+  type ToolMotif,
+} from "./content";
 import { RacingLine, ToolMotifStrip } from "./motifs";
 
 /** The mockups' `.panel.card`: a whole-card link that warms to red on hover. */
 const CARD =
-  "group relative flex min-w-0 flex-col rounded-md border border-rc-line bg-(--surface) p-7 transition-colors hover:border-f1-red/75";
+  "group relative min-w-0 rounded-md border border-rc-line bg-(--surface) p-7 transition-colors hover:border-f1-red/75";
+const FEATURE_CARD = `${CARD} grid items-center gap-6 sm:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] sm:gap-10`;
 const CARD_TITLE = "my-2.5 font-display text-[30px] font-extrabold uppercase leading-none text-rc-ink text-balance";
 const CARD_TEXT = "max-w-[44ch] text-sm text-rc-ink-2 text-pretty";
 
@@ -47,98 +57,81 @@ function HomeSection({
   );
 }
 
-function RaceWeekend() {
+function RaceControl() {
   return (
-    <HomeSection index={1} id="home-weekend" title="Race weekend">
-      <div className="grid gap-5 lg:grid-cols-[7fr_5fr]">
-        <Link href={COMMAND_CENTER.href} className={CARD}>
-          <CardArrow />
-          <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.1fr]">
-            <div>
-              <p className={EYEBROW}>{COMMAND_CENTER.eyebrow}</p>
-              <h3 className={CARD_TITLE}>{COMMAND_CENTER.title}</h3>
-              <p className={CARD_TEXT}>{COMMAND_CENTER.description}</p>
-            </div>
-            <RacingLine />
-          </div>
-        </Link>
-        <Link href={AI_ENGINEER.href} className={CARD}>
-          <CardArrow />
-          <p className={EYEBROW}>{AI_ENGINEER.eyebrow}</p>
+    <HomeSection index={1} id="home-race-control" title={COMMAND_CENTER_LINK.label}>
+      <Link href={COMMAND_CENTER.href} className={FEATURE_CARD}>
+        <CardArrow />
+        <div>
+          <p className={EYEBROW}>{COMMAND_CENTER.eyebrow}</p>
+          <h3 className={CARD_TITLE}>{COMMAND_CENTER.title}</h3>
+          <p className={CARD_TEXT}>{COMMAND_CENTER.description}</p>
+        </div>
+        <div className="w-full max-w-[280px] justify-self-center">
+          <RacingLine />
+        </div>
+      </Link>
+    </HomeSection>
+  );
+}
+
+function Engineer() {
+  return (
+    <HomeSection index={5} id="home-engineer" title={ENGINEER_LINK.label}>
+      <Link href={AI_ENGINEER.href} className={FEATURE_CARD}>
+        <CardArrow />
+        <div>
           <h3 className={CARD_TITLE}>{AI_ENGINEER.title}</h3>
           <p className={CARD_TEXT}>{AI_ENGINEER.description}</p>
-          <ul aria-label="Questions to try" className="mt-auto grid gap-2 pt-[22px]">
-            {AI_ENGINEER.questions.map((question) => (
-              <li
-                key={question}
-                className="max-w-[85%] justify-self-end rounded-md bg-rc-raised px-3.5 py-2.5 text-[13px] leading-normal text-rc-ink"
-              >
-                {question}
-              </li>
-            ))}
-          </ul>
+        </div>
+        <ul aria-label="Questions to try" className="grid gap-2 sm:pr-8">
+          {AI_ENGINEER.questions.map((question) => (
+            <li
+              key={question}
+              className="max-w-[85%] justify-self-end rounded-md bg-rc-raised px-3.5 py-2.5 text-[13px] leading-normal text-rc-ink"
+            >
+              {question}
+            </li>
+          ))}
+        </ul>
+      </Link>
+    </HomeSection>
+  );
+}
+
+function ToolCards({ cards, className }: { cards: ReadonlyArray<HomeLink & { motif: ToolMotif }>; className: string }) {
+  return (
+    <div className={`grid gap-5 ${className}`}>
+      {cards.map((tool) => (
+        <Link key={tool.href} href={tool.href} className={`${CARD} flex flex-col`}>
+          <CardArrow />
+          <ToolMotifStrip motif={tool.motif} />
+          <h3 className={CARD_TITLE}>{tool.title}</h3>
+          <p className={CARD_TEXT}>{tool.description}</p>
         </Link>
-      </div>
-    </HomeSection>
+      ))}
+    </div>
   );
 }
 
-function DecisionTools() {
-  return (
-    <HomeSection index={2} id="home-tools" title="Decision tools">
-      <div className="grid gap-5 lg:grid-cols-6">
-        {TOOLS.map((tool) => (
-          <Link key={tool.href} href={tool.href} className={`${CARD} ${tool.wide ? "lg:col-span-3" : "lg:col-span-2"}`}>
-            <CardArrow />
-            <ToolMotifStrip motif={tool.motif} />
-            <h3 className={CARD_TITLE}>{tool.title}</h3>
-            <p className={CARD_TEXT}>{tool.description}</p>
-          </Link>
-        ))}
-      </div>
-    </HomeSection>
-  );
-}
-
-function ReferenceRow({ link, number }: { link: HomeLink; number: string }) {
-  return (
-    <Link
-      href={link.href}
-      className="group grid grid-cols-[36px_1fr_auto] items-baseline gap-x-6 gap-y-2 border-b border-rc-line px-1 py-[22px] transition-colors hover:bg-rc-hero lg:grid-cols-[56px_300px_1fr_auto]"
-    >
-      <span aria-hidden="true" className="font-mono text-xs font-semibold leading-none text-rc-ink-3">
-        {number}
-      </span>
-      <h3 className="font-display text-[28px] font-extrabold uppercase leading-none text-rc-ink">{link.title}</h3>
-      <p className="col-start-2 text-sm text-rc-ink-2 lg:col-start-auto">{link.description}</p>
-      <ArrowRight
-        aria-hidden="true"
-        className="size-4 self-center text-rc-ink-3 transition-transform group-hover:translate-x-1 group-hover:text-rc-red-text"
-      />
-    </Link>
-  );
-}
-
-function Reference() {
-  return (
-    <HomeSection index={3} id="home-reference" title="Reference">
-      <div>
-        {REFERENCE.map((link, index) => (
-          <ReferenceRow key={link.href} link={link} number={`03.${index + 1}`} />
-        ))}
-      </div>
-    </HomeSection>
-  );
-}
-
-/** Sections 01–03 of home.html: every screen, grouped by when you reach for it. */
 export function HomeSections() {
   return (
     <div className={GRID_TEXTURE}>
       <div className={`${WRAP} pb-[120px]`}>
-        <RaceWeekend />
-        <DecisionTools />
-        <Reference />
+        <RaceControl />
+        <HomeSection index={2} id="home-races" title={RACES.label}>
+          <p className="-mt-3 mb-6 text-sm text-rc-ink-2">
+            One race, four ways in. Pick a round once and move between them.
+          </p>
+          <ToolCards cards={RACE_CARDS} className="sm:grid-cols-2 lg:grid-cols-4" />
+        </HomeSection>
+        <HomeSection index={3} id="home-season" title={SEASON.label}>
+          <ToolCards cards={SEASON_CARDS} className="sm:grid-cols-2 lg:grid-cols-3" />
+        </HomeSection>
+        <HomeSection index={4} id="home-reference" title={REFERENCE.label}>
+          <ToolCards cards={REFERENCE_CARDS} className="sm:grid-cols-2" />
+        </HomeSection>
+        <Engineer />
       </div>
     </div>
   );

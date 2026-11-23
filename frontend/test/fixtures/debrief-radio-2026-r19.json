@@ -1,0 +1,333 @@
+{
+ "available": true,
+ "reason": null,
+ "total": 27,
+ "utc_offset_minutes": -360,
+ "moments": [
+  {
+   "kind": "start",
+   "lap": 1,
+   "at": "2026-11-01T20:00:00+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "HIR",
+     "driver_name": "Ryō Hirakawa",
+     "team": "",
+     "colour": "#8A8F98",
+     "lap": 0,
+     "at": "2026-11-01T19:55:24.566000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HIR_50_20261101_135512.mp3"
+    },
+    {
+     "driver_code": "NOR",
+     "driver_name": "Lando Norris",
+     "team": "McLaren",
+     "colour": "#F47600",
+     "lap": 0,
+     "at": "2026-11-01T19:59:28.007000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/NOR_1_20261101_135842.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "incident",
+   "lap": 1,
+   "at": "2026-11-01T20:03:57+00:00",
+   "driver": {
+    "driver_code": "HAM",
+    "driver_name": "Lewis Hamilton",
+    "team": "Ferrari"
+   },
+   "detail": "Turn 4 · with LEC",
+   "clips": [
+    {
+     "driver_code": "HAM",
+     "driver_name": "Lewis Hamilton",
+     "team": "Ferrari",
+     "colour": "#ED1131",
+     "lap": 2,
+     "at": "2026-11-01T20:05:33.579000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HAM_44_20261101_140511.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "safety_car",
+   "lap": 44,
+   "at": "2026-11-01T21:04:06+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "LEC",
+     "driver_name": "Charles Leclerc",
+     "team": "Ferrari",
+     "colour": "#ED1131",
+     "lap": 43,
+     "at": "2026-11-01T21:02:27.717000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/LEC_16_20261101_150150.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "red_flag",
+   "lap": 45,
+   "at": "2026-11-01T21:06:02+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "ANT",
+     "driver_name": "Kimi Antonelli",
+     "team": "Mercedes",
+     "colour": "#00D7B6",
+     "lap": 45,
+     "at": "2026-11-01T21:06:01.016000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_150531.mp3"
+    },
+    {
+     "driver_code": "HAM",
+     "driver_name": "Lewis Hamilton",
+     "team": "Ferrari",
+     "colour": "#ED1131",
+     "lap": 46,
+     "at": "2026-11-01T21:08:33.136000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HAM_44_20261101_150819.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "safety_car",
+   "lap": 59,
+   "at": "2026-11-01T22:05:02+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "NOR",
+     "driver_name": "Lando Norris",
+     "team": "McLaren",
+     "colour": "#F47600",
+     "lap": 58,
+     "at": "2026-11-01T22:04:23.174000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/NOR_1_20261101_160351.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "incident",
+   "lap": 59,
+   "at": "2026-11-01T22:05:04+00:00",
+   "driver": {
+    "driver_code": "PIA",
+    "driver_name": "Oscar Piastri",
+    "team": "McLaren"
+   },
+   "detail": "Turn 2 · with LIN",
+   "clips": [
+    {
+     "driver_code": "PIA",
+     "driver_name": "Oscar Piastri",
+     "team": "McLaren",
+     "colour": "#F47600",
+     "lap": 60,
+     "at": "2026-11-01T22:06:55.890000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/PIA_81_20261101_160616.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "safety_car_in",
+   "lap": 62,
+   "at": "2026-11-01T22:11:09+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "PIA",
+     "driver_name": "Oscar Piastri",
+     "team": "McLaren",
+     "colour": "#F47600",
+     "lap": 61,
+     "at": "2026-11-01T22:08:57.860000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/PIA_81_20261101_160831.mp3"
+    },
+    {
+     "driver_code": "LEC",
+     "driver_name": "Charles Leclerc",
+     "team": "Ferrari",
+     "colour": "#ED1131",
+     "lap": 61,
+     "at": "2026-11-01T22:09:58.945000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/LEC_16_20261101_160947.mp3"
+    }
+   ]
+  },
+  {
+   "kind": "chequered",
+   "lap": 71,
+   "at": "2026-11-01T22:23:53+00:00",
+   "driver": null,
+   "detail": null,
+   "clips": [
+    {
+     "driver_code": "ANT",
+     "driver_name": "Kimi Antonelli",
+     "team": "Mercedes",
+     "colour": "#00D7B6",
+     "lap": 71,
+     "at": "2026-11-01T22:25:12.438000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_162426.mp3"
+    },
+    {
+     "driver_code": "ANT",
+     "driver_name": "Kimi Antonelli",
+     "team": "Mercedes",
+     "colour": "#00D7B6",
+     "lap": 71,
+     "at": "2026-11-01T22:26:45.964000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_162613.mp3"
+    },
+    {
+     "driver_code": "BOR",
+     "driver_name": "Gabriel Bortoleto",
+     "team": "Audi",
+     "colour": "#F50537",
+     "lap": 71,
+     "at": "2026-11-01T22:29:16.457000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/BOR_5_20261101_162902.mp3"
+    },
+    {
+     "driver_code": "VER",
+     "driver_name": "Max Verstappen",
+     "team": "Red Bull",
+     "colour": "#4781D7",
+     "lap": 71,
+     "at": "2026-11-01T22:29:16.457000+00:00",
+     "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/VER_3_20261101_162901.mp3"
+    }
+   ]
+  }
+ ],
+ "unattached": [
+  {
+   "driver_code": "VER",
+   "driver_name": "Max Verstappen",
+   "team": "Red Bull",
+   "colour": "#4781D7",
+   "lap": 14,
+   "at": "2026-11-01T20:22:50.229000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/VER_3_20261101_142239.mp3"
+  },
+  {
+   "driver_code": "VER",
+   "driver_name": "Max Verstappen",
+   "team": "Red Bull",
+   "colour": "#4781D7",
+   "lap": 15,
+   "at": "2026-11-01T20:23:20.330000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/VER_3_20261101_142248.mp3"
+  },
+  {
+   "driver_code": "HAM",
+   "driver_name": "Lewis Hamilton",
+   "team": "Ferrari",
+   "colour": "#ED1131",
+   "lap": 15,
+   "at": "2026-11-01T20:24:21.569000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HAM_44_20261101_142357.mp3"
+  },
+  {
+   "driver_code": "NOR",
+   "driver_name": "Lando Norris",
+   "team": "McLaren",
+   "colour": "#F47600",
+   "lap": 23,
+   "at": "2026-11-01T20:34:30.833000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/NOR_1_20261101_143346.mp3"
+  },
+  {
+   "driver_code": "HAM",
+   "driver_name": "Lewis Hamilton",
+   "team": "Ferrari",
+   "colour": "#ED1131",
+   "lap": 24,
+   "at": "2026-11-01T20:36:03.541000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HAM_44_20261101_143530.mp3"
+  },
+  {
+   "driver_code": "VER",
+   "driver_name": "Max Verstappen",
+   "team": "Red Bull",
+   "colour": "#4781D7",
+   "lap": 29,
+   "at": "2026-11-01T20:43:40.771000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/VER_3_20261101_144312.mp3"
+  },
+  {
+   "driver_code": "NOR",
+   "driver_name": "Lando Norris",
+   "team": "McLaren",
+   "colour": "#F47600",
+   "lap": 30,
+   "at": "2026-11-01T20:44:41.418000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/NOR_1_20261101_144425.mp3"
+  },
+  {
+   "driver_code": "ANT",
+   "driver_name": "Kimi Antonelli",
+   "team": "Mercedes",
+   "colour": "#00D7B6",
+   "lap": 32,
+   "at": "2026-11-01T20:47:13.911000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_144649.mp3"
+  },
+  {
+   "driver_code": "ANT",
+   "driver_name": "Kimi Antonelli",
+   "team": "Mercedes",
+   "colour": "#00D7B6",
+   "lap": 38,
+   "at": "2026-11-01T20:55:21.002000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_145502.mp3"
+  },
+  {
+   "driver_code": "ANT",
+   "driver_name": "Kimi Antonelli",
+   "team": "Mercedes",
+   "colour": "#00D7B6",
+   "lap": 38,
+   "at": "2026-11-01T20:55:21.234000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_145509.mp3"
+  },
+  {
+   "driver_code": "ANT",
+   "driver_name": "Kimi Antonelli",
+   "team": "Mercedes",
+   "colour": "#00D7B6",
+   "lap": 52,
+   "at": "2026-11-01T21:55:13.829000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/ANT_12_20261101_155443.mp3"
+  },
+  {
+   "driver_code": "HAM",
+   "driver_name": "Lewis Hamilton",
+   "team": "Ferrari",
+   "colour": "#ED1131",
+   "lap": 54,
+   "at": "2026-11-01T21:58:49.111000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/HAM_44_20261101_155823.mp3"
+  },
+  {
+   "driver_code": "VER",
+   "driver_name": "Max Verstappen",
+   "team": "Red Bull",
+   "colour": "#4781D7",
+   "lap": 56,
+   "at": "2026-11-01T22:00:19.557000+00:00",
+   "url": "https://livetiming.formula1.com/static/2026/2026-11-01_Mexico_City_Grand_Prix/2026-11-01_Race/TeamRadio/VER_3_20261101_155949.mp3"
+  }
+ ]
+}

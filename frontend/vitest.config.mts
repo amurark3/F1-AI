@@ -128,6 +128,8 @@ const COVERAGE_INCLUDE = [
   "app/race-control/engineer/**",
   // P6.1: the Debrief page.
   "app/race-control/debriefs/**",
+  // P8.1: the Race Rewind page.
+  "app/race-control/rewind/**",
   // P6.3 + P6.3b: the Power Units season and car pages.
   "app/race-control/power-units/**",
   // P6.4 + P6.4b: the Champions page and its season pages.

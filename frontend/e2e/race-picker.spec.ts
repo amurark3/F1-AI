@@ -15,8 +15,7 @@ function roundIs(round: number): RegExp {
   return new RegExp(`[?&]round=${round}(&|$)`);
 }
 
-// The Telemetry Lab: the picker with its season select, on a page that never
-// waits on the backend, so the unmocked analysis requests cannot hide it.
+// Telemetry's race picker stays usable while the analysis loads below it.
 test("the race picker changes ?round= from the keyboard alone", async ({ page }) => {
   await page.goto("/race-control/telemetry?tab=map&year=2026&round=20");
 

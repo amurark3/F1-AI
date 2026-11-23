@@ -6,6 +6,7 @@ import { DEBRIEF_R19 } from "@/test/fixtures/debrief";
 import {
   biggestClimb,
   completedRaces,
+  debriefPickerRaces,
   debriefHeadline,
   debriefMeta,
   gridTitle,
@@ -61,6 +62,16 @@ describe("the calendar", () => {
     expect(resolveDebriefRound(races, 99)).toBe(20);
     expect(resolveDebriefRound(races, null)).toBe(20);
     expect(resolveDebriefRound([], 3)).toBeNull();
+  });
+
+  it("retains a selected round when the calendar has not yet marked the weekend complete", () => {
+    const active = races.map((race) => (race.round === 21 ? { ...race, status: "in_progress" } : race));
+    expect(resolveDebriefRound(active, 21)).toBe(21);
+    expect(resolveDebriefRound(active, null)).toBe(20);
+    expect(debriefPickerRaces(active, 21).map((race) => race.round)).toEqual([
+      ...completedRaces(races).map((race) => race.round),
+      21,
+    ]);
   });
 });
 

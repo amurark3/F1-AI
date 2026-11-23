@@ -9,7 +9,7 @@ import { SectionSkeleton } from "@/app/ui/section/Section";
 
 import { Panel } from "../components/RaceControlPrimitives";
 
-import { completedRaces, resolveDebriefRound } from "./debriefModel";
+import { debriefPickerRaces, resolveDebriefRound } from "./debriefModel";
 import { DebriefSections } from "./DebriefSections";
 
 import type { DebriefSeeds } from "./useDebriefSections";
@@ -23,7 +23,6 @@ interface ViewProps {
 
 function Body({ year, seeds, url }: ViewProps) {
   const calendar = useSchedule(year, use(seeds.schedule));
-  const completed = completedRaces(calendar.races);
   const round = resolveDebriefRound(calendar.races, url.round);
 
   if (calendar.pending) return <SectionSkeleton className="h-[520px]" />;
@@ -45,14 +44,20 @@ function Body({ year, seeds, url }: ViewProps) {
     return (
       <PageHero
         eyebrow="Race debrief"
-        title="Debriefs"
+        title="Debrief"
         meta="The first debrief appears once a race of the season is classified."
       />
     );
   }
   return (
     <div className="space-y-14">
-      <RacePicker year={year} races={completed} selectedRound={round} onSelectRound={url.select} />
+      <RacePicker
+        year={year}
+        races={debriefPickerRaces(calendar.races, round)}
+        selectedRound={round}
+        onSelectRound={url.select}
+        view="debrief"
+      />
       <DebriefSections key={round} year={year} round={round} seeds={seeds} />
     </div>
   );

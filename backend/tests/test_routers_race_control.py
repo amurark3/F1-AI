@@ -203,6 +203,7 @@ def test_debrief_failure_keeps_the_race_identity(client, monkeypatch):
         ("laps", "build_debrief_laps"),
         ("penalties", "build_debrief_penalties"),
         ("overtakes", "build_debrief_overtakes"),
+        ("radio", "build_debrief_radio"),
     ],
 )
 def test_each_debrief_section_delegates_to_its_builder(client, monkeypatch, part, builder):
@@ -218,6 +219,7 @@ def test_each_debrief_section_delegates_to_its_builder(client, monkeypatch, part
         ("laps", "build_debrief_laps"),
         ("penalties", "build_debrief_penalties"),
         ("overtakes", "build_debrief_overtakes"),
+        ("radio", "build_debrief_radio"),
     ],
 )
 def test_a_failing_debrief_section_answers_the_error_envelope(client, monkeypatch, part, builder):

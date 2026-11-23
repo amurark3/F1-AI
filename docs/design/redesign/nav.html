@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F1 AI — Navigation (redesign direction)</title>
+    <link rel="icon" href="logo/rl-1-apex.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="system.css" />
+    <style>
+.nav{align-items:center;gap:30px}
+.grp{position:relative}
+.grp>button{all:unset;cursor:pointer;position:relative;display:inline-flex;align-items:center;gap:7px;font:500 11px/60px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+.grp>button:hover,.grp>button[aria-expanded="true"],.grp.cur>button{color:var(--ink)}
+.grp>button svg{width:8px;height:8px;transition:transform .15s}.grp>button[aria-expanded="true"] svg{transform:rotate(180deg)}
+.grp.cur>button::after{content:"";position:absolute;left:0;right:15px;bottom:-1px;height:2px;background:var(--red)}
+.menu{position:absolute;top:calc(100% + 1px);left:-18px;width:340px;background:var(--raised);border:1px solid var(--line);border-top:0;border-radius:0 0 6px 6px;padding:8px;box-shadow:0 18px 40px rgb(0 0 0/.45)}
+.menu p.h{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 8px}
+.nav .menu a{font:400 13px/1.4 var(--sans);letter-spacing:0;text-transform:none;color:var(--ink-2)}.nav .menu a[aria-current="page"]::after{content:none}
+.menu a{display:grid;grid-template-columns:1fr;gap:3px;padding:10px 12px;border-radius:4px;position:relative}
+.menu a:hover{background:rgb(255 255 255/.04)}
+.menu a b{font:600 14px/1.2 var(--sans);color:var(--ink)}.menu a span{font-size:12px;color:var(--ink-3)}
+.menu a[aria-current="page"]::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;background:var(--red)}
+.ai{margin-left:auto;font:600 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px 14px}
+.ai:hover{border-color:var(--ink-3)}
+.thisrace{border-bottom:1px solid var(--line)}
+.thisrace .wrap{display:flex;align-items:center;gap:26px;height:46px}
+.thisrace .lbl{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.thisrace a,.thisrace .off{position:relative;font:700 15px/46px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.thisrace a:hover{color:var(--ink)}.thisrace a[aria-current="page"]{color:var(--ink)}
+.thisrace a[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--red)}
+.thisrace .off{color:var(--dim, #4a5262);cursor:default}.thisrace .off small{font:500 10px var(--mono);letter-spacing:.08em;text-transform:none;margin-left:6px}
+.label{font:500 11px/1.6 var(--mono);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;margin:56px 0 14px}
+.frames{display:grid;grid-template-columns:390px 1fr;gap:40px;align-items:start}
+.phone{width:390px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg, #07090d)}
+.phone .bar{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 16px;border-bottom:1px solid var(--line)}
+.drawer{padding:8px 16px 20px}
+.drawer h4{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 6px}
+.drawer a{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft);font:600 15px/1.2 var(--sans);color:var(--ink-2)}
+.drawer a small{font:400 12px var(--sans);color:var(--ink-3);text-align:right}
+.drawer a[aria-current="page"]{color:var(--ink);box-shadow:inset 2px 0 0 var(--red);padding-left:10px}
+.drawer a.top{font:700 18px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink)}
+.drawer .ai{display:block;text-align:center;margin:22px 0 0}
+.notes{list-style:none;padding:0;margin:0}.notes li{padding:12px 0;border-bottom:1px solid var(--line-soft);color:var(--ink-2);font-size:13px;line-height:1.55}.notes b{color:var(--ink);font-weight:600}
+@media (max-width:1100px){.nav{display:flex}.topbar .status{display:none}.menu-btn{display:none}}
+@media (max-width:900px){.nav,.ai.desk{display:none}.menu-btn{display:block}.frames{grid-template-columns:1fr}.phone{width:100%}.thisrace .wrap{gap:18px;overflow-x:auto}.thisrace .lbl{display:none}}
+</style>
+  </head>
+  <body>
+    <header class="topbar"><div class="wrap"><a class="logo" href="index.html">F1<i></i>AI</a><nav class="nav" aria-label="Main"><a href="command-center.html">Race Control</a><div class="grp cur"><button type="button" aria-expanded="true" aria-haspopup="menu">Races<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 2.5 4 5.5 7 2.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button><div class="menu" role="menu" aria-label="Races"><a role="menuitem" href="#"><b>Grand Prix</b><span>Weekend, sessions, grid, results, predictions</span></a><a role="menuitem" href="#" aria-current=page><b>Debrief</b><span>What happened in the race, and why</span></a><a role="menuitem" href="#"><b>Race Rewind</b><span>Replay the running order lap by lap</span></a><a role="menuitem" href="#"><b>Telemetry</b><span>Laps, speed traces and tyres</span></a></div></div><div class="grp"><button type="button" aria-expanded="false" aria-haspopup="menu">Season<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 2.5 4 5.5 7 2.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button></div><div class="grp"><button type="button" aria-expanded="false" aria-haspopup="menu">Reference<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 2.5 4 5.5 7 2.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button></div></nav><a class="ai desk" href="engineer.html">AI Engineer</a><div class="status"><span class="dot"></span>R20 · Pre-race</div><button class="menu-btn" type="button">MENU</button></div><div class="streak" aria-hidden="true"></div></header>
+    <div class="picker"><div class="wrap"><button class="step" type="button" aria-label="Previous round">‹</button><span class="rnum">R19</span><div><p class="rname">Mexico City GP</p><p class="rmeta">Hermanos Rodríguez · 1 Nov · latest result</p></div><button class="step" type="button" aria-label="Next round" aria-disabled="true" style="opacity:.35">›</button><div class="season" role="listbox" aria-label="2026 season rounds"><div class="base"></div>
+<span class="tick" style="left:2.45%;background:#27f4d2"></span>
+<span class="tick" style="left:4.90%;background:#27f4d2"></span>
+<span class="tick" style="left:9.79%;background:#27f4d2"></span>
+<span class="tick" style="left:22.03%;background:#27f4d2"></span>
+<span class="tick" style="left:29.37%;background:#27f4d2"></span>
+<span class="tick" style="left:34.27%;background:#27f4d2"></span>
+<span class="tick" style="left:36.71%;background:#e8002d"></span>
+<span class="tick" style="left:41.61%;background:#27f4d2"></span>
+<span class="tick" style="left:44.06%;background:#e8002d"></span>
+<span class="tick" style="left:48.95%;background:#27f4d2"></span>
+<span class="tick" style="left:51.40%;background:#ff8000"></span>
+<span class="tick" style="left:61.19%;background:#ff8000"></span>
+<span class="tick" style="left:66.08%;background:#27f4d2"></span>
+<span class="tick" style="left:68.53%;background:#27f4d2"></span>
+<span class="tick" style="left:73.08%;background:#27f4d2"></span>
+<span class="tick" style="left:75.87%;background:#3671c6"></span>
+<span class="tick" style="left:78.32%;background:#3671c6"></span>
+<span class="tick" style="left:83.22%;background:#27f4d2"></span>
+<span class="tick sel" style="left:85.66%;background:#3671c6"></span><span class="sel-label" style="left:85.66%">R19</span>
+<span class="month" style="left:0.00%">MAR</span>
+<span class="month" style="left:10.84%">APR</span>
+<span class="month" style="left:21.33%">MAY</span>
+<span class="month" style="left:32.17%">JUN</span>
+<span class="month" style="left:42.66%">JUL</span>
+<span class="month" style="left:53.50%">AUG</span>
+<span class="month" style="left:64.34%">SEP</span>
+<span class="month" style="left:74.83%">OCT</span>
+<span class="month" style="left:85.66%">NOV</span>
+<span class="month" style="left:96.15%">DEC</span>
+</div></div></div>
+    
+    <nav class="thisrace" aria-label="This race"><div class="wrap"><span class="lbl">This race · R19</span><a href="#">Grand Prix</a><a href="#" aria-current=page>Debrief</a><a href="#">Rewind</a><a href="#">Telemetry</a></div></nav>
+    <main class="wrap page">
+      <section class="page-title"><p class="eyebrow">Navigation · N2 · grouped by job</p><h1 class="display">Four places in the bar, every screen two clicks away</h1><div class="rule"></div><p class="meta">Above: the Debrief for R19, with the Races menu open. Race Control stays one click; Races, Season and Reference open on click; AI Engineer sits on its own. Under the race picker, "This race" moves between the four views of the same round.</p></section>
+      <p class="label">The other two menus</p>
+      <div class="grid2"><div class="menu" style="position:static;width:auto;border-top:1px solid var(--line);border-radius:6px"><p class="h">Season ▾</p><a href="#"><b>Standings</b><span>Drivers, constructors, and who can still win</span></a><a href="#"><b>Teams &amp; drivers</b><span>Every team and driver of the season</span></a><a href="#"><b>Power Units</b><span>Engines used and the grid places they cost</span></a></div><div class="menu" style="position:static;width:auto;border-top:1px solid var(--line);border-radius:6px"><p class="h">Reference ▾</p><a href="#"><b>Champions</b><span>Every world champion since 1950</span></a><a href="#"><b>Rulebook</b><span>Search the FIA regulations</span></a></div></div>
+      <p class="label">"This race" for a round not yet raced (R20 Qatar)</p>
+      <div class="panel" style="padding:0"><nav class="thisrace" aria-label="This race"><div class="wrap"><span class="lbl">This race · R20</span><a href="#" aria-current=page>Grand Prix</a><span class="off" aria-disabled="true">Debrief<small>after the race</small></span><span class="off" aria-disabled="true">Rewind<small>after the race</small></span><a href="#">Telemetry</a></div></nav></div>
+      <p class="label">Phone · the drawer</p>
+      <div class="frames"><div class="phone"><div class="bar"><a class="logo" href="#">F1<i></i>AI</a><span class="status" style="display:flex"><span class="dot"></span>R20</span><button class="step" type="button" style="all:unset;font:600 11px var(--mono);letter-spacing:.18em;border:1px solid var(--line);padding:9px 12px;border-radius:4px">CLOSE</button></div><nav class="drawer" aria-label="Main">
+<a class="top" href="#">Race Control</a>
+<h4>Races</h4><a href="#">Grand Prix<small>Weekend, results, predictions</small></a><a href="#" aria-current="page">Debrief<small>What happened, and why</small></a><a href="#">Race Rewind<small>The order lap by lap</small></a><a href="#">Telemetry<small>Laps, speed, tyres</small></a>
+<h4>Season</h4><a href="#">Standings<small>Who can still win</small></a><a href="#">Teams &amp; drivers</a><a href="#">Power Units<small>Engines and grid penalties</small></a>
+<h4>Reference</h4><a href="#">Champions<small>Every champion since 1950</small></a><a href="#">Rulebook<small>FIA regulations</small></a>
+<a class="ai" href="#">AI Engineer</a></nav></div>
+        <ul class="notes">
+          <li><b>No accordions.</b> Every link shows; the groups are headings, so the drawer reads as the whole map.</li>
+          <li><b>Click, not hover.</b> One menu open at a time; arrows move, Escape closes and returns focus to the trigger.</li>
+          <li><b>The trigger shows where you are.</b> On any Races page, "Races" carries the red rule; the current item has it inside the menu.</li>
+          <li><b>The round travels.</b> Each "This race" link carries <code>?round=</code>; Debrief and Rewind wait for a race result and say so.</li>
+          <li><b>Routes don't change.</b> Old links keep working; only labels move: "Debriefs" → "Debrief", "Teams" → "Teams &amp; drivers".</li>
+        </ul>
+      </div>
+    </main>
+  </body>
+</html>

@@ -41,7 +41,7 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 | Topic        | Decision                                                                                                                                                                                                                                                                                                                  |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Order        | **Bugs first.** Phase P0 ships as its own small PR, then the redesign phases.                                                                                                                                                                                                                                             |
-| Navigation   | One top bar on every screen; the Race Control sidebar is removed. Champions, Debriefs and Rulebook go under "More".                                                                                                                                                                                                       |
+| Navigation   | One top bar on every screen; the Race Control sidebar is removed. **Since 2026-11-23 (user, N2): grouped by job** — Race Control, then click-open menus Races (Grand Prix, Debrief, Race Rewind, Telemetry), Season (Standings, Teams & drivers, Power Units) and Reference (Champions, Rulebook), with AI Engineer on its own at the right. "More" goes. The race pages share a "This race" switcher that keeps the round. |
 | Homepage     | Photo hero using `frontend/public/hero-car.jpg`. **Static: it fetches nothing and shows no live or baked-in data** (user, 2026-11-06).                                                                                                                                                                                    |
 | Loading      | No page waits on the backend; each section owns its fetch and its pending/failed/stale state. Warm-up: **never blocks a page**. With the backend always on, only a restart shows it: a small non-blocking notice, lights from the real warm-up stages (user, 2026-11-08; replaces the 2026-11-06 overlay on data routes). |
 | Display font | Barlow Condensed for page titles and section heads. Geist Sans for UI and body, Geist Mono for labels and data.                                                                                                                                                                                                           |
@@ -1065,6 +1065,21 @@ Found during D2.3c (STATUS log 2026-11-18). Added by the user on 2026-11-18 to r
 - **Position changes are classified** as on-track pass, pit cycle or inherited. They come from OpenF1 `position` / `overtakes` + pit + retirements, and are labelled "position changes" unless they are classified passes.
 - **Accept:** an R19 replay matches the FIA final classification at the flag. **PR.**
 
+## Phase N2 — Grouped navigation (user, 2026-11-23; own PR)
+
+The bar grew to 7 links plus More, and Race Rewind makes 11 screens. Group them by what the reader is doing, and let the four views of one race hand the round to each other. Mockup first: `docs/design/redesign/nav.html` (N2.1, coordinator), then the build (N2.2).
+
+- **Top bar (desktop):** logo → `/`; **Race Control** (exact link to the Command Center); three click-open menus **Races**, **Season**, **Reference**; **AI Engineer** on its own at the right; the race status chip unchanged.
+  - Races ▾ (one race, any round): Grand Prix · Debrief · Race Rewind · Telemetry.
+  - Season ▾: Standings · Teams & drivers · Power Units.
+  - Reference ▾: Champions · Rulebook.
+  - Each item has a one-line description, as More's items do today. Menus open on click, never hover; one open at a time; arrows, Escape and focus return as `MoreMenu` does now. A menu's trigger shows the current section on any of its pages.
+  - Built by generalising `MoreMenu` / `MenuList` to take a group from `navConfig.ts` (no second menu component). `PRIMARY_NAV` / `MORE_NAV` become one grouped list that the header, the mobile drawer and the footer all read.
+- **Mobile drawer:** Race Control, then the three groups as headings with every link showing (no accordions), AI Engineer last.
+- **"This race" switcher:** on the Grand Prix hub, the Debrief, Race Rewind and Telemetry, beside the race picker: links Grand Prix · Debrief · Rewind · Telemetry, each carrying the current `?round=` (and year), the current one marked `aria-current="page"`. Debrief and Rewind read "after the race" and are not links for a round without a race result.
+- **Labels:** "Debriefs" → "Debrief", "Teams" → "Teams & drivers". Routes don't change.
+- **Accept:** every screen is two clicks or fewer from any page; the bar fits in one line at 1024 px; no horizontal scroll at 390 px; e2e covers the three menus, the drawer and the switcher keeping the round. **PR.**
+
 ## Phase P9 — Coverage completion
 
 - Cover what's left: hooks (`useChat`, `useLiveTiming` with a mock WebSocket, `useVoice`), lib, utils, chat components, LocalTime.
@@ -1087,7 +1102,7 @@ Found during D2.3c (STATUS log 2026-11-18). Added by the user on 2026-11-18 to r
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.3 → P6 (P6.1, P6.3, P6.4) → P7 (P7.1, P7.2, P7.5) → D3 → S → features: P7.4 → P7.6 → P6.2 → P8 → P9`
+`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.3 → P6 (P6.1, P6.3, P6.4) → P7 (P7.1, P7.2, P7.5) → D3 → S → features: P7.4 → P7.6 → P6.2 → P8 → N2 → P9`
 
 - **Redesign before new features (user, 2026-11-18).** From P6 on, every remaining page gets its mockup redesign before any new feature starts.
   - **Redesign track:** P7.3 (restyle only), P6.1, P6.3, P6.4, P7.1, P7.2, P7.5. `SourceBadge` everywhere (idea #5) stays in P7.5: it places an existing kit part.

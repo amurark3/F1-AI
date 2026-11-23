@@ -61,6 +61,8 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | S.2 | Chat-memory recall by keywords | done | `git log --grep "Task: S.2"` | **Done 2026-11-22** (Sonnet worktree agent, cherry-picked as `0c9c181`). Backend 4985 passed at 100 %, ruff + size clean; SQL re-checked by the coordinator in a throwaway pgvector container. Own PR (Phase S). |
 | S.3 | Gemini embeddings for the rulebook, hybrid with S.1 | done | `git log --grep "Task: S.3"` | **Done 2026-11-22** (coordinator inline, `ad69eea`). Backend 5030 passed at 100 %, ruff + size via the commit hook. Container + real Gemini (local key): 2025 Sporting Regulations, 512 chunks backfilled; keyword 8/11 top-5, + MiniLM 9/11, + Gemini 10/11. **Before deploy:** add the `GOOGLE_API_KEY` repo secret, then run the ingest workflow. Own PR (Phase S). |
 | P8.1 | Race Rewind (idea #6) | in_progress | | Started 2026-11-23 (`f1-ai-b2`), in parallel with P6.2. No mockup existed: coordinator makes `race-rewind.html` first. Own route, linked from the Debrief race trace, so its files stay disjoint from P6.2. |
+| N2.1 | Navigation mockup `nav.html` (grouped bar, drawer, "This race" switcher) | done | `git log --grep "N2.1"` | **Done 2026-11-23** (coordinator). User chose "grouped by job". Checked at 1440 px (Races menu open) and 390 px (no horizontal scroll). |
+| N2.2 | Grouped navigation + "This race" switcher per `nav.html` | todo | | After P6.2 and P8.1 merge (needs the Rewind route). Own PR. Until then, P8.1's merge adds Race Rewind to "More". |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
 ## Log (append only; newest at the bottom)

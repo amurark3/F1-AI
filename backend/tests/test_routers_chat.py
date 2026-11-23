@@ -23,6 +23,7 @@ from becoming a hung or lying answer:
 
 from __future__ import annotations
 
+import threading
 from typing import ClassVar
 
 from fastapi import FastAPI
@@ -33,6 +34,7 @@ import pytest
 from app.api import llm as llm_module
 from app.api.routers import chat as chat_router
 from app.api.schemas.chat import ChatRequest
+from app.api.single_flight import SingleFlight
 from app.config import LLMProvider
 
 ENGINE = LLMProvider(name="primary", model="m-1", key_env="PRIMARY_KEY", base_url="https://primary.example/v1")
@@ -56,6 +58,12 @@ def _no_memory(monkeypatch):
     """Memory is off unless a test opts in; it is a separate subsystem."""
     monkeypatch.setattr(chat_router, "build_memory_context", lambda *_a, **_k: "")
     monkeypatch.setattr(chat_router, "save_message", lambda *_a, **_k: None)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_tool_runs(monkeypatch):
+    """The tool-run registry is module-global and would leak between tests."""
+    monkeypatch.setattr(chat_router, "tool_runs", SingleFlight("chat_tools"))
 
 
 @pytest.fixture
@@ -492,6 +500,33 @@ def test_a_tool_timeout_is_reported_to_the_model_not_the_user(client, monkeypatc
     assert "timed out" in tool_message.content
     # The user sees the model's reply, not the raw tool failure.
     assert body.endswith("The data source is slow.")
+
+
+@pytest.mark.unit
+async def test_a_retried_tool_call_joins_the_run_still_going(monkeypatch):
+    """A worker thread cannot be stopped; a retry must not stack a second load beside it."""
+    gate = threading.Event()
+    runs: list[dict] = []
+
+    class _GatedTool:
+        def invoke(self, args):
+            runs.append(args)
+            gate.wait(5)
+            return "done"
+
+    monkeypatch.setitem(chat_router.TOOL_MAP, "compare_drivers", _GatedTool())
+    monkeypatch.setattr(chat_router, "TOOL_TIMEOUT_SECONDS", 0.05)
+    call = _tool_call("compare_drivers", {"year": 2026, "drivers": ["VER", "NOR"]})
+
+    first, _ = await chat_router._invoke_tool(call)
+    second, _ = await chat_router._invoke_tool({**call, "args": {"drivers": ["VER", "NOR"], "year": 2026}})
+    other, _ = await chat_router._invoke_tool({**call, "args": {"year": 2025, "drivers": ["VER", "NOR"]}})
+    gate.set()
+
+    assert "timed out" in first
+    assert "timed out" in second
+    assert "timed out" in other
+    assert runs == [{"year": 2026, "drivers": ["VER", "NOR"]}, {"year": 2025, "drivers": ["VER", "NOR"]}]
 
 
 @pytest.mark.unit

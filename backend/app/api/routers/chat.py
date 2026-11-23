@@ -28,12 +28,14 @@ from app.api.llm import (
 )
 from app.api.prompts import RACE_ENGINEER_PERSONA
 from app.api.schemas.chat import ChatRequest
+from app.api.single_flight import SingleFlight
 from app.api.tools import TOOL_LIST, TOOL_MAP
 from app.api.tools.provenance import Provenance, Sourced
 from app.config import MAX_AGENT_TURNS, TOOL_TIMEOUT_SECONDS, LLMProvider
 from app.data.memory import build_memory_context, save_message
 
 logger = structlog.get_logger()
+tool_runs: SingleFlight[object] = SingleFlight("chat_tools")
 router = APIRouter(tags=["chat"])
 
 # Every marker the stream carries besides the answer itself.
@@ -214,21 +216,21 @@ async def _invoke_tool(tool_call: dict) -> tuple[str, Provenance | None]:
     A timeout or an exception becomes text the model can route around rather
     than an error that ends the stream.
     """
-    name = tool_call["name"]
+    name, args = tool_call["name"], tool_call["args"]
+    # The same call asked again while it still runs joins that run: a worker
+    # thread cannot be stopped, so a retry must not start a second one beside it.
+    key = (name, json.dumps(args, sort_keys=True, default=str))
     try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(TOOL_MAP[name].invoke, tool_call["args"]),
-            timeout=TOOL_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
+        result = await tool_runs.run(key, partial(TOOL_MAP[name].invoke, args), TOOL_TIMEOUT_SECONDS)
+    except Exception as exc:
+        logger.exception("tool.error", tool=name, error=str(exc))
+        return f"Error executing tool '{name}': {exc}", None
+    if result is None:
         logger.warning("tool.timeout", tool=name, timeout_seconds=TOOL_TIMEOUT_SECONDS)
         return (
             f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS} seconds. The data source may be slow — try again.",
             None,
         )
-    except Exception as exc:
-        logger.exception("tool.error", tool=name, error=str(exc))
-        return f"Error executing tool '{name}': {exc}", None
     return str(result), result.provenance if isinstance(result, Sourced) else None
 
 

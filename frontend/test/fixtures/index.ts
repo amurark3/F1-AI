@@ -198,6 +198,10 @@
  *
  * - `power-units-2026.json`: `GET /api/race-control/power-units/2026` from production, as served, captured 2026-11-18 (FIA documents through R20 São Paulo doc 57; `changed_at` 2026-11-08T19:41Z).
  *
+ * FIA decisions feed (P7.4):
+ *
+ * - `weekend-feed-2026-r19.json`: `GET /api/weekend/2026/19/feed`, the Mexico City 2026 documents as fia.com served them, fetched 2026-11-18.
+ *
  * Re-capture rather than hand-edit: a fixture is evidence of what the backend
  * sends, never an invented case.
  */
@@ -220,6 +224,7 @@ import type {
 } from "@/app/race-control/profiles/profilesModel";
 import type { StandingsProgression } from "@/app/race-control/standings/standingsModel";
 import type { TeamsResponse } from "@/app/race-control/standings/teamsModel";
+import type { WeekendFeed } from "@/app/race-control/weekend/fiaFeedModel";
 import type { PodiumPick } from "@/app/race-control/weekend/PodiumPanel";
 import type { HeroRace } from "@/app/race-control/weekend/WeekendHero";
 import type {
@@ -260,6 +265,7 @@ import standingsProgression2026 from "./standings-progression-2026.json";
 import startingGrids2026 from "./starting-grids-2026.json";
 import strategyPanels2026 from "./strategy-panels-2026.json";
 import teams2026 from "./teams-2026.json";
+import weekendFeed2026R19 from "./weekend-feed-2026-r19.json";
 import weekendSessions2026 from "./weekend-sessions-2026.json";
 
 // JSON imports widen string unions (`role: string`), hence the assertions.
@@ -293,6 +299,9 @@ export interface OpenF1Driver {
 /** OpenF1's entry list for the 2026 Mexico City Grand Prix (session 11404). */
 export const OPENF1_DRIVERS_MEXICO_2026: OpenF1Driver[] = openF1DriversMexico2026;
 export const READY = ready;
+
+/** The Mexico City 2026 FIA documents feed (P7.4), as served. */
+export const WEEKEND_FEED_2026_R19 = weekendFeed2026R19 as WeekendFeed;
 
 /** São Paulo 2026 (round 20) as the Command Center served it on 3 Nov. */
 export const SAO_PAULO_2026 = {

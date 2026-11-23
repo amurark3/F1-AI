@@ -18,6 +18,7 @@ import { LiveTimingTower } from "./components/LiveTimingTower";
 import { SkeletonPanel } from "./components/RaceControlPrimitives";
 import { ChampionshipStakes } from "./weekend/ChampionshipStakes";
 import { CircuitHistoryPanel } from "./weekend/CircuitHistoryPanel";
+import { FiaFeedPanel } from "./weekend/FiaFeedPanel";
 import { KeyNumbers } from "./weekend/KeyNumbers";
 import { pitLaneFigure } from "./weekend/pitLaneFigure";
 import { PodiumPanel } from "./weekend/PodiumPanel";
@@ -156,6 +157,7 @@ export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
       <HeroSlot shell={shell} circuit={circuit} weather={weather} />
       <WeekendNumbers shell={shell} strategy={strategy} weather={weather} circuit={circuit} />
       <LiveTimingTower year={year} race={race} />
+      <FiaFeedPanel year={year} race={race} />
 
       <Section state={weather} label="Weather feed" skeletonClassName="h-[440px]">
         <WeekendForecast weather={weather.data?.session_weather} />

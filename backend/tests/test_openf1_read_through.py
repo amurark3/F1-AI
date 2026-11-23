@@ -330,7 +330,7 @@ def test_quirk_a_deleted_lap_is_matched_by_its_time_through_the_store(fake):
         laps = get_json(client, "laps", {"session_key": race.session_key})
         assert get_json(client, "laps", {"session_key": race.session_key}) == laps
 
-    deleted = deleted_laps(standing_deletions(control), laps_from_openf1(laps))
+    deleted = deleted_laps(standing_deletions(control), laps_from_openf1(laps), "R")
     # The message names LAP 6 and the 1:16.547 lap is lap 6 in this capture; the time, not the number, is the key.
     assert any("TIME 1:16.547 DELETED" in m["message"] and "LAP 6" in m["message"] for m in control)
     assert deleted == {(12, 6)}

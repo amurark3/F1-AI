@@ -263,6 +263,7 @@ ban-relative-imports = "all"
 "app/ml/promote.py" = ["T20"]
 "app/evals/run.py" = ["T20"]
 "app/rag/ingest.py" = ["T20"]
+"app/rag/gemini_backfill.py" = ["T20"]
 # Same category: both are run as `python -m` by an operator and report their
 # result to stdout. Deleting the print to satisfy T20 does not fix anything — it
 # turns the command into a silent no-op, which is strictly worse than the lint

@@ -355,13 +355,49 @@ def test_recall_returns_nothing_when_there_is_nothing_to_search(monkeypatch, mem
     assert memory.recall_relevant(user_id, query) == []
 
 
-@pytest.mark.unit
-def test_recall_returns_nothing_when_the_query_cannot_be_embedded(monkeypatch):
+@pytest.fixture
+def keyword_only(monkeypatch):
+    """Memory on, no embedder: recall falls back to keywords."""
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
     monkeypatch.setattr(memory, "_embed", lambda text: None)
-    monkeypatch.setattr(memory, "_connect", lambda: pytest.fail("no vector, no search"))
 
-    assert memory.recall_relevant("u1", "q") == []
+
+@pytest.mark.unit
+def test_recall_without_an_embedder_searches_keywords_across_all_threads(monkeypatch, keyword_only):
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[]))
+
+    memory.recall_relevant("u1", "monaco pit stop", k=5)
+
+    statement, params = conn.statements[-1]
+    assert "content_tsv @@ q.query" in statement
+    assert "thread_id <>" not in statement
+    assert "user_id = %s" in statement
+    assert params == ["monaco pit stop", "u1", 5]
+
+
+@pytest.mark.unit
+def test_keyword_recall_excluding_a_thread_binds_the_thread_after_the_user(monkeypatch, keyword_only):
+    conn = _install_connection(monkeypatch, _FakeConnection(rows=[]))
+
+    memory.recall_relevant("u1", "monaco", k=3, exclude_thread="t9")
+
+    statement, params = conn.statements[-1]
+    assert "user_id = %s AND thread_id <> %s" in statement
+    assert params == ["monaco", "u1", "t9", 3]
+
+
+@pytest.mark.unit
+def test_keyword_rows_are_labelled_as_keyword_matches(monkeypatch, keyword_only):
+    rows = [("user", "I love Monaco", "t1", datetime(2026, 5, 24, 14, 30), 0.1)]
+    _install_connection(monkeypatch, _FakeConnection(rows=rows))
+
+    assert memory.recall_relevant("u1", "monaco")[0]["match"] == "keyword"
+
+
+@pytest.mark.unit
+def test_the_schema_adds_the_keyword_column_and_index_idempotently():
+    assert "ADD COLUMN IF NOT EXISTS content_tsv tsvector" in memory._SCHEMA_SQL
+    assert "CREATE INDEX IF NOT EXISTS chat_message_content_tsv_idx" in memory._SCHEMA_SQL
 
 
 @pytest.mark.unit
@@ -403,6 +439,7 @@ def test_recall_maps_rows_onto_the_public_shape(monkeypatch, enabled):
         "thread_id": "t1",
         "created_at": "2026-05-24T14:30:00",
         "similarity": 0.877,
+        "match": "vector",
     }
     assert recalled[1]["created_at"] is None
 
@@ -527,8 +564,9 @@ def test_memory_context_describes_the_user_and_the_recalled_turns(monkeypatch):
         memory,
         "recall_relevant",
         lambda *a, **k: [
-            {"role": "user", "content": "I love Monaco", "similarity": 0.9},
-            {"role": "assistant", "content": "too weak to recall", "similarity": 0.2},
+            {"role": "user", "content": "I love Monaco", "similarity": 0.9, "match": "vector"},
+            {"role": "assistant", "content": "too weak to recall", "similarity": 0.2, "match": "vector"},
+            {"role": "user", "content": "kept keyword hit", "similarity": 0.05, "match": "keyword"},
         ],
     )
 
@@ -538,6 +576,8 @@ def test_memory_context_describes_the_user_and_the_recalled_turns(monkeypatch):
     assert "- (user) I love Monaco" in context
     # Below the 0.35 similarity floor: a weak match would poison the prompt.
     assert "too weak to recall" not in context
+    # Keyword hits skip the cosine floor: their rank is not a cosine.
+    assert "- (user) kept keyword hit" in context
 
 
 @pytest.mark.unit
@@ -559,7 +599,9 @@ def test_recalled_content_is_truncated_before_entering_the_prompt(monkeypatch):
     monkeypatch.setattr(memory, "MEMORY_ENABLED", True)
     monkeypatch.setattr(memory, "get_profile", lambda user_id: {})
     monkeypatch.setattr(
-        memory, "recall_relevant", lambda *a, **k: [{"role": "user", "content": "x" * 500, "similarity": 0.9}]
+        memory,
+        "recall_relevant",
+        lambda *a, **k: [{"role": "user", "content": "x" * 500, "similarity": 0.9, "match": "vector"}],
     )
 
     context = memory.build_memory_context("u1", "q")

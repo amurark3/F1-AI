@@ -4,7 +4,14 @@ import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
-import { DIRECTORY_2026, MEXICO_CITY_2026, RACE_RESULTS_2026, SAO_PAULO_2026, SEASON_2026 } from "@/test/fixtures";
+import {
+  DIRECTORY_2026,
+  MEXICO_CITY_2026,
+  RACE_RESULTS_2026,
+  SAO_PAULO_2026,
+  SEASON_2026,
+  WEEKEND_FEED_2026_R19,
+} from "@/test/fixtures";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -40,6 +47,7 @@ function backend(overrides: { circuit?: unknown; results?: unknown; shell?: unkn
     ),
     http.get(apiUrl("/api/race-control/overview/:year/shell"), () => json(overrides.shell ?? SHELL)),
     http.get(apiUrl("/api/race-control/glance/:year/:round"), () => json(overrides.glance ?? MEXICO_CITY_2026.glance)),
+    http.get(apiUrl("/api/weekend/:year/:round/feed"), () => json(WEEKEND_FEED_2026_R19)),
   );
 }
 
@@ -89,6 +97,7 @@ describe("WeekendPanel", () => {
     expect(await screen.findByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(await screen.findByText("What's at stake")).toBeInTheDocument();
     expect(await screen.findByText(/2025 pole/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "24 decisions, 98 laps deleted" })).toBeInTheDocument();
   });
 
   it("leaves the stakes out on a round the shell is not about", async () => {

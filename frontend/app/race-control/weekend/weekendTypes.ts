@@ -31,6 +31,18 @@ export interface SessionForecast {
   cloud_cover_pct: number | null;
 }
 
+/**
+ * OpenF1's trackside station over one session: temperatures are session averages
+ * in °C, `rainfall` is one flag per reading (about one a minute), never an amount.
+ */
+export interface MeasuredWeather {
+  track_temp_c: number | null;
+  track_temp_min_c: number | null;
+  track_temp_max_c: number | null;
+  air_temp_c: number | null;
+  rainfall: boolean[];
+}
+
 export interface SessionWeatherRow {
   name: string;
   starts_at: string;
@@ -39,6 +51,10 @@ export interface SessionWeatherRow {
   forecast: SessionForecast | null;
   /** ISO date the forecast becomes available, for a session past the horizon. */
   forecast_opens: string | null;
+  /** OpenF1's trackside summary; null until the session is over and OpenF1 has readings. Optional for an older backend. */
+  measured?: MeasuredWeather | null;
+  /** Why there is no `measured`; null when there is one and for upcoming sessions. */
+  measured_note?: string | null;
 }
 
 export interface SessionWeather {

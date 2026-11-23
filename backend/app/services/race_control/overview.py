@@ -19,6 +19,7 @@ from app.services.predictions import get_cached_race_prediction, get_or_compute_
 from app.services.race_control.baseline_plan import build_baseline
 from app.services.race_control.circuit import build_circuit_segment
 from app.services.race_control.live import build_live_status
+from app.services.race_control.measured_weather import with_measured
 from app.services.race_control.risk import build_risk_register
 from app.services.race_control.session_weather import build_session_weather, race_day_block
 from app.services.race_control.strategy_context import (
@@ -104,7 +105,7 @@ def build_overview_weather(year: int) -> dict:
     return {
         "year": year,
         "weather": weather,
-        "session_weather": sessions,
+        "session_weather": with_measured(sessions, year, race),
         "risk_register": build_risk_register(race, sessions, competitors),
     }
 

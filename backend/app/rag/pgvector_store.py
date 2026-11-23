@@ -22,6 +22,8 @@ import os
 
 import structlog
 
+from app.config import GEMINI_EMBEDDING_DIM
+from app.rag import gemini_embeddings
 from app.utils.embeddings import EMBEDDING_DIM, embed, embed_batch, to_pgvector_literal
 
 logger = structlog.get_logger()
@@ -50,6 +52,17 @@ CREATE INDEX IF NOT EXISTS rulebook_chunk_hnsw_idx
 -- to rebuild.  Reads/writes here run as the owning role over plain Postgres,
 -- which bypasses RLS, so no policy is needed.  Idempotent.
 ALTER TABLE rulebook_chunk ENABLE ROW LEVEL SECURITY;
+
+-- Keyword search needs no model: Postgres keeps the stemmed words itself.
+ALTER TABLE rulebook_chunk
+    ADD COLUMN IF NOT EXISTS content_tsv tsvector
+    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+CREATE INDEX IF NOT EXISTS rulebook_chunk_tsv_idx ON rulebook_chunk USING gin (content_tsv);
+
+-- Meaning search with no local model: filled by ``python -m app.rag.gemini_backfill``.
+ALTER TABLE rulebook_chunk ADD COLUMN IF NOT EXISTS embedding_gemini vector({GEMINI_EMBEDDING_DIM});
+CREATE INDEX IF NOT EXISTS rulebook_chunk_gemini_hnsw_idx
+    ON rulebook_chunk USING hnsw (embedding_gemini vector_cosine_ops);
 """
 
 
@@ -67,6 +80,17 @@ def _connect() -> psycopg.Connection:
     import psycopg
 
     return psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
+
+
+def connect() -> psycopg.Connection:
+    """A connection with the schema in place, for the operational modules beside this one."""
+    conn = _connect()
+    try:
+        ensure_schema_conn(conn)
+    except Exception:
+        conn.close()
+        raise
+    return conn
 
 
 def ensure_schema() -> None:
@@ -133,9 +157,9 @@ def replace_all(chunks: list[dict]) -> int:
     return len(rows)
 
 
-# Both search statements, written out rather than assembled from a WHERE
-# fragment, so no SQL is built at runtime. The only difference is the optional
-# doc-type predicate.
+# The statements are written out rather than assembled from a WHERE fragment,
+# so no SQL is built at runtime. The only difference between the two of each
+# pair is the optional doc-type predicate.
 _SEARCH_ALL_CATEGORIES = """
     SELECT content, doc_type, filename, page,
            1 - (embedding <=> %s::vector) AS similarity
@@ -154,62 +178,138 @@ _SEARCH_BY_CATEGORY = """
     LIMIT %s
 """
 
+# Keyword half: the question becomes an OR of its stemmed words (a question
+# rarely has every word in one passage, which websearch_to_tsquery would need).
+# A question of only stopwords yields a NULL query and so no rows. "article" is
+# left out: nearly every page says it, so it would outrank the number beside it.
+_KEYWORDS_ALL_CATEGORIES = """
+    WITH q AS (
+        SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS query
+        FROM unnest(tsvector_to_array(to_tsvector('english', %s))) AS lexeme
+        WHERE lexeme <> 'articl'
+    )
+    SELECT content, doc_type, filename, page, ts_rank_cd(content_tsv, q.query, 32) AS rank
+    FROM rulebook_chunk, q
+    WHERE source_year = %s AND content_tsv @@ q.query
+    ORDER BY rank DESC
+    LIMIT %s
+"""
+
+_KEYWORDS_BY_CATEGORY = """
+    WITH q AS (
+        SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS query
+        FROM unnest(tsvector_to_array(to_tsvector('english', %s))) AS lexeme
+        WHERE lexeme <> 'articl'
+    )
+    SELECT content, doc_type, filename, page, ts_rank_cd(content_tsv, q.query, 32) AS rank
+    FROM rulebook_chunk, q
+    WHERE source_year = %s AND doc_type = %s AND content_tsv @@ q.query
+    ORDER BY rank DESC
+    LIMIT %s
+"""
+
+# Gemini half: rows the backfill has not reached yet are found by keywords only.
+_GEMINI_ALL_CATEGORIES = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding_gemini <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s AND embedding_gemini IS NOT NULL
+    ORDER BY embedding_gemini <=> %s::vector
+    LIMIT %s
+"""
+
+_GEMINI_BY_CATEGORY = """
+    SELECT content, doc_type, filename, page,
+           1 - (embedding_gemini <=> %s::vector) AS similarity
+    FROM rulebook_chunk
+    WHERE source_year = %s AND doc_type = %s AND embedding_gemini IS NOT NULL
+    ORDER BY embedding_gemini <=> %s::vector
+    LIMIT %s
+"""
+
+_YEAR_INDEXED = "SELECT EXISTS (SELECT 1 FROM rulebook_chunk WHERE source_year = %s)"
+
+_RRF_OFFSET = 60
+
+
+def year_indexed(year: int) -> bool:
+    """Whether any regulation text is stored for the season (False when disabled)."""
+    if not RULEBOOK_ENABLED:
+        return False
+    with _connect() as conn:
+        ensure_schema_conn(conn)
+        return bool(conn.execute(_YEAR_INDEXED, [str(year)]).fetchone()[0])
+
 
 def search(query: str, year: int, *, category: str | None = None, k: int = 24) -> list[RulebookHit]:
-    """Return the ``k`` chunks most similar to ``query`` for a season.
+    """Return up to ``k`` chunks for ``query`` in a season, best first.
 
     ``category`` optionally filters by doc type (Sporting/Technical/Financial).
-    Empty list when disabled, the query can't be embedded, or on error.
+    Empty list when disabled or on error.
     """
     if not RULEBOOK_ENABLED or not query.strip():
         return []
     try:
-        return _nearest(query, year, category, k)
-    except Exception:  # an embedding failure is silent; a database failure was logged
+        return _find(query, year, category, k)
+    except Exception:  # the database failure was already logged
         return []
 
 
 def search_strict(query: str, year: int, *, category: str | None = None, k: int = 24) -> list[RulebookHit]:
-    """:func:`search`, but an unembeddable or failed query raises, so "nothing found" differs from "could not search"."""
+    """:func:`search`, but a failed query raises, so "nothing found" differs from "could not search"."""
     if not RULEBOOK_ENABLED or not query.strip():
         return []
-    return _nearest(query, year, category, k)
+    return _find(query, year, category, k)
 
 
-def _nearest(query: str, year: int, category: str | None, k: int) -> list[RulebookHit]:
-    """The ``k`` nearest chunks. Raises when the query can't be embedded; logs, then raises, when the database fails."""
-    vector = embed(query)
-    if vector is None:
-        raise RuntimeError("the question could not be embedded")
-    literal = to_pgvector_literal(vector)
+def _find(query: str, year: int, category: str | None, k: int) -> list[RulebookHit]:
+    """Keyword hits always, merged with nearest-vector hits from each embedder that answers
+    (the local model when loaded, Gemini when its key is set and it is not resting).
 
-    # Params in statement order: similarity vector, year, [category], ORDER BY
-    # vector, limit.
-    if category and category.lower() != "all":
-        statement = _SEARCH_BY_CATEGORY
-        params: list = [literal, str(year), category, literal, k]
-    else:
-        statement = _SEARCH_ALL_CATEGORIES
-        params = [literal, str(year), literal, k]
-
+    Logs, then raises, when the database fails.
+    """
+    by_category = bool(category) and category.lower() != "all"
+    scope = [category] if by_category else []
+    keyword_sql = _KEYWORDS_BY_CATEGORY if by_category else _KEYWORDS_ALL_CATEGORIES
+    semantic = [
+        (_SEARCH_BY_CATEGORY if by_category else _SEARCH_ALL_CATEGORIES, embed(query)),
+        (_GEMINI_BY_CATEGORY if by_category else _GEMINI_ALL_CATEGORIES, gemini_embeddings.embed_query(query)),
+    ]
     try:
         with _connect() as conn:
             ensure_schema_conn(conn)
-            rows = conn.execute(statement, params).fetchall()
+            rankings = [conn.execute(keyword_sql, [query, str(year), *scope, k]).fetchall()]
+            for vector_sql, vector in semantic:
+                if vector is None:
+                    continue
+                literal = to_pgvector_literal(vector)
+                # Statement order: similarity vector, year, [category], ORDER BY vector, limit.
+                rankings.append(conn.execute(vector_sql, [literal, str(year), *scope, literal, k]).fetchall())
     except Exception as exc:
         logger.warning("rulebook_pg.search_failed", year=year, error=str(exc))
         raise
+    return _fuse(*[[_hit(r, year) for r in rows] for rows in rankings])[:k]
 
-    return [
-        RulebookHit(
-            page_content=r[0],
-            metadata={
-                "type": r[1] or "Regulatory",
-                "filename": r[2] or "Unknown PDF",
-                "page": r[3],
-                "source_year": str(year),
-            },
-            similarity=round(float(r[4]), 4),
-        )
-        for r in rows
-    ]
+
+def _hit(row: tuple, year: int) -> RulebookHit:
+    return RulebookHit(
+        page_content=row[0],
+        metadata={
+            "type": row[1] or "Regulatory",
+            "filename": row[2] or "Unknown PDF",
+            "page": row[3],
+            "source_year": str(year),
+        },
+        similarity=round(float(row[4]), 4),
+    )
+
+
+def _fuse(*rankings: list[RulebookHit]) -> list[RulebookHit]:
+    """Reciprocal rank fusion: a chunk scores 1/(60+rank) in each list that holds it."""
+    scores: dict[str, float] = {}
+    first: dict[str, RulebookHit] = {}
+    for ranking in rankings:
+        for rank, hit in enumerate(ranking, start=1):
+            scores[hit.page_content] = scores.get(hit.page_content, 0.0) + 1 / (_RRF_OFFSET + rank)
+            first.setdefault(hit.page_content, hit)
+    return [first[content] for content in sorted(scores, key=lambda c: -scores[c])]

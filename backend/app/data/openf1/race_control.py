@@ -3,11 +3,15 @@
 Two things, both only ever published as free-text messages:
 
 * **Deleted lap times.** ``CAR 10 (GAS) TIME 1:36.764 DELETED - TRACK LIMITS AT
-  TURN 9 LAP 3``. The message's ``driver_number`` is empty, and its "LAP n" is
-  one ahead of OpenF1's own lap number (Gasly's 1:36.764 at Austin 2026 is his
-  lap 2), so the lap is found by its **time**. A deletion without a time
-  ("LAP DELETED", an in-lap) falls back to the car's last lap finished before
-  the message. "WILL BE REINSTATED" cancels the deletion with the same time.
+  TURN 9 LAP 3``. The message's ``driver_number`` is empty, so the lap is found
+  by its **time**. The message's "LAP n" is OpenF1's lap n in a race or sprint
+  and lap n - 1 in every other session (Gasly's 1:36.764 at Austin 2026 FP2 is
+  his lap 2): 652 timed messages over 2026's sprint weekends and R17-R20 agree.
+  "LAP n" picks the lap when a time matches two laps of one car, and places a
+  deletion without a time ("LAP DELETED", an in-lap), which can be sent many
+  minutes late. A message with neither ("(NEXT LAP PIT)") falls back to the
+  car's last lap finished before it; a time that matches no lap marks nothing.
+  "WILL BE REINSTATED" cancels the deletion with the same time.
 * **Neutralised running.** Safety car, virtual safety car and red flag periods,
   as time windows. Each message is stamped with the *leader's* lap, which a
   lapped car is not on, so callers place a window by time against each car's
@@ -41,6 +45,9 @@ TIME_MATCH_TOLERANCE_SECONDS = 0.0015
 _DELETION = re.compile(
     r"^CAR (?P<car>\d+) \([A-Z]+\) (?:TIME (?P<time>[\d:.]+) )?(?:LAP )?(?P<verb>DELETED|(?:WILL BE )?REINSTATED)"
 )
+_NAMED_LAP = re.compile(r"\bLAP (\d+)\b")
+# OpenF1's lap number minus the message's "LAP n", by app session code.
+_NAMED_LAP_OFFSET = {"R": 0, "S": 0, "FP1": -1, "FP2": -1, "FP3": -1, "Q": -1, "SQ": -1}
 _TRACK_GREEN = frozenset({"CLEAR", "GREEN"})
 SEGMENT_NUMBERS = (1, 2, 3)
 
@@ -50,6 +57,7 @@ class Deletion:
     car: int
     seconds: float | None
     at: datetime
+    lap: int | None = None
 
 
 @dataclass(frozen=True)
@@ -122,20 +130,23 @@ def standing_deletions(messages: list[dict]) -> tuple[Deletion, ...]:
         car = int(match["car"])
         seconds = None if match["time"] is None else lap_seconds(match["time"])
         if match["verb"] == "DELETED":
-            standing.append(Deletion(car=car, seconds=seconds, at=moment))
+            named = _NAMED_LAP.search(_text(message), match.end())
+            lap = None if named is None else int(named[1])
+            standing.append(Deletion(car=car, seconds=seconds, at=moment, lap=lap))
         else:
             standing = [kept for kept in standing if (kept.car, kept.seconds) != (car, seconds)]
     return tuple(standing)
+
+
+def _laps_by_time(laps: list[Lap], seconds: float) -> list[Lap]:
+    return [lap for lap in laps if lap.time is not None and abs(lap.time - seconds) <= TIME_MATCH_TOLERANCE_SECONDS]
 
 
 def lap_by_time(laps: list[Lap], seconds: float | None) -> Lap | None:
     """The lap whose time is ``seconds`` to the millisecond; the first, should two match."""
     if seconds is None:
         return None
-    return next(
-        (lap for lap in laps if lap.time is not None and abs(lap.time - seconds) <= TIME_MATCH_TOLERANCE_SECONDS),
-        None,
-    )
+    return next(iter(_laps_by_time(laps, seconds)), None)
 
 
 def _last_finished_before(laps: list[Lap], moment: datetime) -> Lap | None:
@@ -143,12 +154,26 @@ def _last_finished_before(laps: list[Lap], moment: datetime) -> Lap | None:
     return max(finished, key=lambda lap: lap.number, default=None)
 
 
-def deleted_laps(deletions: tuple[Deletion, ...], laps: tuple[Lap, ...]) -> frozenset[tuple[int, int]]:
-    """The (car, lap number) of every lap whose time stands deleted."""
+def _named_lap(laps: list[Lap], deletion: Deletion, code: str) -> Lap | None:
+    offset = _NAMED_LAP_OFFSET.get(code)
+    if deletion.lap is None or offset is None:
+        return None
+    return next((lap for lap in laps if lap.number == deletion.lap + offset), None)
+
+
+def _deleted_lap(laps: list[Lap], deletion: Deletion, code: str) -> Lap | None:
+    named = _named_lap(laps, deletion, code)
+    if deletion.seconds is None:
+        return named or _last_finished_before(laps, deletion.at)
+    timed = _laps_by_time(laps, deletion.seconds)
+    return named if named in timed else next(iter(timed), None)
+
+
+def deleted_laps(deletions: tuple[Deletion, ...], laps: tuple[Lap, ...], code: str) -> frozenset[tuple[int, int]]:
+    """The (car, lap number) of every lap whose time stands deleted, in the session with app code ``code``."""
     found: set[tuple[int, int]] = set()
     for deletion in deletions:
-        own = [lap for lap in laps if lap.driver == deletion.car]
-        lap = lap_by_time(own, deletion.seconds) or _last_finished_before(own, deletion.at)
+        lap = _deleted_lap([lap for lap in laps if lap.driver == deletion.car], deletion, code)
         if lap is not None:
             found.add((lap.driver, lap.number))
     return frozenset(found)

@@ -6,7 +6,7 @@
 import { contenderName, nextEventSentence, type ChampionshipTable } from "@/app/lib/clinch";
 import { rc } from "@/app/ui/tokens";
 
-import type { SessionPhase, SessionWeatherRow, TableStakes } from "./weekendTypes";
+import type { MeasuredWeather, SessionForecast, SessionPhase, SessionWeatherRow, TableStakes } from "./weekendTypes";
 
 /** Rain probability bands: dry, mixed and likely wet, rising from the caption tone to info blue. */
 const RAIN_MIXED_PCT = 20;
@@ -104,4 +104,23 @@ export function reachLine(stakes: TableStakes): number | null {
   const leaderPoints = stakes.leader.points;
   const threshold = leaderPoints - stakes.max_available;
   return threshold > 0 ? (threshold / leaderPoints) * 100 : null;
+}
+
+/** How many of a session's trackside readings reported rain. */
+export function rainReadings(rainfall: boolean[]): { wet: number; total: number } {
+  return { wet: rainfall.filter(Boolean).length, total: rainfall.length };
+}
+
+/** Measured track temperature minus the forecast's estimate, 1 dp; null when either is missing. */
+export function trackDelta(forecast: SessionForecast | null, measured: MeasuredWeather): number | null {
+  const estimate = forecast?.track_temp_c ?? null;
+  if (estimate === null || measured.track_temp_c === null) return null;
+  return Math.round((measured.track_temp_c - estimate) * 10) / 10;
+}
+
+/** "+3.4°", "−1.2°" (U+2212) and "0.0°". */
+export function formatSignedDegrees(value: number): string {
+  const text = `${Math.abs(value).toFixed(1)}°`;
+  if (value === 0) return text;
+  return `${value > 0 ? "+" : "−"}${text}`;
 }

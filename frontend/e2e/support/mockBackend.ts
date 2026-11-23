@@ -7,6 +7,7 @@ import {
   RACE_RESULTS_2026,
   READY,
   TEAMS_2026,
+  WEEKEND_FEED_2026_R19,
   WEEKEND_SESSIONS_2026,
 } from "../../test/fixtures";
 
@@ -42,6 +43,7 @@ export async function mockBackend(page: Page): Promise<void> {
   await page.route(`${E2E_API_ORIGIN}/**`, (route) => fulfillJson(route, { detail: "Not Found" }, NOT_FOUND));
   await page.route(`${E2E_API_ORIGIN}/api/ready`, (route) => fulfillJson(route, READY));
   // Pages ask for the calendar year's season; the fixture is 2026's table.
+  await page.route(`${E2E_API_ORIGIN}/api/weekend/*/*/feed`, (route) => fulfillJson(route, WEEKEND_FEED_2026_R19));
   await page.route(`${E2E_API_ORIGIN}/api/race-control/teams/*`, (route) => fulfillJson(route, TEAMS_2026));
   await page.route(`${E2E_API_ORIGIN}/api/profiles/*/directory`, (route) => fulfillJson(route, DIRECTORY_2026));
   // The Teams index (its own path, so it does not shadow a team's `/teams/{id}`).

@@ -8,9 +8,9 @@ import re
 
 import structlog
 
-from app.config import ENABLE_LOCAL_MODELS, RULEBOOK_TOP_K
+from app.config import RULEBOOK_TOP_K
 from app.data.fia_documents.store import FiaStoreError
-from app.rag.pgvector_store import RULEBOOK_ENABLED, RulebookHit, search_strict as rulebook_search
+from app.rag.pgvector_store import RULEBOOK_ENABLED, RulebookHit, search_strict as rulebook_search, year_indexed
 from app.rag.rerank import rerank
 from app.services import rulebook_answer, rulebook_decisions
 from app.services.rulebook_decisions import article_codes
@@ -70,20 +70,18 @@ def _regulation_hits(query: str, category: str | None, year: int) -> tuple[list,
     """The reranked passages, or the reason the regulations were not searched."""
     if not RULEBOOK_ENABLED:
         return [], "The regulation index isn't set up on this server, so the regulations were not searched."
-    if not ENABLE_LOCAL_MODELS:
-        return [], (
-            "Regulation search is off on this server: it needs a model this server doesn't have the memory "
-            "to run. The regulations were not searched."
-        )
     try:
         candidates = rulebook_search(query, year, category=category, k=RULEBOOK_TOP_K * 4)
         hits = rerank(query, candidates, PAGE_EXCERPTS) if candidates else []
+        indexed = bool(hits) or year_indexed(year)
     except Exception as exc:
         logger.warning("rulebook.search.failed", year=year, category=category, error=str(exc))
         return [], "The regulation search failed, so the regulations were not searched. Try again shortly."
-    if not hits:
+    if hits:
+        return hits, None
+    if not indexed:
         return [], f"The FIA {year} F1 Regulations aren't in the search index yet."
-    return hits, None
+    return [], "No regulation passage matched those words. Try the article number or the rule's wording."
 
 
 def search_rulebook(query: str, category: str | None = None, year: int | None = None) -> dict:

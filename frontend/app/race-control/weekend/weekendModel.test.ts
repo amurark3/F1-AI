@@ -7,13 +7,16 @@ import {
   clinchLine,
   compassPoint,
   formatPoints,
+  formatSignedDegrees,
   railFill,
   rainColor,
+  rainReadings,
   reachLine,
   summariseWeekend,
+  trackDelta,
 } from "./weekendModel";
 
-import type { SessionForecast, SessionWeatherRow, TableStakes } from "./weekendTypes";
+import type { MeasuredWeather, SessionForecast, SessionWeatherRow, TableStakes } from "./weekendTypes";
 
 /** The forecast of a captured session, by name. */
 function forecastOf(rows: SessionWeatherRow[], name: string): SessionForecast {
@@ -167,5 +170,33 @@ describe("reachLine", () => {
 
   it("is null while every bar still clears it", () => {
     expect(reachLine(tableOf(STAKES_2026.afterRound1.drivers))).toBeNull();
+  });
+});
+
+describe("trackside helpers", () => {
+  // The forecast's modelled track temperature and OpenF1's measured session summary.
+  const forecast = { track_temp_c: 15 } as SessionForecast;
+  const measured = (track: number | null): MeasuredWeather => ({
+    track_temp_c: track,
+    track_temp_min_c: null,
+    track_temp_max_c: null,
+    air_temp_c: null,
+    rainfall: [],
+  });
+
+  it("counts the readings that reported rain", () => {
+    expect(rainReadings([false, true, true, false])).toEqual({ wet: 2, total: 4 });
+    expect(rainReadings([])).toEqual({ wet: 0, total: 0 });
+  });
+
+  it("measures the track against the estimate, rounded to 1 dp", () => {
+    expect(trackDelta(forecast, measured(18.43))).toBe(3.4);
+    expect(trackDelta(forecast, measured(null))).toBeNull();
+    expect(trackDelta(null, measured(18))).toBeNull();
+    expect(trackDelta({ track_temp_c: null } as SessionForecast, measured(18))).toBeNull();
+  });
+
+  it("signs the delta with a true minus", () => {
+    expect([3.4, -1.2, 0].map(formatSignedDegrees)).toEqual(["+3.4°", "−1.2°", "0.0°"]);
   });
 });

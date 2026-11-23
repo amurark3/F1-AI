@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS chat_message (
 CREATE INDEX IF NOT EXISTS chat_message_thread_idx
     ON chat_message (user_id, thread_id, created_at);
 
+-- Keyword recall for servers with no embedder: stored, indexed and idempotent.
+ALTER TABLE chat_message
+    ADD COLUMN IF NOT EXISTS content_tsv tsvector
+    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+
+CREATE INDEX IF NOT EXISTS chat_message_content_tsv_idx
+    ON chat_message USING GIN (content_tsv);
+
 -- Both tables hold per-user data and Supabase exposes every public table over
 -- PostgREST, so RLS with no policies is what keeps the anon/authenticated API
 -- from reading other people's profiles and chat history.  This module connects
@@ -194,24 +202,63 @@ _RECALL_EXCLUDING_THREAD = """
 """
 
 
-def recall_relevant(user_id: str, query: str, *, k: int = 4, exclude_thread: str | None = None) -> list[dict]:
-    """Return the user's most semantically-similar past messages to ``query``.
+# Keyword recall (no embedder): the question becomes an OR of its stemmed words,
+# matched against the stored ``content_tsv`` and ranked by cover density,
+# length-normalised (32) so the rank is in [0, 1). Rows with a NULL embedding
+# are found too. A stopword-only question yields a NULL query and no rows.
+_RECALL_KEYWORDS_ALL_THREADS = """
+    WITH q AS (
+        SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS query
+        FROM unnest(tsvector_to_array(to_tsvector('english', %s))) AS lexeme
+    )
+    SELECT role, content, thread_id, created_at, ts_rank_cd(content_tsv, q.query, 32) AS rank
+    FROM chat_message, q
+    WHERE user_id = %s AND content_tsv @@ q.query
+    ORDER BY rank DESC, created_at DESC
+    LIMIT %s
+"""
 
-    Empty list when memory is off, the query can't be embedded, or on error.
+_RECALL_KEYWORDS_EXCLUDING_THREAD = """
+    WITH q AS (
+        SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS query
+        FROM unnest(tsvector_to_array(to_tsvector('english', %s))) AS lexeme
+    )
+    SELECT role, content, thread_id, created_at, ts_rank_cd(content_tsv, q.query, 32) AS rank
+    FROM chat_message, q
+    WHERE user_id = %s AND thread_id <> %s AND content_tsv @@ q.query
+    ORDER BY rank DESC, created_at DESC
+    LIMIT %s
+"""
+
+
+def recall_relevant(user_id: str, query: str, *, k: int = 4, exclude_thread: str | None = None) -> list[dict]:
+    """Return the user's most relevant past messages to ``query``.
+
+    Semantic (pgvector) when an embedder is loaded, otherwise by keywords over
+    the stored text. Each row's ``match`` says which. Empty list when memory is
+    off or on error.
     """
     if not MEMORY_ENABLED or not user_id or not query:
         return []
     embedding = _embed(query)
-    if embedding is None:
-        return []
-    literal = _vec_literal(embedding)
-    if exclude_thread:
-        statement = _RECALL_EXCLUDING_THREAD
-        # Order: sim-select vec, user_id, excluded thread, order vec, k.
-        params: list[Any] = [literal, user_id, exclude_thread, literal, k]
+    match = "vector"
+    if embedding is not None:
+        literal = _vec_literal(embedding)
+        if exclude_thread:
+            statement = _RECALL_EXCLUDING_THREAD
+            # Order: sim-select vec, user_id, excluded thread, order vec, k.
+            params: list[Any] = [literal, user_id, exclude_thread, literal, k]
+        else:
+            statement = _RECALL_ALL_THREADS
+            params = [literal, user_id, literal, k]
     else:
-        statement = _RECALL_ALL_THREADS
-        params = [literal, user_id, literal, k]
+        match = "keyword"
+        if exclude_thread:
+            statement = _RECALL_KEYWORDS_EXCLUDING_THREAD
+            params = [query, user_id, exclude_thread, k]
+        else:
+            statement = _RECALL_KEYWORDS_ALL_THREADS
+            params = [query, user_id, k]
     try:
         with _connect() as conn:
             _ensure_schema(conn)
@@ -223,6 +270,7 @@ def recall_relevant(user_id: str, query: str, *, k: int = 4, exclude_thread: str
                 "thread_id": r[2],
                 "created_at": r[3].isoformat() if r[3] else None,
                 "similarity": round(float(r[4]), 3),
+                "match": match,
             }
             for r in rows
         ]
@@ -301,7 +349,8 @@ def build_memory_context(user_id: str, query: str, thread_id: str | None = None)
         parts.append("ABOUT THIS USER: " + "; ".join(prefs_bits) + ".")
 
     recalled = recall_relevant(user_id, query, k=3, exclude_thread=thread_id)
-    strong = [r for r in recalled if r["similarity"] >= 0.35]
+    # The 0.35 floor is a cosine cut-off; a keyword hit already shares a word.
+    strong = [r for r in recalled if r["match"] == "keyword" or r["similarity"] >= 0.35]
     if strong:
         lines = [f"- ({r['role']}) {r['content'][:200]}" for r in strong]
         parts.append("RELEVANT PAST CONVERSATION:\n" + "\n".join(lines))

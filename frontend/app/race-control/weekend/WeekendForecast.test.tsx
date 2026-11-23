@@ -143,6 +143,35 @@ describe("WeekendForecast", () => {
     expect(chips()).toEqual(["Race day: Unclassified", "Wettest: Qualifying 80%", "23–27°C across the weekend"]);
   });
 
+  it("sets trackside readings in the card and tags the source only when a session has them", () => {
+    // `measured_weather.with_measured` on the first finished session; the rest carry no key (older backend).
+    const measured = {
+      track_temp_c: 33.1,
+      track_temp_min_c: 31,
+      track_temp_max_c: 35.2,
+      air_temp_c: 24.8,
+      rainfall: [false, false],
+    };
+    const sessions = SAO_PAULO.sessions.map((row, index) =>
+      index === 0 ? { ...row, phase: "done" as const, measured } : row,
+    );
+    render(<WeekendForecast weather={{ ...SAO_PAULO, sessions }} />);
+
+    expect(screen.getByText("OpenF1 · trackside")).toBeInTheDocument();
+    expect(within(card("Practice 1")).getByRole("table", { name: "Forecast vs measured" })).toBeInTheDocument();
+    expect(within(card("Practice 1")).getByText("33.1°")).toBeInTheDocument();
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    expect(screen.getByText(/Trackside rows are OpenF1's circuit weather station/)).toBeInTheDocument();
+    expect(screen.queryByText(/not trackside sensors/)).not.toBeInTheDocument();
+  });
+
+  it("omits the trackside tag when no session has readings", () => {
+    render(<WeekendForecast weather={SAO_PAULO} />);
+
+    expect(screen.queryByText("OpenF1 · trackside")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("explains an empty weekend with the backend's note", () => {
     render(<WeekendForecast weather={SESSION_WEATHER_2026.noSchedule} />);
 

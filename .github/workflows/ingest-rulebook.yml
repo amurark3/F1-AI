@@ -9,7 +9,14 @@ on:
     branches: [main]
     paths:
       - "backend/data/raw/**"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      backfill_only:
+        # A re-ingest truncates the table and with it every Gemini vector, so
+        # resuming a backfill that stopped on the daily quota must skip it.
+        description: "Only fill missing Gemini vectors (skip the re-embed)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ingest-rulebook
@@ -36,6 +43,7 @@ jobs:
           pip install -r requirements-ingest.txt
 
       - name: Re-embed rulebook into pgvector
+        if: ${{ !inputs.backfill_only }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # Embedding the corpus is the entire job, so this runner opts in to
@@ -47,3 +55,11 @@ jobs:
           # downloads. Works without it.
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python -m app.rag.ingest --force
+
+      - name: Fill Gemini vectors (resumable)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # The AI Studio key from the no-billing project (free tier). A spent
+          # daily quota stops cleanly; run again with backfill_only to continue.
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: python -m app.rag.gemini_backfill

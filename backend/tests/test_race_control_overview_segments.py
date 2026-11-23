@@ -189,7 +189,10 @@ def test_weather_segment_carries_the_forecast_and_its_risk_register(calls):
 
     assert segment["year"] == YEAR
     assert segment["weather"] == WEATHER
-    assert segment["session_weather"] == SESSIONS
+    assert segment["session_weather"] == {
+        **SESSIONS,
+        "sessions": [{**SESSIONS["sessions"][0], "measured": None, "measured_note": None}],
+    }
     assert [risk["title"] for risk in segment["risk_register"]] == [
         "Dry conditions expected",
         "Rival offset plans",
@@ -322,7 +325,7 @@ def test_composite_still_carries_every_segment(calls):
     assert overview["championship"] == shell["championship"]
     assert overview["live_status"] == shell["live_status"]
     assert overview["weather"] == weather["weather"]
-    assert overview["session_weather"] == weather["session_weather"]
+    assert overview["session_weather"] == SESSIONS  # the composite stays forecast-only (P7.6)
     assert overview["circuit"] == CIRCUIT
     assert overview["risk_register"] == weather["risk_register"]
     assert overview["predicted_podium"] == predictions["predicted_podium"]

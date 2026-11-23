@@ -51,7 +51,7 @@ Sessions can end mid-task, for example on a usage limit. These rules make sure t
 | Tests        | Frontend coverage reaches **literal 100%** by the end. Use a per-folder ratchet. No `v8/istanbul/c8 ignore` comments; delete dead code instead.                                                                                                                                                                           |
 | Names        | f1db is canonical: `driver.name` / `last_name` / `abbreviation` and the constructor id. No new Postgres identity table; read-path overlay only.                                                                                                                                                                           |
 | New ideas    | All 6 approved. See the "New ideas" map below.                                                                                                                                                                                                                                                                            |
-| Hosting      | Backend, Postgres + pgvector and scheduled jobs on **one Oracle Always Free A1 VM** (2 OCPU / 6 GB, Always Free account only, **$0**); frontend stays on Vercel; API at a DuckDNS subdomain over HTTPS. Supabase and Render are retired (user, 2026-11-08).                                                               |
+| Hosting      | Backend, Postgres + pgvector and scheduled jobs on **one Oracle Always Free A1 VM** (2 OCPU / 6 GB, Always Free account only, **$0**); frontend stays on Vercel; API at a DuckDNS subdomain over HTTPS. Supabase and Render are retired (user, 2026-11-08). **On hold since 2026-11-18** (no A1 capacity): Render stays production, kept warm by a 5-minute cron-job.org ping; work that doesn't need the VM goes ahead on `dev` (P3.5, P3.6, user 2026-11-23).                                                               |
 
 ## References
 
@@ -739,13 +739,15 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - **Then build it.** It fetches nothing, not even at build time, and `next build` lists `/` as static (○). The only API call on `/` is the readiness probe (P0c.7), which shows P3.5's restart lights only while the backend restarts.
 - **P3.4** Styled `not-found.tsx` and `global-error.tsx`; footer from `navConfig`.
 - **P3.5 Restart lights** (user, 2026-11-06; rewritten 2026-11-09 for the always-on backend, P0c.7, to the 2026-11-08 Loading decision):
-  - **Branch note (2026-11-09):** "Today" describes P0c.7's `ServerStatusNotice`, which lives on `feat/oracle-backend`. Before starting P3.5 on `dev`, merge `main` into `dev` if P0c has merged. If it hasn't, stop and ask the user: `dev` still has the old blocking `ServerWarmingGate`.
-  - **Today (after P0c.7):**
-    - `ServerStatusNotice` (`app/components/`, mounted beside the page in the root layout, never around it) shows a small card at the bottom of every route while `/api/ready` is not ready. It reads "Updating — back in a few seconds", with the backend's stage detail and a compact `StartLightGantry` lit by `litCountForStage(stage)` (`STAGE_ORDER` mirrors `WARMUP_STEPS`).
-    - Nothing is `inert` and scroll is never locked. The card is a polite live region that stays mounted, empty, while the backend is up.
-    - After two minutes of failed probes it reads "Server isn't responding", with Try again and Dismiss. When the backend comes back it shows "Back online" with lights out for `LAUNCH_DURATION_MS`, then goes.
-    - `e2e/server-status.spec.ts` guards it: a data route stays usable with `/api/ready` held at a stage, and nothing shows when it is ready.
-  - **Do:** restyle it to the redesign; the behaviour stays.
+  - **Branch note (2026-11-23, replaces 2026-11-09):** P0c is on hold, so P3.5 runs on `dev` without it. **Don't cherry-pick or merge P0c.7 (`07fbbaf`)** (user: "Reimplement them"). Reimplement its notice behaviour (below) on `dev`, and leave out its Oracle-only tuning, which is wrong on Render: the 5 s server-render budget, dropping the 429 retry, and prerendering every champion season.
+  - **Today on `dev`:** the root layout wraps every page in `ServerWarmingGate`, which makes the app `inert` behind `ServerWarmingOverlay` once a probe fails or is slow (1.5 s), and offers a retry after about 3 minutes. Render's free tier still cold-starts (about 50 s) when the keep-warm ping misses, and restarts on every deploy.
+  - **Step 1, the non-blocking notice (P0c.7's behaviour, reimplemented):**
+    - `ServerStatusNotice` (`app/components/`, mounted beside the page in the root layout, never around it) replaces the gate and the overlay (delete both). It shows while `/api/ready` is not ready, with the backend's stage detail and the lights.
+    - Nothing is `inert` and scroll is never locked. It is a polite live region (`role="status"`, name "Server status") that stays mounted, empty, while the backend is up.
+    - `serverStatus.ts`: only a failed probe counts as not ready (drop the slow-probe rule and the stale-tab recheck); give up after 120 s ("Server isn't responding", with Try again and Dismiss); validate the readiness body. When the backend comes back, "Back online" with lights out for `LAUNCH_DURATION_MS`, then it goes.
+    - Copy covers both a deploy restart and a Render cold start (for example "Server starting"), never "back in a few seconds".
+    - `mockBackend(page, { readiness })`, and `e2e/server-status.spec.ts`: a data route stays usable with `/api/ready` held at a stage, and nothing shows when it is ready. Tests that looked for the warm-up `dialog` look for the empty status region instead.
+  - **Step 2, the lights, against the mockup `restart-lights.html` (P3.5a):** restyle the notice to the redesign; Step 1's behaviour stays.
     - **Lights from the real stages only, never paced by a timer.** A pure `lightsFor(stage, ready)` replaces `litCountForStage`:
       - the stage in progress sets the count (`pending` 1 … `store` 5);
       - ready keeps 5, then plays lights out;
@@ -766,7 +768,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - **Today:**
     - `race-control/page.tsx` awaits all five overview segments (`Promise.all`) before any HTML.
     - `grand-prix`, the driver, team and power-unit car pages, `power-units`, `champions`, `debriefs`, `telemetry` and `teams` await their data at page level.
-    - `lib/server/backend.ts` gives a server render 5 s, retries included (P0c.7; 10 s before), so a slow or restarting backend can hold first paint that long.
+    - `lib/server/backend.ts` gives a server render 10 s, retries included (5 s on the unmerged Oracle branch), so a slow or cold backend can hold first paint that long. Keep the 10 s budget and the 429 retry while Render is production; removing the page-level awaits is what stops them holding first paint.
   - **Do:**
     - Remove every page-level backend await. The shell renders at once.
     - Each section takes its data through P0b.3's `useSection`, or a Suspense boundary with a server seed that SWR takes over.

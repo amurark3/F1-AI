@@ -59,8 +59,13 @@ export function LapChanges({ data, step }: { data: RaceRewind; step: number }) {
               />
               <span className="font-mono text-xs text-rc-ink-2">{`P${change.from} → P${change.to}`}</span>
               <DeltaChip delta={change.from - change.to} />
-              <StateTag>{changeLabel(change, track)}</StateTag>
-              <span className="col-span-full text-xs text-rc-ink-3 md:col-auto">{changeDetail(change, name)}</span>
+              {/* On a phone the tag and detail take a second row beside the team bar, not inside its 3 px column. */}
+              <span className="col-start-2 whitespace-nowrap md:col-start-auto">
+                <StateTag>{changeLabel(change, track)}</StateTag>
+              </span>
+              <span className="col-span-2 text-right text-xs text-rc-ink-3 md:col-auto md:text-left">
+                {changeDetail(change, name)}
+              </span>
             </li>
           );
         })}

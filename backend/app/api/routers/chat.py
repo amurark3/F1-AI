@@ -9,7 +9,7 @@ import json
 import re
 import threading
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import Runnable
@@ -27,6 +27,7 @@ from app.api.llm import (
     message_text,
 )
 from app.api.prompts import RACE_ENGINEER_PERSONA
+from app.api.rate_limit import limit_chat
 from app.api.schemas.chat import ChatRequest
 from app.api.single_flight import SingleFlight
 from app.api.tools import TOOL_LIST, TOOL_MAP
@@ -182,18 +183,13 @@ def build_system_prompt(today: str, memory_context: str = "") -> str:
 def build_langchain_messages(request: ChatRequest, today: str, memory_context: str = "") -> list[BaseMessage]:
     messages = [SystemMessage(content=build_system_prompt(today, memory_context))]
     for msg in request.messages:
-        if msg["role"] == "user":
-            messages.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            messages.append(AIMessage(content=msg["content"]))
+        turn = HumanMessage if msg.role == "user" else AIMessage
+        messages.append(turn(content=msg.content))
     return messages
 
 
 def _latest_user_text(request: ChatRequest) -> str:
-    for msg in reversed(request.messages):
-        if msg.get("role") == "user":
-            return str(msg.get("content", ""))
-    return ""
+    return next((msg.content for msg in reversed(request.messages) if msg.role == "user"), "")
 
 
 @dataclass(frozen=True)
@@ -401,7 +397,7 @@ async def ask_anonymously(question: str) -> tuple[str, list[BaseMessage]]:
     return "".join(chunks), messages
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(limit_chat)])
 async def chat_endpoint(request: ChatRequest) -> StreamingResponse:
     """Streaming chat endpoint that drives the F1 tool-use loop."""
 

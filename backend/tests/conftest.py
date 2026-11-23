@@ -186,3 +186,11 @@ def _empty_openf1_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: p
     from app.data.openf1 import session_store
 
     monkeypatch.setattr(session_store, "STORE", session_store.FileSessionStore(tmp_path_factory.mktemp("openf1_store")))
+
+
+@pytest.fixture(autouse=True)
+def _fresh_chat_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The chat rate limit is module-global; every test starts with a clean count."""
+    from app.api import rate_limit
+
+    monkeypatch.setattr(rate_limit, "chat_limiter", rate_limit.RateLimiter(((1000, 60.0),)))

@@ -166,7 +166,7 @@ def test_chat_request_defaults_to_the_stateless_shape():
 
 @pytest.mark.unit
 def test_chat_request_carries_identity_when_supplied():
-    request = ChatRequest(messages=[], user_id="u-1", thread_id="t-9")
+    request = ChatRequest(messages=[{"role": "user", "content": "hi"}], user_id="u-1", thread_id="t-9")
 
     assert (request.user_id, request.thread_id) == ("u-1", "t-9")
 

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiUrl, server } from "@/test/msw/server";
 
+import { MAX_ANSWER_CHARS, MAX_TURNS } from "./engineerModel";
 import { useChat } from "./useChat";
 
 import type { FormEvent } from "react";
@@ -106,5 +107,30 @@ describe("useChat", () => {
     const ids = bodies.map((body) => (body as { user_id: string }).user_id);
     expect(ids[0]).toMatch(/^u_/);
     expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("sends the latest turns only, opening on a question, each long answer clipped", async () => {
+    const { bodies } = serveChat("x".repeat(MAX_ANSWER_CHARS + 1));
+    const { result } = renderHook(() => useChat());
+    const questions = Array.from({ length: MAX_TURNS / 2 + 1 }, (_, n) => `Q${n + 1}`);
+
+    for (const question of questions) {
+      await act(() => result.current.sendMessage(question));
+    }
+
+    const turns = (bodies.at(-1) as { messages: Array<{ role: string; content: string }> }).messages;
+    // 41 turns in the thread; the oldest one goes, then the answer it leaves at the front.
+    expect(turns).toHaveLength(MAX_TURNS - 1);
+    expect(turns[0]).toEqual({ role: "user", content: "Q2" });
+    expect(turns[1].content).toHaveLength(MAX_ANSWER_CHARS);
+  });
+
+  it("says to wait when the server is rate limiting", async () => {
+    server.use(http.post(CHAT_URL, () => HttpResponse.text("slow down", { status: 429 })));
+    const { result } = renderHook(() => useChat());
+
+    await act(() => result.current.sendMessage("Who won?"));
+
+    expect(result.current.failure).toBe("Too many questions in a short time. Wait a minute, then ask again.");
   });
 });

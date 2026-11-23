@@ -26,6 +26,11 @@ export interface AnswerData {
   charts: ReachChartData[];
 }
 
+/** What one chat request may carry; mirrors `backend/app/api/schemas/chat.py`. */
+export const MAX_TURNS = 40;
+export const MAX_QUESTION_CHARS = 4_000;
+export const MAX_ANSWER_CHARS = 16_000;
+
 export interface Message {
   role: "user" | "assistant";
   content: string;

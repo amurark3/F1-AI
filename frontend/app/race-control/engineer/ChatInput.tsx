@@ -1,5 +1,7 @@
 "use client";
 
+import { MAX_QUESTION_CHARS } from "./engineerModel";
+
 import type { FormEvent, RefObject } from "react";
 
 interface ChatInputProps {
@@ -21,6 +23,7 @@ export function ChatInput({ input, isLoading, inputRef, onInputChange, onSubmit 
         ref={inputRef}
         type="text"
         value={input}
+        maxLength={MAX_QUESTION_CHARS}
         onChange={(e) => onInputChange(e.target.value)}
         aria-label="Ask the AI Engineer"
         placeholder="Ask about any race, driver, rule or prediction…"

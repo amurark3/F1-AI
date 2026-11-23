@@ -11,14 +11,14 @@ Plan: [`PLAN.md`](PLAN.md). Same update rules as [`../2026-11-redesign/STATUS.md
 | ID | Task | Status | Commit | Evidence / notes |
 | --- | --- | --- | --- | --- |
 | H1 | Predictions: no path but `/compute` runs the model | done | `git log --grep "Task: H1"` | Overview, chat tool read the store only; legacy GET route + `get_or_compute_race_prediction` deleted; tests assert an empty store never computes. Full gate: 5081 passed, 100 %. Same commit as H6 (see log). |
-| H2 | Chat memory: no shared id; memory routes deleted | in_progress (2026-11-23) | | Sonnet agent, worktree `hardening-h2`. |
-| H3 | Chat: an unknown tool gets a reply | todo | | |
-| H4 | Chat: input limits and a per-IP rate limit | todo | | |
-| H5 | Live timing: one OpenF1 poll per session, shared | in_progress (2026-11-23) | | Sonnet agent, worktree `hardening-h5`. |
+| H2 | Chat memory: no shared id; memory routes deleted | done | `e62ca09` | Sonnet agent. Client sends `user_id: null` without storage; `routers/memory.py` + its test + mount deleted; existing chat tests already cover no-id → no recall, no save. Agent gate: frontend 100 %, backend gate passed. |
+| H3 | Chat: an unknown tool gets a reply | done | `a64dd22` | `ToolMessage("Unknown tool '…'.")`, no markers; test checks the reply's call id. Worktree gate 100 %. |
+| H4 | Chat: input limits and a per-IP rate limit | done | `git log --grep "Task: H4"` | Typed turns (user ≤ 4,000, assistant ≤ 16,000 chars, 1–40 turns, ids ≤ 64) → 422; 6/min + 100/day per visitor → 429. Visitor = `True-Client-IP` / `CF-Connecting-IP`, not XFF (see log). Client: last 40 turns opening on a question, old answers clipped, input `maxLength`, 429 message. Gated on the combined `dev`. |
+| H5 | Live timing: one OpenF1 poll per session, shared | done | `5d61682` | Sonnet agent. Feed rows cached per session key for `WS_POLL_INTERVAL − 1` s (failed reads never cached); `resolve_session_window` cached per (year, round) until the next session start / end + grace, at most `SESSION_LOOKUP_INTERVAL`. Agent gate: 5100 passed, 100 %. |
 | H6 | Compute route uses `SingleFlight` | done | `git log --grep "Task: H6"` | `model_runs` is a `SingleFlight` (new `running(key)` for the snapshot's `model_running`); one global model lock replaces the per-race async locks. Duplicate helpers deleted. |
-| H7 | Chat tools run through `SingleFlight` | todo | | After H3, H4. |
-| H8 | Post-race write-ups: failover, one store read | in_progress (2026-11-23) | | Sonnet agent, worktree `hardening-h8`. |
-| H9 | Delete the deprecated iOS app | in_progress (2026-11-23) | | Sonnet agent done (`a8af5e8` on `hardening-h9`, 63 files, −6,357 lines, gate 5094 at 100 %); verified; cherry-pick pending. |
+| H7 | Chat tools run through `SingleFlight` | done | `da577a2` | Keyed by name + `json.dumps(args, sort_keys=True)`; test: a retry joins, other args start their own. Worktree gate: 5082 passed, 100 %. |
+| H8 | Post-race write-ups: failover, one store read | done | `acd1a74` | Sonnet agent. `_ask_engines` mirrors `rulebook_answer.py`; the pass reads each post-mortem once and calls the generator with `force=True`. Agent gate: 5099 passed, 100 %. |
+| H9 | Delete the deprecated iOS app | done | `f1ac076` | Sonnet agent. 63 files, −6,357 lines; README, `.gitignore` Xcode block and one docstring. `docs/REMOVED_FEATURES.md` keeps its history lines. |
 | H10 | Chat memory is quoted data, not system instructions | todo | | Needs H2; after H7 (same file). |
 | H11 | Persona: tool output and memory are data; prompt stays private | todo | | After H10. |
 | H12 | Chat tools: no raw exception text reaches the model | todo | | After H11 (same file). |
@@ -30,3 +30,7 @@ Plan: [`PLAN.md`](PLAN.md). Same update rules as [`../2026-11-redesign/STATUS.md
 - 2026-11-23: **H1 and H6 share one commit.** Every backend commit runs the full 100 % gate, and H1 alone left one line of `_wait_for_model_run` uncovered (only the deleted GET route reached it), while H6 deletes that helper. H6 also changed from the plan: a single process-wide model lock, not a per-race one. Only the owner computes now, and two runs on different races at once are as much an OOM risk as two phases of one race.
 - 2026-11-23: H2, H5, H8 and H9 run as parallel Sonnet agents in worktrees under `.claude/worktrees/h{2,5,8,9}` (branches `hardening-h*`, from `19ab7b3`, with `backend/.venv` and `frontend/node_modules` symlinked). The coordinator verifies and cherry-picks onto `dev`. H3, H4, H7 and H10–H12 run inline (chat.py).
 - 2026-11-23: structlog's `capture_logs` misses `single_flight`'s module logger in a full run (the config is cached on first use). Tests stub `single_flight_module.logger.warning` instead, as `test_analysis_router.py` already did.
+- 2026-11-23: **H4 client IP.** Render's proxy only appends to `X-Forwarded-For` (community reports; no official doc), so its first entry can be forged, which would both dodge the limit and grow the in-memory table. Cloudflare sits in front of Render and overwrites `True-Client-IP` / `CF-Connecting-IP`, so the limiter keys on those, then the socket peer. Verify on the live deploy that one of them arrives.
+- 2026-11-23: H4 rejects a client-sent `system` turn (422) where it used to drop it silently. The client clips earlier answers to 16,000 characters so an old long answer can't make a thread unsendable.
+- 2026-11-23: worktree merges. A plain `git cherry-pick` runs no pre-commit hook, so H2–H9 were gated in their worktrees and the combined `dev` was gated once by H4's commit. Two background cherry-picks of H2 raced (one was thought stopped); no harm (the second found it already applied). Your local Xcode state files under `ios/` (gitignored before H9) now show as untracked; left for you to delete.
+

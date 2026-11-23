@@ -59,7 +59,7 @@ function Body({ year, round, seeds }: BodyProps) {
             {laps.data && <LapLeaders laps={laps.data} />}
           </Section>
           <Section state={laps} label="Race trace" skeletonClassName="h-[420px]">
-            {laps.data && <RaceTrace laps={laps.data} round={round} />}
+            {laps.data && <RaceTrace laps={laps.data} year={year} round={round} />}
           </Section>
         </div>
       </section>

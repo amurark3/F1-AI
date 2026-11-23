@@ -1,10 +1,4 @@
-/**
- * The homepage's copy and links (docs/design/redesign/home.html).
- *
- * Static on purpose (PLAN, Locked decisions: Homepage): no names, results,
- * dates or counts that could go stale or wrong between deploys. Every href is
- * a screen in `ui/shell/navConfig.ts`; `app/page.test.tsx` holds them to it.
- */
+import { COMMAND_CENTER_LINK, ENGINEER_LINK, RACES, REFERENCE, SEASON } from "@/app/ui/shell/navConfig";
 
 export interface HomeLink {
   href: string;
@@ -14,22 +8,20 @@ export interface HomeLink {
 
 /** The two ways in under the hero's headline. */
 export const HERO_CTAS = {
-  primary: { href: "/race-control", label: "Enter Race Control" },
-  secondary: { href: "/race-control/engineer", label: "Ask the AI Engineer" },
+  primary: { href: COMMAND_CENTER_LINK.href, label: "Enter Race Control" },
+  secondary: { href: ENGINEER_LINK.href, label: "Ask the AI Engineer" },
 } as const;
 
-/** 01 · Race weekend: the two screens a weekend runs on. */
 export const COMMAND_CENTER: HomeLink & { eyebrow: string } = {
-  href: "/race-control",
+  href: COMMAND_CENTER_LINK.href,
   eyebrow: "Command Center",
   title: "This weekend, on one screen",
   description:
     "Session-by-session forecast, what the title fight hinges on, the strategy baseline and the model's podium.",
 };
 
-export const AI_ENGINEER: HomeLink & { eyebrow: string; questions: readonly string[] } = {
-  href: "/race-control/engineer",
-  eyebrow: "AI Engineer",
+export const AI_ENGINEER: HomeLink & { questions: readonly string[] } = {
+  href: ENGINEER_LINK.href,
   title: "Ask anything",
   description:
     "Strategy, history or the regulations, in plain English. Answers come from the same results database the screens use.",
@@ -41,53 +33,62 @@ export const AI_ENGINEER: HomeLink & { eyebrow: string; questions: readonly stri
   ],
 };
 
-/** Which data-free motif heads a decision-tool card. */
-export type ToolMotif = "calendar" | "traces" | "standings" | "lineups" | "powerUnits";
+interface ToolCopy {
+  motif: ToolMotif;
+  description: string;
+}
+export type ToolMotif =
+  "calendar" | "leaders" | "rewind" | "traces" | "standings" | "lineups" | "powerUnits" | "podium" | "regulations";
 
-/** 02 · Decision tools: three cards, then two wide ones. */
-export const TOOLS: ReadonlyArray<HomeLink & { motif: ToolMotif; wide?: boolean }> = [
-  {
-    href: "/race-control/grand-prix",
-    title: "Grand Prix Hub",
-    description: "Every round: sessions, grid, tyre stints and the model's call.",
+const RACE_COPY: Record<(typeof RACES.links)[number]["href"], ToolCopy> = {
+  "/race-control/grand-prix": {
+    description: "Every round: sessions, grid, results and the model's call.",
     motif: "calendar",
   },
-  {
-    href: "/race-control/telemetry",
-    title: "Telemetry Lab",
+  "/race-control/debriefs": {
+    description: "What happened in the race, and why: leaders, stops, penalties.",
+    motif: "leaders",
+  },
+  "/race-control/rewind": {
+    description: "Replay the running order lap by lap, every change explained.",
+    motif: "rewind",
+  },
+  "/race-control/telemetry": {
     description: "Speed maps, head-to-head laps and tyre degradation since 2023.",
     motif: "traces",
   },
-  {
-    href: "/race-control/standings",
-    title: "Standings",
-    description: "Both championships, and how the gap moved race by race.",
+};
+
+const SEASON_COPY: Record<(typeof SEASON.links)[number]["href"], ToolCopy> = {
+  "/race-control/standings": {
+    description: "Both championships, how the gap moved, and who can still win.",
     motif: "standings",
   },
-  {
-    href: "/race-control/constructors",
-    title: "Teams & Drivers",
+  "/race-control/constructors": {
     description: "Line-ups, wins and every driver's finish in every round.",
     motif: "lineups",
-    wide: true,
   },
-  {
-    href: "/race-control/power-units",
-    title: "Power Units",
+  "/race-control/power-units": {
     description: "Engine allocations per car, and the grid penalties they cost.",
     motif: "powerUnits",
-    wide: true,
   },
-];
+};
 
-/** 03 · Reference: dense rows, a change of pace. */
-export const REFERENCE: readonly HomeLink[] = [
-  {
-    href: "/race-control/champions",
-    title: "Champions",
+const REFERENCE_COPY: Record<(typeof REFERENCE.links)[number]["href"], ToolCopy> = {
+  "/race-control/champions": {
     description: "Every drivers' and constructors' title since 1950.",
+    motif: "podium",
   },
-  { href: "/race-control/debriefs", title: "Race Debriefs", description: "What happened in each race, and why." },
-  { href: "/race-control/rewind", title: "Race Rewind", description: "Replay the running order lap by lap." },
-  { href: "/race-control/rulebook", title: "Rulebook", description: "Search the FIA regulations by meaning." },
-];
+  "/race-control/rulebook": {
+    description: "Search the FIA regulations by meaning.",
+    motif: "regulations",
+  },
+};
+
+export const RACE_CARDS = RACES.links.map(({ href, label }) => ({ href, title: label, ...RACE_COPY[href] }));
+export const SEASON_CARDS = SEASON.links.map(({ href, label }) => ({ href, title: label, ...SEASON_COPY[href] }));
+export const REFERENCE_CARDS = REFERENCE.links.map(({ href, label }) => ({
+  href,
+  title: label,
+  ...REFERENCE_COPY[href],
+}));

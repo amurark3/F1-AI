@@ -13,7 +13,14 @@ import type { WeekendSessionsResponse } from "./sessionsModel";
 
 function show(grid: StartingGridResponse | undefined, sessions?: WeekendSessionsResponse, round: number | null = 19) {
   return renderWithProviders(
-    <GridTab grid={grid} loading={false} sessions={sessions} round={round} raceName="Mexico City Grand Prix" />,
+    <GridTab
+      year={2026}
+      grid={grid}
+      loading={false}
+      sessions={sessions}
+      round={round}
+      raceName="Mexico City Grand Prix"
+    />,
   );
 }
 
@@ -55,9 +62,12 @@ describe("GridTab", () => {
 
     expect(screen.getByRole("link", { name: "Results" })).toHaveAttribute(
       "href",
-      "/race-control/grand-prix?round=19&tab=results",
+      "/race-control/grand-prix?round=19&tab=results&year=2026",
     );
-    expect(screen.getByRole("link", { name: "Debrief" })).toHaveAttribute("href", "/race-control/debriefs?round=19");
+    expect(screen.getByRole("link", { name: "Debrief" })).toHaveAttribute(
+      "href",
+      "/race-control/debriefs?round=19&year=2026",
+    );
     expect(screen.queryByText(/grid to the flag/i)).not.toBeInTheDocument();
   });
 
@@ -136,7 +146,7 @@ describe("GridTab", () => {
     expect(screen.queryByRole("radiogroup", { name: "Grid" })).not.toBeInTheDocument();
     unmount();
 
-    renderWithProviders(<GridTab loading sessions={undefined} round={19} raceName="x" />);
+    renderWithProviders(<GridTab year={2026} loading sessions={undefined} round={19} raceName="x" />);
     expect(screen.getByText("Loading the starting grid")).toBeInTheDocument();
   });
 });

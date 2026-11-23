@@ -21,7 +21,7 @@ describe("RaceTrace", () => {
   });
 
   it("titles the neutralisations and draws five lines, the bands and the red flag", () => {
-    const { container } = renderWithProviders(<RaceTrace laps={LAPS} round={19} />);
+    const { container } = renderWithProviders(<RaceTrace year={2026} laps={LAPS} round={19} />);
 
     expect(
       screen.getByRole("heading", { name: "A VSC, 2 Safety Cars and a red flag after lap 45" }),
@@ -32,12 +32,12 @@ describe("RaceTrace", () => {
     expect(screen.getByText("Gap to the leader at each line crossing, top five · capped at 30 s")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Replay this race lap by lap →" })).toHaveAttribute(
       "href",
-      "/race-control/rewind?round=19",
+      "/race-control/rewind?round=19&year=2026",
     );
   });
 
   it("keys the legend to the podium, the rest and the neutralisations", async () => {
-    renderWithProviders(<RaceTrace laps={LAPS} round={19} />);
+    renderWithProviders(<RaceTrace year={2026} laps={LAPS} round={19} />);
 
     const legend = screen.getByRole("list", { name: "Race trace" });
     expect(await within(legend).findByText("Verstappen")).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe("RaceTrace", () => {
   });
 
   it("gives the same numbers as a table for a screen reader", () => {
-    renderWithProviders(<RaceTrace laps={LAPS} round={19} />);
+    renderWithProviders(<RaceTrace year={2026} laps={LAPS} round={19} />);
 
     const table = screen.getByRole("table");
     expect(within(table).getByRole("row", { name: /^VER/ })).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("RaceTrace", () => {
       neutralisations: [],
       trace: [{ ...first, gaps: first.gaps.map(() => null) }, ...others.slice(0, 1)],
     };
-    renderWithProviders(<RaceTrace laps={laps} round={19} />);
+    renderWithProviders(<RaceTrace year={2026} laps={laps} round={19} />);
 
     expect(screen.getByRole("heading", { name: "No Safety Car, VSC or red flag" })).toBeInTheDocument();
     expect(screen.queryByText("VSC / Safety Car")).not.toBeInTheDocument();
@@ -70,18 +70,20 @@ describe("RaceTrace", () => {
   });
 
   it("names a driver the entry list lacks by its code", () => {
-    renderWithProviders(<RaceTrace laps={{ ...LAPS, drivers: [] }} round={19} />);
+    renderWithProviders(<RaceTrace year={2026} laps={{ ...LAPS, drivers: [] }} round={19} />);
 
     expect(screen.getByRole("list", { name: "Race trace" })).toHaveTextContent("VER");
   });
 
   it("gives the reason when there is no trace", () => {
-    renderWithProviders(<RaceTrace laps={{ ...LAPS, available: false, reason: "No laps yet." }} round={19} />);
+    renderWithProviders(
+      <RaceTrace year={2026} laps={{ ...LAPS, available: false, reason: "No laps yet." }} round={19} />,
+    );
     expect(screen.getByText("No laps yet.")).toBeInTheDocument();
   });
 
   it("says so when the trace is empty without a reason", () => {
-    renderWithProviders(<RaceTrace laps={{ ...LAPS, trace: [], reason: null }} round={19} />);
+    renderWithProviders(<RaceTrace year={2026} laps={{ ...LAPS, trace: [], reason: null }} round={19} />);
     expect(screen.getByText("No race trace for this race.")).toBeInTheDocument();
   });
 });

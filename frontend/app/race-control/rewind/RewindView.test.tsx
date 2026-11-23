@@ -269,6 +269,16 @@ describe("Race Rewind", () => {
     expect(nav.replace).toHaveBeenCalledWith("/race-control/rewind?round=19", { scroll: false });
   });
 
+  it("loads the historical season in the URL and keeps it when scrubbing", async () => {
+    server.use(http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json(SEASON_2026.schedule)));
+    const write = vi.spyOn(window.history, "replaceState");
+    const { user } = await renderPage("round=19&year=2025");
+
+    expect(await screen.findByRole("group", { name: "2025 race picker" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Next lap" }));
+    expect(write).toHaveBeenCalledWith(null, "", "/race-control/rewind?round=19&year=2025&lap=45");
+  });
+
   it("says the calendar could not load, and tries again", async () => {
     server.use(
       http.get(SCHEDULE_URL, () => new HttpResponse(null, { status: 500 }), { once: true }),

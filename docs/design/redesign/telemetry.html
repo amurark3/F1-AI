@@ -6,7 +6,7 @@
     <title>F1 AI — Telemetry Lab (redesign direction)</title>
     <link rel="stylesheet" href="system.css" />
     <style>
-      /* Same race picker as the Grand Prix hub, plus a season select. */
+      /* The race picker sits in the same place as in the other race views. */
       .picker {
         border-bottom: 1px solid var(--line);
       }
@@ -19,6 +19,7 @@
       }
       .select {
         all: unset;
+        appearance: auto;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -121,6 +122,51 @@
         letter-spacing: 0.18em;
         color: var(--ink-3);
       }
+      .this-race {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 28px;
+        border-bottom: 1px solid var(--line);
+      }
+      .this-race a {
+        padding: 12px 0;
+        border-bottom: 2px solid transparent;
+        font: 700 15px/1.35 var(--display);
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .this-race a[aria-current="page"] {
+        border-color: var(--red);
+        color: var(--ink);
+      }
+      .telemetry-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 20px 0;
+      }
+      .telemetry-header h1 {
+        font: 800 48px/.92 var(--display);
+        text-transform: uppercase;
+      }
+      .telemetry-header p {
+        margin-top: 8px;
+        color: var(--ink-2);
+      }
+      .season-control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      @media (max-width: 639px) {
+        .telemetry-header h1 { font-size: 36px; }
+        .this-race { gap: 16px; }
+        .this-race .eyebrow { display: none; }
+        .season-control { align-items: flex-start; flex-direction: column; gap: 8px; }
+      }
       /* One toolbar: view, session, driver, lap. */
       .toolbar {
         display: flex;
@@ -191,7 +237,7 @@
       .mapcard {
         padding: 24px;
       }
-      .mapcard h1 {
+      .mapcard h2 {
         font: 800 30px/1 var(--display);
         text-transform: uppercase;
         margin-top: 8px;
@@ -325,7 +371,6 @@
 
     <div class="picker">
       <div class="wrap">
-        <button class="select" type="button">2026 ▾</button>
         <button class="step" type="button" aria-label="Previous round">‹</button>
         <span class="rnum">R18</span>
         <div>
@@ -373,6 +418,28 @@
     </div>
 
     <main class="wrap">
+      <nav class="this-race" aria-label="This race">
+        <span class="eyebrow">This race · R18</span>
+        <a href="grand-prix.html">Grand Prix</a>
+        <a href="telemetry.html" aria-current="page">Telemetry</a>
+        <a href="debrief.html">Debrief</a>
+        <a href="race-rewind.html">Rewind</a>
+      </nav>
+      <header class="telemetry-header">
+        <div>
+          <h1>Telemetry Lab</h1>
+          <p>Lap timing and car telemetry from OpenF1 since 2023.</p>
+        </div>
+        <label class="season-control">
+          <span class="eyebrow">Season</span>
+          <select class="select">
+            <option selected>2026</option>
+            <option>2025</option>
+            <option>2024</option>
+            <option>2023</option>
+          </select>
+        </label>
+      </header>
       <div class="toolbar">
         <nav class="tabs" aria-label="Analysis">
           <a href="#" aria-selected="true">Speed map</a>
@@ -391,7 +458,7 @@
       <div class="body">
         <figure class="panel mapcard" style="position: relative">
           <p class="eyebrow">Speed map · qualifying</p>
-          <h1>Kimi Antonelli · lap 14</h1>
+          <h2>Kimi Antonelli · lap 14</h2>
           <p class="sub">Slow is deep blue, fast is pale. Orange marks where he hits the brakes.</p>
           <div class="readout">
             <span class="eyebrow">Turn 11</span>

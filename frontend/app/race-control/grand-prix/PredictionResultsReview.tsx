@@ -111,11 +111,13 @@ function ScoredReview({
   review,
   identities,
   results,
+  year,
   round,
 }: {
   review: PredictionReview;
   identities: IdentityLookup;
   results: RaceResultsResponse | undefined;
+  year: number;
   round: number;
 }) {
   const rows = useMemo(() => buildReviewRows(review, results), [review, results]);
@@ -149,7 +151,7 @@ function ScoredReview({
               and no number: it counts only as a retirement call, never in the average miss.
             </p>
             <Link
-              href={grandPrixHref(round, "results")}
+              href={grandPrixHref(round, "results", year)}
               className="mt-3 inline-block font-mono text-xs text-rc-blue hover:text-rc-ink"
             >
               Final classification
@@ -192,5 +194,5 @@ export function ResultsReview({
   if (!scored || !review || round === null) {
     return <RollingAccuracy accuracy={accuracy} reason={review?.reason} />;
   }
-  return <ScoredReview review={review} identities={identities} results={results.data} round={round} />;
+  return <ScoredReview review={review} identities={identities} results={results.data} year={year} round={round} />;
 }

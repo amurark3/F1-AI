@@ -112,7 +112,7 @@ describe("ResultsReview (Mexico City, the real stored review)", () => {
     expect(screen.queryByText(/Predicted vs actual/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Final classification" })).toHaveAttribute(
       "href",
-      "/race-control/grand-prix?round=19&tab=results",
+      "/race-control/grand-prix?round=19&tab=results&year=2026",
     );
   });
 

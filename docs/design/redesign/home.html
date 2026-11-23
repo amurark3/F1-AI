@@ -78,12 +78,6 @@
         padding: 104px 0 0;
       }
 
-      /* 01 — feature row, asymmetric 7/5 */
-      .feature {
-        display: grid;
-        grid-template-columns: 7fr 5fr;
-        gap: 20px;
-      }
       .card {
         position: relative;
         display: flex;
@@ -120,22 +114,23 @@
         transform: translateX(4px);
         color: var(--red-text);
       }
-      .cc {
+      .feature.card {
         display: grid;
-        grid-template-columns: 1fr 1.1fr;
         gap: 24px;
         align-items: center;
       }
-      .cc svg {
+      .feature .corner {
         width: 100%;
+        max-width: 280px;
         height: auto;
+        justify-self: center;
       }
-      /* Example questions only: no sample answer, nothing that can go stale */
       .chat {
-        margin-top: auto;
-        padding-top: 22px;
         display: grid;
         gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
       }
       .bubble {
         justify-self: end;
@@ -148,17 +143,10 @@
         color: var(--ink);
       }
 
-      /* 02 Races (4) and 03 Season (3), mirroring the nav groups (N2); each with a data-free motif (shapes only: no names, numbers or team colours) */
+      /* Races, Season and Reference share the same card treatment. */
       .tools {
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
         gap: 20px;
-      }
-      .tools .card {
-        grid-column: span 2;
-      }
-      .tools .card.wide {
-        grid-column: span 3;
       }
       .motif {
         height: 64px;
@@ -235,34 +223,6 @@
         opacity: 1;
       }
 
-      /* 03 — reference: dense rows, a change of pace */
-      .rows a {
-        display: grid;
-        grid-template-columns: 56px 300px 1fr auto;
-        align-items: baseline;
-        gap: 24px;
-        padding: 22px 4px;
-        border-bottom: 1px solid var(--line);
-        transition: background-color 0.15s;
-      }
-      .rows a:hover {
-        background: rgb(255 255 255 / 0.02);
-      }
-      .rows .n {
-        font: 600 12px/1 var(--mono);
-        color: var(--ink-3);
-      }
-      .rows h3 {
-        font: 800 28px/1 var(--display);
-        text-transform: uppercase;
-      }
-      .rows p {
-        color: var(--ink-2);
-      }
-      .rows .arrow {
-        color: var(--ink-3);
-      }
-
       footer {
         margin-top: 120px;
         border-top: 1px solid var(--line);
@@ -282,29 +242,22 @@
       .grp>button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:500 11px/60px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
       .grp>button:hover{color:var(--ink)}.grp>button svg{width:8px;height:8px}
       .ai{margin-left:auto;font:600 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px 14px}
-      @media (min-width:1101px){.tools.four{grid-template-columns:repeat(4,1fr)}.tools.three{grid-template-columns:repeat(3,1fr)}.tools.four .card,.tools.three .card{grid-column:auto}}
+      @media (min-width: 640px) {
+        .feature.card {
+          grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+          gap: 40px;
+        }
+        .chat { padding-right: 32px; }
+        .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (min-width: 1024px) {
+        .tools.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .tools.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
       .sec-sub{color:var(--ink-3);font-size:14px;margin:-14px 0 24px;max-width:60ch}
       @media (max-width:1100px){.nav{display:flex}.menu-btn{display:none}}
       @media (max-width:900px){.nav,.ai{display:none}.menu-btn{display:block}}
       @media (max-width: 1100px) {
-        .feature,
-        .cc {
-          grid-template-columns: 1fr;
-        }
-        .tools {
-          grid-template-columns: 1fr;
-        }
-        .tools .card,
-        .tools .card.wide {
-          grid-column: auto;
-          min-height: 0;
-        }
-        .rows a {
-          grid-template-columns: 36px 1fr auto;
-        }
-        .rows p {
-          grid-column: 2 / 3;
-        }
         .hero .wrap {
           padding-bottom: 88px;
         }
@@ -366,35 +319,20 @@
             <span class="idx">01</span>
             <h2>Race Control</h2>
           </div>
-          <div class="feature">
-            <a class="panel card" href="#">
-              <span class="arrow">→</span>
-              <div class="cc">
-                <div>
-                  <p class="eyebrow">Command Center</p>
-                  <h3>This weekend, on one screen</h3>
-                  <p>Session-by-session forecast, what the title fight hinges on, the strategy baseline and the model's podium.</p>
-                </div>
-                <svg viewBox="0 0 440 320" role="img" aria-label="A racing line through a corner: in wide, clip the apex, out wide">
-                  <path d="M60 320 L60 200 A140 140 0 0 1 200 60 L440 60" fill="none" stroke="#1e2633" stroke-width="56" />
-                  <path class="draw" pathLength="1" d="M38 320 L38 240 C38 190 76.6 156.6 116.6 116.6 C156.6 76.6 190 38 240 38 L440 38" fill="none" stroke="#f0f2f6" stroke-width="4" stroke-linecap="round" />
-                  <circle cx="116.6" cy="116.6" r="9" fill="#e10600" />
-                  <text x="134" y="146" fill="#7f8797" font-family="Geist Mono, monospace" font-size="13" font-weight="600" letter-spacing="2.6">APEX</text>
-                </svg>
-              </div>
-            </a>
-            <a class="panel card" href="#">
-              <span class="arrow">→</span>
-              <p class="eyebrow">AI Engineer</p>
-              <h3>Ask anything</h3>
-              <p>Strategy, history or the regulations, in plain English. Answers come from the same results database the screens use.</p>
-              <div class="chat" aria-label="Questions to try">
-                <p class="bubble">Why do teams pit under a safety car?</p>
-                <p class="bubble">What does the rulebook say about track limits?</p>
-                <p class="bubble">Who has won the most races from pole?</p>
-              </div>
-            </a>
-          </div>
+          <a class="panel card feature" href="command-center.html">
+            <span class="arrow" aria-hidden="true">→</span>
+            <div>
+              <p class="eyebrow">Command Center</p>
+              <h3>This weekend, on one screen</h3>
+              <p>Session-by-session forecast, what the title fight hinges on, the strategy baseline and the model's podium.</p>
+            </div>
+            <svg class="corner" viewBox="0 0 440 320" aria-hidden="true">
+              <path d="M60 320 L60 200 A140 140 0 0 1 200 60 L440 60" fill="none" stroke="#1e2633" stroke-width="56" />
+              <path class="draw" pathLength="1" d="M38 320 L38 240 C38 190 76.6 156.6 116.6 116.6 C156.6 76.6 190 38 240 38 L440 38" fill="none" stroke="#f0f2f6" stroke-width="4" stroke-linecap="round" />
+              <circle cx="116.6" cy="116.6" r="9" fill="#e10600" />
+              <text x="134" y="146" fill="#7f8797" font-family="Geist Mono, monospace" font-size="13" font-weight="600" letter-spacing="2.6">APEX</text>
+            </svg>
+          </a>
         </section>
 
         <section>
@@ -410,6 +348,15 @@
               <h3>Grand Prix</h3>
               <p>Every round: sessions, grid, results and the model's call.</p>
             </a>
+            <a class="panel card" href="telemetry.html">
+              <span class="arrow">→</span>
+              <div class="motif" aria-hidden="true"><svg viewBox="0 0 300 64" width="100%" height="64">
+                  <path d="M0 50 C 30 50 40 12 70 12 S 95 14 105 40 S 130 58 150 30 S 185 8 210 10 S 240 46 255 52 S 285 20 300 16" fill="none" stroke="#aeb6c6" stroke-width="2" />
+                  <path d="M0 56 C 30 56 40 26 70 24 S 95 22 105 50 S 130 62 150 40 S 185 20 210 20 S 240 54 255 58 S 285 32 300 28" fill="none" stroke="#3a4254" stroke-width="2" stroke-dasharray="5 4" />
+                </svg></div>
+              <h3>Telemetry</h3>
+              <p>Speed maps, head-to-head laps and tyre degradation since 2023.</p>
+            </a>
             <a class="panel card" href="debrief.html">
               <span class="arrow">→</span>
               <div class="motif" aria-hidden="true"><svg viewBox="0 0 300 64" width="100%" height="64"><path d="M0 26 L112 26 L118 10 L300 10" fill="none" stroke="#3a4254" stroke-width="2"/><rect x="0" y="40" width="112" height="16" rx="1" fill="#aeb6c6" opacity=".55"/><rect x="115" y="40" width="66" height="16" rx="1" fill="#aeb6c6" opacity=".3"/><rect x="184" y="40" width="116" height="16" rx="1" fill="#aeb6c6" opacity=".75"/></svg></div>
@@ -421,15 +368,6 @@
               <div class="motif" aria-hidden="true"><svg viewBox="0 0 300 64" width="100%" height="64"><path d="M0 8 L60 8 L80 30 L300 30" fill="none" stroke="#aeb6c6" stroke-width="2"/><path d="M0 30 L60 30 L80 8 L170 8 L190 52 L300 52" fill="none" stroke="#3a4254" stroke-width="2"/><path d="M0 52 L170 52 L190 8 L300 8" fill="none" stroke="#aeb6c6" stroke-width="2" opacity=".55"/><line x1="220" x2="220" y1="0" y2="64" stroke="#f0f2f6" stroke-width="1.5"/><circle cx="220" cy="60" r="4" fill="#e10600"/></svg></div>
               <h3>Race Rewind</h3>
               <p>Replay the running order lap by lap, every change explained.</p>
-            </a>
-            <a class="panel card" href="telemetry.html">
-              <span class="arrow">→</span>
-              <div class="motif" aria-hidden="true"><svg viewBox="0 0 300 64" width="100%" height="64">
-                  <path d="M0 50 C 30 50 40 12 70 12 S 95 14 105 40 S 130 58 150 30 S 185 8 210 10 S 240 46 255 52 S 285 20 300 16" fill="none" stroke="#aeb6c6" stroke-width="2" />
-                  <path d="M0 56 C 30 56 40 26 70 24 S 95 22 105 50 S 130 62 150 40 S 185 20 210 20 S 240 54 255 58 S 285 32 300 28" fill="none" stroke="#3a4254" stroke-width="2" stroke-dasharray="5 4" />
-                </svg></div>
-              <h3>Telemetry</h3>
-              <p>Speed maps, head-to-head laps and tyre degradation since 2023.</p>
             </a>
           </div>
         </section>
@@ -477,10 +415,51 @@
             <span class="idx">04</span>
             <h2>Reference</h2>
           </div>
-          <div class="rows">
-            <a href="champions.html"><span class="n">04.1</span><h3>Champions</h3><p>Every drivers' and constructors' title since 1950.</p><span class="arrow">→</span></a>
-            <a href="rulebook.html"><span class="n">04.2</span><h3>Rulebook</h3><p>Search the FIA regulations by meaning.</p><span class="arrow">→</span></a>
+          <div class="tools">
+            <a class="panel card" href="champions.html">
+              <span class="arrow" aria-hidden="true">→</span>
+              <div class="motif" aria-hidden="true">
+                <svg viewBox="0 0 300 64" preserveAspectRatio="xMinYMid meet" width="100%" height="64">
+                  <path d="M2 58 V33 H100 M100 58 V12 M200 58 V12 M200 42 H298 V58" fill="none" stroke="var(--ink-2)" stroke-width="2" />
+                  <path d="M0 58 H300" stroke="var(--line)" stroke-width="2" />
+                  <path d="M100 12 H200" stroke="var(--gold)" stroke-width="2" />
+                </svg>
+              </div>
+              <h3>Champions</h3>
+              <p>Every drivers' and constructors' title since 1950.</p>
+            </a>
+            <a class="panel card" href="rulebook.html">
+              <span class="arrow" aria-hidden="true">→</span>
+              <div class="motif" aria-hidden="true">
+                <svg viewBox="0 0 300 64" preserveAspectRatio="xMinYMid meet" width="100%" height="64">
+                  <path d="M2 12 H171 M2 36 H153 M2 48 H116" fill="none" stroke="#3a4254" stroke-width="2" />
+                  <path d="M2 24 H187 M240 40 L257 57" fill="none" stroke="var(--ink-2)" stroke-width="2" />
+                  <circle cx="228" cy="28" r="17" fill="none" stroke="var(--ink-2)" stroke-width="2" />
+                </svg>
+              </div>
+              <h3>Rulebook</h3>
+              <p>Search the FIA regulations by meaning.</p>
+            </a>
           </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <span class="idx">05</span>
+            <h2>AI Engineer</h2>
+          </div>
+          <a class="panel card feature" href="engineer.html">
+            <span class="arrow" aria-hidden="true">→</span>
+            <div>
+              <h3>Ask anything</h3>
+              <p>Strategy, history or the regulations, in plain English. Answers come from the same results database the screens use.</p>
+            </div>
+            <ul class="chat" aria-label="Questions to try">
+              <li class="bubble">Why do teams pit under a safety car?</li>
+              <li class="bubble">What does the rulebook say about track limits?</li>
+              <li class="bubble">Who has won the most races from pole?</li>
+            </ul>
+          </a>
         </section>
       </div>
     </main>

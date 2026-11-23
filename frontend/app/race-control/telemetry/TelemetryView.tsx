@@ -1,22 +1,24 @@
 "use client";
 
 import { RacePicker } from "@/app/ui/race-picker/RacePicker";
+import { FIRST_RACE_SEASON } from "@/app/ui/race-picker/raceUrl";
 import { useSchedule } from "@/app/ui/race-picker/useSchedule";
+import { DISPLAY, EYEBROW } from "@/app/ui/typography";
 
-import { InlineNotice, PageStack, SectionHeader } from "../components/RaceControlPrimitives";
+import { InlineNotice, PageStack } from "../components/RaceControlPrimitives";
 import { resolveDefaultRace } from "../grand-prix/predictionHelpers";
 
 import { AnalysisGate } from "./AnalysisNotice";
 import { ANALYSIS_PANEL_ID, AnalysisToolbar } from "./AnalysisToolbar";
 import { HeadToHeadControls } from "./HeadToHeadControls";
 import { HeadToHeadPanel } from "./HeadToHeadPanel";
-import { FIRST_SEASON, type TabKey, type WeekendSession } from "./telemetryModel";
 import { TrackMapControls } from "./TrackMapControls";
 import { TrackMapPanel } from "./TrackMapPanel";
 import { TyreDegPanel } from "./TyreDegPanel";
 import { useWeekend } from "./useAnalysisData";
 import { useTelemetryParams } from "./useTelemetryParams";
 
+import type { TabKey, WeekendSession } from "./telemetryModel";
 import type { RaceEvent } from "../grand-prix/predictionModel";
 
 export interface TelemetrySeed {
@@ -25,6 +27,7 @@ export interface TelemetrySeed {
 }
 
 const RACE_CODES = new Set(["S", "R"]);
+const CLEAR_SESSION_SELECTION = { session: null, a: null, b: null, lap: null, segment: null };
 /** Which session each tab opens on, most useful first. */
 const PREFERRED: Record<TabKey, string[]> = {
   map: ["Q", "SQ", "FP3", "FP2", "FP1", "R", "S"],
@@ -44,7 +47,7 @@ export function pickSession(sessions: WeekendSession[], tab: TabKey, asked: stri
 }
 
 function seasons(current: number): number[] {
-  return Array.from({ length: current - FIRST_SEASON + 1 }, (_, index) => current - index);
+  return Array.from({ length: current - FIRST_RACE_SEASON + 1 }, (_, index) => current - index);
 }
 
 export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
@@ -57,25 +60,35 @@ export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
 
   return (
     <PageStack>
-      <SectionHeader
-        eyebrow="Telemetry Lab"
-        title="Speed, lines and tyre wear, lap by lap"
-        description="Car telemetry and lap timing from OpenF1 for every session since 2023: a lap drawn round the circuit by speed, two drivers' laps side by side, and how fast each compound wore through a race."
-      />
       <RacePicker
         year={params.year}
         races={races}
         selectedRound={round}
-        onSelectRound={(next) => {
-          update({ round: next, session: null, a: null, b: null, lap: null, segment: null });
-        }}
-        seasons={{
-          years: seasons(seed.year),
-          onSelect: (year) => {
-            update({ year, round: null, session: null, a: null, b: null, lap: null, segment: null });
-          },
-        }}
+        view="telemetry"
+        onSelectRound={(next) => update({ round: next, ...CLEAR_SESSION_SELECTION })}
       />
+      <header className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className={`${DISPLAY} text-4xl text-rc-ink sm:text-5xl`}>Telemetry Lab</h1>
+          <p className="mt-2 text-sm text-rc-ink-2">
+            Lap timing and car telemetry from OpenF1 since {FIRST_RACE_SEASON}.
+          </p>
+        </div>
+        <label className="flex shrink-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <span className={EYEBROW}>Season</span>
+          <select
+            value={params.year}
+            onChange={(event) => update({ year: Number(event.target.value), round: null, ...CLEAR_SESSION_SELECTION })}
+            className="h-[34px] cursor-pointer rounded border border-rc-line bg-background px-3 font-mono text-[11px] font-semibold tracking-[0.14em] text-rc-ink-2"
+          >
+            {seasons(seed.year).map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </label>
+      </header>
       <AnalysisToolbar
         tab={params.tab}
         onTab={(tab) => {

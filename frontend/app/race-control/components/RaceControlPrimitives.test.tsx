@@ -9,30 +9,15 @@ import {
   PageLoader,
   PageStack,
   Panel,
-  SectionHeader,
   SectionLoader,
   SkeletonPanel,
   StatusPill,
   WorkspaceSplit,
   WrapRow,
-  rcFont,
 } from "./RaceControlPrimitives";
 
 /** DRS green in any spelling a class or style might carry. */
 const DRS_GREEN = /00ff78|0,\s*255,\s*120/i;
-
-describe("SectionHeader", () => {
-  it("shows an eyebrow, the page title as h1 and an optional description", () => {
-    const { rerender } = render(<SectionHeader eyebrow="Championship" title="Standings" description="After R19" />);
-
-    expect(screen.getByRole("heading", { level: 1, name: "Standings" })).toHaveStyle(rcFont);
-    expect(screen.getByText("Championship")).toBeInTheDocument();
-    expect(screen.getByText("After R19")).toBeInTheDocument();
-
-    rerender(<SectionHeader eyebrow="Championship" title="Standings" />);
-    expect(screen.queryByText("After R19")).not.toBeInTheDocument();
-  });
-});
 
 describe("Panel", () => {
   it("is a div on the panel surface with a hairline border", () => {

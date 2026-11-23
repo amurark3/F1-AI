@@ -26,7 +26,7 @@ type GridKind = (typeof KINDS)[number]["value"];
 const LINK = "inline-flex items-center gap-1.5 font-mono text-xs text-rc-blue hover:text-rc-ink";
 
 /** Where the story goes once the lights go out: Results classifies, the Debrief tells the race. */
-function AfterTheStartPanel({ round }: { round: number | null }) {
+function AfterTheStartPanel({ round, year }: { round: number | null; year: number }) {
   return (
     <Panel as="section" className="p-5">
       <PanelHeading
@@ -36,12 +36,12 @@ function AfterTheStartPanel({ round }: { round: number | null }) {
       />
       <div className="flex flex-wrap gap-4">
         {round !== null && (
-          <Link href={grandPrixHref(round, "results")} className={LINK}>
+          <Link href={grandPrixHref(round, "results", year)} className={LINK}>
             Results
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         )}
-        <Link href={debriefHref(round)} className={LINK}>
+        <Link href={debriefHref(round, year)} className={LINK}>
           Debrief
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
@@ -76,12 +76,13 @@ interface GridTabProps {
   grid?: StartingGridResponse;
   loading: boolean;
   sessions?: WeekendSessionsResponse;
+  year: number;
   round: number | null;
   raceName: string;
 }
 
 /** The grid, the penalties behind it, and (on a sprint weekend) the sprint's grid. */
-export function GridTab({ grid, loading, sessions, round, raceName }: GridTabProps) {
+export function GridTab({ grid, loading, sessions, year, round, raceName }: GridTabProps) {
   const [chosen, setChosen] = useState<GridKind>("race");
   const sprint = sprintGrid(sessions);
 
@@ -109,7 +110,7 @@ export function GridTab({ grid, loading, sessions, round, raceName }: GridTabPro
         />
         <div className="space-y-4">
           <GridPenalties data={showing} />
-          <AfterTheStartPanel round={round} />
+          <AfterTheStartPanel round={round} year={year} />
         </div>
       </div>
     </div>

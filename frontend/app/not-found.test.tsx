@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import NotFound from "./not-found";
-import { MORE_NAV, PRIMARY_NAV } from "./ui/shell/navConfig";
+import { NAV_GROUPS, NAV_LINKS } from "./ui/shell/navConfig";
 
 const wayBack = () => screen.getByRole("navigation", { name: "All screens" });
 
@@ -19,7 +19,7 @@ describe("the 404 page", () => {
     render(<NotFound />);
 
     const links = within(wayBack()).getAllByRole("link");
-    const screens = [...PRIMARY_NAV, ...MORE_NAV];
+    const screens = NAV_LINKS;
     expect(links).toHaveLength(screens.length);
     screens.forEach(({ label, href }, i) => {
       expect(links[i]).toHaveAttribute("href", href);
@@ -29,16 +29,13 @@ describe("the 404 page", () => {
     });
   });
 
-  it("keeps the More screens under their own label, as the menu does", () => {
+  it("lists the same categories as the drawer", () => {
     render(<NotFound />);
 
-    const lists = within(wayBack()).getAllByRole("list");
-    expect(lists).toHaveLength(2);
     expect(
-      within(lists[1])
-        .getAllByRole("link")
-        .map((link) => link.getAttribute("href")),
-    ).toEqual(MORE_NAV.map(({ href }) => href));
-    expect(within(wayBack()).getByText("More")).toBeInTheDocument();
+      within(wayBack())
+        .getAllByRole("heading")
+        .map((heading) => heading.textContent),
+    ).toEqual(NAV_GROUPS.map(({ label }) => label));
   });
 });

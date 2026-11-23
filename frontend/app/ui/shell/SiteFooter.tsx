@@ -3,7 +3,7 @@ import Link from "next/link";
 import { reopenConsent } from "../consent/analyticsConsent";
 import { GA_ID } from "../consent/measurementId";
 
-import { MORE_NAV, PRIMARY_NAV } from "./navConfig";
+import { NAV_LINKS } from "./navConfig";
 import { WRAP } from "./wrap";
 
 /**
@@ -25,9 +25,6 @@ const DATA_SOURCES = [
   { label: "OpenWeatherMap", href: "https://openweathermap.org" },
 ];
 
-/** The footer lists the top bar's sections, then the screens under More. */
-const FOOTER_NAV = [...PRIMARY_NAV, ...MORE_NAV];
-
 const QUIET_LINK = "transition-colors hover:text-rc-ink";
 
 /** Fine-print disclaimer for full-bleed workspaces that have no room for a footer. */
@@ -47,7 +44,7 @@ export function SiteFooter() {
       <div className={`${WRAP} pb-12 pt-9`}>
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-6 gap-y-3 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.18em]">
-            {FOOTER_NAV.map(({ href, label }) => (
+            {NAV_LINKS.map(({ href, label }) => (
               <li key={href}>
                 <Link href={href} className={QUIET_LINK}>
                   {label}

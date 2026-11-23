@@ -21,13 +21,13 @@ const footerNav = () => within(screen.getByRole("contentinfo")).getByRole("navig
 
 describe("AppShell", () => {
   it("opens with a skip link to the page, then the one top bar", () => {
-    renderAt("/race-control/telemetry");
+    renderAt("/race-control");
 
     const skip = screen.getByRole("link", { name: "Skip to content" });
     expect(skip).toHaveAttribute("href", "#main");
     expect(skip).toHaveClass("sr-only", "focus:not-sr-only");
     expect(screen.getAllByRole("banner")).toHaveLength(1);
-    expect(within(screen.getByRole("banner")).getByRole("link", { name: "Telemetry" })).toHaveAttribute(
+    expect(within(screen.getByRole("banner")).getByRole("link", { name: "Race Control" })).toHaveAttribute(
       "aria-current",
       "page",
     );

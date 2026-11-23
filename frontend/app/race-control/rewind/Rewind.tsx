@@ -11,8 +11,14 @@ interface Seeds {
   schedule: Promise<ScheduleSeed>;
 }
 
+const EMPTY_SEEDS: Seeds = { schedule: Promise.resolve(null) };
+
 function UrlBoundView({ year, seeds }: { year: number; seeds: Seeds }) {
-  return <RewindView year={year} seeds={seeds} url={useRewindUrl()} />;
+  const url = useRewindUrl(year);
+  const selectedYear = url.year ?? year;
+  return (
+    <RewindView key={selectedYear} year={selectedYear} seeds={selectedYear === year ? seeds : EMPTY_SEEDS} url={url} />
+  );
 }
 
 /**

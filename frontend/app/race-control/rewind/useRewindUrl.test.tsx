@@ -24,14 +24,14 @@ describe("readStep", () => {
 
 describe("useRewindUrl", () => {
   it("reads the round and the step", () => {
-    const { result } = renderHook(() => useRewindUrl());
+    const { result } = renderHook(() => useRewindUrl(2026));
 
     expect(result.current.round).toBe(19);
     expect(result.current.step).toBe(44);
   });
 
   it("selects a race through the router, dropping the step", () => {
-    const { result } = renderHook(() => useRewindUrl());
+    const { result } = renderHook(() => useRewindUrl(2026));
 
     result.current.select(7);
 
@@ -41,7 +41,7 @@ describe("useRewindUrl", () => {
   it("writes a step with the history API, never the router", () => {
     nav.replace.mockClear();
     const write = vi.spyOn(window.history, "replaceState");
-    const { result } = renderHook(() => useRewindUrl());
+    const { result } = renderHook(() => useRewindUrl(2026));
 
     result.current.setStep(19, 45);
     result.current.setStep(19, "final");

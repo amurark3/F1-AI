@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
+import { NAV_GROUPS, NAV_LINKS } from "../app/ui/shell/navConfig";
+
 import { E2E_API_ORIGIN, mockBackend } from "./support/mockBackend";
 
 // Playwright loads specs as CommonJS (the package has no "type": "module"), so no import.meta.
@@ -43,7 +45,11 @@ test("every link on the homepage opens a real screen", async ({ page }) => {
     .getByRole("link")
     .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
   const screens = [...new Set(hrefs)];
-  expect(screens.length).toBeGreaterThan(0);
+  expect(new Set(screens)).toEqual(new Set(NAV_LINKS.map((link) => link.href)));
+  for (const group of NAV_GROUPS) {
+    const section = page.getByRole("region", { name: group.label });
+    await expect(section.getByRole("heading", { level: 3 })).toHaveText(group.links.map((link) => link.label));
+  }
 
   const statuses = await Promise.all(
     screens.map(async (href) => [href, (await page.request.get(href)).status()] as const),

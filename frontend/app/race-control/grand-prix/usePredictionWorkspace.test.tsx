@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 describe("useHubUrlState", () => {
   it("replaces the URL with the bare path when nothing is selected any more", () => {
     nav.search = "round=19";
-    const { result } = renderHook(() => useHubUrlState());
+    const { result } = renderHook(() => useHubUrlState(2026));
 
     act(() => result.current.update({ round: null }));
 

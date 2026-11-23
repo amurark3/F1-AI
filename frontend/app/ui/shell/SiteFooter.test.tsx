@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { MORE_NAV, PRIMARY_NAV } from "./navConfig";
+import { NAV_LINKS } from "./navConfig";
 import { F1DisclaimerLine, SiteFooter } from "./SiteFooter";
 
 const consent = vi.hoisted(() => ({ GA_ID: null as string | null, reopenConsent: vi.fn() }));
@@ -23,7 +23,7 @@ describe("SiteFooter", () => {
 
     const links = within(within(footer()).getByRole("navigation", { name: "Footer" })).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual(
-      [...PRIMARY_NAV, ...MORE_NAV].map(({ label, href }) => [label, href]),
+      NAV_LINKS.map(({ label, href }) => [label, href]),
     );
   });
 

@@ -7,6 +7,7 @@
  */
 
 import type { GrandPrixTab } from "@/app/lib/entityLinks";
+import { raceQuery, readRaceYear } from "@/app/ui/race-picker/raceUrl";
 
 import type { RaceEvent } from "./predictionModel";
 
@@ -33,6 +34,7 @@ export const PREDICTION_VIEWS: ReadonlyArray<{ key: PredictionView; label: strin
 ];
 
 export interface HubSelection {
+  year: number | null;
   round: number | null;
   tab: HubTab | null;
   view: PredictionView | null;
@@ -45,8 +47,9 @@ function positiveInt(value: string | null): number | null {
 }
 
 /** Reads untrusted URL params into a selection, dropping anything malformed. */
-export function readHubParams(search: URLSearchParams): HubSelection {
+export function readHubParams(search: URLSearchParams, currentYear: number): HubSelection {
   return {
+    year: readRaceYear(search, currentYear),
     round: positiveInt(search.get("round")),
     tab: HUB_TABS.find((item) => item.key === search.get("tab"))?.key ?? null,
     view: PREDICTION_VIEWS.find((item) => item.key === search.get("view"))?.key ?? null,
@@ -54,8 +57,7 @@ export function readHubParams(search: URLSearchParams): HubSelection {
 }
 
 export function hubQuery(selection: HubSelection): string {
-  const query = new URLSearchParams();
-  if (selection.round !== null) query.set("round", String(selection.round));
+  const query = raceQuery(selection.round, selection.year);
   if (selection.tab !== null) query.set("tab", selection.tab);
   if (selection.view !== null) query.set("view", selection.view);
   return query.toString();

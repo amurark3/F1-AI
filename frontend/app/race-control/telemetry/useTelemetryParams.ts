@@ -3,7 +3,9 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
-import { FIRST_SEASON, TABS, type TabKey } from "./telemetryModel";
+import { readRaceYear } from "@/app/ui/race-picker/raceUrl";
+
+import { TABS, type TabKey } from "./telemetryModel";
 
 /**
  * What the page shows, held in the URL so a view can be shared and the Grand
@@ -48,11 +50,10 @@ function driverCode(value: string | null): string | null {
 /** Reads untrusted URL params into a valid selection, dropping anything malformed. */
 export function readParams(search: URLSearchParams, currentYear: number): TelemetryParams {
   const tab = TABS.find((item) => item.key === search.get("tab"))?.key ?? "map";
-  const year = positiveInt(search.get("year"));
   const session = (search.get("session") ?? "").toUpperCase();
   return {
     tab,
-    year: year !== null && year >= FIRST_SEASON && year <= currentYear ? year : currentYear,
+    year: readRaceYear(search, currentYear) ?? currentYear,
     round: positiveInt(search.get("round")),
     session: SESSION_CODES.has(session) ? session : null,
     a: driverCode(search.get("a")),

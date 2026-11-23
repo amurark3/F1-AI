@@ -111,6 +111,19 @@ describe("the Grand Prix hub", () => {
     expect(screen.queryByText(/Verstappen wins/)).not.toBeInTheDocument();
   });
 
+  it("loads the URL's historical season and preserves it when switching tabs", async () => {
+    nav.search = "round=19&year=2025&tab=weekend";
+    const historical = { ...SEASON_2026.schedule[18], name: "Historical Grand Prix" };
+    server.use(http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json([historical])));
+    const { user } = renderWithProviders(<GrandPrixHub seed={seed()} />);
+
+    expect(await screen.findByRole("group", { name: "2025 race picker" })).toHaveTextContent("Historical GP");
+    await user.click(screen.getByRole("tab", { name: "Results" }));
+    expect(nav.replace).toHaveBeenCalledWith("/race-control/grand-prix?round=19&year=2025&tab=results", {
+      scroll: false,
+    });
+  });
+
   it("reads the round and section from the URL and writes a change back to it", async () => {
     const { user } = renderWithProviders(<GrandPrixHub seed={seed()} />);
 
@@ -140,7 +153,7 @@ describe("the Grand Prix hub", () => {
 
     expect(await screen.findByRole("link", { name: /Speed maps and lap-by-lap comparisons/ })).toHaveAttribute(
       "href",
-      "/race-control/telemetry?tab=map&round=19",
+      "/race-control/telemetry?tab=map&round=19&year=2026",
     );
   });
 

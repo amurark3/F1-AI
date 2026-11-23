@@ -70,7 +70,7 @@ function Winner({ year, round }: { year: number; round: number }) {
         </p>
       )}
       <Link
-        href={grandPrixHref(round, "results")}
+        href={grandPrixHref(round, "results", year)}
         className="mt-4 inline-block font-mono text-xs font-semibold uppercase tracking-[0.14em] text-rc-ink hover:underline"
       >
         Final classification →

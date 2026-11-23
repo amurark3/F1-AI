@@ -10,7 +10,7 @@ import { EYEBROW } from "../typography";
 
 import { trapTab } from "./focus";
 import { MenuList } from "./MenuList";
-import { MORE_NAV, PRIMARY_NAV, showsRaceStatus } from "./navConfig";
+import { ariaCurrent, COMMAND_CENTER_LINK, ENGINEER_LINK, NAV_GROUPS, showsRaceStatus } from "./navConfig";
 import { RaceStatusChip } from "./RaceStatusChip";
 import { WRAP } from "./wrap";
 
@@ -19,7 +19,7 @@ const MENU_BUTTON =
   "rounded border border-rc-line px-3 py-[9px] font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.18em] text-rc-ink-2 transition-colors hover:text-rc-ink";
 
 /**
- * The top bar below `xl`: a MENU button that opens every section as a
+ * The top bar below `lg`: a MENU button that opens every section as a
  * full-screen modal menu.
  *
  * The menu is a `dialog` that repeats the bar's top row (logo, then "Close"
@@ -55,7 +55,7 @@ export function MobileNav({ pathname }: { pathname: string }) {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpenOn(pathname)}
-        className={`${MENU_BUTTON} xl:hidden`}
+        className={`${MENU_BUTTON} lg:hidden`}
       >
         Menu
       </button>
@@ -85,9 +85,28 @@ export function MobileNav({ pathname }: { pathname: string }) {
                   <RaceStatusChip />
                 </div>
               ) : null}
-              <MenuList links={PRIMARY_NAV} pathname={pathname} first={1} onNavigate={close} />
-              <p className={`${EYEBROW} mb-3 mt-10`}>More</p>
-              <MenuList links={MORE_NAV} pathname={pathname} first={PRIMARY_NAV.length + 1} onNavigate={close} />
+              <Link
+                href={COMMAND_CENTER_LINK.href}
+                aria-current={ariaCurrent(COMMAND_CENTER_LINK, pathname)}
+                onClick={close}
+                className="block border-b border-rc-line-soft py-3 font-display text-lg font-bold uppercase tracking-wide text-rc-ink aria-[current=page]:border-l-2 aria-[current=page]:border-l-f1-red aria-[current=page]:pl-2.5"
+              >
+                {COMMAND_CENTER_LINK.label}
+              </Link>
+              {NAV_GROUPS.map((group) => (
+                <div key={group.id}>
+                  <h2 className={`${EYEBROW} mb-1.5 mt-6`}>{group.label}</h2>
+                  <MenuList links={group.links} pathname={pathname} onNavigate={close} />
+                </div>
+              ))}
+              <Link
+                href={ENGINEER_LINK.href}
+                aria-current={ariaCurrent(ENGINEER_LINK, pathname)}
+                onClick={close}
+                className={`${MENU_BUTTON} mt-6 block py-3 text-center text-rc-ink aria-[current=page]:border-f1-red`}
+              >
+                {ENGINEER_LINK.label}
+              </Link>
             </nav>
           </div>
         </div>

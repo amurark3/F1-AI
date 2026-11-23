@@ -72,7 +72,7 @@ describe("WeekendPanel", () => {
     expect(within(winner).getByText("Red Bull")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Final classification →" })).toHaveAttribute(
       "href",
-      "/race-control/grand-prix?round=19&tab=results",
+      "/race-control/grand-prix?round=19&tab=results&year=2026",
     );
     expect(screen.queryByRole("timer")).not.toBeInTheDocument();
     // The winner is not repeated in the facts: Circuit history lists past winners.

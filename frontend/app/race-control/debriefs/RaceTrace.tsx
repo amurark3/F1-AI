@@ -102,7 +102,7 @@ function DataTable({ laps, title }: { laps: DebriefLaps; title: string }) {
 }
 
 /** Gap to the leader at every line crossing for the first five cars home, with the neutralised laps marked. */
-export function RaceTrace({ laps, round }: { laps: DebriefLaps; round: number }) {
+export function RaceTrace({ laps, year, round }: { laps: DebriefLaps; year: number; round: number }) {
   const directory = useSeasonDirectory();
   if (!laps.available || laps.trace.length === 0) {
     return (
@@ -139,7 +139,7 @@ export function RaceTrace({ laps, round }: { laps: DebriefLaps; round: number })
       <DataTable laps={laps} title={title} />
       <Legend items={items} label="Race trace" className="mt-3.5" />
       <Link
-        href={`/race-control/rewind?round=${round}`}
+        href={`/race-control/rewind?round=${round}&year=${year}`}
         className="mt-5 inline-block font-mono text-xs font-semibold uppercase tracking-[0.14em] text-rc-ink hover:underline"
       >
         Replay this race lap by lap →

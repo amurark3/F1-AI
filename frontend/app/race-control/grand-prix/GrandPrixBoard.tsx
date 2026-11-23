@@ -36,11 +36,21 @@ import type { RaceStrategyResponse } from "./strategyModel";
 const HUB_TABS_ID = "grand-prix";
 
 /** A way into the Telemetry Lab for the round on screen. */
-function TelemetryLink({ round, tab, label }: { round: number | null; tab: string; label: string }) {
+function TelemetryLink({
+  year,
+  round,
+  tab,
+  label,
+}: {
+  year: number;
+  round: number | null;
+  tab: string;
+  label: string;
+}) {
   if (round === null) return null;
   return (
     <Link
-      href={`/race-control/telemetry?tab=${tab}&round=${round}`}
+      href={`/race-control/telemetry?tab=${tab}&round=${round}&year=${year}`}
       className="inline-flex items-center gap-1.5 font-mono text-xs text-[#86B6EF] hover:text-white"
     >
       {label}
@@ -73,7 +83,12 @@ function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup })
       {activeTab === "sessions" && (
         <>
           <SessionsTab data={props.sessions} loading={props.sessionsLoading} />
-          <TelemetryLink round={props.selectedRound} tab="map" label="Speed maps and lap-by-lap comparisons" />
+          <TelemetryLink
+            year={props.year}
+            round={props.selectedRound}
+            tab="map"
+            label="Speed maps and lap-by-lap comparisons"
+          />
         </>
       )}
 
@@ -82,6 +97,7 @@ function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup })
           grid={props.grid}
           loading={props.gridLoading}
           sessions={props.sessions}
+          year={props.year}
           round={props.selectedRound}
           raceName={props.raceName}
         />
@@ -94,7 +110,12 @@ function HubSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup })
       {activeTab === "stints" && (
         <>
           <StintsSection strategy={props.strategy} strategyLoading={props.strategyLoading} />
-          <TelemetryLink round={props.selectedRound} tab="tyres" label="Tyre degradation for this race" />
+          <TelemetryLink
+            year={props.year}
+            round={props.selectedRound}
+            tab="tyres"
+            label="Tyre degradation for this race"
+          />
         </>
       )}
 
@@ -162,6 +183,7 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         races={props.schedule}
         selectedRound={props.selectedRound}
         onSelectRound={props.onSelectRound}
+        view="grand-prix"
       />
 
       {props.selectedRace ? (

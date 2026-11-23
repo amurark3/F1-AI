@@ -17,10 +17,15 @@ export function resolveDefaultDebriefRace(races: readonly RaceEvent[]): RaceEven
   return completedRaces(races).at(-1) ?? null;
 }
 
-/** The round the URL asks for when it is a completed one, else the default. */
+/** An explicit round can have a result while the calendar still calls it in progress. */
 export function resolveDebriefRound(races: readonly RaceEvent[], requested: number | null): number | null {
-  const completed = completedRaces(races);
-  return completed.find((race) => race.round === requested)?.round ?? resolveDefaultDebriefRace(races)?.round ?? null;
+  const selected = races.find((race) => race.round === requested && race.status !== "upcoming");
+  return selected?.round ?? resolveDefaultDebriefRace(races)?.round ?? null;
+}
+
+/** Keep the archive's completed rounds and the explicit selection, in calendar order. */
+export function debriefPickerRaces(races: readonly RaceEvent[], round: number): RaceEvent[] {
+  return races.filter((race) => race.status === "completed" || race.round === round);
 }
 
 /** A driver's surname for a sentence, by the names rule (`ui/names`). */

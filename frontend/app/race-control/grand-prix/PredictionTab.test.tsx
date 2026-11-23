@@ -57,7 +57,9 @@ function Harness({ initial, seedValue }: { initial: HubSelection; seedValue: Gra
 }
 
 function open(view: HubSelection["view"], seedValue = seed(), round = 19) {
-  return renderWithProviders(<Harness initial={{ round, tab: "predictions", view }} seedValue={seedValue} />);
+  return renderWithProviders(
+    <Harness initial={{ year: null, round, tab: "predictions", view }} seedValue={seedValue} />,
+  );
 }
 
 function answerSnapshots(post: unknown = POST, pre: unknown = PRE, status = 200) {

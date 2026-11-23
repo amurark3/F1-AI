@@ -81,7 +81,7 @@ describe("the Debriefs page", () => {
       return Promise.resolve();
     });
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Debriefs" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Debrief" })).toBeInTheDocument();
     expect(raceControl.getDebrief).not.toHaveBeenCalled();
   });
 

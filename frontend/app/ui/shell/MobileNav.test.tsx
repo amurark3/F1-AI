@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { MobileNav } from "./MobileNav";
+import { NAV_GROUPS, NAV_LINKS } from "./navConfig";
 
 vi.mock("./RaceStatusChip", () => ({ RaceStatusChip: () => <span>Race status</span> }));
 
@@ -21,10 +22,10 @@ async function openMenu(pathname?: string) {
 const root = document.documentElement;
 
 describe("MobileNav", () => {
-  it("is a MENU button below xl, with nothing open", () => {
+  it("is a MENU button below lg, with nothing open", () => {
     const { menu } = setup();
 
-    expect(menu).toHaveClass("xl:hidden", "font-mono", "uppercase");
+    expect(menu).toHaveClass("lg:hidden", "font-mono", "uppercase");
     expect(menu).toHaveAttribute("aria-haspopup", "dialog");
     expect(menu).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -39,34 +40,26 @@ describe("MobileNav", () => {
     expect(root.style.overflow).toBe("hidden");
 
     const links = within(within(dialog).getByRole("navigation", { name: "Main" })).getAllByRole("link");
-    expect(links.map((el) => el.textContent)).toEqual([
-      "01Race Control",
-      "02Grand Prix",
-      "03Telemetry",
-      "04Standings",
-      "05Teams",
-      "06Power Units",
-      "07AI Engineer",
-      "08Champions",
-      "09Debriefs",
-      "10Race Rewind",
-      "11Rulebook",
-    ]);
-    expect(within(dialog).getByText("More")).toBeInTheDocument();
+    expect(links.map((el) => el.getAttribute("href"))).toEqual(NAV_LINKS.map(({ href }) => href));
+    expect(
+      within(dialog)
+        .getAllByRole("heading")
+        .map((el) => el.textContent),
+    ).toEqual(NAV_GROUPS.map(({ label }) => label));
     expect(within(dialog).getByRole("link", { name: "F1 AI home" })).toBeInTheDocument();
   });
 
-  it("marks the current section: aria-current, the red numeral and the primary tone", async () => {
+  it("marks the current section: aria-current, the red rule and the primary tone", async () => {
     const { dialog } = await openMenu("/race-control/grand-prix");
 
     const current = within(dialog).getByRole("link", { name: /Grand Prix/ });
     expect(current).toHaveAttribute("aria-current", "page");
-    expect(within(current).getByText("02")).toHaveClass("text-rc-red-text");
+    expect(current).toHaveClass("before:bg-f1-red");
     expect(within(current).getByText("Grand Prix")).toHaveClass("text-rc-ink");
 
     const other = within(dialog).getByRole("link", { name: /Telemetry/ });
     expect(other).not.toHaveAttribute("aria-current");
-    expect(within(other).getByText("03")).toHaveClass("text-rc-ink-3");
+    expect(within(other).getByText("Telemetry")).toHaveClass("text-rc-ink-2");
   });
 
   it("carries the race status on data routes, never on the static homepage", async () => {
@@ -97,7 +90,7 @@ describe("MobileNav", () => {
     const { user, dialog } = await openMenu();
 
     const home = within(dialog).getByRole("link", { name: "F1 AI home" });
-    const last = within(dialog).getByRole("link", { name: /Rulebook/ });
+    const last = within(dialog).getByRole("link", { name: "AI Engineer" });
     await user.tab({ shift: true });
     expect(home).toHaveFocus();
     await user.tab({ shift: true });

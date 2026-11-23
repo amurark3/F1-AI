@@ -13,7 +13,7 @@ import { useSection } from "@/app/ui/section/useSection";
 import { SectionHead } from "@/app/ui/SectionHead";
 
 import { Panel } from "../components/RaceControlPrimitives";
-import { completedRaces, resolveDebriefRound } from "../debriefs/debriefModel";
+import { debriefPickerRaces, resolveDebriefRound } from "../debriefs/debriefModel";
 
 import { FlagToFinal } from "./FlagToFinal";
 import { LapChanges } from "./LapChanges";
@@ -187,9 +187,10 @@ function Body({ year, seeds, url }: ViewProps) {
     <div className="space-y-14">
       <RacePicker
         year={year}
-        races={completedRaces(calendar.races)}
+        races={debriefPickerRaces(calendar.races, event.round)}
         selectedRound={event.round}
         onSelectRound={url.select}
+        view="rewind"
       />
       <RoundBody key={event.round} year={year} round={event.round} race={event.name} url={url} />
     </div>

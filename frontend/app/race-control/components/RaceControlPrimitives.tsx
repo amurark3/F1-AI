@@ -14,28 +14,6 @@ import type { ReactNode } from "react";
 export const rcFont = { fontFamily: "var(--font-geist-sans, Arial, Helvetica, sans-serif)" };
 const rcMono = { fontFamily: "var(--font-geist-mono, var(--font-geist-sans, monospace))" };
 
-export function SectionHeader({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="mb-5 border-b border-[#1E2633] pb-4">
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-[#7F8797]" style={rcMono}>
-        {eyebrow}
-      </p>
-      <h1 className="text-2xl font-black leading-tight text-white sm:text-3xl" style={rcFont}>
-        {title}
-      </h1>
-      {description && <p className="mt-2 max-w-5xl text-sm leading-relaxed text-[#8E96A8]">{description}</p>}
-    </div>
-  );
-}
-
 export function Panel({
   children,
   className = "",

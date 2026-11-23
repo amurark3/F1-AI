@@ -97,6 +97,17 @@ describe("the Debriefs page", () => {
     expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?round=19", { scroll: false });
   });
 
+  it("loads the selected historical season and keeps it when changing rounds", async () => {
+    nav.search = "round=19&year=2025";
+    const historical = SEASON_2026.schedule.filter(({ round }) => round === 18 || round === 19);
+    server.use(http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json(historical)));
+    const { user } = await renderPage();
+
+    const picker = await screen.findByRole("group", { name: "2025 race picker" });
+    await user.click(within(picker).getByRole("button", { name: "Previous round" }));
+    expect(nav.replace).toHaveBeenCalledWith("/race-control/debriefs?round=18&year=2025", { scroll: false });
+  });
+
   it("opens the latest completed round for a round off the calendar or still to run, from the server's seed", async () => {
     const asked: string[] = [];
     serveRace(asked);
@@ -171,7 +182,7 @@ describe("the Debriefs page", () => {
     server.use(http.get(SCHEDULE_URL, () => HttpResponse.json(upcoming)));
     await renderPage({ schedule: Promise.resolve(upcoming), summary: Promise.resolve(null) });
 
-    const hero = await screen.findByRole("heading", { level: 1, name: "Debriefs" });
+    const hero = await screen.findByRole("heading", { level: 1, name: "Debrief" });
     expect(hero).toBeInTheDocument();
     expect(
       within(hero.closest("header")!).getByText("The first debrief appears once a race of the season is classified."),

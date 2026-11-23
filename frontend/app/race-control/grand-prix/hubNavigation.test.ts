@@ -33,22 +33,24 @@ describe("defaultPredictionView", () => {
 
 describe("the URL", () => {
   it("reads a round, a tab and a view, and drops anything malformed", () => {
-    expect(readHubParams(new URLSearchParams("round=19&tab=results&view=review"))).toEqual({
+    expect(readHubParams(new URLSearchParams("round=19&year=2025&tab=results&view=review"), 2026)).toEqual({
+      year: 2025,
       round: 19,
       tab: "results",
       view: "review",
     });
-    expect(readHubParams(new URLSearchParams("round=-3&tab=nope&view=x"))).toEqual({
+    expect(readHubParams(new URLSearchParams("round=-3&tab=nope&view=x"), 2026)).toEqual({
+      year: null,
       round: null,
       tab: null,
       view: null,
     });
-    expect(readHubParams(new URLSearchParams(""))).toEqual({ round: null, tab: null, view: null });
+    expect(readHubParams(new URLSearchParams(""), 2026)).toEqual({ year: null, round: null, tab: null, view: null });
   });
 
   it("writes only what is selected", () => {
-    expect(hubQuery({ round: 19, tab: "results", view: null })).toBe("round=19&tab=results");
-    expect(hubQuery({ round: null, tab: "predictions", view: "risk" })).toBe("tab=predictions&view=risk");
-    expect(hubQuery({ round: null, tab: null, view: null })).toBe("");
+    expect(hubQuery({ year: 2025, round: 19, tab: "results", view: null })).toBe("round=19&year=2025&tab=results");
+    expect(hubQuery({ year: null, round: null, tab: "predictions", view: "risk" })).toBe("tab=predictions&view=risk");
+    expect(hubQuery({ year: null, round: null, tab: null, view: null })).toBe("");
   });
 });

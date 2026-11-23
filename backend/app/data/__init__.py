@@ -7,5 +7,5 @@ Pure-function modules for F1 data analysis:
   (strategy and weather modules coming in later plans)
 
 These modules are consumed by both LangChain tools (chat) and
-REST endpoints (iOS/web).
+REST endpoints (web).
 """

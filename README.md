@@ -7,7 +7,7 @@ answers with an agentic LLM that calls real F1 data tools, including live
 text-to-SQL over the entire 1950–present record.
 
 Available as a **web app** (the primary surface), an **MCP server** for Claude
-Desktop / Cursor, and a **legacy iOS companion app**.
+Desktop / Cursor.
 
 ---
 
@@ -17,14 +17,12 @@ Desktop / Cursor, and a **legacy iOS companion app**.
 F1-AI/
 ├── backend/    Python FastAPI + LangChain agent on AMD Token Lab, Gemini fallback
 ├── frontend/   Next.js 16 + React 19 (TypeScript) — "Race Control" workspace
-├── ios/        SwiftUI iOS companion (legacy — lags the web feature set)
 └── render.yaml Reference copy of the Render config (NOT applied — the Render
                 dashboard is the source of truth; see DEPLOYMENT.md §4)
 ```
 
 ```
 Web App (Next.js "Race Control", Vercel)  ─────┐
-iOS App (legacy)  ─────────────────────────────┤
 MCP clients (Claude Desktop / Cursor)  ────────┤
                                                ▼
                                    FastAPI Backend (Render)
@@ -128,7 +126,6 @@ without a database.
 | ------- | -------------- |
 | Node.js | 20+            |
 | Python  | 3.13           |
-| Xcode   | 15+ (iOS only) |
 
 ---
 
@@ -205,18 +202,6 @@ npm run dev
 ```bash
 cd backend && .venv/bin/python -m pytest tests -q --cov   # coverage must stay at 100%
 ```
-
-### iOS (legacy)
-
-```bash
-open ios/F1AI.xcodeproj
-```
-
-> **Note:** the iOS app predates the Race Control / f1db / AI overhaul and does
-> not yet expose the newer backend features. In **DEBUG builds** it points to
-> `http://localhost:8000`; in **Release builds**, to `https://f1-ai.onrender.com`.
-> On a physical device, update `APIClient.baseURL` to your Mac's LAN IP —
-> iOS cannot reach `localhost`.
 
 ---
 
@@ -466,9 +451,6 @@ frontend/app/
 ├── components/               chat, LiveTimingTower, ServerWarmingGate, …
 ├── hooks/                    useChat, useLocalChats, useLiveTiming, useServerStatus, useVoice
 └── lib/  utils/              server-side prefetch, server status store, fetcher, error tracking
-
-ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Chat,
-                              Compare, Live, Predictions, Settings)
 ```
 
 ---
@@ -492,4 +474,3 @@ ios/F1AI/                     legacy SwiftUI companion (Calendar, Standings, Cha
 | MCP                | FastMCP                                                                                                                                           |
 | Hosting            | Render (backend), Vercel (frontend), Supabase (database)                                                                                          |
 | Observability      | Sentry (web + backend), Vercel Analytics, Vercel Speed Insights                                                                                   |
-| iOS (legacy)       | SwiftUI, Swift 5.9, Observation framework                                                                                                         |

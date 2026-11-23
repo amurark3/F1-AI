@@ -17,10 +17,17 @@ on:
         description: "Only fill missing Gemini vectors (skip the re-embed)"
         type: boolean
         default: false
+  # Daily, just after the free tier's quota resets (midnight Pacific = 08:00 UTC
+  # in winter): finishes a backfill that stopped on the 429 and refills vectors
+  # after any re-ingest. A no-op once no row is missing one.
+  schedule:
+    - cron: "15 8 * * *"
 
 concurrency:
   group: ingest-rulebook
-  cancel-in-progress: true
+  # A scheduled backfill queues behind a re-ingest instead of cancelling it
+  # halfway (that would leave the table truncated).
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   ingest:
@@ -43,7 +50,8 @@ jobs:
           pip install -r requirements-ingest.txt
 
       - name: Re-embed rulebook into pgvector
-        if: ${{ !inputs.backfill_only }}
+        # A scheduled run has no inputs; it must never re-embed (that truncates).
+        if: ${{ github.event_name != 'schedule' && !inputs.backfill_only }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # Embedding the corpus is the entire job, so this runner opts in to

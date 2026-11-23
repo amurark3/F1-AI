@@ -36,7 +36,6 @@ from app.api.live.websocket import router as live_router
 from app.api.routers.analysis import router as analysis_router
 from app.api.routers.champions import router as champions_router
 from app.api.routers.chat import router as chat_router
-from app.api.routers.memory import router as memory_router
 from app.api.routers.power_units import router as power_units_router
 from app.api.routers.predictions import router as predictions_router
 from app.api.routers.profiles import router as profiles_router
@@ -51,7 +50,6 @@ logger = structlog.get_logger()
 
 router = APIRouter()
 router.include_router(chat_router)
-router.include_router(memory_router)
 router.include_router(predictions_router)
 router.include_router(race_control_router)
 router.include_router(analysis_router)

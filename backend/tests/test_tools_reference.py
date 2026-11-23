@@ -19,6 +19,7 @@ layer at the boundary the tool calls.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import sqlite3
 
 import pytest
 
@@ -26,6 +27,7 @@ from app.api.tools import provenance as provenance_module, reference as referenc
 from app.api.tools.reference import consult_rulebook, query_f1_database
 from app.data.f1db_query import QueryValidationError
 from app.rag import pgvector_store
+from tests.tool_error_support import is_generic_failure
 
 
 class _FakeDoc:
@@ -220,9 +222,7 @@ def test_an_unconfigured_rulebook_names_the_missing_setting(monkeypatch):
 def test_a_rulebook_failure_is_reported_rather_than_raised(monkeypatch):
     _install_rulebook(monkeypatch, hits=ConnectionError("pgvector unreachable"))
 
-    assert consult_rulebook.invoke({"query": "anything", "year": 2026}) == (
-        "Rulebook lookup failed: pgvector unreachable"
-    )
+    assert is_generic_failure(consult_rulebook.invoke({"query": "anything", "year": 2026}), "Rulebook lookup failed")
 
 
 # ---------------------------------------------------------------------------
@@ -357,11 +357,21 @@ def test_a_disallowed_query_is_rejected_with_the_reason(monkeypatch):
 
 @pytest.mark.unit
 def test_a_broken_query_is_reported_with_a_hint_to_check_the_schema(monkeypatch):
-    _install_query(monkeypatch, RuntimeError("no such column: drivr"))
+    _install_query(monkeypatch, sqlite3.OperationalError("no such column: drivr"))
 
     assert query_f1_database.invoke({"sql": "SELECT drivr FROM races"}) == (
         "Query failed: no such column: drivr. Check table/column names against the schema and try again."
     )
+
+
+@pytest.mark.unit
+def test_a_query_failure_outside_sqlite_hides_its_text(monkeypatch):
+    """Only SQLite's own message helps the model fix a query; anything else may carry internals."""
+    _install_query(monkeypatch, RuntimeError("/srv/app/data/f1db.db is locked"))
+
+    answer = query_f1_database.invoke({"sql": "SELECT 1"})
+
+    assert is_generic_failure(answer, "Query failed")
 
 
 @pytest.mark.unit

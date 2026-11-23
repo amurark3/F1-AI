@@ -24,12 +24,16 @@ from app.config import (
 from app.services.live_timing import SESSION_END_GRACE, derive_session_state
 from app.services.live_timing_client import (
     ActiveSession,
+    SessionLookup,
     TimingSnapshot,
     poll_timing,
     resolve_session_window,
 )
+from app.utils.ttl_cache import TtlCache
 
 logger = structlog.get_logger()
+
+_lookup_cache: TtlCache[tuple[int, int], SessionLookup] = TtlCache()
 
 router = APIRouter()
 
@@ -77,7 +81,7 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
 
         if _needs_resolution(active, now, resolved_at, next_start):
             previous_key = active.session_key if active else None
-            lookup = await resolve_session_window(year, round_num, now=now)
+            lookup = await _shared_lookup(year, round_num, now)
             active, next_start = lookup.active, lookup.next_start
             resolved_at = time.time()
             if active is None or active.session_key != previous_key:
@@ -100,6 +104,27 @@ async def _run_live_loop(websocket: WebSocket, room: str, year: int, round_num: 
         await _drain_client(websocket)
 
     logger.warning("ws.stale_connection", room=room, connection_id=id(websocket))
+
+
+async def _shared_lookup(year: int, round_num: int, now: datetime) -> SessionLookup:
+    """One calendar lookup per round, shared by every socket watching it.
+
+    Kept no longer than the loop already waits between lookups, and never past
+    the moment the answer goes stale: the next session's start, or the end of
+    the active one plus its grace.
+    """
+    key = (year, round_num)
+    cached = _lookup_cache.get(key)
+    if cached is not None:
+        return cached
+    lookup = await resolve_session_window(year, round_num, now=now)
+    expiry = lookup.active.date_end + SESSION_END_GRACE if lookup.active else lookup.next_start
+    lifetime = (
+        SESSION_LOOKUP_INTERVAL if expiry is None else min(SESSION_LOOKUP_INTERVAL, (expiry - now).total_seconds())
+    )
+    if lifetime > 0:
+        _lookup_cache.put(key, lookup, lifetime)
+    return lookup
 
 
 def _needs_resolution(

@@ -62,3 +62,20 @@ def client_error_text(event: str, exc: BaseException, **context: Any) -> str:
     """Same contract as :func:`client_error` for plain-text/streaming responses."""
     payload = client_error(event, exc, **context)
     return f"{payload['error']} (reference: {payload['error_id']})"
+
+
+class SafeToShowError(ValueError):
+    """An error whose message is written for the reader: no hosts, paths or internals."""
+
+
+def tool_error_text(event: str, exc: BaseException, **context: Any) -> str:
+    """What a chat tool tells the model about a failure.
+
+    A :class:`SafeToShowError` keeps its message, because the model needs it to
+    correct its call ("No 2026 Grand Prix matches 'Nowhere'"). Anything else is
+    logged and replaced by the generic line, since raw exception text can carry
+    hosts or connection strings and the model may repeat it to the user.
+    """
+    if isinstance(exc, SafeToShowError):
+        return str(exc)
+    return client_error_text(event, exc, **context)

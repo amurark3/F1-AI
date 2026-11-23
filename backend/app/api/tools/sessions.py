@@ -9,6 +9,7 @@ from __future__ import annotations
 from langchain_core.tools import tool
 import structlog
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, classification_chips
 from app.api.tools.rounds import resolve_event
 from app.data.qualifying_times import QualifyingCar, QualifyingTimes, qualifying_times
@@ -100,7 +101,7 @@ def get_sprint_results(year: int, grand_prix: str) -> str:
         )
         return Sourced("\n".join([*heading, *rows]), provenance)
     except Exception as e:
-        return f"Could not fetch Sprint results: {e}"
+        return f"Could not fetch Sprint results: {tool_error_text('tool.get_sprint_results.failed', e)}"
 
 
 def _time_cell(seconds: float, note: str | None) -> str:
@@ -161,7 +162,7 @@ def get_sprint_qualifying_results(year: int, grand_prix: str) -> str:
             return f"No sprint qualifying results are published for {grand_prix} {year} (not a sprint weekend, or not run yet)."
         return _qualifying_report(table, "SQ", f"{grand_prix} {year}", f"{event_name} {year} sprint qualifying")
     except Exception as e:
-        return f"Could not fetch Sprint Qualifying. Note: {grand_prix} {year} might not be a Sprint weekend. Error: {e}"
+        return f"Could not fetch Sprint Qualifying. Note: {grand_prix} {year} might not be a Sprint weekend. Error: {tool_error_text('tool.get_sprint_qualifying_results.failed', e)}"
 
 
 @tool
@@ -183,4 +184,4 @@ def get_qualifying_results(year: int, grand_prix: str) -> str:
             return f"No qualifying results are published for {grand_prix} {year} yet."
         return _qualifying_report(table, "Q", f"{grand_prix} {year}", f"{event_name} {year} qualifying")
     except Exception as e:
-        return f"Failed to fetch qualifying results: {e}"
+        return f"Failed to fetch qualifying results: {tool_error_text('tool.get_qualifying_results.failed', e)}"

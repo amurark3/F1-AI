@@ -171,23 +171,6 @@ def test_a_history_write_that_fails_still_returns_the_stored_prediction(cache, m
 
 
 @pytest.mark.unit
-def test_get_or_compute_serves_the_cached_snapshot(cache, monkeypatch):
-    monkeypatch.setattr(service, "compute_race_predictions", lambda *_: pytest.fail("cache hit must not compute"))
-    cache.stored = _snapshot()
-
-    assert service.get_or_compute_race_prediction(2026, 2)["model_summary"]["leader_code"] == "VER"
-
-
-@pytest.mark.unit
-def test_get_or_compute_records_first_compute_as_the_reason(cache, monkeypatch):
-    monkeypatch.setattr(service, "compute_race_predictions", lambda year, round_num, phase=None: _snapshot())
-
-    service.get_or_compute_race_prediction(2026, 2)
-
-    assert cache.set_calls[0][3] == "first_compute"
-
-
-@pytest.mark.unit
 @pytest.mark.parametrize(
     ("value", "expected"),
     [

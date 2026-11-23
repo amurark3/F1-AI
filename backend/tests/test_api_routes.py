@@ -25,9 +25,6 @@ from tests.route_paths import mounted_http_methods, mounted_paths
 # router dropped from the assembly makes exactly one of these disappear.
 EXPECTED_PATHS = {
     "/chat",
-    "/profile/{user_id}",
-    "/threads/{user_id}/recall",
-    "/predictions/{year}/{round_num}",
     "/predictions/{year}/{round_num}/snapshot",
     "/predictions/{year}/{round_num}/compute",
     "/race-control/overview/{year}",

@@ -108,6 +108,61 @@ def _serve(monkeypatch, *, active=True, poll=None):
     return polls
 
 
+@pytest.fixture(autouse=True)
+def _clear_lookup_cache():
+    ws_mod._lookup_cache._entries.clear()
+    yield
+    ws_mod._lookup_cache._entries.clear()
+
+
+def _count_lookups(monkeypatch, lookup):
+    calls: list[int] = []
+
+    async def _resolve(_year, _round, now=None):
+        calls.append(1)
+        return lookup
+
+    monkeypatch.setattr(ws_mod, "resolve_session_window", _resolve)
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("lookup", "cached"),
+    [
+        (SessionLookup(active=None, next_start=None), True),
+        (SessionLookup(active=None, next_start=datetime(2026, 1, 1, 12, tzinfo=UTC)), True),
+        (SessionLookup(active=None, next_start=datetime(2026, 1, 1, 10, tzinfo=UTC)), False),
+    ],
+)
+def test_session_lookup_is_shared_unless_already_stale(monkeypatch, lookup, cached):
+    calls = _count_lookups(monkeypatch, lookup)
+    now = datetime(2026, 1, 1, 11, tzinfo=UTC)
+
+    async def _twice():
+        await ws_mod._shared_lookup(2026, 1, now)
+        await ws_mod._shared_lookup(2026, 1, now)
+
+    asyncio.run(_twice())
+
+    assert len(calls) == (1 if cached else 2)
+
+
+def test_session_lookup_expires_with_the_active_session(monkeypatch):
+    now = datetime(2026, 1, 1, 11, tzinfo=UTC)
+    active = _active(now)
+    calls = _count_lookups(monkeypatch, SessionLookup(active=active, next_start=None))
+
+    async def _lookups():
+        # Past the session's grace window the lookup is stale at once.
+        late = active.date_end + timedelta(hours=1)
+        await ws_mod._shared_lookup(2026, 1, late)
+        await ws_mod._shared_lookup(2026, 1, late)
+
+    asyncio.run(_lookups())
+
+    assert len(calls) == 2
+
+
 @pytest.fixture
 def manager(monkeypatch):
     """A registry per test — production uses a module-level singleton."""

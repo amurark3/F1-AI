@@ -159,6 +159,7 @@ export interface GrandPrixBoardProps {
   /** False while the active phase cannot be computed yet. */
   phaseAvailable: boolean;
   onSelectRound: (round: number) => void;
+  onSelectYear: (year: number) => void;
   onSelectPhase: (phase: PredictionPhase) => void;
   onRetry: () => void;
   onReloadSchedule: () => void;
@@ -183,6 +184,7 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
         races={props.schedule}
         selectedRound={props.selectedRound}
         onSelectRound={props.onSelectRound}
+        onSelectYear={props.onSelectYear}
         view="grand-prix"
       />
 

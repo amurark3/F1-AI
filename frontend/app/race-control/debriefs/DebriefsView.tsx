@@ -56,6 +56,7 @@ function Body({ year, seeds, url }: ViewProps) {
         races={debriefPickerRaces(calendar.races, round)}
         selectedRound={round}
         onSelectRound={url.select}
+        onSelectYear={url.selectYear}
         view="debrief"
       />
       <DebriefSections key={round} year={year} round={round} seeds={seeds} />

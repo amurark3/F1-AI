@@ -32,9 +32,10 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
-import structlog
 
+from app.api import single_flight as single_flight_module
 from app.api.routers import predictions as predictions_router
+from app.api.single_flight import SingleFlight
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -48,13 +49,13 @@ SNAPSHOT = {
 
 
 @pytest.fixture(autouse=True)
-def _clear_locks():
-    """The lock and run registries are module-global and would leak between tests."""
-    predictions_router.prediction_locks.clear()
-    predictions_router.model_runs.clear()
-    yield
-    predictions_router.prediction_locks.clear()
-    predictions_router.model_runs.clear()
+def _fresh_runs(monkeypatch):
+    """The run registry is module-global and would leak between tests."""
+    monkeypatch.setattr(predictions_router, "model_runs", SingleFlight("predictions"))
+
+
+def _idle(*keys: tuple[int, int, str]) -> Callable[[], bool]:
+    return lambda: not any(predictions_router.model_runs.running(key) for key in keys)
 
 
 ADMIN_KEY = "owner-key"
@@ -104,103 +105,6 @@ async def _identity(result):
 
 
 # ---------------------------------------------------------------------------
-# GET /predictions/{year}/{round}
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_a_cached_snapshot_is_served_without_computing(client, monkeypatch, no_review_refresh):
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: SNAPSHOT)
-    monkeypatch.setattr(predictions_router, "enrich_prediction_result", lambda result: {**result, "enriched": True})
-    monkeypatch.setattr(
-        predictions_router,
-        "get_or_compute_race_prediction",
-        lambda *_a, **_k: pytest.fail("a cache hit must not compute"),
-    )
-
-    body = client.get("/predictions/2026/1").json()
-
-    assert body["enriched"] is True
-
-
-@pytest.mark.unit
-def test_a_cache_miss_computes_and_returns_the_result(client, monkeypatch):
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
-    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", lambda y, r: {"year": y, "round": r})
-
-    body = client.get("/predictions/2026/3").json()
-
-    assert body == {"year": 2026, "round": 3}
-
-
-@pytest.mark.unit
-def test_a_snapshot_that_appears_while_waiting_on_the_lock_is_served(client, monkeypatch, no_review_refresh):
-    """Double-checked locking: the second caller must not recompute."""
-    calls = {"n": 0}
-
-    def get(_year, _round):
-        calls["n"] += 1
-        # Miss on the pre-lock check, hit on the re-check inside the lock.
-        return None if calls["n"] == 1 else SNAPSHOT
-
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", get)
-    monkeypatch.setattr(predictions_router, "enrich_prediction_result", lambda result: result)
-    monkeypatch.setattr(
-        predictions_router,
-        "get_or_compute_race_prediction",
-        lambda *_a, **_k: pytest.fail("the re-check hit must short-circuit the compute"),
-    )
-
-    assert client.get("/predictions/2026/1").json()["round"] == 1
-
-
-@pytest.mark.unit
-def test_a_slow_model_run_returns_a_retryable_message(client, monkeypatch, gate):
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
-    monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
-    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", lambda y, r: gate.wait(5) and {})
-
-    body = client.get("/predictions/2026/1").json()
-
-    assert body["predictions"] == []
-    assert "still running" in body["error"]
-    # Still running is retry-able, not a server fault, so it carries no error id.
-    assert "error_id" not in body
-
-
-@pytest.mark.unit
-def test_a_timeout_raised_inside_the_model_is_a_failure_not_a_wait(client, monkeypatch):
-    """A socket timeout is a ``TimeoutError`` too; it must not read as "still running"."""
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
-
-    def network_timeout(*_args, **_kwargs):
-        raise TimeoutError("read timed out")
-
-    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", network_timeout)
-
-    body = client.get("/predictions/2026/1").json()
-
-    assert body["predictions"] == []
-    assert "error_id" in body
-
-
-@pytest.mark.unit
-def test_a_compute_failure_returns_a_client_safe_error(client, monkeypatch):
-    monkeypatch.setattr(predictions_router.prediction_snapshot_cache, "get", lambda y, r: None)
-
-    def explode(*_args, **_kwargs):
-        raise ValueError("no such column: race_data.qualifying_q3")
-
-    monkeypatch.setattr(predictions_router, "get_or_compute_race_prediction", explode)
-
-    body = client.get("/predictions/2026/1").json()
-
-    assert body["predictions"] == []
-    assert "error_id" in body
-    assert "qualifying_q3" not in str(body)
-
-
-# ---------------------------------------------------------------------------
 # GET /predictions/{year}/{round}/snapshot
 # ---------------------------------------------------------------------------
 
@@ -218,7 +122,7 @@ def test_snapshot_never_computes_on_a_miss(client, monkeypatch):
     monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r, phase=None: None)
     monkeypatch.setattr(
         predictions_router,
-        "get_or_compute_race_prediction",
+        "compute_and_store_race_prediction",
         lambda *_a, **_k: pytest.fail("snapshot must not trigger a compute"),
     )
 
@@ -234,7 +138,7 @@ def test_snapshot_never_computes_on_a_miss(client, monkeypatch):
 def test_snapshot_says_when_that_phase_has_a_run_in_flight(client, monkeypatch, no_review_refresh, stored):
     """How a client waiting on a "computing" answer tells a slow run from one that stopped."""
     monkeypatch.setattr(predictions_router, "get_cached_race_prediction", lambda y, r, phase=None: stored)
-    predictions_router.model_runs[(2026, 1, "pre_qualifying")] = object()
+    monkeypatch.setattr(predictions_router.model_runs, "running", lambda key: key == (2026, 1, "pre_qualifying"))
 
     running = client.get("/predictions/2026/1/snapshot", params={"phase": "pre_qualifying"}).json()
     other_phase = client.get("/predictions/2026/1/snapshot", params={"phase": "post_qualifying"}).json()
@@ -352,7 +256,7 @@ def test_a_second_click_joins_the_run_in_flight(client, monkeypatch, gate):
     second = client.post("/predictions/2026/19/compute").json()
     runs_while_in_flight = list(runs)
     gate.set()
-    _wait_until(lambda: not predictions_router.model_runs)
+    _wait_until(_idle((2026, 19, "auto")))
 
     assert first["cache"]["status"] == "computing"
     assert second["cache"]["status"] == "computing"
@@ -361,8 +265,8 @@ def test_a_second_click_joins_the_run_in_flight(client, monkeypatch, gate):
 
 
 @pytest.mark.unit
-def test_the_race_stays_locked_until_an_abandoned_run_finishes(client, monkeypatch, gate):
-    """The other phase of the same race must queue behind a run its request gave up on."""
+def test_no_run_starts_until_an_abandoned_run_finishes(client, monkeypatch, gate):
+    """Another call must queue behind a run its request gave up on: two at once ran out of memory."""
     monkeypatch.setattr(predictions_router, "FASTF1_TIMEOUT_SECONDS", 0.05)
     events: list[tuple[str, str]] = []
 
@@ -379,7 +283,7 @@ def test_the_race_stays_locked_until_an_abandoned_run_finishes(client, monkeypat
     client.post("/predictions/2026/19/compute", params={"phase": "post_qualifying"})
     started_while_locked = list(events)
     gate.set()
-    _wait_until(lambda: not predictions_router.model_runs)
+    _wait_until(_idle((2026, 19, "pre_qualifying"), (2026, 19, "post_qualifying")))
 
     assert started_while_locked == [("start", "pre_qualifying")]
     assert events == [
@@ -404,7 +308,7 @@ def test_a_finished_run_is_forgotten_so_the_next_click_recomputes(client, monkey
     client.post("/predictions/2026/19/compute")
 
     assert runs == [19, 19]
-    assert predictions_router.model_runs == {}
+    assert _idle((2026, 19, "auto"))()
 
 
 @pytest.mark.unit
@@ -417,13 +321,16 @@ def test_a_run_that_fails_after_its_request_gave_up_is_logged(client, monkeypatc
 
     monkeypatch.setattr(predictions_router, "compute_and_store_race_prediction", compute)
 
-    with structlog.testing.capture_logs() as logs:
-        client.post("/predictions/2026/19/compute")
-        gate.set()
-        _wait_until(lambda: not predictions_router.model_runs)
+    logged: list[tuple[str, str]] = []
+    # The logger caches its config on first use, so capture_logs misses it in a full run.
+    monkeypatch.setattr(single_flight_module.logger, "warning", lambda event, **kw: logged.append((event, kw["error"])))
 
-    failure = next(entry for entry in logs if entry["event"] == "api.predictions.model_run_failed")
-    assert failure["error"] == "upstream 503"
+    client.post("/predictions/2026/19/compute")
+    gate.set()
+    # The run is forgotten just before the failure is logged, so wait on the log itself.
+    _wait_until(lambda: bool(logged))
+
+    assert logged == [("single_flight.failed", "upstream 503")]
 
 
 @pytest.mark.unit
@@ -605,39 +512,3 @@ def test_a_cancelled_review_task_is_ignored(capsys):
     predictions_router._log_late_review(_CancelledTask())
 
     assert capsys.readouterr().out == ""
-
-
-@pytest.mark.unit
-def test_a_cancelled_model_run_is_forgotten_without_reading_its_error():
-    """Loop shutdown cancels a run; reading its exception would raise inside the callback."""
-
-    class _CancelledRun:
-        def cancelled(self):
-            return True
-
-        def exception(self):
-            raise AssertionError("a cancelled run has no exception to read")
-
-    run = _CancelledRun()
-    predictions_router.model_runs[(2026, 19, "auto")] = run
-
-    with structlog.testing.capture_logs() as logs:
-        predictions_router._forget_model_run((2026, 19, "auto"), run)
-
-    assert predictions_router.model_runs == {}
-    assert logs == []
-
-
-# ---------------------------------------------------------------------------
-# _prediction_lock
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_each_race_gets_its_own_lock_reused_across_calls():
-    first = predictions_router._prediction_lock((2026, 1))
-    again = predictions_router._prediction_lock((2026, 1))
-    other = predictions_router._prediction_lock((2026, 2))
-
-    assert first is again, "the same race must serialise on one lock"
-    assert first is not other, "different races must not block each other"

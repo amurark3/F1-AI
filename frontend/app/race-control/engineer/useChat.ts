@@ -5,13 +5,20 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject
 import { API_BASE } from "@/app/constants/api";
 import { UNREACHABLE_REASON } from "@/app/ui/section/sectionState";
 
-import { parseChatStream, type Chat, type Message, type ParsedStream } from "./engineerModel";
+import {
+  MAX_ANSWER_CHARS,
+  MAX_TURNS,
+  parseChatStream,
+  type Chat,
+  type Message,
+  type ParsedStream,
+} from "./engineerModel";
 import { useLocalChats } from "./useLocalChats";
 
 const USER_ID_KEY = "f1ai_user_id";
 
 /** Stable per-browser user id (localStorage), created lazily on first send. */
-function getOrCreateUserId(): string {
+function getOrCreateUserId(): string | null {
   try {
     let id = window.localStorage.getItem(USER_ID_KEY);
     if (!id) {
@@ -20,7 +27,7 @@ function getOrCreateUserId(): string {
     }
     return id;
   } catch {
-    return "anonymous";
+    return null; // no shared id: without storage the chat simply runs without memory
   }
 }
 
@@ -30,6 +37,17 @@ function assistantMessage({ content, data }: ParsedStream): Message {
 }
 
 class AnswerFailure extends Error {}
+
+const RATE_LIMITED_REASON = "Too many questions in a short time. Wait a minute, then ask again.";
+
+/** The thread's latest turns, opening on a question, each earlier answer clipped to what the server takes. */
+function turnsToSend(history: Message[]): Array<Pick<Message, "role" | "content">> {
+  const recent = history.slice(-MAX_TURNS);
+  const firstQuestion = recent.findIndex((turn) => turn.role === "user");
+  return recent
+    .slice(Math.max(firstQuestion, 0))
+    .map(({ role, content }) => ({ role, content: content.slice(0, MAX_ANSWER_CHARS) }));
+}
 
 interface ThreadState {
   setMessages: Dispatch<SetStateAction<Message[]>>;
@@ -61,8 +79,8 @@ async function requestAnswer(history: Message[], chatId: string): Promise<Readab
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: history.map(({ role, content }) => ({ role, content })),
-        // A stable client id unlocks server-side personalisation and memory; the chat id scopes the thread.
+        messages: turnsToSend(history),
+        // A stable client id unlocks server-side personalisation and memory (null: none); the chat id scopes the thread.
         user_id: getOrCreateUserId(),
         thread_id: chatId,
       }),
@@ -70,6 +88,7 @@ async function requestAnswer(history: Message[], chatId: string): Promise<Readab
   } catch {
     throw new AnswerFailure(UNREACHABLE_REASON);
   }
+  if (response.status === 429) throw new AnswerFailure(RATE_LIMITED_REASON);
   if (!response.ok) throw new AnswerFailure(`The server answered ${response.status}.`);
   if (!response.body) throw new AnswerFailure("No answer stream was received.");
   return response.body;

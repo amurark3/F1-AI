@@ -165,6 +165,8 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     empty = tmp_path_factory.getbasetemp() / "f1db-empty.db"
     empty.touch()
     monkeypatch.setattr(f1db_source, "DB_PATH", empty)
+    # Its stamp too: VERSION_PATH is fixed at import, so it would still read the developer's release tag.
+    monkeypatch.setattr(f1db_source, "VERSION_PATH", empty.with_name("f1db-empty.db.version"))
     identity.clear_cache()
     yield
     identity.clear_cache()
@@ -186,3 +188,11 @@ def _empty_openf1_store(tmp_path_factory: pytest.TempPathFactory, monkeypatch: p
     from app.data.openf1 import session_store
 
     monkeypatch.setattr(session_store, "STORE", session_store.FileSessionStore(tmp_path_factory.mktemp("openf1_store")))
+
+
+@pytest.fixture(autouse=True)
+def _fresh_chat_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The chat rate limit is module-global; every test starts with a clean count."""
+    from app.api import rate_limit
+
+    monkeypatch.setattr(rate_limit, "chat_limiter", rate_limit.RateLimiter(((1000, 60.0),)))

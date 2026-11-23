@@ -324,7 +324,7 @@ def test_root_answers_a_health_probe():
         "/api/health",
         "/api/ready",
         "/api/champions",
-        "/api/predictions/{year}/{round_num}",
+        "/api/predictions/{year}/{round_num}/snapshot",
         "/api/race-control/overview/{year}",
         "/api/compare/{year}/{driver1}/{driver2}",
     ],

@@ -38,6 +38,14 @@ describe("useRewindUrl", () => {
     expect(nav.replace).toHaveBeenCalledWith("/race-control/rewind?round=7", { scroll: false });
   });
 
+  it("opens another season at its default race", () => {
+    const { result } = renderHook(() => useRewindUrl(2026));
+
+    result.current.selectYear(2024);
+
+    expect(nav.replace).toHaveBeenCalledWith("/race-control/rewind?year=2024", { scroll: false });
+  });
+
   it("writes a step with the history API, never the router", () => {
     nav.replace.mockClear();
     const write = vi.spyOn(window.history, "replaceState");
@@ -55,6 +63,7 @@ describe("useRewindUrl", () => {
     expect(DEFAULT_REWIND_URL.round).toBeNull();
     expect(DEFAULT_REWIND_URL.step).toBeNull();
     expect(DEFAULT_REWIND_URL.select(3)).toBeUndefined();
+    expect(DEFAULT_REWIND_URL.selectYear(2024)).toBeUndefined();
     expect(DEFAULT_REWIND_URL.setStep(3, 4)).toBeUndefined();
   });
 });

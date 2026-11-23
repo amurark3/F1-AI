@@ -4,6 +4,7 @@
 
 Work on accuracy fixes, the data platform and the site-wide redesign follows `docs/plans/2026-11-redesign/PLAN.md`. Progress lives in `docs/plans/2026-11-redesign/STATUS.md`.
 
+- **Backend hardening (from the 2026-11-23 audit)** runs from `docs/plans/2026-11-hardening/PLAN.md`, status in its `STATUS.md`, under the same rules.
 - **Before any work,** follow PLAN.md's "How to run this plan": check git, open STATUS.md, and re-verify any `in_progress` task before continuing it. Never continue from memory.
 - **Visual spec:** `docs/design/redesign/` (start at `index.html`).
 - **Data rules:** `docs/DATA_SOURCES.md`. The FIA final classification is the authority, and every special state (retired, red-flag change, pit-lane start, provisional) is labelled.

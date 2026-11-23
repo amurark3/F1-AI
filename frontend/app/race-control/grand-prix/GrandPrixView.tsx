@@ -57,6 +57,9 @@ function useGrandPrixWorkspace(seed: GrandPrixSeed, url: HubUrl): GrandPrixBoard
       // A new round starts over on Weekend; a tab carried across rounds was the inconsistency.
       url.update({ round, tab: null, view: null });
     },
+    onSelectYear: (year) => {
+      url.update({ year, round: null, tab: null, view: null });
+    },
     onReloadSchedule: season.reloadSchedule,
     onReloadDrivers: season.reloadDrivers,
   };

@@ -33,6 +33,7 @@ from app.api.tools.standings import (
 from app.data.title_rule import CONSTRUCTORS, DRIVERS, Remaining
 from app.services.race_control.table_reach import TableReach
 from tests.standings_support import standings_from_rows
+from tests.tool_error_support import is_generic_failure
 
 # Two Grands Prix and a sprint: 58 points for a driver, 101 for a team.
 LEFT = Remaining(races=2, sprints=1)
@@ -116,7 +117,7 @@ def test_a_season_with_no_driver_table_is_reported_as_missing(monkeypatch):
 def test_a_driver_standings_failure_is_reported_rather_than_raised(monkeypatch):
     monkeypatch.setattr(standings_module, "current_standings", _boom)
 
-    assert get_driver_standings.invoke({"year": 2026}) == "Failed to fetch driver standings: f1db is locked"
+    assert is_generic_failure(get_driver_standings.invoke({"year": 2026}), "Failed to fetch driver standings")
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +167,7 @@ def test_a_season_with_no_constructor_data_is_reported_as_missing(monkeypatch):
 def test_a_constructor_standings_failure_is_reported_rather_than_raised(monkeypatch):
     monkeypatch.setattr(standings_module, "current_standings", _boom)
 
-    assert get_constructor_standings.invoke({"year": 2026}) == "Failed to fetch constructor standings: f1db is locked"
+    assert is_generic_failure(get_constructor_standings.invoke({"year": 2026}), "Failed to fetch constructor standings")
 
 
 # ---------------------------------------------------------------------------
@@ -329,7 +330,7 @@ def test_the_schedule_reads_f1dbs_calendar_and_formats(calendar_f1db):
 def test_a_schedule_failure_is_reported_rather_than_raised(monkeypatch):
     _install_schedule(monkeypatch, ConnectionError("ergast unreachable"))
 
-    assert get_season_schedule.invoke({"year": 2026}) == "Failed to fetch schedule: ergast unreachable"
+    assert is_generic_failure(get_season_schedule.invoke({"year": 2026}), "Failed to fetch schedule")
 
 
 # ---------------------------------------------------------------------------

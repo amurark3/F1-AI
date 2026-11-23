@@ -862,7 +862,7 @@ Found while checking which stored predictions P0b.6 left wrong (STATUS log 2026-
   - Predictions: 22 cars, seat TBC, why-P1 attribution, risk, model scorecard.
   - Split `GrandPrixView.tsx` (443 lines) and `GrandPrixPanels.tsx` (404).
 - **P4.4 Telemetry:**
-  - Header: the shared race picker and "This race" switcher, followed by the compact Telemetry Lab heading with a season selector and a single analysis toolbar.
+  - Header: the shared race picker (its season select is shared by all four race views) and "This race" switcher, followed by the compact Telemetry Lab heading and a single analysis toolbar.
   - Speed map draws itself.
   - Head-to-head becomes **independent cards** (lap/sectors, mini-sector map, delta (smoothed, ending at the official gap), speed, throttle, brake, gear).
   - Tyre wear has four charts (degradation scatter, race pace, wear rate by stint with the raw value beside it, stint lengths).

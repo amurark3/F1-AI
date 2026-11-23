@@ -5,9 +5,10 @@ from __future__ import annotations
 from langchain_core.tools import tool
 import structlog
 
+from app.api.errors import tool_error_text
 from app.api.tools.provenance import Provenance, Sourced, chip
 from app.data.strategy import analyze_pit_strategy
-from app.services.predictions import get_or_compute_race_prediction
+from app.services.predictions import get_cached_race_prediction
 
 logger = structlog.get_logger()
 
@@ -24,7 +25,10 @@ def get_race_predictions(year: int, round_num: int) -> str:
     # the description is re-sent on every turn of the agent loop.
     logger.info("tool.race_predictions", year=year, round_num=round_num)
     try:
-        result = get_or_compute_race_prediction(year, round_num)
+        result = get_cached_race_prediction(year, round_num)
+        if result is None:
+            # Only the site owner runs the model; a chat question never does.
+            return f"No prediction is stored for {year} Round {round_num} yet. The site owner runs the model before each race."
 
         if not result.get("predictions"):
             warnings = result.get("warnings", [])
@@ -98,7 +102,7 @@ def get_race_predictions(year: int, round_num: int) -> str:
 
     except Exception as e:
         logger.exception("tool.race_predictions.error", error=str(e))
-        return f"Prediction analysis failed: {e}"
+        return f"Prediction analysis failed: {tool_error_text('tool.get_race_predictions.failed', e)}"
 
 
 # Tyre colours spelled out — the model reads these back to users who know the
@@ -241,4 +245,4 @@ def get_pit_strategy(year: int, round_num: int, driver_code: str | None = None) 
 
     except Exception as e:
         logger.exception("tool.pit_strategy.error", error=str(e))
-        return f"Strategy analysis failed: {e}"
+        return f"Strategy analysis failed: {tool_error_text('tool.get_pit_strategy.failed', e)}"

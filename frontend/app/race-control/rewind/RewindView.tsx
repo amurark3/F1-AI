@@ -190,6 +190,7 @@ function Body({ year, seeds, url }: ViewProps) {
         races={debriefPickerRaces(calendar.races, event.round)}
         selectedRound={event.round}
         onSelectRound={url.select}
+        onSelectYear={url.selectYear}
         view="rewind"
       />
       <RoundBody key={event.round} year={year} round={event.round} race={event.name} url={url} />

@@ -119,6 +119,22 @@ def _postmortem_prompt(year: int, round_num: int, review: dict, misses: list[dic
     )
 
 
+def _ask_engines(messages: list) -> str:
+    """The first engine's reply; a provider failure rests that engine and tries the next."""
+    from app.api.llm import available_providers, build_chat_llm, is_provider_failure, mark_unavailable, message_text
+
+    failure: Exception | None = None
+    for provider in available_providers():
+        try:
+            return message_text(build_chat_llm(provider).invoke(messages))
+        except Exception as exc:
+            if not is_provider_failure(exc):
+                raise
+            mark_unavailable(provider, exc)
+            failure = exc
+    raise failure or RuntimeError("no chat engine available")
+
+
 def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) -> dict | None:
     """Create (and store) an LLM post-mortem for a completed, evaluated race.
 
@@ -126,8 +142,9 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
     LLM is unavailable.  Skips regeneration unless ``force`` is set.
     """
     key = f"({year},{round_num})"
-    if not force and get_postmortem(year, round_num):
-        return get_postmortem(year, round_num)
+    stored = None if force else get_postmortem(year, round_num)
+    if stored:
+        return stored
 
     # Names no phase, so it reviews the graded call; also records actuals.
     review = get_prediction_review(year, round_num)
@@ -145,11 +162,7 @@ def generate_miss_postmortem(year: int, round_num: int, *, force: bool = False) 
 
         from langchain_core.messages import HumanMessage
 
-        from app.api.llm import build_chat_llm, message_text
-
-        llm = build_chat_llm()
-        response = llm.invoke([HumanMessage(content=_postmortem_prompt(year, round_num, review, misses))])
-        summary = message_text(response)
+        summary = _ask_engines([HumanMessage(content=_postmortem_prompt(year, round_num, review, misses))])
     except Exception as exc:
         logger.warning("self_improvement.postmortem_llm_unavailable", error=str(exc))
         return None
@@ -184,7 +197,8 @@ def run_self_improvement_pass(year: int) -> dict:
         if graded_call(entry).get("predicted_positions") and actuals_pending(entry):
             record_actual_result(y, r)
             recorded += 1
-        if not get_postmortem(y, r) and generate_miss_postmortem(y, r):
+        # One store read per race: force skips the generator's own check of the same entry.
+        if not get_postmortem(y, r) and generate_miss_postmortem(y, r, force=True):
             postmortems += 1
 
     summary = {"year": year, "actuals_recorded": recorded, "postmortems_generated": postmortems}

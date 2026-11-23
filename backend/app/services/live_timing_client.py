@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import structlog
 
-from app.config import OPENF1_HTTP_TIMEOUT_SECONDS
+from app.config import OPENF1_HTTP_TIMEOUT_SECONDS, WS_POLL_INTERVAL
 from app.data.f1db_calendar import season_schedule
 from app.services.live_timing import (
     GAP_FEED_WINDOW,
@@ -26,6 +26,7 @@ from app.services.live_timing import (
     parse_iso,
     select_active_session,
 )
+from app.utils.ttl_cache import TtlCache
 
 logger = structlog.get_logger()
 
@@ -33,6 +34,12 @@ OPENF1_BASE = "https://api.openf1.org/v1"
 
 # Driver metadata is static for a session, so it is fetched once per session.
 _driver_cache: dict[str, dict[int, dict]] = {}
+
+# One OpenF1 read per session per poll interval, shared by every socket. Just
+# under the interval so a socket polling on the beat always sees fresh rows.
+_FEED_LIFETIME = max(0.0, WS_POLL_INTERVAL - 1)
+_Feeds = tuple[dict[int, dict], list | None, list | None, list | None]
+_feed_cache: TtlCache[str, _Feeds] = TtlCache()
 
 
 @dataclass(frozen=True)
@@ -230,6 +237,25 @@ def _highest_lap(rows: list[dict] | None) -> int | None:
     return max(laps) if laps else None
 
 
+async def _fetch_feeds(key: str, moment: datetime) -> _Feeds:
+    """The session's OpenF1 rows, shared by every caller within one poll interval."""
+    cached = _feed_cache.get(key)
+    if cached is not None:
+        return cached
+    async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
+        drivers = await _fetch_drivers(client, key)
+        positions, intervals, laps = await asyncio.gather(
+            _get_json(client, "position", {"session_key": key}),
+            _get_json(client, "intervals", _recent(key, moment, GAP_FEED_WINDOW)),
+            _get_json(client, "laps", _recent(key, moment, LAP_FEED_WINDOW, key="date_start")),
+        )
+    feeds = (drivers, positions, intervals, laps)
+    # A failed read is never kept, so an outage recovers on the next poll.
+    if None not in feeds[1:] and drivers:
+        _feed_cache.put(key, feeds, _FEED_LIFETIME)
+    return feeds
+
+
 async def poll_timing(
     session: ActiveSession,
     now: datetime | None = None,
@@ -248,13 +274,7 @@ async def poll_timing(
     """
     moment = now or datetime.now(UTC)
     key = session.session_key
-    async with httpx.AsyncClient(timeout=OPENF1_HTTP_TIMEOUT_SECONDS) as client:
-        drivers = await _fetch_drivers(client, key)
-        positions, intervals, laps = await asyncio.gather(
-            _get_json(client, "position", {"session_key": key}),
-            _get_json(client, "intervals", _recent(key, moment, GAP_FEED_WINDOW)),
-            _get_json(client, "laps", _recent(key, moment, LAP_FEED_WINDOW, key="date_start")),
-        )
+    drivers, positions, intervals, laps = await _fetch_feeds(key, moment)
 
     sampled_at = newest_feed_sample(
         [

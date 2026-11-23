@@ -50,9 +50,9 @@ def fresh_season_cache(monkeypatch):
 
 @pytest.fixture
 def enabled(monkeypatch):
-    """Turn on both gates so the retrieval path is the one under test."""
+    """Turn the index on so the retrieval path is the one under test."""
     monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", True)
-    monkeypatch.setattr(rulebook, "ENABLE_LOCAL_MODELS", True)
+    monkeypatch.setattr(rulebook, "year_indexed", lambda year: True)
 
 
 @pytest.fixture
@@ -124,24 +124,10 @@ def test_a_blank_question_is_unavailable_and_searches_nothing(monkeypatch):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    ("rulebook_on", "models_on", "reason"),
-    [
-        (False, True, "The regulation index isn't set up on this server, so the regulations were not searched."),
-        (
-            True,
-            False,
-            "Regulation search is off on this server: it needs a model this server doesn't have the memory to run. "
-            "The regulations were not searched.",
-        ),
-    ],
-)
-def test_a_switched_off_index_falls_back_to_keyword_matches(
-    monkeypatch, tmp_path, summary, rulebook_on, models_on, reason
-):
+def test_a_switched_off_index_falls_back_to_keyword_matches(monkeypatch, tmp_path, summary):
+    reason = "The regulation index isn't set up on this server, so the regulations were not searched."
     hold(monkeypatch, tmp_path)
-    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", rulebook_on)
-    monkeypatch.setattr(rulebook, "ENABLE_LOCAL_MODELS", models_on)
+    monkeypatch.setattr(rulebook, "RULEBOOK_ENABLED", False)
     monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: pytest.fail("the index is off"))
 
     result = rulebook.search_rulebook(f"  {QUESTION}  ", year=2026)
@@ -192,6 +178,7 @@ def test_a_failing_rerank_reports_the_same_fixed_reason(enabled, monkeypatch, tm
 @pytest.mark.parametrize("candidates", [[], None])
 def test_an_empty_index_says_the_year_is_not_indexed(enabled, monkeypatch, tmp_path, candidates):
     hold(monkeypatch, tmp_path)
+    monkeypatch.setattr(rulebook, "year_indexed", lambda year: False)
     monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: candidates or [])
     monkeypatch.setattr(rulebook, "rerank", lambda q, c, k: c[:k])
 
@@ -199,6 +186,19 @@ def test_an_empty_index_says_the_year_is_not_indexed(enabled, monkeypatch, tmp_p
 
     assert result["status"] == "keyword"
     assert result["reason"] == "The FIA 2026 F1 Regulations aren't in the search index yet."
+
+
+@pytest.mark.unit
+def test_an_indexed_year_with_no_matching_passage_says_so(enabled, monkeypatch, tmp_path):
+    hold(monkeypatch, tmp_path)
+    monkeypatch.setattr(rulebook, "rulebook_search", lambda *a, **k: [])
+
+    result = rulebook.search_rulebook(QUESTION, year=2026)
+
+    assert result["status"] == "keyword"
+    assert result["reason"] == (
+        "No regulation passage matched those words. Try the article number or the rule's wording."
+    )
 
 
 @pytest.mark.unit

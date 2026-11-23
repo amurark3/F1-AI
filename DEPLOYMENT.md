@@ -54,9 +54,9 @@ variable there does nothing on its own.
 
 ### `ENABLE_LOCAL_MODELS` and the 512MB ceiling
 
-Rulebook search and conversation-memory recall need two torch models in-process:
-a sentence-transformers embedder and a cross-encoder reranker. Together they do
-not fit alongside the rest of the app on Render's free instance.
+Semantic rulebook search and conversation-memory recall need two torch models
+in-process: a sentence-transformers embedder and a cross-encoder reranker.
+Together they do not fit alongside the rest of the app on Render's free instance.
 
 This is not theoretical. A single `POST /api/race-control/rulebook/search`
 OOM-killed the container in production; the service returned 502, then every
@@ -66,8 +66,9 @@ executed. It was also reachable by any unauthenticated caller.
 
 With the flag off (the default), nothing imports torch:
 
-- **Rulebook search** reports that it is disabled, rather than claiming no
-  regulations matched — the corpus is fully populated and the query never ran.
+- **Rulebook search** still works: it matches the question's words (and article
+  numbers) with Postgres full-text search, no model needed. With the flag on, the
+  embedding search is merged in.
 - **Chat** works normally and messages are still stored; only semantic recall
   and personalisation are skipped.
 - **Predictions, standings, champions, health** are unaffected.

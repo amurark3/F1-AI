@@ -73,6 +73,15 @@ def _session(now: datetime) -> ActiveSession:
     )
 
 
+@pytest.fixture(autouse=True)
+def _clear_shared_caches():
+    live_ws._lookup_cache._entries.clear()
+    client._feed_cache._entries.clear()
+    yield
+    live_ws._lookup_cache._entries.clear()
+    client._feed_cache._entries.clear()
+
+
 @pytest.fixture
 def replay_stack(monkeypatch):
     """Wire the loop to recorded data and a fake socket."""
@@ -100,6 +109,7 @@ def replay_stack(monkeypatch):
 
     monkeypatch.setattr(live_ws, "resolve_session_window", fake_resolve)
     monkeypatch.setattr(live_ws, "WS_POLL_INTERVAL", 0)
+    monkeypatch.setattr(client, "_FEED_LIFETIME", 0)  # each replay poll advances the feed
 
     return replay
 

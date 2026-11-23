@@ -14,6 +14,7 @@ import pytest
 from app.data.f1db_calendar import CalendarUnavailableError
 from app.services import live_timing_client as client
 from app.services.live_timing import GAP_FEED_WINDOW, LAP_FEED_WINDOW
+from app.utils.ttl_cache import TtlCache
 
 pytestmark = pytest.mark.unit
 
@@ -60,8 +61,10 @@ RACE_START = _utc(2026, 8, 23, 13, 0)
 @pytest.fixture(autouse=True)
 def _clear_driver_cache():
     client._driver_cache.clear()
+    client._feed_cache._entries.clear()
     yield
     client._driver_cache.clear()
+    client._feed_cache._entries.clear()
 
 
 def _stub_openf1(
@@ -385,9 +388,42 @@ def test_poll_timing_fetches_driver_metadata_once_per_session(monkeypatch):
     )
 
     asyncio.run(client.poll_timing(_race(), now=now))
+    client._feed_cache._entries.clear()
     asyncio.run(client.poll_timing(_race(), now=now))
 
     assert _paths(calls).count("drivers") == 1
+
+
+def test_polls_within_one_interval_share_one_set_of_openf1_calls(monkeypatch):
+    now = _utc(2026, 8, 23, 13, 30)
+    calls = _stub_openf1(
+        monkeypatch,
+        positions=[{"driver_number": 12, "position": 1, "date": now.isoformat()}],
+        intervals=[],
+        laps=[{"lap_number": 3}],
+        drivers=DRIVERS,
+    )
+    clock = [0.0]
+    monkeypatch.setattr(client, "_feed_cache", TtlCache(clock=lambda: clock[0]))
+
+    first = asyncio.run(client.poll_timing(_race(), now=now))
+    second = asyncio.run(client.poll_timing(_race(), now=now, last_lap=9))
+    assert len(calls) == 4
+    assert first.lap == second.lap == 3
+
+    clock[0] = client._FEED_LIFETIME + 0.1
+    asyncio.run(client.poll_timing(_race(), now=now))
+    assert len(calls) == 7  # drivers are fetched once per session
+
+
+def test_a_failed_read_is_not_shared(monkeypatch):
+    now = _utc(2026, 8, 23, 13, 30)
+    calls = _stub_openf1(monkeypatch, positions=None, intervals=[], laps=[], drivers=DRIVERS)
+
+    asyncio.run(client.poll_timing(_race(), now=now))
+    asyncio.run(client.poll_timing(_race(), now=now))
+
+    assert len(calls) == 7  # drivers are fetched once per session
 
 
 def test_poll_timing_carries_the_lap_count_through_a_red_flag(monkeypatch):

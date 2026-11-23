@@ -13,11 +13,13 @@ import { LapLeaders } from "./LapLeaders";
 import { OvertakesBoard } from "./OvertakesBoard";
 import { PenaltyTimeline } from "./PenaltyTimeline";
 import { RaceTrace } from "./RaceTrace";
+import { RadioMoments } from "./RadioMoments";
 import { TitleBanners } from "./TitleBanner";
 import {
   useDebriefLaps,
   useDebriefOvertakes,
   useDebriefPenalties,
+  useDebriefRadio,
   useDebriefSummary,
   type DebriefSeeds,
 } from "./useDebriefSections";
@@ -35,6 +37,7 @@ function Body({ year, round, seeds }: BodyProps) {
   const laps = useDebriefLaps(year, round);
   const penalties = useDebriefPenalties(year, round);
   const overtakes = useDebriefOvertakes(year, round);
+  const radio = useDebriefRadio(year, round);
   const { data } = summary;
 
   return (
@@ -76,6 +79,13 @@ function Body({ year, round, seeds }: BodyProps) {
             </Section>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="on-the-radio">
+        <SectionHead index={3} id="on-the-radio" title="On the radio" />
+        <Section state={radio} label="Team radio" skeletonClassName="h-[420px]">
+          {radio.data && <RadioMoments key={`${year}-${round}`} radio={radio.data} />}
+        </Section>
       </section>
 
       {data?.available && (

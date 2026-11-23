@@ -4,7 +4,7 @@ import { API_BASE } from "@/app/constants/api";
 import type { ScheduleSeed } from "@/app/ui/race-picker/useSchedule";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
 
-import type { DebriefLaps, DebriefOvertakes, DebriefPenalties, DebriefSummary } from "./debriefTypes";
+import type { DebriefLaps, DebriefOvertakes, DebriefPenalties, DebriefRadio, DebriefSummary } from "./debriefTypes";
 
 /** A classified race stops changing: no refetch on focus, a long dedupe. */
 const CONFIG = { revalidateOnFocus: false, dedupingInterval: 120_000 };
@@ -32,6 +32,10 @@ export function useDebriefPenalties(year: number, round: number): SectionResult<
 
 export function useDebriefOvertakes(year: number, round: number): SectionResult<DebriefOvertakes> {
   return useSection<DebriefOvertakes>(url(year, round, "/overtakes"), { config: CONFIG });
+}
+
+export function useDebriefRadio(year: number, round: number): SectionResult<DebriefRadio> {
+  return useSection<DebriefRadio>(url(year, round, "/radio"), { config: CONFIG });
 }
 
 /** The server render's two payloads: the calendar, and the default round's summary with its round. */

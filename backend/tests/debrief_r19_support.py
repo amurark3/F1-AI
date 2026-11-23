@@ -9,13 +9,14 @@ among them, so every lap's leader can be read.
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 
 from app.data.openf1.laps import laps_from_openf1
 from app.data.openf1.race_control import neutralised_windows
 from app.data.openf1.session_laps import SessionLaps
-from app.data.openf1.sessions import EntryDriver, _session
+from app.data.openf1.sessions import EntryDriver, _colour, _session
 
 MEXICO_2026 = Path(__file__).parent / "fixtures" / "mexico_2026_r19"
 RACE_KEY = 11404
@@ -51,4 +52,21 @@ def race_session_laps() -> SessionLaps:
         drivers=entries(),
         laps=laps_from_openf1(rows("openf1_laps_top5.json")),
         windows=neutralised_windows(rows("openf1_race_control.json")),
+    )
+
+
+def radio_inputs():
+    """The race with the radio clips' cars: top five, three clip drivers and the five DNFs, plus the dated pit rows."""
+    from app.services.debrief_radio import RadioInputs
+
+    laps = laps_from_openf1(rows("openf1_laps_top5.json") + rows("openf1_laps_radio.json"))
+    # The entry list as OpenF1's client serves it: team colours normalised to #RRGGBB.
+    drivers = {n: replace(entry, colour=_colour(entry.colour)) for n, entry in entries().items()}
+    return RadioInputs(
+        laps=replace(race_session_laps(), laps=laps, drivers=drivers),
+        radio=rows("openf1_team_radio.json"),
+        pit=rows("openf1_pit_dated.json"),
+        messages=rows("openf1_race_control.json"),
+        gmt_offset="-06:00:00",
+        dnf_cars=frozenset(row["driver_number"] for row in rows("openf1_session_result.json") if row["dnf"]),
     )

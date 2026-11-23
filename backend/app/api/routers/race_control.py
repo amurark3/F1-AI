@@ -12,6 +12,7 @@ from app.services import rulebook
 from app.services.debrief_laps import build_debrief_laps
 from app.services.debrief_overtakes import build_debrief_overtakes
 from app.services.debrief_penalties import build_debrief_penalties
+from app.services.debrief_radio import build_debrief_radio
 from app.services.race_control import (
     build_overview,
     build_overview_circuit,
@@ -303,6 +304,11 @@ async def get_debrief_penalties(year: int, round_num: int) -> dict:
 @router.get("/debrief/{year}/{round_num}/overtakes")
 async def get_debrief_overtakes(year: int, round_num: int) -> dict:
     return await _debrief_part("overtakes", build_debrief_overtakes, year, round_num)
+
+
+@router.get("/debrief/{year}/{round_num}/radio")
+async def get_debrief_radio(year: int, round_num: int) -> dict:
+    return await _debrief_part("radio", build_debrief_radio, year, round_num)
 
 
 @router.post("/rulebook/search")

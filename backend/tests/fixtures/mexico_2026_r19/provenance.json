@@ -8,7 +8,9 @@
   "openf1_team_radio.json": "GET https://api.openf1.org/v1/team_radio?session_key=11404 captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
   "openf1_starting_grid_404.json": "GET https://api.openf1.org/v1/starting_grid?session_key=11404 answers HTTP 404 with this body (an empty answer, never stored). captured 2026-11-14 for D1.4b; unedited apart from JSON indentation.",
   "openf1_laps_top5.json": "GET https://api.openf1.org/v1/laps?session_key=11404&driver_number=N for N = 3, 44, 12, 16, 1 (Verstappen, Hamilton, Antonelli, Leclerc, Norris), concatenated in that order, captured 2026-11-18 for P6.1; unedited apart from JSON indentation.",
-  "openf1_overtakes.json": "GET https://api.openf1.org/v1/overtakes?session_key=11404 captured 2026-11-18 for P6.1; unedited apart from JSON indentation."
+  "openf1_overtakes.json": "GET https://api.openf1.org/v1/overtakes?session_key=11404 captured 2026-11-18 for P6.1; unedited apart from JSON indentation.",
+  "openf1_pit_dated.json": "GET https://api.openf1.org/v1/pit?session_key=11404 captured 2026-11-23 for P6.2; unedited apart from JSON indentation.",
+  "openf1_laps_radio.json": "GET https://api.openf1.org/v1/laps?session_key=11404&driver_number=N for N = 5, 50, 81, 14, 18, 41, 77, 87 (clip drivers outside the top five, then the five DNFs), concatenated in that order, captured 2026-11-23 for P6.2; unedited apart from JSON indentation."
  },
  "notes": "Unedited apart from JSON indentation."
 }

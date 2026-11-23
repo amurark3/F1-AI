@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
 import { scheduleRaces } from "@/app/lib/server/raceControl";
 import { DIRECTORY_2026, SEASON_2026 } from "@/test/fixtures";
-import { DEBRIEF_R19 } from "@/test/fixtures/debrief";
+import { DEBRIEF_R19, DEBRIEF_RADIO_R19 } from "@/test/fixtures/debrief";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -40,6 +40,7 @@ describe("the Debriefs page", () => {
       http.get(apiUrl("/api/race-control/debrief/2026/20/laps"), () => HttpResponse.json(DEBRIEF_R19.laps)),
       http.get(apiUrl("/api/race-control/debrief/2026/20/penalties"), () => HttpResponse.json(DEBRIEF_R19.penalties)),
       http.get(apiUrl("/api/race-control/debrief/2026/20/overtakes"), () => HttpResponse.json(DEBRIEF_R19.overtakes)),
+      http.get(apiUrl("/api/race-control/debrief/2026/20/radio"), () => HttpResponse.json(DEBRIEF_RADIO_R19)),
     );
   });
 

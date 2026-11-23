@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useServerStatus, type ServerState } from "@/app/hooks/useServerStatus";
 import { DIRECTORY_2026, SEASON_2026 } from "@/test/fixtures";
-import { DEBRIEF_R19 } from "@/test/fixtures/debrief";
+import { DEBRIEF_R19, DEBRIEF_RADIO_R19 } from "@/test/fixtures/debrief";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
@@ -53,6 +53,7 @@ function serveRace(asked: string[] = []) {
     http.get(PART("/laps"), () => HttpResponse.json(DEBRIEF_R19.laps)),
     http.get(PART("/penalties"), () => HttpResponse.json(DEBRIEF_R19.penalties)),
     http.get(PART("/overtakes"), () => HttpResponse.json(DEBRIEF_R19.overtakes)),
+    http.get(PART("/radio"), () => HttpResponse.json(DEBRIEF_RADIO_R19)),
   );
 }
 
@@ -79,6 +80,9 @@ describe("the Debriefs page", () => {
     expect(await screen.findByRole("heading", { name: "Verstappen led from lap 44 to the flag" })).toBeInTheDocument();
     expect(container.querySelectorAll(".contents > .flex-1")).toHaveLength(71);
     expect(await screen.findByRole("heading", { name: "7 drivers penalised" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "14 of 27 clips came within a lap of a race moment" }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Hadjar made the most position changes" })).toBeInTheDocument();
     expect(await screen.findByText("273")).toBeInTheDocument();
     expect(screen.getByText(/Classification: f1db v2026.20.0/)).toBeInTheDocument();

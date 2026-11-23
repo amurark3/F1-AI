@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-23): P3.5 and P3.6, in parallel, on `dev`** (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
+- **Now (2026-11-23): P3.5 and P3.6 are PAUSED mid-build** (user: "Save the agents progress and stop them for now"). Resume from the two worktrees; see the last log entry. Before that: P3.5 and P3.6 ran in parallel (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
 - **Merged:** every redesign PR through #112 (N2, P8.1, P6.2; 2026-11-23). Their rows and log are in the archive.
 - **Also open:** PR #113, backend hardening from the 2026-11-23 audit (`docs/plans/2026-11-hardening/`, its own STATUS).
 - **Hosting (user, 2026-11-18): P0c is on hold.** Oracle has no A1 capacity, so Render stays production, kept warm by a cron-job.org GET on `/api/health/deep` every 5 minutes. Hugging Face Spaces is not an option (it needs PRO, 2026-11-22).
@@ -35,8 +35,8 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | --- | --- | --- | --- | --- |
 | P0c.9 | Decommission Render, Supabase and the Render-era workflows (7 stable days after cutover; next PR) | blocked | | On `feat/oracle-backend`, after the cutover plus 7 stable days. Never on `dev`. |
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
-| P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
-| P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, executor) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
+| P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b paused) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
+| P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, paused after P3.6b) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
 ## Log (append only; newest at the bottom)
@@ -60,4 +60,16 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
     - **Metadata:** link-preview bots may still wait on data-backed titles when the cache is cold. Browsers don't, because Next 16 streams metadata.
     - **Grand Prix:** a cold uncached render swaps the empty hub for the full one only when all its server fetches finish.
   - **Ports:** e2e uses the fixed port 3100 with `reuseExistingServer: false`, so parallel worktree runs clash, failing on "port in use". Executors wait for a free port. The coordinator runs the full suite after merging.
+- **2026-11-23 · P3.5b and P3.6 paused (user: "Save the agents progress and stop them for now").** Both Sonnet executors were stopped. Their work stays in the worktrees; neither branch is merged into `dev`. No dev server or e2e process was left running.
+  - **P3.6:** worktree `.claude/worktrees/p3.6`, branch `p3.6`.
+    - **P3.6a** (Command Center) is committed as `e9254a2`.
+    - **P3.6b** (Grand Prix) is staged, not committed. The agent reported 100 % coverage on the directory just before the stop; the coordinator has not verified it. Files: `GrandPrixHub.tsx`, `HubPage.test.tsx`, `hubSeed.ts`, `page.tsx`.
+    - **Next:** commit P3.6b through the hook's gates, then P3.6c (Telemetry) and P3.6d (`e2e/non-blocking.spec.ts`) per `p3.6-brief.md`.
+  - **P3.5b:** worktree `.claude/worktrees/p3.5b`, branch `p3.5b`.
+    - **Nothing is committed.** The work is all on disk: the gate, overlay and `StartLightGantry` deleted; new `ServerStatusNotice` and `ui/shell/WarmupLights`, with tests; `serverStatus.ts` + test; `useServerStatus` + test; `layout`, `SiteHeader`, `placeTooltip` and `globals.css` edited; `mockBackend.ts`, `standings.spec.ts`, `vitest.config.mts`; new `e2e/server-status.spec.ts`.
+    - **It stopped at the visual check,** a production build on 3105. Which gates had passed by then is unknown, so re-run all of them.
+    - **Scratch files, never commit:** `frontend/e2e/zz-shot.spec.ts` and `frontend/pw.shot.config.ts`.
+    - **Next:** finish the visual check against `restart-lights.html`, run the full gates, then commit with `Task: P3.5b`.
+  - **Not in P3.6's brief:** P3.5b touched `ui/placeTooltip.ts` + its test and `e2e/standings.spec.ts`. Check both against P3.6's files at merge (`placeTooltip` is shared kit).
+  - **Merge:** merge `p3.5b` and `p3.6` into `dev` (no cherry-picks), then run the full e2e suite. Fix the `useServerStatus` mocks in P3.6's tests if the hook's return type changed.
 

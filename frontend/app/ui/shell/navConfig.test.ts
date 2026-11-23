@@ -30,8 +30,8 @@ describe("the nav lists", () => {
     ]);
   });
 
-  it("puts Champions, Debriefs and Rulebook under More, each with one line on what it holds", () => {
-    expect(MORE_NAV.map(({ label }) => label)).toEqual(["Champions", "Debriefs", "Rulebook"]);
+  it("puts Champions, Debriefs, Race Rewind and Rulebook under More, each with one line on what it holds", () => {
+    expect(MORE_NAV.map(({ label }) => label)).toEqual(["Champions", "Debriefs", "Race Rewind", "Rulebook"]);
     for (const entry of MORE_NAV) expect(entry.description).toMatch(/\S/);
   });
 
@@ -48,6 +48,7 @@ describe("the nav lists", () => {
       "/race-control/engineer",
       "/race-control/champions",
       "/race-control/debriefs",
+      "/race-control/rewind",
       "/race-control/rulebook",
     ]);
   });

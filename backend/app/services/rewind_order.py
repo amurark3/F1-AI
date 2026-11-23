@@ -12,10 +12,10 @@ from bisect import bisect_right, insort
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
-from statistics import median
 from typing import TYPE_CHECKING
 
 from app.services.live_timing import parse_iso
+from app.services.pit_stop_rule import is_stop, stop_lane_limit
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -29,7 +29,6 @@ Samples = dict[int, tuple[list["datetime"], list[int]]]
 # shortcut: OpenF1 stamps the new place just after the line; 1 s matches the reference derivation on R19, revisit if a race reads wrong
 SAMPLE_LAG = timedelta(seconds=1)
 # a lane time over 1.5 × the race's median is a red-flag entry or a restart wait, not a stop
-STOP_LANE_FACTOR = 1.5
 # A stop counts on the lap it ends and the one after: the in-lap and the out-lap.
 STOP_WINDOW = 1
 
@@ -85,26 +84,14 @@ def lap_orders(laps: Iterable[Lap], position_rows: Iterable[dict], finishers: Co
     return [[car for _, _, car in sorted(lap_rows)] for lap_rows in rows]
 
 
-def _lane(row: dict) -> float | None:
-    return row["lane_duration"] if row.get("lane_duration") is not None else row.get("pit_duration")
-
-
 def real_stops(pit_rows: Iterable[dict], codes: dict[int, str]) -> list[tuple[str, int]]:
-    """Each real stop as (driver code, lap), in lap order.
-
-    A row is a stop when its lane time is under STOP_LANE_FACTOR × the race's
-    median lane time. OpenF1 omits ``stop_duration`` for stops that are on the
-    official pit sheet, so it is not required.
-    """
-    rows = [(row, _lane(row)) for row in pit_rows]
-    lanes = [lane for _, lane in rows if lane is not None]
-    if not lanes:
-        return []
-    limit = STOP_LANE_FACTOR * median(lanes)
+    """Each real stop (``pit_stop_rule``) as (driver code, lap), in lap order."""
+    rows = list(pit_rows)
+    limit = stop_lane_limit(rows)
     found = {
         (codes[int(row["driver_number"])], int(row["lap_number"]))
-        for row, lane in rows
-        if lane is not None and lane < limit and int(row["driver_number"]) in codes
+        for row in rows
+        if is_stop(row, limit) and int(row["driver_number"]) in codes
     }
     return sorted(found, key=lambda stop: (stop[1], stop[0]))
 

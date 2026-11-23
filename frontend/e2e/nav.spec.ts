@@ -67,7 +67,7 @@ test.describe("on a wide screen", () => {
     await expect(mainNav(page).getByRole("link", { name: "Standings" })).not.toHaveAttribute("aria-current");
   });
 
-  test("More holds Champions, Debriefs and Rulebook, by mouse or keyboard", async ({ page }) => {
+  test("More holds Champions, Debriefs, Race Rewind and Rulebook, by mouse or keyboard", async ({ page }) => {
     await page.goto("/race-control/standings");
     const more = mainNav(page).getByRole("button", { name: "More" });
     const champions = mainNav(page).getByRole("link", { name: /^Champions/ });
@@ -77,6 +77,7 @@ test.describe("on a wide screen", () => {
     await expect(more).toHaveAttribute("aria-expanded", "true");
     await expect(champions).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: /^Debriefs/ })).toBeVisible();
+    await expect(mainNav(page).getByRole("link", { name: /^Race Rewind/ })).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: /^Rulebook/ })).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -141,7 +142,7 @@ test.describe("on a phone", () => {
     const menu = page.getByRole("dialog", { name: "Site menu" });
     await expect(menu).toBeVisible();
     await expect(menu.getByRole("button", { name: "Close" })).toBeFocused();
-    await expect(menu.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveCount(10);
+    await expect(menu.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveCount(11);
     await expect(menu.getByRole("link", { name: /Standings/ })).toHaveAttribute("aria-current", "page");
     await expect(menu.getByRole("button", { name: "R20 · Pre-race" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");

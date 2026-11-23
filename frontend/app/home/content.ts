@@ -88,5 +88,6 @@ export const REFERENCE: readonly HomeLink[] = [
     description: "Every drivers' and constructors' title since 1950.",
   },
   { href: "/race-control/debriefs", title: "Race Debriefs", description: "What happened in each race, and why." },
+  { href: "/race-control/rewind", title: "Race Rewind", description: "Replay the running order lap by lap." },
   { href: "/race-control/rulebook", title: "Rulebook", description: "Search the FIA regulations by meaning." },
 ];

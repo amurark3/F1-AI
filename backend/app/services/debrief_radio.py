@@ -12,7 +12,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import re
-from statistics import median
 from typing import TYPE_CHECKING
 
 from app.data.openf1.client import get_json, new_client
@@ -21,6 +20,7 @@ from app.data.openf1.session_laps import SessionLaps, load_session_laps
 from app.data.openf1.sessions import canonical_entry
 from app.services.debrief_penalties import _MESSAGE
 from app.services.live_timing import parse_iso
+from app.services.pit_stop_rule import is_stop, lane_seconds, stop_lane_limit
 from app.services.race_results import build_session_result
 
 if TYPE_CHECKING:
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 RECORDING_ORIGIN = "https://livetiming.formula1.com/"
 RADIO_WINDOW_LAPS = 1
-STOP_LANE_FACTOR = 1.5
 NO_LAPS = "OpenF1 hasn't published this race's laps yet."
 NO_RADIO = "OpenF1 has no team radio for this race."
 
@@ -194,28 +193,6 @@ def _incident_moments(messages: list[dict], starts: Starts, offset: int | None) 
     return moments
 
 
-def _lane(row: dict) -> float | None:
-    """OpenF1's pit-lane time for one pass; ``pit_duration`` is the same figure under its older name."""
-    value = row.get("lane_duration")
-    return row.get("pit_duration") if value is None else value
-
-
-def stop_lane_limit(pit: list[dict]) -> float | None:
-    """1.5 x the race's median pit-lane time; None when no row has a lane time."""
-    lanes = [lane for row in pit if (lane := _lane(row)) is not None]
-    return STOP_LANE_FACTOR * median(lanes) if lanes else None
-
-
-def is_stop(row: dict, limit: float | None) -> bool:
-    """A tyre stop: dated, on a lap, with a lane time under the limit.
-
-    Red-flag pit-lane entries and restart pit-lane waits sit far above it;
-    OpenF1 omits ``stop_duration`` for some real stops, so it is not required.
-    """
-    lane = _lane(row)
-    return limit is not None and lane is not None and lane < limit and row.get("lap_number") is not None
-
-
 def _stop_moments(pit: list[dict]) -> list[Moment]:
     limit = stop_lane_limit(pit)
     moments = []
@@ -223,7 +200,7 @@ def _stop_moments(pit: list[dict]) -> list[Moment]:
         at = parse_iso(row.get("date"))
         if at is None or not is_stop(row, limit):
             continue
-        detail = f"{row['stop_duration']:.1f} s" if row.get("stop_duration") else f"pit lane {_lane(row):.1f} s"
+        detail = f"{row['stop_duration']:.1f} s" if row.get("stop_duration") else f"pit lane {lane_seconds(row):.1f} s"
         moments.append(Moment("stop", row["lap_number"], at, row["driver_number"], detail))
     return moments
 

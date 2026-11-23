@@ -49,7 +49,8 @@ describe("MobileNav", () => {
       "07AI Engineer",
       "08Champions",
       "09Debriefs",
-      "10Rulebook",
+      "10Race Rewind",
+      "11Rulebook",
     ]);
     expect(within(dialog).getByText("More")).toBeInTheDocument();
     expect(within(dialog).getByRole("link", { name: "F1 AI home" })).toBeInTheDocument();

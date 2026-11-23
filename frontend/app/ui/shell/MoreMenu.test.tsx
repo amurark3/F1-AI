@@ -26,7 +26,7 @@ describe("MoreMenu", () => {
     expect(trigger).toHaveClass("text-rc-ink-3");
   });
 
-  it("opens on a press to the three reference screens, each with its line, and closes on another", async () => {
+  it("opens on a press to the four screens behind More, each with its line, and closes on another", async () => {
     const { user, trigger } = setup();
 
     await user.click(trigger);
@@ -37,6 +37,7 @@ describe("MoreMenu", () => {
     expect(screen.getAllByRole("link").map((el) => el.getAttribute("href"))).toEqual([
       "/race-control/champions",
       "/race-control/debriefs",
+      "/race-control/rewind",
       "/race-control/rulebook",
     ]);
     expect(link("Champions")).toHaveTextContent("ChampionsEvery world champion since 1950");

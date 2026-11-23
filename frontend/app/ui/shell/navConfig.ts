@@ -26,10 +26,11 @@ export const PRIMARY_NAV: readonly NavLink[] = [
   { href: "/race-control/engineer", label: "AI Engineer" },
 ];
 
-/** The reference screens behind the "More" menu (PLAN, Locked decisions: Navigation). */
+/** The screens behind the "More" menu (PLAN, Locked decisions: Navigation; Race Rewind until N2 regroups the bar). */
 export const MORE_NAV: readonly NavLink[] = [
   { href: "/race-control/champions", label: "Champions", description: "Every world champion since 1950" },
   { href: "/race-control/debriefs", label: "Debriefs", description: "What happened in each race, and why" },
+  { href: "/race-control/rewind", label: "Race Rewind", description: "Replay the running order lap by lap" },
   { href: "/race-control/rulebook", label: "Rulebook", description: "Search the FIA regulations" },
 ];
 

@@ -39,7 +39,7 @@ describe("HomePage", () => {
       within(reference)
         .getAllByRole("heading", { level: 3 })
         .map((heading) => heading.textContent),
-    ).toEqual(["Champions", "Race Debriefs", "Rulebook"]);
+    ).toEqual(["Champions", "Race Debriefs", "Race Rewind", "Rulebook"]);
   });
 
   it("links only to screens in the site's navigation, and to every one of them", () => {

@@ -63,6 +63,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P8.1 | Race Rewind (idea #6) | in_progress | | Started 2026-11-23 (`f1-ai-b2`), in parallel with P6.2. No mockup existed: coordinator makes `race-rewind.html` first. Own route, linked from the Debrief race trace, so its files stay disjoint from P6.2. |
 | N2.1 | Navigation mockup `nav.html` (grouped bar, drawer, "This race" switcher) | done | `git log --grep "N2.1"` | **Done 2026-11-23** (coordinator). User chose "grouped by job". Checked at 1440 px (Races menu open) and 390 px (no horizontal scroll). |
 | N2.2 | Grouped navigation + "This race" switcher per `nav.html` | todo | | After P6.2 and P8.1 merge (needs the Rewind route). Own PR. Until then, P8.1's merge adds Race Rewind to "More". |
+| N2.3 | Homepage regrouped per `home.html` (Race Control, Races, Season, Reference) | todo | | User 2026-11-23. Mockup updated by the coordinator (1440 checked; 390 no horizontal scroll). Same PR as N2.2. |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
 ## Log (append only; newest at the bottom)

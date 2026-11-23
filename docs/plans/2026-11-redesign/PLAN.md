@@ -1078,7 +1078,8 @@ The bar grew to 7 links plus More, and Race Rewind makes 11 screens. Group them 
 - **Mobile drawer:** Race Control, then the three groups as headings with every link showing (no accordions), AI Engineer last.
 - **"This race" switcher:** on the Grand Prix hub, the Debrief, Race Rewind and Telemetry, beside the race picker: links Grand Prix · Debrief · Rewind · Telemetry, each carrying the current `?round=` (and year), the current one marked `aria-current="page"`. Debrief and Rewind read "after the race" and are not links for a round without a race result.
 - **Labels:** "Debriefs" → "Debrief", "Teams" → "Teams & drivers". Routes don't change.
-- **Accept:** every screen is two clicks or fewer from any page; the bar fits in one line at 1024 px; no horizontal scroll at 390 px; e2e covers the three menus, the drawer and the switcher keeping the round. **PR.**
+- **Homepage (N2.3, user 2026-11-23)** per the updated `home.html`: its sections mirror the bar. 01 Race Control (Command Center + AI Engineer, as now), 02 Races (Grand Prix, Debrief, Race Rewind, Telemetry: four cards, "One race, four ways in"), 03 Season (Standings, Teams & drivers, Power Units: three cards), 04 Reference (Champions, Rulebook: rows). New data-free motifs for Debrief (leader strip) and Race Rewind (crossing lines + scrubber). `home/content.ts` takes each card's href and title from the grouped `navConfig.ts` list and keeps only its own descriptions and motifs, so the homepage can't drift from the nav. Still static: no data.
+- **Accept:** every screen is two clicks or fewer from any page; the bar fits in one line at 1024 px; no horizontal scroll at 390 px; e2e covers the three menus, the drawer and the switcher keeping the round, and the homepage links every grouped screen. **PR.**
 
 ## Phase P9 — Coverage completion
 

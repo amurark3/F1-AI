@@ -165,6 +165,8 @@ def _no_local_f1db(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     empty = tmp_path_factory.getbasetemp() / "f1db-empty.db"
     empty.touch()
     monkeypatch.setattr(f1db_source, "DB_PATH", empty)
+    # Its stamp too: VERSION_PATH is fixed at import, so it would still read the developer's release tag.
+    monkeypatch.setattr(f1db_source, "VERSION_PATH", empty.with_name("f1db-empty.db.version"))
     identity.clear_cache()
     yield
     identity.clear_cache()

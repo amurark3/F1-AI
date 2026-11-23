@@ -15,7 +15,7 @@ import structlog
 
 from app.data.current_standings import current_standings
 from app.data.strategy import circuit_strategy_reference
-from app.services.predictions import get_cached_race_prediction, get_or_compute_race_prediction
+from app.services.predictions import get_cached_race_prediction
 from app.services.race_control.baseline_plan import build_baseline
 from app.services.race_control.circuit import build_circuit_segment
 from app.services.race_control.live import build_live_status
@@ -36,15 +36,17 @@ logger = structlog.get_logger()
 
 
 def race_predictions(year: int, race: dict | None) -> dict | None:
-    """Prediction snapshot for the selected race, computing it if none is stored.
+    """The stored prediction for the selected race, or None before the owner runs it.
 
-    A prediction failure must not take the whole command centre down with it —
-    every panel that does not depend on the model still has something to show.
+    Never computes: only the owner's ``/compute`` call runs the model and stores
+    the call that gets graded. A store failure must not take the whole command
+    centre down with it: every panel that does not depend on the model still
+    has something to show.
     """
     if not (race and race.get("round")):
         return None
     try:
-        return get_or_compute_race_prediction(year, race["round"])
+        return get_cached_race_prediction(year, race["round"])
     except Exception as exc:
         logger.warning("race_control.predictions.failed", year=year, error=str(exc))
         return None

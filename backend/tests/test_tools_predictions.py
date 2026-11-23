@@ -43,12 +43,12 @@ def _driver(position: int, **fields) -> dict:
 def _install_prediction(monkeypatch, payload) -> None:
     """Replace the cached-prediction service; an exception payload is raised."""
 
-    def _compute(year, round_num):
+    def _read(year, round_num):
         if isinstance(payload, Exception):
             raise payload
         return payload
 
-    monkeypatch.setattr(predictions_tool, "get_or_compute_race_prediction", _compute)
+    monkeypatch.setattr(predictions_tool, "get_cached_race_prediction", _read)
 
 
 def _install_strategy(monkeypatch, payload) -> None:
@@ -71,6 +71,23 @@ def _stint(number: int, **fields) -> dict:
         "fresh_tyres": True,
     }
     return {**base, **fields}
+
+
+@pytest.mark.unit
+def test_an_empty_store_says_no_prediction_yet_and_never_runs_the_model(monkeypatch):
+    """Only the owner's /compute stores a call; a chat question must not."""
+    from app.services import predictions as service
+
+    monkeypatch.setattr(service.prediction_snapshot_cache, "get", lambda *_a, **_k: None)
+    monkeypatch.setattr(service, "compute_and_store_race_prediction", _must_not_compute)
+
+    answer = get_race_predictions.invoke({"year": 2026, "round_num": 4})
+
+    assert answer.startswith("No prediction is stored for 2026 Round 4 yet.")
+
+
+def _must_not_compute(*_a, **_k):
+    raise AssertionError("a read path ran the model")
 
 
 # ---------------------------------------------------------------------------

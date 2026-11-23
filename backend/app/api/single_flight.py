@@ -36,6 +36,10 @@ class SingleFlight[V]:
             run.add_done_callback(partial(self._forget, key))
         return run
 
+    def running(self, key: Hashable) -> bool:
+        """Whether a run for ``key`` is in flight."""
+        return key in self._runs
+
     def _forget(self, key: Hashable, run: asyncio.Task[V]) -> None:
         """Drop a finished run, logging a failure no request may have stayed to see."""
         self._runs.pop(key, None)

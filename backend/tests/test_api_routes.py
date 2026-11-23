@@ -27,7 +27,6 @@ EXPECTED_PATHS = {
     "/chat",
     "/profile/{user_id}",
     "/threads/{user_id}/recall",
-    "/predictions/{year}/{round_num}",
     "/predictions/{year}/{round_num}/snapshot",
     "/predictions/{year}/{round_num}/compute",
     "/race-control/overview/{year}",

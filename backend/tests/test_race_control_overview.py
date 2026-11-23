@@ -97,7 +97,7 @@ def _patch_feeds(monkeypatch: pytest.MonkeyPatch, **feeds) -> None:
         return value
 
     monkeypatch.setattr(module, "build_strategy_dashboard", lambda _year: _serve(feeds.get("dashboard", _dashboard())))
-    monkeypatch.setattr(module, "get_or_compute_race_prediction", lambda *_a: _serve(feeds.get("predictions")))
+    monkeypatch.setattr(module, "get_cached_race_prediction", lambda *_a: _serve(feeds.get("predictions")))
     monkeypatch.setattr(module, "circuit_strategy_reference", lambda *_a: _serve(feeds.get("reference")))
     monkeypatch.setattr(
         module, "build_session_weather", lambda _race: _serve(feeds.get("sessions", _NO_SESSION_FORECAST))

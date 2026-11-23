@@ -7,7 +7,7 @@ import structlog
 
 from app.api.tools.provenance import Provenance, Sourced, chip
 from app.data.strategy import analyze_pit_strategy
-from app.services.predictions import get_or_compute_race_prediction
+from app.services.predictions import get_cached_race_prediction
 
 logger = structlog.get_logger()
 
@@ -24,7 +24,10 @@ def get_race_predictions(year: int, round_num: int) -> str:
     # the description is re-sent on every turn of the agent loop.
     logger.info("tool.race_predictions", year=year, round_num=round_num)
     try:
-        result = get_or_compute_race_prediction(year, round_num)
+        result = get_cached_race_prediction(year, round_num)
+        if result is None:
+            # Only the site owner runs the model; a chat question never does.
+            return f"No prediction is stored for {year} Round {round_num} yet. The site owner runs the model before each race."
 
         if not result.get("predictions"):
             warnings = result.get("warnings", [])

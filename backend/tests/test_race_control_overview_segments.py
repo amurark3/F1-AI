@@ -13,7 +13,7 @@ still contains everything the segments do.
 
 import pytest
 
-from app.services import race_control as rc
+from app.services import predictions as predictions_service, race_control as rc
 from app.services.race_control import overview, session_weather, strategy_context
 from tests import sao_paulo_2025_support as r21
 from tests.standings_support import standings_from_rows
@@ -26,7 +26,6 @@ pytestmark = pytest.mark.unit
 _RESOLVED_IN = {
     "season_events": (overview, strategy_context),
     "current_standings": (overview, strategy_context),
-    "get_or_compute_race_prediction": (overview,),
     "get_cached_race_prediction": (overview,),
     "circuit_strategy_reference": (overview,),
     "build_weather_block": (overview,),
@@ -118,7 +117,6 @@ class Calls:
     """Records which of the expensive inputs a segment actually reached for."""
 
     def __init__(self) -> None:
-        self.computed_predictions = 0
         self.read_predictions = 0
         self.edition = 0
         self.weather = 0
@@ -128,10 +126,6 @@ class Calls:
 @pytest.fixture
 def calls(monkeypatch):
     recorder = Calls()
-
-    def compute(year, round_num):
-        recorder.computed_predictions += 1
-        return PREDICTIONS
 
     def read(year, round_num):
         recorder.read_predictions += 1
@@ -152,7 +146,6 @@ def calls(monkeypatch):
 
     _stub(monkeypatch, "season_events", lambda year: [RACE])
     _stub(monkeypatch, "current_standings", lambda year: standings_from_rows(DRIVERS, CONSTRUCTORS, as_of_round=14))
-    _stub(monkeypatch, "get_or_compute_race_prediction", compute)
     _stub(monkeypatch, "get_cached_race_prediction", read)
     _stub(monkeypatch, "circuit_strategy_reference", reference)
     _stub(monkeypatch, "build_weather_block", weather)
@@ -172,13 +165,7 @@ def test_shell_answers_without_telemetry_or_the_race_model(calls):
     assert shell["championship"]["constructors"] == CONSTRUCTORS
     assert shell["live_status"]["connected"] is False
     # The whole point of the split: none of the slow inputs are touched.
-    assert (calls.computed_predictions, calls.read_predictions, calls.edition, calls.weather, calls.circuit) == (
-        0,
-        0,
-        0,
-        0,
-        0,
-    )
+    assert (calls.read_predictions, calls.edition, calls.weather, calls.circuit) == (0, 0, 0, 0)
 
 
 # -- weather ----------------------------------------------------------------
@@ -203,7 +190,7 @@ def test_weather_segment_grades_rival_risk_without_building_strategy_context(cal
     rc.build_overview_weather(YEAR)
 
     assert calls.edition == 0
-    assert calls.computed_predictions == 0
+    assert calls.read_predictions == 0
 
 
 # -- circuit ----------------------------------------------------------------
@@ -214,7 +201,7 @@ def test_circuit_segment_carries_the_map_and_record_without_telemetry_or_the_mod
 
     assert segment == {"year": YEAR, **CIRCUIT}
     assert calls.circuit == 1
-    assert (calls.edition, calls.computed_predictions, calls.weather) == (0, 0, 0)
+    assert (calls.edition, calls.read_predictions, calls.weather) == (0, 0, 0)
 
 
 def test_a_rounds_circuit_resolves_that_round_not_the_selected_one(calls):
@@ -239,14 +226,27 @@ def test_predictions_segment_returns_the_projected_podium(calls):
     segment = rc.build_overview_predictions(YEAR)
 
     assert [row["driver_code"] for row in segment["predicted_podium"]] == ["NOR", "PIA", "LEC"]
-    assert calls.computed_predictions == 1
+    assert calls.read_predictions == 1
+
+
+def test_predictions_segment_never_runs_the_model_on_an_empty_store(calls, monkeypatch):
+    """Only the owner's /compute stores the call that gets graded; a visitor must not."""
+
+    def must_not_compute(*_a, **_k):
+        raise AssertionError("the Command Center ran the model")
+
+    _stub(monkeypatch, "get_cached_race_prediction", predictions_service.get_cached_race_prediction)
+    monkeypatch.setattr(predictions_service.prediction_snapshot_cache, "get", lambda *_a, **_k: None)
+    monkeypatch.setattr(predictions_service, "compute_and_store_race_prediction", must_not_compute)
+
+    assert rc.build_overview_predictions(YEAR) == {"year": YEAR, "predicted_podium": []}
 
 
 def test_predictions_segment_survives_a_model_failure(calls, monkeypatch):
     def boom(year, round_num):
         raise RuntimeError("model unavailable")
 
-    _stub(monkeypatch, "get_or_compute_race_prediction", boom)
+    _stub(monkeypatch, "get_cached_race_prediction", boom)
 
     assert rc.build_overview_predictions(YEAR)["predicted_podium"] == []
 
@@ -254,12 +254,10 @@ def test_predictions_segment_survives_a_model_failure(calls, monkeypatch):
 # -- strategy ---------------------------------------------------------------
 
 
-def test_strategy_segment_reads_the_stored_prediction_rather_than_computing_one(calls):
-    """Computing here would queue this segment behind a model run it barely uses."""
+def test_strategy_segment_reads_the_stored_prediction(calls):
     segment = rc.build_overview_strategy(YEAR)
 
     assert calls.read_predictions == 1
-    assert calls.computed_predictions == 0
     source = segment["strategy_context"]["data_source"]
     assert (source["mode"], source["edition_year"], source["sample_size"]) == ("edition", 2025, 17)
 

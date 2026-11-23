@@ -42,6 +42,7 @@ from app.api.routers.predictions import router as predictions_router
 from app.api.routers.profiles import router as profiles_router
 from app.api.routers.race_control import router as race_control_router
 from app.api.routers.readiness import router as readiness_router
+from app.api.routers.rewind import router as rewind_router
 from app.api.routers.season import router as season_router
 from app.api.routers.weekend import router as weekend_router
 from app.utils.fastf1_cache import enable_fastf1_cache
@@ -62,6 +63,7 @@ router.include_router(readiness_router)
 router.include_router(compare_router)
 router.include_router(live_router)
 router.include_router(weekend_router)
+router.include_router(rewind_router)
 
 # ---------------------------------------------------------------------------
 # FastF1 cache — speeds up repeated session data requests significantly.

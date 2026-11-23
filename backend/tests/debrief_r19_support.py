@@ -68,5 +68,5 @@ def radio_inputs():
         pit=rows("openf1_pit_dated.json"),
         messages=rows("openf1_race_control.json"),
         gmt_offset="-06:00:00",
-        dnf_cars=frozenset(row["driver_number"] for row in rows("openf1_session_result.json") if row["dnf"]),
+        dnf_cars={14: 5, 18: 5, 41: 58, 77: 42, 87: 47},  # laps completed, as the FIA final classification prints them
     )

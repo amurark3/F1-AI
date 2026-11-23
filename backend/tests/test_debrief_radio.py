@@ -31,7 +31,7 @@ def _clip(car: int, seconds: float, name: str = "a") -> dict:
     return {"driver_number": car, "date": _at(seconds), "recording_url": f"{ARCHIVE}{name}.mp3"}
 
 
-def _inputs(*, radio=(), pit=(), messages=(), dnf=(), laps=None, gmt="-06:00:00") -> module.RadioInputs:
+def _inputs(*, radio=(), pit=(), messages=(), dnf=None, laps=None, gmt="-06:00:00") -> module.RadioInputs:
     """Hand-built: VER (3) and NOR (1) with a lap every 100 s from the start."""
     base = radio_inputs()
     cars = laps or tuple(_lap(car, n, (n - 1) * 100) for car in (3, 1) for n in range(1, 11))
@@ -42,7 +42,7 @@ def _inputs(*, radio=(), pit=(), messages=(), dnf=(), laps=None, gmt="-06:00:00"
         pit=list(pit),
         messages=list(messages),
         gmt_offset=gmt,
-        dnf_cars=frozenset(dnf),
+        dnf_cars=dict(dnf or {}),
     )
 
 
@@ -100,11 +100,11 @@ def test_mexico_candidate_moments_are_counted_but_most_attach_no_clip():
     }
     assert sorted((m.lap, m.car) for m in moments if m.kind == "penalty") == [(12, 16), (13, 63), (46, 11), (51, 27)]
     assert sorted((m.car, m.lap) for m in moments if m.kind == "retirement") == [
-        (14, 6),
-        (18, 6),
-        (41, 59),
-        (77, 43),
-        (87, 48),
+        (14, 5),
+        (18, 5),
+        (41, 58),
+        (77, 42),
+        (87, 47),
     ]
     stops = [m for m in moments if m.kind == "stop"]
     assert all(m.detail for m in stops)
@@ -162,14 +162,14 @@ def test_a_penalty_attaches_to_its_car_and_a_served_message_is_no_moment():
     assert payload["moments"][0]["detail"] == "5 second time penalty"
 
 
-def test_a_dnf_cars_clip_on_its_last_lap_attaches_and_a_dnf_car_without_laps_adds_none():
-    laps = tuple(_lap(3, n, (n - 1) * 100) for n in range(1, 4))
-    payload = module.radio_payload(_inputs(radio=[_clip(3, 250)], dnf=(3, 1), laps=laps))
+def test_a_dnf_reads_the_laps_the_classification_says_and_a_car_without_that_lap_adds_none():
+    laps = tuple(_lap(3, n, (n - 1) * 100) for n in range(1, 5))
+    payload = module.radio_payload(_inputs(radio=[_clip(3, 250)], dnf={3: 3, 1: 3}, laps=laps))
 
     assert _kinds(payload) == [("retirement", 3, 1)]
-    assert [
-        m.car for m in module.build_moments(_inputs(dnf=(3, 1), laps=laps), {}, None) if m.kind == "retirement"
-    ] == [3]
+    kept = [m for m in module.build_moments(_inputs(dnf={3: 3, 1: 3}, laps=laps), {}, None) if m.kind == "retirement"]
+    assert [(m.car, m.lap) for m in kept] == [(3, 3)]
+    assert not [m for m in module.build_moments(_inputs(dnf={3: 9}, laps=laps), {}, None) if m.kind == "retirement"]
 
 
 def test_a_clip_between_a_stop_and_the_safety_car_goes_to_the_nearer_and_a_tie_to_the_earlier():
@@ -313,14 +313,18 @@ def test_build_without_radio_says_so_and_asks_for_nothing_else(serve):
 
 
 def test_build_maps_a_dnf_classification_row_to_its_car_by_canonical_code(serve):
-    serve(result={"classification": [{"driver_code": "VER", "status": "DNF"}, {"driver_code": "HAM", "status": "FIN"}]})
+    rows_ = [
+        {"driver_code": "VER", "status": "DNF", "laps": 3},
+        {"driver_code": "NOR", "status": "DNF", "laps": None},
+        {"driver_code": "HAM", "status": "FIN", "laps": 71},
+    ]
+    serve(result={"classification": rows_})
 
-    moments = module.build_debrief_radio(2026, 19)["moments"]
-
-    assert [m["driver"]["driver_code"] for m in moments if m["kind"] == "retirement"] == []
+    assert module._dnf_cars(2026, 19, entries()) == {3: 3}
+    assert module.build_debrief_radio(2026, 19)["total"] == 27
     serve(result=None)
     assert module.build_debrief_radio(2026, 19)["total"] == 27
-    assert module._dnf_cars(2026, 19, entries()) == frozenset()
+    assert module._dnf_cars(2026, 19, entries()) == {}
 
 
 def test_build_without_a_sessions_row_has_no_offset(serve):

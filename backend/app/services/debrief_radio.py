@@ -24,6 +24,8 @@ from app.services.live_timing import parse_iso
 from app.services.race_results import build_session_result
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from app.data.openf1.sessions import EntryDriver
 
 RECORDING_ORIGIN = "https://livetiming.formula1.com/"
@@ -57,7 +59,8 @@ class RadioInputs:
     pit: list[dict]
     messages: list[dict]
     gmt_offset: str | None
-    dnf_cars: frozenset[int]
+    # Car number -> laps completed, from the classification, for the cars it lists as DNF.
+    dnf_cars: Mapping[int, int]
 
 
 @dataclass(frozen=True)
@@ -226,11 +229,12 @@ def _stop_moments(pit: list[dict]) -> list[Moment]:
 
 
 def _retirement_moments(inputs: RadioInputs) -> list[Moment]:
+    """A DNF reads the lap the classification says it completed; the moment sits at that lap's start."""
     moments = []
-    for car in sorted(inputs.dnf_cars):
-        last = max(inputs.laps.laps_of(car), key=lambda lap: lap.number, default=None)
-        if last is not None and last.start is not None:
-            moments.append(Moment("retirement", last.number, last.start, car))
+    for car, completed in sorted(inputs.dnf_cars.items()):
+        lap = next((lap for lap in inputs.laps.laps_of(car) if lap.number == completed), None)
+        if lap is not None and lap.start is not None:
+            moments.append(Moment("retirement", completed, lap.start, car))
     return moments
 
 
@@ -317,10 +321,15 @@ def radio_payload(inputs: RadioInputs) -> dict:
     }
 
 
-def _dnf_cars(year: int, round_num: int, drivers: dict[int, EntryDriver]) -> frozenset[int]:
+def _dnf_cars(year: int, round_num: int, drivers: dict[int, EntryDriver]) -> dict[int, int]:
     race = build_session_result(year, round_num, "race")
-    dnf = {row["driver_code"] for row in (race["classification"] if race else []) if row["status"] == "DNF"}
-    return frozenset(n for n, entry in drivers.items() if canonical_entry(entry, year).code in dnf)
+    dnf = {
+        row["driver_code"]: row["laps"]
+        for row in (race["classification"] if race else [])
+        if row["status"] == "DNF" and row.get("laps") is not None
+    }
+    codes = {n: canonical_entry(entry, year).code for n, entry in drivers.items()}
+    return {n: dnf[code] for n, code in codes.items() if code in dnf}
 
 
 def build_debrief_radio(year: int, round_num: int) -> dict:

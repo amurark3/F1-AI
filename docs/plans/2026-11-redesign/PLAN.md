@@ -983,6 +983,82 @@ Found during D2.3c (STATUS log 2026-11-18). Added by the user on 2026-11-18 to r
   - Re-running the R17–R20 check (STATUS log, D2.3c) finds no message that strikes a lap other than the one its time names.
 - **Verify:** `cd backend && .venv/bin/python -m pytest -q --cov` (100 %), `ruff format --check .`, `ruff check .`. **PR** (its own).
 
+## Phase S — Rulebook and memory search without local models (user, 2026-11-22; own PR)
+
+- **Why.**
+  - On Render (512 MB), `ENABLE_LOCAL_MODELS=false`, so the Rulebook says "off on this server" and chat-memory recall is skipped. Both need the torch embedder and reranker.
+  - P0c (Oracle) would bring the models back, but it is on hold (no A1 capacity, 2026-11-18).
+  - Moving hosts was rejected (2026-11-22):
+    - HF Spaces block outbound Postgres ports by default.
+    - Vercel and Cloud Run don't fit the long-lived process.
+  - Instead, search the text Postgres already holds, and add Gemini embeddings for the rulebook only.
+- **Decided (user, 2026-11-22):**
+  - **Rulebook:** hybrid search, Postgres full-text search plus Gemini embeddings, merged. Full-text search alone when Gemini fails or its quota is hit.
+  - **Chat memory:** full-text search only. Private chat text is never sent to Google: the free tier may use it to improve products, and each turn would cost about 3 calls.
+  - **No Gemini `text-embedding-004`:** it was shut down on 2026-01-14. Use `gemini-embedding-001` at `output_dimensionality=768` through the installed `langchain-google-genai` (`GoogleGenerativeAIEmbeddings`); no new dependency. Free quota is reportedly about 100 RPM, 30k TPM and 1k RPD; read the real numbers in AI Studio first.
+- **Reuse:**
+  - `rerank()` already returns `docs[:top_k]` when no model is loaded (`app/rag/rerank.py`).
+  - `embed()` / `get_embedder()` return `None` with the flag off (`app/utils/embeddings.py`).
+  - `search()` already returns `[]` on failure (`app/rag/pgvector_store.py`).
+  - The rulebook eval cases live in `app/evals/dataset.py`.
+- **Overlap with P0c.3** (on `feat/oracle-backend`): its local-model path stays. When models are loaded, the MiniLM vector search is the semantic half of the hybrid instead of Gemini. Whichever merges second resolves the conflict.
+
+### S.1 Rulebook full-text search
+
+- **Do:**
+  - **Schema** (`_SCHEMA_SQL`, idempotent): `content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED` plus a GIN index on `rulebook_chunk`. Ingest needs no change.
+  - **Two written-out keyword statements** (all categories / by category; no SQL built at runtime). The question becomes an **OR** of its stemmed words, `to_tsquery('simple', string_agg(quote_literal(lexeme), ' | '))` over `tsvector_to_array(to_tsvector('english', %s))`, ranked by `ts_rank_cd(..., 32)`. `websearch_to_tsquery` requires every word to match, so most questions would get nothing.
+  - **`search()` always runs the keyword half.** The semantic half (S.3, or MiniLM when local models are on) merges in when available.
+  - **`services/rulebook.py` `_regulation_hits`:** delete the `ENABLE_LOCAL_MODELS` refusal. Split "no hits" into two honest reasons:
+    - "not in the index yet": a new `EXISTS` helper finds no rows for the season;
+    - "no passage matched those words; try the article number or the rule's wording".
+  - **DEPLOYMENT.md:** the flag section now says rulebook search works with the flag off.
+- **Accept:**
+  - With the flag off, "pit lane speed limit" and "Article 33.3" return cited articles.
+  - A stopword-only query gets the no-match reason.
+  - `ensure_schema` runs twice cleanly.
+- **Verify:**
+  - pytest (100%), ruff, format, size.
+  - The SQL is checked against a throwaway `pgvector/pgvector:pg16` container on a free port with its own name, never touching existing Docker resources.
+
+### S.2 Chat-memory recall by keywords
+
+- **Do:**
+  - Add the same generated column and GIN index on `chat_message` (`app/data/memory.py`).
+  - Add two keyword recall statements, all threads / excluding a thread. Both keep `user_id = %s`.
+  - `recall_relevant` uses them when there is no embedder. Render already stores messages with `embedding = NULL`, so all existing history is searchable at once.
+- **Accept:**
+  - Recall returns only the asking user's messages.
+  - Thread exclusion holds.
+  - With an embedder, the vector path is unchanged.
+- **Verify:** pytest (100%), ruff, format, size.
+
+### S.3 Gemini embeddings for the rulebook (hybrid)
+
+- **Do:**
+  - **Schema:** `embedding_gemini vector(768)` plus an HNSW index (cosine) on `rulebook_chunk`.
+  - **Constants** in `app/config.py`: `GEMINI_EMBEDDING_MODEL = "gemini-embedding-001"`, `GEMINI_EMBEDDING_DIM = 768`.
+  - **`app/rag/gemini_embeddings.py`:**
+    - `embed_query()` with `task_type=RETRIEVAL_QUERY`, a short timeout and no retries.
+    - On a 429 or any other error it returns `None` and rests Gemini for about 10 minutes, so a spent quota isn't hammered (same idea as the LLM engines' rest).
+    - Logged, never raised.
+  - **Merge:** reciprocal rank fusion (`1/(60+rank)`) of the keyword and semantic lists, then `rerank()`.
+  - **Backfill (resumable):** `python -m app.rag.gemini_backfill`.
+    - Embeds rows `WHERE embedding_gemini IS NULL` in batches with `task_type=RETRIEVAL_DOCUMENT`, paced under the tokens-per-minute limit.
+    - Stops cleanly on quota and reports filled/remaining counts; rerunning continues.
+    - Rows without a Gemini vector are still found by keywords.
+  - **`ingest-rulebook.yml`:** add a backfill step after the re-embed, with a `GOOGLE_API_KEY` repo secret (the AI Studio key from the **no-billing** project).
+- **Accept:**
+  - With Gemini up, a paraphrase ("can I overtake behind the safety car") finds the safety-car article.
+  - With Gemini forced to 429, the same request returns keyword results and the rest window is set.
+  - The backfill only touches NULL rows and resumes.
+- **Verify:**
+  - pytest (100%), ruff, format, size.
+  - **Quality:** run the rulebook eval cases keyword-only vs hybrid (vs MiniLM as the baseline) and record citation hits in STATUS.
+  - Ask before pointing at prod via `dotenv -f .env.production`: the first search applies the additive `ALTER TABLE`s there.
+- **After deploy:** run the backfill workflow, then `POST /api/race-control/rulebook/search` and a Race Engineer rule question, then `/api/health/deep` stays 200.
+- **Accept:** **PR** (the user opens it and merges).
+
 ## Phase P8 — Race Rewind (idea #6)
 
 - **Design is already decided** (memory `project-race-rewind-design`): a lap chart, plus a scrubber driving an order tower.
@@ -1011,12 +1087,13 @@ Found during D2.3c (STATUS log 2026-11-18). Added by the user on 2026-11-18 to r
 
 ## Phase order and dependencies
 
-`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.3 → P6 (P6.1, P6.3, P6.4) → P7 (P7.1, P7.2, P7.5) → D3 → features: P7.4 → P7.6 → P6.2 → P8 → P9`
+`P0 → P1 → P2 → P0c → P0b → P3 → D1 → P4 → P5 → D2 → P7.3 → P6 (P6.1, P6.3, P6.4) → P7 (P7.1, P7.2, P7.5) → D3 → S → features: P7.4 → P7.6 → P6.2 → P8 → P9`
 
 - **Redesign before new features (user, 2026-11-18).** From P6 on, every remaining page gets its mockup redesign before any new feature starts.
   - **Redesign track:** P7.3 (restyle only), P6.1, P6.3, P6.4, P7.1, P7.2, P7.5. `SourceBadge` everywhere (idea #5) stays in P7.5: it places an existing kit part.
   - **Feature track:** the open "New ideas": live feed UI (P7.4), forecast vs measured (P7.6), radio moments (P6.2), Race Rewind (P8). They start after P7.5 and D3, in that order, each in its own PR.
   - **D3** (race control's untimed lap deletions, a bug found in D2.3c) runs between the two tracks, in its own PR (user, 2026-11-18).
+  - **S (user, 2026-11-22)** is a bug-class phase like D3: it turns on the Rulebook search that P7.2 built, which prod still refuses with "off on this server". It runs in its own PR, before the remaining features. Its files (`app/rag/*`, `app/data/memory.py`, `app/services/rulebook.py`, `ingest-rulebook.yml`) don't overlap P7.4 or P7.6, so it may run beside them in a worktree.
   - The season-value rule below now only orders tasks inside each track: the Command Center first among the pages, the live feed first among the features.
 - **Ordered by season value, not by page (user, 2026-11-16; superseded from P6 on by the rule above).** While race weekends are still running, work that only matters on a live weekend goes first: the clinch calculator (P5.3), the FIA ingest and live feed (D2, then P7.4) and the Command Center (P7.3). Pages about finished races and past seasons (P6, P8) and coverage (P9) lose nothing by waiting for the off-season. Inside D2, the parsers the feed needs (penalties, grids, deleted laps) come before the rest. Each PR still carries whole tasks; a phase split across PRs is fine.
 - P0c was added on 2026-11-08 as P0 (user) and runs first: P0b.1's Open-Meteo diagnosis belongs on the new host.

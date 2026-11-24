@@ -26,18 +26,6 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Re-exported so any test module can request the shared f1db fixtures by name
-# without importing them itself. `pytest_plugins` is only honoured in the
-# rootdir conftest, which this is not, so a plain import is the supported route.
-from tests.calendar_support import calendar_f1db  # noqa: F401
-from tests.circuit_history_support import circuit_history_f1db  # noqa: F401
-from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: F401
-from tests.identity_support import identity_f1db  # noqa: F401
-from tests.profiles_support import profiles_f1db  # noqa: F401
-from tests.qualifying_tools_support import qualifying_f1db  # noqa: F401
-from tests.race_results_support import race_results_f1db  # noqa: F401
-from tests.strategy_openf1_support import no_fastf1  # noqa: F401
-
 # ---------------------------------------------------------------------------
 # Environment scrubbing — must run before `app.*` is imported anywhere.
 # ---------------------------------------------------------------------------
@@ -80,6 +68,21 @@ os.environ.setdefault("ENABLE_LOCAL_MODELS", "false")
 # OpenF1 requests are paced in production; against a mock transport the pause
 # is only wall-clock time. The pacer's own tests inject a gap and a clock.
 os.environ["OPENF1_MIN_REQUEST_GAP_SECONDS"] = "0"
+
+# Re-exported so any test module can request the shared f1db fixtures by name
+# without importing them itself. `pytest_plugins` is only honoured in the
+# rootdir conftest, which this is not, so a plain import is the supported route.
+# They sit below the scrub because they import `app.*`: above it, `app.config`
+# snapshotted the 0.4 s production pacer gap and the suite slept on every
+# faked OpenF1 call.
+from tests.calendar_support import calendar_f1db  # noqa: E402, F401
+from tests.circuit_history_support import circuit_history_f1db  # noqa: E402, F401
+from tests.f1db_fixture import build_f1db, empty_f1db, fake_f1db  # noqa: E402, F401
+from tests.identity_support import identity_f1db  # noqa: E402, F401
+from tests.profiles_support import profiles_f1db  # noqa: E402, F401
+from tests.qualifying_tools_support import qualifying_f1db  # noqa: E402, F401
+from tests.race_results_support import race_results_f1db  # noqa: E402, F401
+from tests.strategy_openf1_support import no_fastf1  # noqa: E402, F401
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 

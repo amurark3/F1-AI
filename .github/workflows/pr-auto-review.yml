@@ -165,7 +165,7 @@ jobs:
       # it is asked for: this step and the pre-commit hook. Dropping the flag
       # would leave .coveragerc's fail_under configured but never evaluated.
       - name: Run pytest with the coverage gate
-        run: pytest -q --cov --cov-report=term-missing
+        run: pytest -q -n auto --cov --cov-report=term-missing
 
   review_summary:
     name: Review summary comment
@@ -215,7 +215,7 @@ jobs:
               failures.push("- **Backend lint** failed. Suggestion: in `/backend` run `ruff format .`, then `ruff check .` and `python -m tools.check_module_size`, and fix what they report.");
             }
             if (statuses.backendTests !== "success") {
-              failures.push("- **Backend tests** failed. Suggestion: run `pytest -q --cov` in `/backend` and fix the failing tests — or the coverage shortfall — before merging.");
+              failures.push("- **Backend tests** failed. Suggestion: run `pytest -q -n auto --cov` in `/backend` and fix the failing tests — or the coverage shortfall — before merging.");
             }
 
             const improvementTips = [

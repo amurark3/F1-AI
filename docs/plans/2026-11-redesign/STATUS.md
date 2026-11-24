@@ -37,7 +37,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
 | P3.5 | Restart lights: from the real `/api/ready` stages, never blocking, top-bar chip slot | done | P3.5a `8370c40`, P3.5b `5434be4` (merge `f9b6788`) | **Done 2026-11-23.** Mockup `restart-lights.html` (Opus + design-director); build by a Sonnet worktree executor, merged into `dev`. On `dev` with P3.6: lint + typecheck clean, coverage 100 % (6602/6602 statements), build clean, e2e 81 passed. |
 | P3.6 | Non-blocking pages: no page-level backend awaits | done | P3.6a `e9254a2`, b `680d5d2`, c `c5a2ca9`, d `e7d9c1a` (merge `5785bbe`) | **Done 2026-11-23.** Opus brief `p3.6-brief.md`, Sonnet worktree executor. `next dev` against a 20 s stub: TTFB 10.1 s → 0.05 s on `/race-control`, `/grand-prix`, `/telemetry`. Route table unchanged (ISR symbols and revalidate values). `e2e/non-blocking.spec.ts` 15 passed. Same final gates as P3.5. |
-| P9.1 | Coverage completion to 100% across `app/**` | todo | | |
+| P9.1 | Coverage completion to 100% across `app/**` | in_progress (2026-11-23) | | Sized 2026-11-23: 17 of 327 files below 100 %, 132 statements and 73 branches uncovered (see the log). Sonnet worktree executor, no brief: the plan text plus the file list is the spec. |
 
 ## Log (append only; newest at the bottom)
 
@@ -92,4 +92,13 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
   - **The brief's survey was off in one place:** the grep still shows `grand-prix/page.tsx:37` and `:51`. Both run inside the un-awaited `loadSeed`, not in the page body.
   - **Final gates on `dev`, both tasks merged (coordinator):** `npm run lint` and `typecheck` clean; `test:coverage` 100/100/100/100 (6602 statements, 5517 branches); `npm run build` clean; `npx playwright test` 81 passed. The vitest test count was cut from the log.
   - Worktrees `p3.5b` and `p3.6` and their branches are removed.
+- **2026-11-23 · P9.1 sized and started (user: "after that continue with P9").**
+  - **How it was measured:** on `dev` at `fca2db2`, with `--coverage.include='app/**/*.{ts,tsx}'` (tests and `.d.ts` excluded) and thresholds off. 327 files measured; 17 are below 100 %. `useChat` and `useVoice` no longer exist, so the plan's hook list is out of date.
+  - **The 17 files (statements covered / total):**
+    - `lib/server/`: `backend.ts` 11/52, `champions.ts` 5/14, `profiles.ts` 0/8, `raceControl.ts` 4/16.
+    - `hooks/useLiveTiming.ts` 0/35 (needs a mock WebSocket).
+    - `utils/errors.ts` 0/10; `lib/errorTracking.ts` 0/3.
+    - `race-control/components/Charts.tsx` 8/12; `components/LocalTime.tsx` 21/24.
+    - Branch gaps only: `lib/entityLinks.ts`, `lib/formatTime.ts`, `constants/api.ts`.
+    - One-statement pages: `calendar`, `consumer`, `predictions`, `race-control/intel`, `race-control/predictions`.
 

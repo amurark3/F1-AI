@@ -5,7 +5,7 @@ import Link from "next/link";
 import { API_BASE } from "@/app/constants/api";
 import { grandPrixHref } from "@/app/lib/entityLinks";
 import { getTeamColor } from "@/app/lib/teamColors";
-import { CircuitMap } from "@/app/ui/CircuitMap";
+import { CIRCUIT_FRAME, CircuitMap } from "@/app/ui/CircuitMap";
 import { Countdown } from "@/app/ui/Countdown";
 import { DriverName } from "@/app/ui/names/DriverName";
 import { TeamName } from "@/app/ui/names/TeamName";
@@ -82,14 +82,18 @@ function Winner({ year, round }: { year: number; round: number }) {
 function MapFigure({ circuit, name }: { circuit: RoundCircuit | undefined; name: string }) {
   if (!circuit?.map) {
     return (
-      <div className="flex h-full min-h-[240px] items-center justify-center rounded-md border border-dashed border-rc-line text-sm text-rc-ink-3">
+      <div
+        className={`flex h-full items-center justify-center rounded-md border border-dashed border-rc-line text-sm text-rc-ink-3 ${CIRCUIT_FRAME}`}
+      >
         Circuit map unavailable
       </div>
     );
   }
   return (
-    <figure className="flex h-full flex-col rounded-md border border-rc-line bg-rc-hero p-5 sm:p-[22px]">
-      <div className="min-h-[240px] flex-1">
+    <figure
+      className={`flex h-full flex-col rounded-md border border-rc-line bg-rc-hero p-5 sm:p-[22px] ${CIRCUIT_FRAME}`}
+    >
+      <div className="relative flex-1">
         <CircuitMap map={circuit.map} name={name} />
       </div>
       <figcaption className="mt-2 text-right font-mono text-[10px] uppercase tracking-[0.16em] text-rc-ink-3">
@@ -155,7 +159,7 @@ export function WeekendHero({
           <NextSession sessions={race.sessions ?? {}} />
         )}
       </div>
-      <Section state={circuit} label="Circuit map" skeletonClassName="h-[260px]" className="h-full">
+      <Section state={circuit} label="Circuit map" skeletonClassName={`h-full ${CIRCUIT_FRAME}`} className="h-full">
         <MapFigure circuit={circuit.data} name={name} />
       </Section>
     </section>

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { cloneElement, isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,8 +9,9 @@ import mexicoLaps from "@/test/fixtures/qualifying-laps-mexico-2026.json";
 import { apiUrl, server } from "@/test/msw/server";
 import { renderWithProviders } from "@/test/render";
 
+import { TelemetryLab } from "./TelemetryLab";
 import { COMPARISON, DEGRADATION, SESSIONS, TRACK_MAP } from "./telemetryTestData";
-import { pickSession, TelemetryView, type TelemetrySeed } from "./TelemetryView";
+import { pickSession, type TelemetrySeed } from "./TelemetryView";
 
 import type { WeekendResponse } from "./telemetryModel";
 import type * as Recharts from "recharts";
@@ -52,9 +53,14 @@ function serve(weekend: WeekendResponse = WEEKEND) {
   );
 }
 
-function renderView(search: string, seed: TelemetrySeed = SEED) {
+async function renderView(search: string, seed: TelemetrySeed = SEED) {
   nav.search = search;
-  return renderWithProviders(<TelemetryView seed={seed} />);
+  let rendered: ReturnType<typeof renderWithProviders> | undefined;
+  await act(() => {
+    rendered = renderWithProviders(<TelemetryLab year={seed.year} schedule={Promise.resolve(seed.schedule)} />);
+    return Promise.resolve();
+  });
+  return rendered!;
 }
 
 /** The query the view last wrote to the URL. */
@@ -88,7 +94,7 @@ describe("TelemetryView", () => {
   });
 
   it("opens the speed map on the weekend's qualifying", async () => {
-    renderView("round=19");
+    await renderView("round=19");
     expect(await screen.findByRole("radio", { name: "Qualifying", checked: true })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Speed Map", selected: true })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 2, name: /Kimi Antonelli · Q3/ })).toBeInTheDocument();
@@ -96,12 +102,12 @@ describe("TelemetryView", () => {
   });
 
   it("falls back to the schedule's default round when none is in the URL", async () => {
-    renderView("");
+    await renderView("");
     expect(await screen.findByRole("heading", { level: 2, name: /Kimi Antonelli · Q3/ })).toBeInTheDocument();
   });
 
   it("shows the head-to-head with its own pickers", async () => {
-    renderView("tab=head-to-head&round=19&segment=2");
+    await renderView("tab=head-to-head&round=19&segment=2");
     expect(await screen.findByRole("combobox", { name: "Driver A" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Driver B" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Driver" })).not.toBeInTheDocument();
@@ -109,7 +115,7 @@ describe("TelemetryView", () => {
 
   it("shows tyre degradation for a race that has run, offering race sessions only", async () => {
     serve({ available: true, pending: false, sessions: RACE_RUN });
-    renderView("tab=tyres&round=19&session=Q");
+    await renderView("tab=tyres&round=19&session=Q");
     expect(await screen.findByRole("heading", { level: 2, name: /^Lap times rose/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Race", checked: true })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "Qualifying" })).not.toBeInTheDocument();
@@ -117,33 +123,33 @@ describe("TelemetryView", () => {
   });
 
   it("says so when no race of the weekend has run yet", async () => {
-    renderView("tab=tyres&round=19");
+    await renderView("tab=tyres&round=19");
     expect(await screen.findByText("Not run yet")).toBeInTheDocument();
   });
 
   it("says so when the weekend has no race session at all", async () => {
     serve({ available: true, pending: false, sessions: [SESSIONS[0]] });
-    renderView("tab=tyres&round=19");
+    await renderView("tab=tyres&round=19");
     expect(await screen.findByText("No session of this kind on this weekend.")).toBeInTheDocument();
   });
 
   it("shows the backend's reason when the weekend's sessions are unavailable", async () => {
     serve({ available: false, pending: false, reason: "no_session", message: "OpenF1 has no such weekend." });
-    renderView("round=19");
+    await renderView("round=19");
     expect(await screen.findByText("OpenF1 has no such weekend.")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Session" })).not.toBeInTheDocument();
   });
 
   it("waits for a round when the calendar is empty", async () => {
     server.use(http.get(apiUrl("/api/schedule/2026"), () => HttpResponse.json([])));
-    renderView("", { year: 2026, schedule: [] });
+    await renderView("", { year: 2026, schedule: [] });
     expect(await screen.findByText("Season calendar unavailable.")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Season" })).toBeEnabled();
     expect(screen.queryByRole("radiogroup", { name: "Session" })).not.toBeInTheDocument();
   });
 
   it("fetches another season's calendar rather than using the seed", async () => {
-    renderView("year=2025&round=3");
+    await renderView("year=2025&round=3");
     expect(await screen.findByRole("group", { name: "2025 race picker" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Next round" })).toBeEnabled();
@@ -159,14 +165,14 @@ describe("TelemetryView changes", () => {
   });
 
   it("writes a new round to the URL and clears everything tied to the old one", async () => {
-    const { user } = renderView("round=19&session=Q&a=ANT&b=RUS&lap=14&segment=2");
+    const { user } = await renderView("round=19&session=Q&a=ANT&b=RUS&lap=14&segment=2");
     await user.click(await screen.findByRole("button", { name: "Next round" }));
     expect(lastQuery().get("round")).toBe("20");
     for (const key of ["session", "a", "b", "lap", "segment"]) expect(lastQuery().has(key)).toBe(false);
   });
 
   it("writes a new season to the URL with no round", async () => {
-    const { user } = renderView("round=19&session=Q&a=ANT");
+    const { user } = await renderView("round=19&session=Q&a=ANT");
     const season = screen.getByRole("combobox", { name: "Season" });
     expect(season).toHaveValue("2026");
     await user.selectOptions(season, "2025");
@@ -175,14 +181,14 @@ describe("TelemetryView changes", () => {
   });
 
   it("switches tab, keeping the rest", async () => {
-    const { user } = renderView("round=19&session=Q");
+    const { user } = await renderView("round=19&session=Q");
     await user.click(await screen.findByRole("tab", { name: "Tyre Degradation" }));
     expect(lastQuery().get("tab")).toBe("tyres");
     expect(lastQuery().get("session")).toBe("Q");
   });
 
   it("switches session, dropping the lap and the qualifying part", async () => {
-    const { user } = renderView("round=19&session=Q&lap=14&segment=2");
+    const { user } = await renderView("round=19&session=Q&lap=14&segment=2");
     await user.click(await screen.findByRole("radio", { name: "Practice 1" }));
     expect(lastQuery().get("session")).toBe("FP1");
     expect(lastQuery().has("lap")).toBe(false);
@@ -190,7 +196,7 @@ describe("TelemetryView changes", () => {
   });
 
   it("writes the speed map's driver, lap and qualifying part", async () => {
-    const { user } = renderView("round=19&session=Q&segment=3");
+    const { user } = await renderView("round=19&session=Q&segment=3");
     await user.selectOptions(await screen.findByRole("combobox", { name: "Driver" }), "RUS");
     expect(lastQuery().get("a")).toBe("RUS");
     expect(lastQuery().has("lap")).toBe(false);
@@ -200,7 +206,7 @@ describe("TelemetryView changes", () => {
   });
 
   it("writes the head-to-head pair and qualifying part", async () => {
-    const { user } = renderView("tab=head-to-head&round=19&session=Q&segment=3&lap=9");
+    const { user } = await renderView("tab=head-to-head&round=19&session=Q&segment=3&lap=9");
     await user.selectOptions(await screen.findByRole("combobox", { name: "Driver B" }), "VER");
     expect(lastQuery().get("b")).toBe("VER");
     expect(lastQuery().has("lap")).toBe(false);

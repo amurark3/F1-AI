@@ -2,21 +2,36 @@
 
 import Link from "next/link";
 
+import { useServerStatus } from "@/app/hooks/useServerStatus";
+import { noticePhase } from "@/app/lib/serverStatus";
+
 import BrandLockup from "../BrandLockup";
 
 import { MobileNav } from "./MobileNav";
 import { showsRaceStatus } from "./navConfig";
 import { RaceStatusChip } from "./RaceStatusChip";
 import { SiteNav } from "./SiteNav";
+import { WarmupLights } from "./WarmupLights";
 import { WRAP } from "./wrap";
 
 /**
- * The bar's status slot, right of the links. On data routes it holds the race
- * status chip; on static routes (`/`) it stays empty and nothing is fetched.
- * P3.5's restart lights take the slot over, on every route, while the
- * backend restarts. Too narrow on a phone, where `MobileNav` carries the chip.
+ * The bar's status slot, right of the links. Normally it holds the race status
+ * chip on data routes and stays empty on static ones (`/`, nothing fetched), and
+ * it is too narrow on a phone, where `MobileNav` carries the chip. While the
+ * backend restarts or can't be reached, the restart lights take the slot over
+ * on every route and every width: the one thing that shows in the phone bar.
  */
 function StatusSlot({ pathname }: { pathname: string }) {
+  const server = useServerStatus();
+  const phase = noticePhase(server);
+
+  if (phase) {
+    return (
+      <div className="flex">
+        <WarmupLights phase={phase} server={server} />
+      </div>
+    );
+  }
   return <div className="hidden sm:flex">{showsRaceStatus(pathname) ? <RaceStatusChip /> : null}</div>;
 }
 

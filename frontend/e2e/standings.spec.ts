@@ -29,8 +29,8 @@ test("the champion, the title race and both tables", async ({ page }) => {
   await expect(badge).toBeVisible();
   await badge.hover();
   await expect(page.getByRole("tooltip")).toContainText("Base: f1db v2026.19.0, through round 19");
-  // A backend that answers ready at once never raises the warm-up screen.
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // A backend that answers ready at once shows no restart lights: the status region stays empty.
+  await expect(page.getByRole("status", { name: "Server status" })).toBeEmpty();
 });
 
 test("the switch moves the hero to the constructors", async ({ page }) => {

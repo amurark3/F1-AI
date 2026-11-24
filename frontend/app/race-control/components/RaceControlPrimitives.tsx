@@ -81,44 +81,6 @@ function Spinner({ className }: { className: string }) {
   );
 }
 
-export function PageLoader({
-  title = "Preparing Race Control",
-  detail = "Loading the baseline data for this workspace.",
-}: {
-  title?: string;
-  detail?: string;
-}) {
-  return (
-    <div className="w-full min-w-0 space-y-6" role="status" aria-live="polite">
-      <Panel className="p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="mb-3 h-3 w-44 rounded-full bg-f1-red/30 motion-safe:animate-pulse" />
-            <p className="text-2xl font-semibold text-white" style={rcFont}>
-              {title}
-            </p>
-            <p className="mt-2 max-w-2xl text-base leading-relaxed text-rc-ink-2">{detail}</p>
-          </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-f1-red/25 bg-f1-red/10">
-            <Spinner className="h-5 w-5" />
-          </div>
-        </div>
-      </Panel>
-
-      <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap [&>*]:min-w-[220px] [&>*]:flex-1">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <SkeletonPanel key={index} className="h-28" />
-        ))}
-      </div>
-
-      <WorkspaceSplit>
-        <SkeletonPanel className="h-80" />
-        <SkeletonPanel className="h-80" />
-      </WorkspaceSplit>
-    </div>
-  );
-}
-
 export function SectionLoader({
   title = "Refreshing section",
   detail = "Updating this panel from the latest available data.",

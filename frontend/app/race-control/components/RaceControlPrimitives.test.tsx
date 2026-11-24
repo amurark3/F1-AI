@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { f1, rc } from "@/app/ui/tokens";
@@ -6,7 +6,6 @@ import { f1, rc } from "@/app/ui/tokens";
 import {
   InfoRow,
   InlineNotice,
-  PageLoader,
   PageStack,
   Panel,
   SectionLoader,
@@ -106,29 +105,6 @@ describe("SkeletonPanel", () => {
 });
 
 describe("loaders", () => {
-  it("PageLoader announces itself with a red spinner and neutral skeletons", () => {
-    const { container } = render(<PageLoader />);
-
-    const status = screen.getByRole("status");
-    expect(status).toHaveAttribute("aria-live", "polite");
-    expect(within(status).getByText("Preparing Race Control")).toBeInTheDocument();
-    expect(within(status).getByText("Loading the baseline data for this workspace.")).toBeInTheDocument();
-
-    const spinner = container.querySelector("[data-spinner]");
-    expect(spinner).toHaveClass("border-t-f1-red", "border-f1-red/30", "motion-safe:animate-spin", "h-5", "w-5");
-    expect(spinner?.parentElement).toHaveClass("border-f1-red/25", "bg-f1-red/10");
-    expect(container.querySelector(".bg-f1-red\\/30")).toHaveClass("motion-safe:animate-pulse");
-    expect(container.querySelectorAll(".bg-\\(--surface-raised\\)")).toHaveLength(6);
-    expect(container.innerHTML).not.toMatch(DRS_GREEN);
-  });
-
-  it("PageLoader takes its own title and detail", () => {
-    render(<PageLoader title="Preparing championship hub" detail="Reading the standings." />);
-
-    expect(screen.getByText("Preparing championship hub")).toBeInTheDocument();
-    expect(screen.getByText("Reading the standings.")).toBeInTheDocument();
-  });
-
   it("SectionLoader announces a smaller red spinner over two skeletons", () => {
     const { container } = render(<SectionLoader />);
 

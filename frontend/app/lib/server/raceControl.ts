@@ -97,9 +97,9 @@ export const getPowerUnits = cache(<T>(year: number): Promise<T | null> => {
   });
 });
 
-/** Cached model output for a round. Never triggers a recompute. */
 /**
  * A stored prediction snapshot, optionally for one phase of the race weekend.
+ * Never triggers a recompute.
  *
  * Each phase is cached and tagged separately so recomputing one does not
  * invalidate the other's server-rendered payload.

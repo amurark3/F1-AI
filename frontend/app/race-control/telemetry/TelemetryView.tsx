@@ -16,9 +16,9 @@ import { TrackMapControls } from "./TrackMapControls";
 import { TrackMapPanel } from "./TrackMapPanel";
 import { TyreDegPanel } from "./TyreDegPanel";
 import { useWeekend } from "./useAnalysisData";
-import { useTelemetryParams } from "./useTelemetryParams";
 
 import type { TabKey, WeekendSession } from "./telemetryModel";
+import type { useTelemetryParams } from "./useTelemetryParams";
 import type { RaceEvent } from "../grand-prix/predictionModel";
 
 export interface TelemetrySeed {
@@ -46,8 +46,8 @@ export function pickSession(sessions: WeekendSession[], tab: TabKey, asked: stri
   return PREFERRED[tab].find((code) => started.has(code)) ?? null;
 }
 
-export function TelemetryView({ seed }: { seed: TelemetrySeed }) {
-  const { params, update } = useTelemetryParams(seed.year);
+export function TelemetryView({ seed, url }: { seed: TelemetrySeed; url: ReturnType<typeof useTelemetryParams> }) {
+  const { params, update } = url;
   const races = useSchedule(params.year, params.year === seed.year ? seed.schedule : null).races;
   const round = params.round ?? resolveDefaultRace(races)?.round ?? null;
   const weekend = useWeekend(params.year, round);

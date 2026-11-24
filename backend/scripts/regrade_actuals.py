@@ -29,7 +29,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from app.data.predictions.history import actual_fields
+from app.data.predictions.history import actual_fields, reason_fields, reasons_missing
 from app.data.race_classification import race_classification
 from app.data.store import DOCUMENT_PREDICTION_HISTORY, document_store
 from scripts.repair_graded_predictions import (
@@ -57,6 +57,11 @@ def _legacy(entry: object) -> bool:
     return isinstance(entry, dict) and bool(entry.get("actual_positions")) and "actual_provisional" not in entry
 
 
+def _reasonless(entry: object) -> bool:
+    """A race with a recorded result whose retirements carry no reason: graded before f1db published them."""
+    return isinstance(entry, dict) and bool(entry.get("actual_positions")) and reasons_missing(entry)
+
+
 def _changes(entry: dict, fields: dict) -> list[str]:
     """The drivers whose place or status differs between the stored result and ``fields``."""
     old_positions, old_statuses = entry["actual_positions"], entry.get("actual_statuses") or {}
@@ -69,12 +74,44 @@ def _changes(entry: dict, fields: dict) -> list[str]:
     return lines
 
 
+def _add_reasons(entry: dict, parsed: tuple[int, int], label: str) -> tuple[dict | None, list[str]]:
+    """A recorded result with the reasons f1db now publishes, and its report lines.
+
+    The result itself is never replaced: the places, statuses and provenance stay.
+    A race whose reasons are still unknown is left out, so a second run lists nothing.
+    """
+    classification = race_classification(*parsed)
+    if not classification.drivers:
+        return None, [f"  {label}  no classification published; left as it is"]
+    fields = reason_fields(entry, classification)
+    if fields is None:
+        return None, [f"  {label}  the published result differs from the stored result; reasons not recorded"]
+    if fields["actual_reasons"] == entry.get("actual_reasons") and fields["actual_incidents"] == entry.get(
+        "actual_incidents"
+    ):
+        return None, []
+    stored = entry.get("actual_reasons") or {}
+    added = [
+        f"{code} {entry['actual_statuses'][code]} -> {entry['actual_statuses'][code]} · {reason}"
+        for code, reason in fields["actual_reasons"].items()
+        if reason and stored.get(code) != reason
+    ]
+    header = f"  {label}  reasons from {classification.source}: {len(added)} driver(s) get a reason"
+    return {**entry, **fields}, [header, *(f"      {line}" for line in added[:DRIVERS_SHOWN])]
+
+
 def plan(history: dict) -> tuple[dict, list[str]]:
-    """The regraded history and the report lines for every legacy race."""
+    """The regraded history and the report lines for every legacy race and every race missing reasons."""
     regraded, report = dict(history), []
     for key in sorted(history, key=_race_order):
         parsed = _year_round(key)
-        if parsed is None or not _legacy(history[key]):
+        if parsed is None:
+            continue
+        if not _legacy(history[key]):
+            if _reasonless(history[key]):
+                updated, lines = _add_reasons(history[key], parsed, _label(key))
+                regraded[key] = updated or history[key]
+                report.extend(lines)
             continue
         classification = race_classification(*parsed)
         if not classification.drivers:

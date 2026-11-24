@@ -189,6 +189,36 @@ def _classify_results(classification: RaceClassification) -> tuple[dict[str, int
     return positions, statuses, incidents
 
 
+def _reasons(classification: RaceClassification) -> dict[str, str | None]:
+    """Each car's official retirement reason, ``None`` where f1db has none (or not the race yet)."""
+    return {driver.driver_code: driver.reason for driver in classification.drivers}
+
+
+def reasons_missing(entry: dict) -> bool:
+    """Whether a recorded result lacks the retirement reason of a DNF.
+
+    A result recorded before reasons were stored has no ``actual_reasons`` at
+    all; one recorded before f1db held the race has ``None`` for its retirements.
+    """
+    reasons = entry.get("actual_reasons")
+    if not isinstance(reasons, dict):
+        return True
+    statuses = entry.get("actual_statuses") or {}
+    return any(status == "DNF" and not reasons.get(code) for code, status in statuses.items())
+
+
+def reason_fields(entry: dict, classification: RaceClassification) -> dict | None:
+    """The reason fields of ``entry`` from ``classification``; ``None`` when it shows a different result.
+
+    Only the reasons and the incident flags they feed change: the places, the
+    statuses and the provenance of a result already recorded stay as they are.
+    """
+    positions, statuses, incidents = _classify_results(classification)
+    if entry.get("actual_positions") != positions or entry.get("actual_statuses") != statuses:
+        return None
+    return {"actual_reasons": _reasons(classification), "actual_incidents": incidents}
+
+
 def actual_fields(entry: dict, classification: RaceClassification) -> dict:
     """The result fields of ``entry`` once ``classification`` is recorded on it.
 
@@ -205,6 +235,7 @@ def actual_fields(entry: dict, classification: RaceClassification) -> dict:
         "actual_positions": positions,
         "actual_statuses": statuses,
         "actual_incidents": incidents,
+        "actual_reasons": _reasons(classification),
         "actual_source": classification.source,
         "actual_provisional": not (
             classification.source == FIA_FINAL_SOURCE or (agrees and classification.source != JOLPICA_SOURCE)

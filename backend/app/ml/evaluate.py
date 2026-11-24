@@ -9,18 +9,15 @@ place.
 
 Usage:
     cd backend
-    python -m app.ml.evaluate            # uses cached dataset if present
-    python -m app.ml.evaluate --refresh  # re-collect data from FastF1/Ergast
+    python -m app.ml.evaluate   # collects every race so far from the local f1db, then backtests
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 from scipy.stats import spearmanr
 
 from app.config import (
@@ -36,9 +33,7 @@ from app.ml.features import FEATURES, TARGET
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-# Cached copy of the collected training dataset so the benchmark can re-run
-# instantly without hitting the network. Written by collect + evaluate runs.
-DATASET_PATH = Path(__file__).parent.parent.parent / "data" / "training_dataset.csv"
+    import pandas as pd
 
 PODIUM_SIZE = 3
 POINTS_SIZE = 10
@@ -226,33 +221,15 @@ def _print_report(results: dict[str, dict[str, float]]) -> None:
     )
 
 
-def load_or_collect_dataset(refresh: bool = False) -> pd.DataFrame:
-    """Load the cached dataset, or collect it from FastF1/Ergast and cache it."""
-    if not refresh and DATASET_PATH.exists():
-        print(f"Loading cached dataset from {DATASET_PATH}")
-        return pd.read_csv(DATASET_PATH)
-
-    # Deferred import keeps this module free of a hard dependency on the (heavy)
-    # data-collection path and avoids a circular import with app.ml.train.
-    from app.ml.train import collect_data
-
-    print("Collecting dataset from FastF1/Ergast (this may take several minutes)...")
-    df = collect_data()
-    if not df.empty:
-        DATASET_PATH.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(DATASET_PATH, index=False)
-        print(f"Cached dataset to {DATASET_PATH}")
-    return df
-
-
 def main() -> None:
-    refresh = "--refresh" in sys.argv
-    df = load_or_collect_dataset(refresh=refresh)
-    if df.empty:
-        print("No data available — run with --refresh once you have network access.")
-        sys.exit(1)
+    # Deferred: app.ml.train imports this module. Collected fresh every run (seconds,
+    # from the local f1db) so the headline numbers always cover every race so far.
+    from app.ml.train import _build_model, collect_data
 
-    from app.ml.train import _build_model
+    df = collect_data()
+    if df.empty:
+        print("No data collected — is the f1db database present (data/f1db.db)?")
+        sys.exit(1)
 
     # Hold out every season with at least three prior seasons to train on, so the
     # headline numbers come from a robust multi-season sample rather than a single

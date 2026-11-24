@@ -10,7 +10,7 @@ import structlog
 from app.data.predictions.graded import graded_call, legacy_call
 from app.data.predictions.history import _load_prediction_history, record_actual_result
 from app.data.predictions.phases import PHASE_POST_QUALIFYING, PHASE_PRE_QUALIFYING, normalise_phase
-from app.data.predictions.scoring import CRASH_RISK_THRESHOLD, DNF_RISK_THRESHOLD, finished_codes, safe_number
+from app.data.predictions.scoring import crash_threshold, dnf_threshold, finished_codes, safe_number
 
 logger = structlog.get_logger()
 
@@ -184,10 +184,10 @@ def build_prediction_review(
     actual_crashes = {code for code, flags in incidents.items() if flags.get("crash")}
     risks = snapshot.get("risk_predictions") or {}
     predicted_dnfs = {
-        code for code, risk in risks.items() if safe_number(risk.get("dnf_risk_pct")) >= DNF_RISK_THRESHOLD
+        code for code, risk in risks.items() if safe_number(risk.get("dnf_risk_pct")) >= dnf_threshold(risk)
     }
     predicted_crashes = {
-        code for code, risk in risks.items() if safe_number(risk.get("crash_risk_pct")) >= CRASH_RISK_THRESHOLD
+        code for code, risk in risks.items() if safe_number(risk.get("crash_risk_pct")) >= crash_threshold(risk)
     }
 
     return {

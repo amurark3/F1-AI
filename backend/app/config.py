@@ -278,12 +278,12 @@ GRID_TO_FINISH_WEIGHT = float(os.getenv("GRID_TO_FINISH_WEIGHT", "0.05"))
 # ML / heuristic ensemble blend
 # ---------------------------------------------------------------------------
 # Fraction of the final score taken from the trained model; the remainder comes
-# from the heuristic weighted score above. Backtesting over 2021-2026 (124 races)
-# shows the trained model carries essentially all the signal — the blend is a
-# statistical tie with pure ML, with a mild edge toward more ML weight. Default
-# 0.65 leans on the model while keeping the heuristic as a light stabilizer.
-# Set to 1.0 for pure model, 0.0 for pure heuristic.
-ML_PREDICTION_BLEND_WEIGHT = float(os.getenv("ML_PREDICTION_BLEND_WEIGHT", "0.65"))
+# from the heuristic weighted score above. Both lean on grid position, so the
+# blend moves little. A 2026-11-24 sweep over the 2021-2026 backtest (135 races)
+# found 0.80 at least as good as 0.65 on every measure (winner 57.0% vs 55.6%,
+# MAE 3.25 vs 3.25, same podium); pure model (1.0) ties 0.80 on winners but loses
+# rank and MAE. Set to 1.0 for pure model, 0.0 for pure heuristic.
+ML_PREDICTION_BLEND_WEIGHT = float(os.getenv("ML_PREDICTION_BLEND_WEIGHT", "0.80"))
 
 # Weight applied to the learned per-driver adaptive correction (from past misses).
 PREDICTION_ADAPTIVE_WEIGHT = float(os.getenv("PREDICTION_ADAPTIVE_WEIGHT", "0.22"))

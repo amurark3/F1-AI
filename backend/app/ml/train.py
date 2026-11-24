@@ -436,16 +436,11 @@ def train(df: pd.DataFrame) -> None:
 
 
 if __name__ == "__main__":
-    # By default reuse the cached dataset (fast, seconds). Pass --refresh to
-    # re-collect session data from FastF1 and standings from the local f1db
-    # dataset (slower, but no live API rate limits).
-    from app.ml.evaluate import load_or_collect_dataset
-
-    refresh = "--refresh" in sys.argv
-    df = load_or_collect_dataset(refresh=refresh)
+    # Collected fresh every run: seconds from the local f1db, so nothing to cache.
+    df = collect_data()
 
     if df.empty:
-        print("No data available — run once with --refresh to collect it.")
+        print("No data collected — is the f1db database present (data/f1db.db)?")
         sys.exit(1)
 
     print(f"\nTotal rows: {len(df)}")

@@ -32,7 +32,6 @@ from app.ml.evaluate import (
     _print_report,
     _ranking_metrics,
     backtest,
-    load_or_collect_dataset,
 )
 from app.ml.features import FEATURES, TARGET
 
@@ -512,73 +511,6 @@ def test_the_full_feature_set_is_used_when_none_is_given():
 
 
 # ---------------------------------------------------------------------------
-# load_or_collect_dataset
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_the_cached_dataset_is_reused_without_recollecting(tmp_path, monkeypatch, capsys):
-    cached = tmp_path / "training_dataset.csv"
-    _season_frame(2024).to_csv(cached, index=False)
-    monkeypatch.setattr(evaluate_module, "DATASET_PATH", cached)
-
-    def _explode() -> pd.DataFrame:
-        raise AssertionError("the cache was ignored")
-
-    monkeypatch.setattr("app.ml.train.collect_data", _explode)
-
-    df = load_or_collect_dataset()
-
-    assert len(df) == 4
-    assert "Loading cached dataset" in capsys.readouterr().out
-
-
-@pytest.mark.unit
-def test_refresh_recollects_even_when_a_cache_exists(tmp_path, monkeypatch, capsys):
-    cached = tmp_path / "training_dataset.csv"
-    _season_frame(2024, n_drivers=4).to_csv(cached, index=False)
-    monkeypatch.setattr(evaluate_module, "DATASET_PATH", cached)
-    monkeypatch.setattr("app.ml.train.collect_data", lambda: _season_frame(2025, n_drivers=7))
-
-    df = load_or_collect_dataset(refresh=True)
-
-    assert len(df) == 7
-    assert df["year"].unique().tolist() == [2025]
-
-
-@pytest.mark.unit
-def test_a_missing_cache_triggers_collection(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(evaluate_module, "DATASET_PATH", tmp_path / "absent.csv")
-    monkeypatch.setattr("app.ml.train.collect_data", lambda: _season_frame(2025))
-
-    assert len(load_or_collect_dataset()) == 4
-
-
-@pytest.mark.unit
-def test_a_freshly_collected_dataset_is_cached_for_the_next_run(tmp_path, monkeypatch, capsys):
-    target = tmp_path / "nested" / "training_dataset.csv"
-    monkeypatch.setattr(evaluate_module, "DATASET_PATH", target)
-    monkeypatch.setattr("app.ml.train.collect_data", lambda: _season_frame(2025))
-
-    load_or_collect_dataset(refresh=True)
-
-    assert target.exists(), "the collected dataset was not cached"
-    assert len(pd.read_csv(target)) == 4
-
-
-@pytest.mark.unit
-def test_an_empty_collection_is_not_cached(tmp_path, monkeypatch, capsys):
-    # Caching an empty frame would make every later run load nothing instantly
-    # and never retry the collection.
-    target = tmp_path / "training_dataset.csv"
-    monkeypatch.setattr(evaluate_module, "DATASET_PATH", target)
-    monkeypatch.setattr("app.ml.train.collect_data", pd.DataFrame)
-
-    assert load_or_collect_dataset(refresh=True).empty
-    assert not target.exists()
-
-
-# ---------------------------------------------------------------------------
 # _print_report
 # ---------------------------------------------------------------------------
 
@@ -661,49 +593,33 @@ def test_a_report_without_meta_still_prints(capsys):
 
 
 @pytest.mark.unit
-def test_an_empty_dataset_exits_with_a_pointer_to_refresh(monkeypatch, capsys):
-    monkeypatch.setattr(evaluate_module.sys, "argv", ["evaluate"])
-    monkeypatch.setattr(evaluate_module, "load_or_collect_dataset", lambda refresh: pd.DataFrame())
+def test_an_empty_collection_exits_with_a_pointer_to_f1db(monkeypatch, capsys):
+    monkeypatch.setattr("app.ml.train.collect_data", pd.DataFrame)
 
     with pytest.raises(SystemExit) as exit_info:
         evaluate_module.main()
 
     assert exit_info.value.code == 1
-    assert "--refresh" in capsys.readouterr().out
+    assert "f1db" in capsys.readouterr().out
 
 
 @pytest.mark.unit
-def test_the_refresh_flag_is_read_from_the_command_line(monkeypatch, capsys):
-    seen: list[bool] = []
-    monkeypatch.setattr(evaluate_module.sys, "argv", ["evaluate", "--refresh"])
+def test_every_run_backtests_freshly_collected_data(monkeypatch, capsys):
+    # A cached copy went stale for months (built in July, missing 11 races of
+    # 2026); collecting from the local f1db takes seconds, so nothing is cached.
+    collected: list[str] = []
+    backtested: list[int] = []
+    monkeypatch.setattr("app.ml.train.collect_data", lambda: collected.append("f1db") or _season_frame(2024))
     monkeypatch.setattr(
-        evaluate_module,
-        "load_or_collect_dataset",
-        lambda refresh: seen.append(refresh) or _season_frame(2024),
+        evaluate_module, "backtest", lambda df, factory, holdout_seasons: backtested.append(len(df)) or {"_meta": {}}
     )
-    monkeypatch.setattr(evaluate_module, "backtest", lambda df, factory, holdout_seasons: {"_meta": {}})
     monkeypatch.setattr(evaluate_module, "_print_report", lambda results: None)
 
     evaluate_module.main()
-
-    assert seen == [True]
-
-
-@pytest.mark.unit
-def test_without_the_flag_the_cached_dataset_is_used(monkeypatch, capsys):
-    seen: list[bool] = []
-    monkeypatch.setattr(evaluate_module.sys, "argv", ["evaluate"])
-    monkeypatch.setattr(
-        evaluate_module,
-        "load_or_collect_dataset",
-        lambda refresh: seen.append(refresh) or _season_frame(2024),
-    )
-    monkeypatch.setattr(evaluate_module, "backtest", lambda df, factory, holdout_seasons: {"_meta": {}})
-    monkeypatch.setattr(evaluate_module, "_print_report", lambda results: None)
-
     evaluate_module.main()
 
-    assert seen == [False]
+    assert collected == ["f1db", "f1db"]
+    assert backtested == [4, 4]
 
 
 @pytest.mark.unit
@@ -714,8 +630,7 @@ def test_every_season_with_three_prior_ones_is_held_out(monkeypatch, capsys):
     seasons = [2019, 2020, 2021, 2022, 2023, 2024]
     df = pd.concat([_season_frame(year) for year in seasons], ignore_index=True)
 
-    monkeypatch.setattr(evaluate_module.sys, "argv", ["evaluate"])
-    monkeypatch.setattr(evaluate_module, "load_or_collect_dataset", lambda refresh: df)
+    monkeypatch.setattr("app.ml.train.collect_data", lambda: df)
     monkeypatch.setattr(
         evaluate_module,
         "backtest",
@@ -733,8 +648,7 @@ def test_a_thin_dataset_falls_back_to_the_most_recent_season(monkeypatch, capsys
     seen: list[list[int]] = []
     df = pd.concat([_season_frame(2023), _season_frame(2024)], ignore_index=True)
 
-    monkeypatch.setattr(evaluate_module.sys, "argv", ["evaluate"])
-    monkeypatch.setattr(evaluate_module, "load_or_collect_dataset", lambda refresh: df)
+    monkeypatch.setattr("app.ml.train.collect_data", lambda: df)
     monkeypatch.setattr(
         evaluate_module,
         "backtest",

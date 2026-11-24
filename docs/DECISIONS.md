@@ -122,4 +122,6 @@ The load assumed: one free Render instance (512 MB, one process), a few visitors
 | S, N2, P9  | Rulebook and memory search without local models; grouped navigation; 100 % frontend coverage (PR #114)                                                       |
 | Hardening  | H1–H12 (PR #113)                                                                                                                                             |
 
-**Left for the owner in production:** run `scripts.regrade_actuals` (dry run, then `--apply`); add the `GOOGLE_API_KEY` repo secret and run the rulebook ingest workflow.
+**Left for the owner in production:** run `scripts.regrade_actuals` (dry run, then `--apply`).
+
+**Rulebook Gemini vectors (2026-11-23):** the `GOOGLE_API_KEY` secret is set and the first ingest ran until the free daily quota ran out; the user estimates about 4 days to fill every passage. The workflow's daily schedule (08:15 UTC) resumes the backfill on its own. Run it by hand only with `backfill_only` ticked: a plain manual run re-embeds with `--force`, which truncates the table and every Gemini vector filled so far. Passages without a vector are still found by keyword search.

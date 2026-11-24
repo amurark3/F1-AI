@@ -16,11 +16,13 @@ one.
 from __future__ import annotations
 
 import copy
+from dataclasses import replace
 import json
 from pathlib import Path
 
 import pytest
 
+from app.data.predictions.history import actual_fields
 from app.data.race_classification import (
     NO_CLASSIFICATION,
     OPENF1_SOURCE,
@@ -136,10 +138,11 @@ def test_a_race_with_no_published_classification_is_left_as_it_is(production, mo
 
 def test_only_a_race_recorded_without_a_source_is_touched(production, capsys):
     legacy = _history()["(2026,19)"]
+    graded = {**legacy, **actual_fields(legacy, _final()), "actual_provisional": False}
     production.reads = [
         ReadResult(
             payload={
-                "(2026,19)": {**legacy, "actual_provisional": False},
+                "(2026,19)": {**graded, "actual_reasons": dict.fromkeys(graded["actual_positions"], "Engine")},
                 "(2026,20)": {"predicted_positions": {"VER": 1}},
                 "(2026,21)": "not a record",
                 "odd": legacy,
@@ -201,3 +204,108 @@ def test_a_failed_write_names_the_backup(production, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "connection reset" in out
     assert "prediction_history-" in out
+
+
+RETIRED = ("LIN", "BEA", "BOT", "STR", "ALO")
+REASONS = {"LIN": "Accident", "BEA": "Collision", "BOT": "Collision damage", "STR": "Engine", "ALO": "Gearbox"}
+
+
+def _with_f1db_reasons() -> RaceClassification:
+    final = _final()
+    return replace(
+        final, drivers=tuple(replace(driver, reason=REASONS.get(driver.driver_code)) for driver in final.drivers)
+    )
+
+
+def _graded_without_reasons(**overrides: object) -> dict:
+    """R19 as graded before reasons were stored: final, a plain DNF for every retirement."""
+    legacy = _history()["(2026,19)"]
+    entry = {**legacy, **actual_fields(legacy, _final()), "actual_provisional": False, **overrides}
+    entry.pop("actual_reasons", None)
+    return {"(2026,19)": entry}
+
+
+@pytest.fixture
+def graded(production, monkeypatch) -> _FakeStore:
+    production.reads = [ReadResult(payload=_graded_without_reasons())]
+    monkeypatch.setattr(regrade, "race_classification", lambda year, round_num: _with_f1db_reasons())
+    return production
+
+
+def test_actual_fields_record_the_reason_of_every_car(production):
+    fields = actual_fields({}, _with_f1db_reasons())
+
+    assert {code: fields["actual_reasons"][code] for code in RETIRED} == {**REASONS, "BOT": "Collision damage"}
+    assert fields["actual_reasons"]["VER"] is None
+    assert [code for code, flags in fields["actual_incidents"].items() if flags["crash"]] == ["LIN", "BEA", "BOT"]
+
+
+def test_a_dry_run_lists_the_reasons_a_final_result_is_missing(graded, capsys):
+    assert _run() == regrade.EXIT_OK
+
+    out = capsys.readouterr().out
+    assert "reasons from openf1-session-result: 5 driver(s) get a reason" in out
+    assert "LIN DNF -> DNF · Accident" in out
+    assert graded.writes == []
+
+
+def test_apply_adds_the_reasons_and_leaves_the_result_and_its_provenance_alone(graded, tmp_path):
+    before = graded.reads[0].payload["(2026,19)"]
+
+    assert _run("--apply", backup_dir=tmp_path) == regrade.EXIT_OK
+
+    after = graded.writes[0]["(2026,19)"]
+    assert after["actual_reasons"]["STR"] == "Engine"
+    assert after["actual_incidents"]["BEA"]["crash"] is True
+    assert after["actual_incidents"]["STR"]["mechanical"] is True
+    untouched = {key: value for key, value in after.items() if key not in ("actual_reasons", "actual_incidents")}
+    assert untouched == {key: value for key, value in before.items() if key != "actual_incidents"}
+
+
+def test_a_race_f1db_does_not_hold_yet_is_marked_checked_with_the_reason_unknown(graded, monkeypatch, tmp_path):
+    monkeypatch.setattr(regrade, "race_classification", lambda year, round_num: _final())
+
+    assert _run("--apply", backup_dir=tmp_path) == regrade.EXIT_OK
+
+    after = graded.writes[0]["(2026,19)"]
+    assert after["actual_statuses"]["LIN"] == "DNF"
+    assert after["actual_reasons"]["LIN"] is None
+    assert not any(flags["crash"] for flags in after["actual_incidents"].values())
+
+
+def test_a_checked_race_with_the_reasons_still_unknown_is_not_listed_again(graded, monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(regrade, "race_classification", lambda year, round_num: _final())
+    _run("--apply", backup_dir=tmp_path)
+    graded.reads = [ReadResult(payload=graded.writes[0])]
+
+    assert _run("--apply", backup_dir=tmp_path) == regrade.EXIT_OK
+    assert "nothing to regrade" in capsys.readouterr().out
+    assert len(graded.writes) == 1
+
+
+def test_a_second_run_after_the_reasons_were_added_finds_nothing(graded, tmp_path, capsys):
+    _run("--apply", backup_dir=tmp_path)
+    graded.reads = [ReadResult(payload=graded.writes[0])]
+
+    assert _run("--apply", backup_dir=tmp_path) == regrade.EXIT_OK
+    assert "nothing to regrade" in capsys.readouterr().out
+
+
+def test_a_result_that_no_longer_agrees_gets_no_reasons_from_a_different_order(graded, monkeypatch, capsys):
+    graded.reads = [ReadResult(payload=_graded_without_reasons(actual_positions={"VER": 2}))]
+
+    assert _run("--apply") == regrade.EXIT_OK
+
+    assert "differs from the stored result; reasons not recorded" in capsys.readouterr().out
+    assert graded.writes == []
+
+
+def test_a_graded_race_with_no_published_classification_is_left_alone_when_reasons_are_missing(
+    graded, monkeypatch, capsys
+):
+    monkeypatch.setattr(regrade, "race_classification", lambda year, round_num: NO_CLASSIFICATION)
+
+    assert _run("--apply") == regrade.EXIT_OK
+
+    assert "no classification published; left as it is" in capsys.readouterr().out
+    assert graded.writes == []

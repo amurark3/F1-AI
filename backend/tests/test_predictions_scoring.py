@@ -25,6 +25,7 @@ from app.data.predictions import scoring
 from app.data.predictions.scoring import (
     CRASH_RISK_THRESHOLD,
     DNF_RISK_THRESHOLD,
+    RISK_MODEL_VERSION,
     FactorInputs,
     RiskContext,
     _compute_confidence,
@@ -34,6 +35,8 @@ from app.data.predictions.scoring import (
     _risk_factors,
     _risk_level,
     _safe_mean,
+    crash_threshold,
+    dnf_threshold,
     safe_number,
 )
 
@@ -372,7 +375,7 @@ def test_a_driver_with_no_team_is_scored_as_midfield_not_as_the_leader():
 @pytest.mark.unit
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(0, "low"), (12, "low"), (13, "medium"), (21, "medium"), (22, "high"), (40, "high")],
+    [(0, "low"), (14, "low"), (15, "medium"), (21, "medium"), (22, "high"), (40, "high")],
 )
 def test_risk_level_bands_are_monotone_in_the_percentage(value, expected):
     assert _risk_level(value) == expected
@@ -473,10 +476,10 @@ def test_a_fragile_driver_carries_more_dnf_risk_than_an_identical_reliable_one(i
 
 
 @pytest.mark.unit
-def test_a_slower_team_carries_more_dnf_risk_than_a_front_running_one(incidents):
+def test_a_deeper_grid_slot_carries_more_dnf_risk_than_the_front_row(incidents):
     rows = _compute_risk_predictions(
         [_prediction("VER", 1), _prediction("SAR", 2)],
-        {"VER": {"quali_pos": 5, "team_pos": 1}, "SAR": {"quali_pos": 5, "team_pos": 10}},
+        {"VER": {"quali_pos": 2, "team_pos": 5}, "SAR": {"quali_pos": 19, "team_pos": 5}},
         2026,
         4,
     )
@@ -512,9 +515,9 @@ def test_risk_percentages_stay_inside_their_published_bounds(incidents):
     )
 
     for row in rows:
-        assert 3 <= row["dnf_risk_pct"] <= 42
-        assert 1 <= row["crash_risk_pct"] <= 30
-        assert 2 <= row["mechanical_risk_pct"] <= 35
+        assert 1 <= row["dnf_risk_pct"] <= 99
+        assert 1 <= row["crash_risk_pct"] <= 99
+        assert 1 <= row["mechanical_risk_pct"] <= 99
         assert row["risk_level"] == _risk_level(row["dnf_risk_pct"])
 
 
@@ -538,8 +541,27 @@ def test_risk_rows_carry_the_identity_the_ui_renders(incidents):
 
 
 @pytest.mark.unit
-def test_risk_thresholds_are_shared_so_review_and_accuracy_score_identically():
+def test_review_and_accuracy_pick_thresholds_through_the_shared_lookup():
     from app.data.predictions import accuracy, review
 
-    assert accuracy.DNF_RISK_THRESHOLD is DNF_RISK_THRESHOLD
-    assert review.CRASH_RISK_THRESHOLD is CRASH_RISK_THRESHOLD
+    assert accuracy.dnf_threshold is dnf_threshold
+    assert review.crash_threshold is crash_threshold
+
+
+@pytest.mark.unit
+def test_an_unversioned_risk_row_is_judged_by_the_hand_tuned_thresholds():
+    assert dnf_threshold({"dnf_risk_pct": 20}) == 16
+    assert crash_threshold({"risk_model": None}) == 10
+
+
+@pytest.mark.unit
+def test_a_fitted_risk_row_is_judged_by_the_fitted_thresholds():
+    row = {"risk_model": RISK_MODEL_VERSION}
+    assert dnf_threshold(row) == DNF_RISK_THRESHOLD
+    assert crash_threshold(row) == CRASH_RISK_THRESHOLD
+
+
+@pytest.mark.unit
+def test_new_risk_rows_are_stamped_with_the_model_version(incidents):
+    rows = _compute_risk_predictions([_prediction("VER", 1)], {"VER": {"quali_pos": 5, "team_pos": 2}}, 2026, 4)
+    assert rows[0]["risk_model"] == RISK_MODEL_VERSION

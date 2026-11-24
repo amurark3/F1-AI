@@ -113,6 +113,7 @@ def _predictions(**overrides: object) -> dict:
                 "crash_risk_pct": 11,
                 "mechanical_risk_pct": 14,
                 "risk_level": "high",
+                "risk_model": "fitted-v1",
             }
         ],
     }
@@ -268,7 +269,13 @@ def test_the_call_extracted_from_a_compute_is_what_history_stores(store):
         "data_sources": ["qualifying"],
         "predicted_positions": {"VER": 1, "NOR": 2},
         "risk_predictions": {
-            "NOR": {"dnf_risk_pct": 22, "crash_risk_pct": 11, "mechanical_risk_pct": 14, "risk_level": "high"}
+            "NOR": {
+                "dnf_risk_pct": 22,
+                "crash_risk_pct": 11,
+                "mechanical_risk_pct": 14,
+                "risk_level": "high",
+                "risk_model": "fitted-v1",
+            }
         },
     }
     save_prediction(YEAR, ROUND, _predictions())

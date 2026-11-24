@@ -85,7 +85,7 @@ export async function fetchFromBackend<T>(path: string, options: FetchOptions = 
   const budget = options.timeoutMs ?? (isBuildPhase ? BUILD_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const deadline = Date.now() + budget;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; ; attempt += 1) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
       logFailure(path, "budget exhausted");
@@ -108,8 +108,6 @@ export async function fetchFromBackend<T>(path: string, options: FetchOptions = 
     }
     await sleep(pause);
   }
-
-  return null;
 }
 
 type Outcome<T> = { ok: true; data: T } | { ok: false; retryable: boolean; reason: string };

@@ -44,10 +44,10 @@ describe("FastestLapPanel", () => {
 
 describe("DebriefLinkPanel", () => {
   it("links to the debrief", () => {
-    renderWithProviders(<DebriefLinkPanel round={19} />);
+    renderWithProviders(<DebriefLinkPanel round={19} year={2025} />);
     expect(screen.getByRole("link", { name: "Read the debrief" })).toHaveAttribute(
       "href",
-      "/race-control/debriefs?round=19",
+      "/race-control/debriefs?round=19&year=2025",
     );
   });
 });

@@ -26,9 +26,13 @@ export const metadata: Metadata = {
     "Everything about a Formula 1 Grand Prix in one place: the circuit and session schedule, the official starting grid with any penalties applied, the model's predicted finishing order, incident risk, and how the call scored against the result.",
 };
 
-export default async function GrandPrixHubPage() {
+export default function GrandPrixHubPage() {
   const year = currentSeason();
+  return <GrandPrixHub year={year} seed={loadSeed(year)} />;
+}
 
+/** Nothing awaits this at page level: the hub streams in behind its own shell. */
+async function loadSeed(year: number): Promise<GrandPrixSeed> {
   // Schedule and entry list are independent; fetch them together.
   const [schedule, drivers] = await Promise.all([getSchedule(year), getDrivers<DriversResponse>(year)]);
 
@@ -52,7 +56,7 @@ export default async function GrandPrixHubPage() {
       ])
     : [null, null, null, null];
 
-  const seed: GrandPrixSeed = {
+  return {
     year,
     schedule,
     drivers,
@@ -62,6 +66,4 @@ export default async function GrandPrixHubPage() {
     sessions,
     strategy: null,
   };
-
-  return <GrandPrixHub seed={seed} />;
 }

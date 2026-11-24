@@ -27,3 +27,17 @@ export interface GrandPrixSeed {
   /** Tyre stints and pit stops for `snapshotRound`. */
   strategy: RaceStrategyResponse | null;
 }
+
+/** The seed with nothing prefetched: the browser fetches every section itself. */
+export function emptySeed(year: number): GrandPrixSeed {
+  return {
+    year,
+    schedule: null,
+    drivers: null,
+    snapshots: { pre_qualifying: null, post_qualifying: null },
+    snapshotRound: null,
+    grid: null,
+    sessions: null,
+    strategy: null,
+  };
+}

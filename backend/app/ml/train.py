@@ -288,6 +288,15 @@ def _build_model() -> Pipeline:
     return make_pipeline(StandardScaler(), Ridge(**MODEL_PARAMS))
 
 
+def fit_as_of(df: pd.DataFrame, year: int, round_num: int) -> dict:
+    """The model as it could have been trained before ``(year, round_num)``: earlier races only."""
+    earlier = (df["year"] < year) | ((df["year"] == year) & (df["round"] < round_num))
+    rows = df[earlier].dropna(subset=[*FEATURES, TARGET])
+    model = _build_model()
+    model.fit(rows[FEATURES].values, rows[TARGET].values)
+    return {"model": model, "features": FEATURES}
+
+
 def _print_feature_influence(model: Pipeline) -> None:
     """Print each feature's influence, whichever estimator kind is in use.
 

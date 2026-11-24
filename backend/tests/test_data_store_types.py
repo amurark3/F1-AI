@@ -161,6 +161,7 @@ def test_as_dict_keys_are_a_fixed_client_safe_set():
         "error_id",
         "reason",
         "host_kind",
+        "database",
         "pending_documents",
         "checked_seconds_ago",
     }

@@ -348,3 +348,51 @@ def test_a_call_that_did_not_land_fails_the_run(cli, monkeypatch):
     monkeypatch.setattr(backfill, "compute_and_store_race_prediction", lambda *_a, **_k: {"predictions": []})
 
     assert cli("--apply", "--through-round", "1") == 1
+
+
+# ---------------------------------------------------------------------------
+# A model as of each race (--point-in-time-model)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def per_race_models(monkeypatch) -> list[object]:
+    """Fake training and record which model each compute ran under."""
+    served: list[object] = []
+    monkeypatch.setattr(backfill, "fit_as_of", lambda df, year, round_num: ("model", df, year, round_num))
+    monkeypatch.setattr(backfill, "use_model", served.append)
+    return served
+
+
+def test_each_call_runs_under_a_model_trained_before_its_race_then_the_file_returns(per_race_models, computed):
+    calls = [
+        backfill.PlannedCall(1, "Opening GP", PHASE_PRE_QUALIFYING, existing=True),
+        backfill.PlannedCall(2, "Second GP", PHASE_POST_QUALIFYING, existing=True),
+    ]
+
+    assert backfill._run(YEAR, calls, dataset="rows") == 0
+    assert per_race_models == [("model", "rows", YEAR, 1), ("model", "rows", YEAR, 2), None]
+    assert [rnd for _, rnd, _, _ in computed] == [1, 2]
+
+
+def test_without_a_dataset_the_saved_model_is_left_alone(per_race_models, computed):
+    backfill._run(YEAR, [backfill.PlannedCall(1, "Opening GP", PHASE_PRE_QUALIFYING, existing=False)])
+
+    assert per_race_models == []
+
+
+def test_apply_with_point_in_time_models_collects_the_dataset_once(cli, monkeypatch, per_race_models, capsys):
+    collected: list[str] = []
+    monkeypatch.setattr(backfill, "collect_data", lambda: collected.append("rows") or "rows")
+
+    assert cli("--apply", "--through-round", "1", "--point-in-time-model") == 0
+    assert collected == ["rows"]
+    assert per_race_models[:2] == [("model", "rows", YEAR, 1), ("model", "rows", YEAR, 1)]
+    assert "a model trained before each race" in capsys.readouterr().out
+
+
+def test_a_dry_run_with_point_in_time_models_collects_nothing(cli, monkeypatch, capsys):
+    monkeypatch.setattr(backfill, "collect_data", lambda: pytest.fail("a dry run must not collect"))
+
+    assert cli("--point-in-time-model") == 0
+    assert "a model trained before each race" in capsys.readouterr().out

@@ -22,6 +22,11 @@ the race. Both documents are copied to ``--backup-dir`` before the first write.
 
 By default a phase that already holds a current-version snapshot is skipped,
 so an interrupted run resumes where it stopped. ``--recompute`` redoes those.
+
+The inputs are point-in-time, but the saved model file is trained on every race
+so far. ``--point-in-time-model`` trains a model per race on the races before it
+(the dataset is collected once from f1db), so no call is scored by weights that
+learned from its own result.
 """
 
 from __future__ import annotations
@@ -47,14 +52,17 @@ from app.data.predictions import (
     PHASE_PRE_QUALIFYING,
     should_use_qualifying,
 )
+from app.data.predictions.model import use_model
 from app.data.store import (
     DOCUMENT_PREDICTION_CACHE,
     DOCUMENT_PREDICTION_HISTORY,
     document_store,
 )
+from app.ml.train import collect_data, fit_as_of
 from app.services.prediction_cache import prediction_snapshot_cache
 from app.services.predictions import compute_and_store_race_prediction
 from app.utils.fastf1_cache import enable_fastf1_cache
+from scripts.write_target import check_write_target
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -142,13 +150,17 @@ def _describe(result: dict) -> str:
     )
 
 
-def _run(year: int, calls: list[PlannedCall]) -> int:
+def _run(year: int, calls: list[PlannedCall], dataset: pd.DataFrame | None = None) -> int:
     failures = 0
     for call in calls:
+        if dataset is not None:
+            use_model(fit_as_of(dataset, year, call.round_num))
         result = compute_and_store_race_prediction(year, call.round_num, reason=REASON, phase=call.phase)
         summary = _describe(result)
         failures += summary.startswith("FAILED") or "NOT DURABLE" in summary
         print(f"  R{call.round_num:>2} {call.phase:<16} {summary}", flush=True)
+    if dataset is not None:
+        use_model(None)
     return failures
 
 
@@ -158,8 +170,13 @@ def main() -> int:
     parser.add_argument("--through-round", type=int, help="last round to compute (default: the current race)")
     parser.add_argument("--recompute", action="store_true", help="also redo phases with a current snapshot")
     parser.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
+    parser.add_argument(
+        "--point-in-time-model", action="store_true", help="train a model per race on the races before it"
+    )
     parser.add_argument("--apply", action="store_true", help="compute and write")
     args = parser.parse_args()
+    if not check_write_target("backfill_predictions", apply=args.apply):
+        return 1
 
     enable_fastf1_cache()
     if not prediction_snapshot_cache.load():
@@ -169,6 +186,8 @@ def main() -> int:
     calls = _plan(args.year, args.through_round, args.recompute)
     print(f"store: {type(document_store).__name__}")
     print(f"{args.year}: {len(calls)} call(s) to compute")
+    if args.point_in_time_model:
+        print("model: a model trained before each race, on earlier races only")
     for call in calls:
         note = " (replaces a current-version snapshot)" if call.existing else ""
         print(f"  R{call.round_num:>2} {call.grand_prix:<28} {call.phase}{note}")
@@ -184,7 +203,8 @@ def main() -> int:
         return 1
     print(f"\nbacked up both documents to {backup}\n")
 
-    failures = _run(args.year, calls)
+    dataset = collect_data() if args.point_in_time_model else None
+    failures = _run(args.year, calls, dataset)
     print(f"\ndone. {len(calls) - failures}/{len(calls)} stored.")
     return 1 if failures else 0
 

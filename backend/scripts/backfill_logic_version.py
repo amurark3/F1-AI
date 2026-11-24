@@ -27,6 +27,7 @@ import copy
 
 from app.data.predictions import PREDICTION_LOGIC_VERSION
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
+from scripts.write_target import check_write_target
 
 BACKFILL_MARKER = "logic_version_backfilled"
 
@@ -112,6 +113,8 @@ def main() -> int:
         help="also stamp snapshots from an older numbered logic version",
     )
     args = parser.parse_args()
+    if not check_write_target("backfill_logic_version", apply=args.apply):
+        return 1
 
     read = document_store.read(DOCUMENT_PREDICTION_CACHE)
     if not read.ok:

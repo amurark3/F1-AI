@@ -834,3 +834,43 @@ def test_the_artifact_directory_is_created_when_absent(model_path, capsys):
     train(_training_frame())
 
     assert model_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# A model as of a race (point-in-time backfills)
+# ---------------------------------------------------------------------------
+
+
+class _FitSpy:
+    """Records the rows a model is fitted on."""
+
+    def __init__(self) -> None:
+        self.rows: list[tuple[int, int]] = []
+
+    def fit(self, features: np.ndarray, target: np.ndarray) -> _FitSpy:
+        self.rows = [(len(features), len(target))]
+        return self
+
+
+@pytest.mark.unit
+def test_a_model_as_of_a_race_learns_only_from_the_races_before_it(monkeypatch):
+    spy = _FitSpy()
+    monkeypatch.setattr(train_module, "_build_model", lambda: spy)
+
+    payload = train_module.fit_as_of(_training_frame(), 2024, 2)
+
+    # 2022 R1-R2, 2023 R1-R2 and 2024 R1: five races of six drivers, never 2024 R2.
+    assert spy.rows == [(30, 30)]
+    assert payload == {"model": spy, "features": FEATURES}
+
+
+@pytest.mark.unit
+def test_a_model_as_of_a_race_skips_rows_with_a_missing_input(monkeypatch):
+    spy = _FitSpy()
+    monkeypatch.setattr(train_module, "_build_model", lambda: spy)
+    frame = _training_frame()
+    frame.loc[0, "grid_position"] = np.nan
+
+    train_module.fit_as_of(frame, 2023, 1)
+
+    assert spy.rows == [(11, 11)]

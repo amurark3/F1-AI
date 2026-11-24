@@ -68,6 +68,9 @@ os.environ.setdefault("ENABLE_LOCAL_MODELS", "false")
 # OpenF1 requests are paced in production; against a mock transport the pause
 # is only wall-clock time. The pacer's own tests inject a gap and a clock.
 os.environ["OPENF1_MIN_REQUEST_GAP_SECONDS"] = "0"
+# Guarded scripts append a line per run to a log under data/backups; a test run
+# must never write into the working tree.
+os.environ["SCRIPT_RUN_LOG"] = os.devnull
 
 # Re-exported so any test module can request the shared f1db fixtures by name
 # without importing them itself. `pytest_plugins` is only honoured in the

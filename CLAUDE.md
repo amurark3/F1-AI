@@ -2,7 +2,7 @@
 
 ## Project rules
 
-The November 2026 redesign, data platform and backend hardening are complete (finished 2026-11-23). Their plans, task briefs and HTML mockups were deleted afterwards; read them in git history at `9a814aa` if you need the old reasoning. The shipped code is now the reference for how each page looks.
+The November 2026 redesign, data platform and backend hardening are complete (finished 2026-11-23). What was decided and why is in `docs/DECISIONS.md`. The plans, task briefs and HTML mockups were deleted afterwards; they are in git history at `9a814aa`. The shipped code is now the reference for how each page looks.
 
 - **Hosting:** Render (backend) + Supabase (Postgres + pgvector) + Vercel (frontend). A cron-job.org GET on `/api/health/deep` every 5 minutes keeps Render warm. The Oracle VM move is deferred, not scheduled: see `docs/plans/oracle-deferred/PLAN.md`, and don't start it unless the user says they have a VM.
 - **Data rules:** `docs/DATA_SOURCES.md`, mandatory before any data task. The FIA final classification is the authority. Label every special state (retired, did not start, disqualified, red-flag change, pit-lane start, provisional, stop time not published). Never infer finish status from laps or stints. OpenF1 goes through `app/data/openf1/client.get_json` and its pacer only; FIA pages through `app/data/power_units/fia_site.PoliteFetcher`.

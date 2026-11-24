@@ -35,7 +35,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | --- | --- | --- | --- | --- |
 | P0c.9 | Decommission Render, Supabase and the Render-era workflows (7 stable days after cutover; next PR) | blocked | | On `feat/oracle-backend`, after the cutover plus 7 stable days. Never on `dev`. |
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
-| P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
+| P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b merged; final gates after P3.6) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
 | P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, P3.6b–d) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
@@ -73,3 +73,16 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
   - **Not in P3.6's brief:** P3.5b touched `ui/placeTooltip.ts` + its test and `e2e/standings.spec.ts`. Check both against P3.6's files at merge (`placeTooltip` is shared kit).
   - **Merge:** merge `p3.5b` and `p3.6` into `dev` (no cherry-picks), then run the full e2e suite. Fix the `useServerStatus` mocks in P3.6's tests if the hook's return type changed.
 - **2026-11-23 · P3.5b and P3.6 resumed (user: "Resume").** Both executors continue in their worktrees from the paused state recorded above.
+- **2026-11-23 · P3.5b merged into `dev` (`f9b6788`, branch commit `5434be4`; Sonnet worktree executor).**
+  - **Executor's gates, run in the worktree:** lint, tsc and Prettier clean; vitest 2041 passed at 100 %; build clean, `/` still static; Playwright 66 passed.
+  - **Coordinator's checks:** one commit, clean tree, no suppressions; `backend.ts`, `champions.ts` and the page files untouched; only `vitest.config.mts` is shared with P3.6.
+  - **Outside the file list, accepted:**
+    - `ui/placeTooltip.ts` clamps a 320 px tooltip inside the viewport, after the 390 px visual check showed it at about −40 px.
+    - `e2e/standings.spec.ts` asserts the empty status region instead of no `dialog`.
+  - **Decisions:**
+    - **One sr-only `role="status"` region, in `ServerStatusNotice`.** The mockup put it on the bar slot; one region avoids two with the same name, so `WarmupLights` is visual only.
+    - **Dismiss hides the notice for the current run only.** A later failed fetch starts a new run.
+    - **The unreachable state has no e2e test.** Its 120 s timing is unit-tested with fake timers.
+  - **Not checked by eye:** "starting" on `/` at 390 px, and "back online" / lights out, which only e2e and unit tests cover.
+  - **P3.5 stays `in_progress`** until the full suite passes on `dev` with P3.6 merged.
+

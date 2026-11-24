@@ -4,23 +4,29 @@ export type ServerStatus = "unknown" | "warming" | "ready" | "unreachable";
 
 export interface ServerState {
   status: ServerStatus;
-  /** Human-readable description of the current warm-up step, when warming. */
+  /** The backend's description of the current warm-up step, from the last answer that had one. */
   detail: string | null;
-  /** Backend warm-up stage id, used to drive the start-light progress. */
+  /** Backend warm-up stage id, from the last answer. */
   stage: string | null;
+  /** How many of the five start lights are lit: the highest count this run has reached. */
+  lit: number;
   /**
-   * Counts probe runs. Lets the UI scope per-run state — a dismissal, the
-   * lights-out moment — to one run, so a later cold restart shows again.
+   * Counts probe runs. Lets the UI scope per-run state (a dismissal, the
+   * lights-out moment) to one run, so a later restart shows again.
    */
   run: number;
   /**
-   * True once the current run has seen the server warming. Distinguishes "was
-   * already warm" from "finished warming while you waited", so a warm server
-   * never flashes anything.
+   * True once the current run has seen the server not ready. Distinguishes
+   * "was already up" from "finished starting while you watched", so a server
+   * that is up never flashes anything.
    */
   waited: boolean;
-  /** Epoch ms at which the current run first saw the server warming. */
+  /** Epoch ms at which the current run first saw the server not ready. */
   warmingSince: number | null;
+  /** The run whose unreachable notice the visitor dismissed. */
+  dismissedRun: number;
+  /** The run whose "back online" moment has finished. */
+  launchedRun: number;
 }
 
 interface ReadyResponse {
@@ -29,18 +35,22 @@ interface ReadyResponse {
   detail: string;
 }
 
-const PROBE_TIMEOUT_MS = 4000;
-const PROBE_INTERVAL_MS = 3000;
-/** Give up after ~3 minutes. A cold start is ~50s; past this the server is down. */
-const MAX_ATTEMPTS = 60;
 /**
- * A warm server answers /api/ready well inside this. A first probe still
- * pending past it is being held by Render while the container boots, so the
- * warm-up screen goes up now rather than when the probe finally times out.
+ * Backend warm-up stages, in the order the server runs them (`WARMUP_STEPS` in
+ * backend/app/services/readiness.py, after `pending`). The stage in progress
+ * sets how many start lights are lit, so the lights fill as real work
+ * completes, never on a timer.
  */
-const SLOW_PROBE_MS = 1500;
-/** A tab hidden this long may come back to a server that spun down or restarted. */
-const STALE_TAB_MS = 60_000;
+export const STAGE_ORDER: readonly string[] = ["pending", "database", "model", "season", "store"];
+export const LIGHT_COUNT = STAGE_ORDER.length;
+
+/** How long the "back online" moment holds before the notice goes. */
+export const LAUNCH_DURATION_MS = 1200;
+
+export const PROBE_TIMEOUT_MS = 4000;
+const PROBE_INTERVAL_MS = 3000;
+/** A restart or a Render cold start (about a minute) is over well inside this; past it the server is down. */
+export const GIVE_UP_MS = 120_000;
 /** A failed request this soon after a probe said "ready" is not worth another probe. */
 const RECHECK_COOLDOWN_MS = 10_000;
 
@@ -48,32 +58,45 @@ const INITIAL_STATE: ServerState = {
   status: "unknown",
   detail: null,
   stage: null,
+  lit: 0,
   run: 0,
   waited: false,
   warmingSince: null,
+  dismissedRun: 0,
+  launchedRun: 0,
 };
+
+/**
+ * How many lights are lit, given the readiness answer and the count the run
+ * has already reached. Ready lights all five. A stage in progress sets its
+ * count (`pending` 1 to `store` 5). An unknown stage, or no answer at all
+ * (`stage` null), keeps what the run reached, with a floor of one so the
+ * lights never go out mid-restart. The count never drops within a run.
+ */
+export function lightsFor(stage: string | null, ready: boolean, reached = 0): number {
+  if (ready) return LIGHT_COUNT;
+  const fromStage = stage === null ? 0 : STAGE_ORDER.indexOf(stage) + 1;
+  return Math.max(1, reached, fromStage);
+}
 
 /**
  * Module-level store so every consumer shares one probe cycle.
  *
- * The probe hits /api/ready rather than /api/health deliberately. Health answers
- * "is the process up?", which on Render goes true within a second of the container
- * waking while the model and database are still loading — dropping the warm-up
- * screen long before the app can actually answer a data request. Readiness
- * tracks the thing the user is really waiting for.
+ * The probe hits /api/ready rather than /api/health deliberately: health says
+ * the process is up, which goes true while the model and database are still
+ * loading. Readiness tracks what the visitor is really waiting for. Only a
+ * failed probe counts as not ready; a slow one is just waiting.
  *
- * The probe doubles as the wake-up knock: any request to a spun-down Render
- * instance starts the container, which starts its warm-up. Because the probe is
- * started from the root layout, landing on any page triggers that.
+ * The probe doubles as the wake-up knock for a Render instance that spun down.
  */
 let state: ServerState = INITIAL_STATE;
 const listeners = new Set<() => void>();
 let started = false;
 let probing = false;
 let lastReadyAt = 0;
-let hiddenAt: number | null = null;
+let runStartedAt = 0;
 
-/** Publishes a new snapshot. Always builds a fresh object — never mutates. */
+/** Publishes a new snapshot. Always builds a fresh object, never mutates. */
 function publish(patch: Partial<ServerState>): void {
   state = { ...state, ...patch };
   listeners.forEach((listener) => listener());
@@ -91,9 +114,17 @@ export function getServerStatus(): ServerState {
   return state;
 }
 
-/** The server renders no warm-up screen; readiness is a client-only concern. */
+/** The server renders no notice; readiness is a client-only concern. */
 export function getServerStatusOnServer(): ServerState {
   return INITIAL_STATE;
+}
+
+/** The readiness body, or null when it is not the documented shape. Never trusts the wire. */
+export function parseReadiness(body: unknown): ReadyResponse | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { ready, stage, detail } = body as Record<string, unknown>;
+  if (typeof ready !== "boolean" || typeof stage !== "string" || typeof detail !== "string") return null;
+  return { ready, stage, detail };
 }
 
 async function fetchReadiness(): Promise<ReadyResponse | null> {
@@ -102,9 +133,9 @@ async function fetchReadiness(): Promise<ReadyResponse | null> {
   try {
     const res = await fetch(`${API_BASE}/api/ready`, { signal: controller.signal });
     if (!res.ok) return null;
-    return (await res.json()) as ReadyResponse;
+    return parseReadiness(await res.json());
   } catch {
-    // Timeout, network error, or a container that has not woken yet.
+    // Timeout, network error, bad JSON, or a container that has not woken yet.
     return null;
   } finally {
     clearTimeout(timeout);
@@ -114,82 +145,78 @@ async function fetchReadiness(): Promise<ReadyResponse | null> {
 function markWarming(readiness: ReadyResponse | null): void {
   publish({
     status: "warming",
-    detail: readiness?.detail ?? null,
-    stage: readiness?.stage ?? null,
+    detail: readiness?.detail ?? state.detail,
+    stage: readiness?.stage ?? state.stage,
+    lit: lightsFor(readiness?.stage ?? null, false, state.lit),
     waited: true,
     warmingSince: state.warmingSince ?? Date.now(),
   });
 }
 
-function finishRun(status: "ready" | "unreachable", stage: string | null): void {
+function finishReady(readiness: ReadyResponse): void {
   probing = false;
-  if (status === "ready") lastReadyAt = Date.now();
-  publish({ status, detail: null, stage });
+  lastReadyAt = Date.now();
+  const { run, waited } = state;
+  publish({ status: "ready", detail: null, stage: readiness.stage, lit: lightsFor(readiness.stage, true) });
+  // The "back online" moment ends on its own clock; only a run that waited has one.
+  if (waited) setTimeout(() => publish({ launchedRun: run }), LAUNCH_DURATION_MS);
 }
 
-async function poll(attempt: number): Promise<void> {
-  const slowProbe = attempt === 1 ? setTimeout(() => markWarming(null), SLOW_PROBE_MS) : undefined;
+async function poll(): Promise<void> {
   const readiness = await fetchReadiness();
-  clearTimeout(slowProbe);
 
   if (readiness?.ready) {
-    finishRun("ready", readiness.stage);
+    finishReady(readiness);
     return;
   }
-  if (attempt >= MAX_ATTEMPTS) {
-    // Stop rather than claim "warming up" forever against a dead server.
-    finishRun("unreachable", null);
+  if (Date.now() - runStartedAt >= GIVE_UP_MS) {
+    // Stop rather than claim "starting" forever against a dead server.
+    probing = false;
+    publish({ status: "unreachable", detail: null });
     return;
   }
 
   markWarming(readiness);
-  setTimeout(() => void poll(attempt + 1), PROBE_INTERVAL_MS);
+  setTimeout(() => void poll(), PROBE_INTERVAL_MS);
 }
 
 /**
- * Starts a probe run unless one is already looking.
- *
- * The status is left as it was until the probe answers (or is slow to), so a
- * recheck against a warm server changes nothing a consumer can see.
+ * Starts a probe run unless one is already looking. The status is left as it
+ * was until the probe answers, so a recheck against a server that is up
+ * changes nothing a consumer can see. `keepLights` carries the reached count
+ * across a visitor's retry.
  */
-function startRun(): void {
+function startRun(keepLights: boolean): void {
   if (probing) return;
   probing = true;
-  publish({ run: state.run + 1, waited: false, warmingSince: null });
-  void poll(1);
+  runStartedAt = Date.now();
+  publish({ run: state.run + 1, waited: false, warmingSince: null, lit: keepLights ? state.lit : 0 });
+  void poll();
 }
 
 /**
  * Asks the probe to look again because something suggests the server went away.
  *
  * Ignored before the first run (including during server rendering), while
- * offline — no connection is not a cold start, and coming back online
- * rechecks on its own — and just after a run confirmed the server ready.
+ * offline (no connection is not a restart; coming back online rechecks on its
+ * own) and just after a run confirmed the server ready.
  */
 export function recheckServer(): void {
   if (!started) return;
   if (!navigator.onLine) return;
   if (Date.now() - lastReadyAt < RECHECK_COOLDOWN_MS) return;
-  startRun();
+  startRun(false);
 }
 
-/**
- * Probes again on the user's say-so, bypassing the automatic guards. Shows
- * warming at once, so the button visibly does something before the probe lands.
- */
+/** Probes again on the visitor's say-so, bypassing the automatic guards. */
 export function retryServerProbe(): void {
-  startRun();
+  startRun(true);
   markWarming(null);
 }
 
-function onVisibilityChange(): void {
-  if (document.visibilityState === "hidden") {
-    hiddenAt = Date.now();
-    return;
-  }
-  const wasStale = hiddenAt !== null && Date.now() - hiddenAt >= STALE_TAB_MS;
-  hiddenAt = null;
-  if (wasStale) recheckServer();
+/** Hides the unreachable notice for the current run. */
+export function dismissServerNotice(): void {
+  publish({ dismissedRun: state.run });
 }
 
 function onPageShow(event: PageTransitionEvent): void {
@@ -197,22 +224,21 @@ function onPageShow(event: PageTransitionEvent): void {
   if (event.persisted) recheckServer();
 }
 
-/**
- * Listens for the moments a server that was ready may have gone cold: a tab
- * left in the background past Render's idle spin-down (the common mobile
- * case), a back/forward-cache restore, and the device coming back online.
- * Installed once for the life of the page.
- */
-function installRecheckTriggers(): void {
-  document.addEventListener("visibilitychange", onVisibilityChange);
-  window.addEventListener("pageshow", onPageShow);
-  window.addEventListener("online", recheckServer);
-}
-
 /** Starts the first probe run and the recheck triggers. Idempotent. */
 export function startServerProbe(): void {
   if (started) return;
   started = true;
-  installRecheckTriggers();
-  startRun();
+  window.addEventListener("pageshow", onPageShow);
+  window.addEventListener("online", recheckServer);
+  startRun(false);
+}
+
+export type NoticePhase = "warming" | "unreachable" | "launching";
+
+/** What the notice shows now; null while the backend is up. */
+export function noticePhase(server: ServerState): NoticePhase | null {
+  if (server.status === "warming") return "warming";
+  if (server.status === "unreachable") return server.dismissedRun === server.run ? null : "unreachable";
+  if (server.status === "ready" && server.waited && server.launchedRun !== server.run) return "launching";
+  return null;
 }

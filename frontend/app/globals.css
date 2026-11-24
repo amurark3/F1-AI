@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* Short viewports — a phone in landscape — where full-screen cards must tighten up to fit. */
-@custom-variant short (@media (max-height: 480px));
-
 /* ================================================
    F1 AI Design System
    ================================================ */
@@ -87,12 +84,10 @@
   --color-rc-bronze: var(--rc-bronze);
 
   /* Animation shorthands */
-  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
   --animate-streak: speed-streak 1.8s linear infinite;
   --animate-light-on: light-on 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-lights-out: lights-out 0.35s ease-out both;
   --animate-overlay-in: overlay-in 0.25s ease-out both;
-  --animate-overlay-out: overlay-out 1.2s ease-in both;
 
   /* Race-weekend showcase: weather glyphs, circuit map, entrance motion */
   --animate-wx-spin: wx-spin 18s linear infinite;
@@ -135,18 +130,6 @@ body {
    Keyframes
    ================================================ */
 
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
 /* Animated streak shimmer (used on speed stripe) */
 @keyframes speed-streak {
   from {
@@ -157,48 +140,25 @@ body {
   }
 }
 
-/* Start-light pod illuminating (warm-up stage reached) */
+/* A start light coming on (the restart lights in the top bar) */
 @keyframes light-on {
   from {
     opacity: 0.25;
     transform: scale(0.8);
   }
-  60% {
-    opacity: 1;
-    transform: scale(1.12);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
-/* Lights out — the gantry goes dark and the race starts */
+/* Lights out: a lit lamp goes dark, from the red it was */
 @keyframes lights-out {
   from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0.15;
-    transform: scale(0.9);
+    background-color: var(--f1-red);
+    box-shadow: none;
   }
 }
 
-/* Warm-up screen fading in over the app */
+/* A popover or menu fading in */
 @keyframes overlay-in {
   from {
-    opacity: 0;
-  }
-}
-
-/* Warm-up screen holding on lights out, then clearing the track */
-@keyframes overlay-out {
-  0%,
-  55% {
-    opacity: 1;
-  }
-  100% {
     opacity: 0;
   }
 }

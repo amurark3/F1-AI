@@ -2,7 +2,7 @@
  * Where a tooltip opens, from its trigger's box and the viewport, as `fixed`
  * offsets. No measuring of the tooltip itself: it opens below unless the room
  * there is short and there is more above, and it hangs from the trigger's
- * right edge when its widest form would run off screen.
+ * right edge when its widest form would run off screen, shifted right as far as it needs so a trigger mid-bar on a phone never pushes it off the left.
  */
 
 /** The gap between trigger and tooltip, and the least margin to the viewport edge, in px. */
@@ -40,7 +40,7 @@ export function placeTooltip(trigger: TriggerBox, viewport: Viewport): TooltipPl
       : { top: trigger.bottom + GAP };
   const horizontal =
     trigger.left + TOOLTIP_MAX_WIDTH + EDGE > viewport.width
-      ? { right: Math.max(EDGE, viewport.width - trigger.right) }
+      ? { right: Math.max(EDGE, Math.min(viewport.width - trigger.right, viewport.width - TOOLTIP_MAX_WIDTH - EDGE)) }
       : { left: trigger.left };
   return { ...vertical, ...horizontal };
 }

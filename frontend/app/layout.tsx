@@ -1,7 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-import ServerWarmingGate from "./components/ServerWarmingGate";
+import ServerStatusNotice from "./components/ServerStatusNotice";
 import { FONT_VARIABLES } from "./fonts";
 import { ConsentBanner } from "./ui/consent/ConsentBanner";
 import { GoogleAnalytics } from "./ui/consent/GoogleAnalytics";
@@ -25,9 +25,8 @@ export default function RootLayout({
     // The font variables sit on <html> so :root-level tokens that read them resolve.
     <html lang="en" className={FONT_VARIABLES}>
       <body className="antialiased">
-        <ServerWarmingGate>
-          <AppShell>{children}</AppShell>
-        </ServerWarmingGate>
+        <AppShell>{children}</AppShell>
+        <ServerStatusNotice />
         <Analytics />
         <SpeedInsights />
         {GA_ID === null ? null : (

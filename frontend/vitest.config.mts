@@ -11,6 +11,10 @@ import { defineConfig } from "vitest/config";
  * code is either tested or deleted.
  */
 const COVERAGE_INCLUDE = [
+  // P3.5: the restart lights (the bar's strip lives under app/ui/shell).
+  "app/components/ServerStatusNotice.tsx",
+  "app/hooks/useServerStatus.ts",
+  "app/lib/serverStatus.ts",
   // P3.4: the root layout, its faces, the 404 and the last-resort error page.
   "app/fonts.ts",
   "app/global-error.tsx",

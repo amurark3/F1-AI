@@ -6,7 +6,7 @@
 
 - **Branch `feat/oracle-backend`** (pushed, `3821aa5`) holds P0c.1–P0c.8, unmerged. Work on it only in a separate worktree, never on `dev`, and never cherry-pick from it (user, 2026-11-23: reimplement Render-safe parts on `dev` instead).
 - **If Oracle resumes:** rebase that branch onto `dev` and drop P0c.7's frontend half (P3.5 reimplemented it on `dev`). Keep `backend.ts`'s 10 s budget and 429 retry while Render is production.
-- History (evidence, audits, P0c.1–P0c.8 rows) is in [`../2026-11-redesign/STATUS-archive.md`](../2026-11-redesign/STATUS-archive.md).
+- History (evidence, audits, P0c.1–P0c.8 rows) was in the redesign `STATUS.md` / `STATUS-archive.md`, deleted after the redesign finished. Read them at commit `9a814aa`: `git show 9a814aa:docs/plans/2026-11-redesign/STATUS-archive.md`. References below to "the `STATUS.md` log" mean that file.
 
 | ID          | Task                                                                                                         | Status                   | Notes                              |
 | ----------- | ------------------------------------------------------------------------------------------------------------ | ------------------------ | ---------------------------------- |

@@ -1,4 +1,4 @@
-/** Geometry of the race trace, kept apart from the markup. The numbers follow `docs/design/redesign/debrief.html`. */
+/** Geometry of the race trace, kept apart from the markup. */
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { spreadLabels } from "@/app/ui/slopeLayout";

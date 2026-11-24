@@ -1,6 +1,6 @@
 /**
  * Geometry and wording for the title-race chart, kept apart from the markup so
- * it is tested directly. The numbers follow `docs/design/redesign/standings.html`.
+ * it is tested directly.
  */
 
 import { getTeamColor } from "@/app/lib/teamColors";

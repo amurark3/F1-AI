@@ -1,19 +1,23 @@
 # F1-AI
 
-## Active plan (Nov 2026): read this first
+## Project rules
 
-Work on accuracy fixes, the data platform and the site-wide redesign follows `docs/plans/2026-11-redesign/PLAN.md`. Progress lives in `docs/plans/2026-11-redesign/STATUS.md`.
+The November 2026 redesign, data platform and backend hardening are complete (finished 2026-11-23). Their plans, task briefs and HTML mockups were deleted afterwards; read them in git history at `9a814aa` if you need the old reasoning. The shipped code is now the reference for how each page looks.
 
-- **Backend hardening (from the 2026-11-23 audit)** runs from `docs/plans/2026-11-hardening/PLAN.md`, status in its `STATUS.md`, under the same rules.
-- **Oracle hosting is deferred** (user, 2026-11-23: no VM, may never get one): P0c, P0b.1b and the cutover live in `docs/plans/oracle-deferred/PLAN.md`. Not scheduled; production is Render + Supabase.
-- **Before any work,** follow PLAN.md's "How to run this plan": check git, open STATUS.md, and re-verify any `in_progress` task before continuing it. Never continue from memory.
-- **Visual spec:** `docs/design/redesign/` (start at `index.html`).
-- **Data rules:** `docs/DATA_SOURCES.md`. The FIA final classification is the authority, and every special state (retired, red-flag change, pit-lane start, provisional) is labelled.
-- **Design rules:** the "Visual and design work" section below reflects PLAN.md's "Locked decisions": Barlow Condensed display titles, the B1 logo, legends allowed.
+- **Hosting:** Render (backend) + Supabase (Postgres + pgvector) + Vercel (frontend). A cron-job.org GET on `/api/health/deep` every 5 minutes keeps Render warm. The Oracle VM move is deferred, not scheduled: see `docs/plans/oracle-deferred/PLAN.md`, and don't start it unless the user says they have a VM.
+- **Data rules:** `docs/DATA_SOURCES.md`, mandatory before any data task. The FIA final classification is the authority. Label every special state (retired, did not start, disqualified, red-flag change, pit-lane start, provisional, stop time not published). Never infer finish status from laps or stints. OpenF1 goes through `app/data/openf1/client.get_json` and its pacer only; FIA pages through `app/data/power_units/fia_site.PoliteFetcher`.
+- **Names:** f1db is canonical (`driver.name` / `last_name` / `abbreviation`, the constructor id), resolved on the read path, with no identity table. Full name in heroes, code + surname in tables, code on chart axes, always via `DriverName` / `TeamName`.
+- **Loading:** no page awaits backend data at page level. The shell renders at once; each data section is its own Suspense boundary or `useSection` fetch with its own skeleton. A section that has data keeps it, marked stale, when a refresh fails. One endpoint per independent section. The server-warm-up notice never blocks a page.
+- **Homepage** (`/`) is static: it fetches nothing and shows no live or baked-in data.
+- **Navigation:** one top bar, grouped by job: Race Control, then menus Races, Season and Reference, with AI Engineer on the right; the race pages share a "This race" switcher.
+- **Frontend gates:** `npm run lint` (clean, never `eslint-disable`), `typecheck`, `test:coverage` (literal 100 % per file across `app/**`, no coverage-ignore comments; delete dead code instead), `build`, `npx playwright test`. Prettier only on changed files.
+- **Backend gates:** `.venv/bin/python -m pytest -q` (100 %), Ruff lint/format. Build `.venv` from `requirements-ingest.txt` + `requirements-dev.txt`; keep `requests==2.33.1`; one FastF1 lock (`app/utils/fastf1_lock.py`).
+- **Running locally:** `backend/.env` holds no production credentials; production values live in the untracked `backend/.env.production`, opted into with `.venv/bin/dotenv -f .env.production run -- …`. After `next dev`, delete the untracked `frontend/AGENTS.md` it writes.
+- **TDD:** write the failing test first for every model, hook, parser and resolver.
 
 ## Visual and design work
 
-The `design-director` skill (`.claude/skills/design-director/`) applies to new pages, components, charts, decks and reports. In this repo the design system below and the mockups in `docs/design/redesign/` win: elevate within them — hierarchy, spacing, data presentation — rather than inventing a new look.
+The `design-director` skill (`.claude/skills/design-director/`) applies to new pages, components, charts, decks and reports. In this repo the design system below and the shipped pages win: elevate within them — hierarchy, spacing, data presentation — rather than inventing a new look. The logo is B1 "Apex" (`app/ui/BrandLockup.tsx`).
 
 - **UI kit first:** before building a component, look in `frontend/app/ui/` (`PageHero`, `StatTile(s)`, `PanelHeading`, `SectionHead`, `Segmented`, `DeltaChip`, `Countdown`, `Legend`, `RankBars`, `Gauge`, `SlopeChart`, `SourceBadge`, `Tooltip` …). Extend a kit part rather than building a look-alike.
 - **Tokens live in `frontend/app/globals.css`**: `:root` variables plus the Tailwind v4 `@theme inline` block (`text-rc-ink-2`, `bg-rc-gain`, `bg-f1-red`, `font-display` …). New pages and components must use them. Add any new token there instead of hard-coding colors, fonts or animations inline.

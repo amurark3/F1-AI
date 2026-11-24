@@ -20,5 +20,5 @@
   "openf1_drivers_practice3.json": "GET https://api.openf1.org/v1/drivers?session_key=11407 captured 2026-11-14 for D1.6; unedited apart from JSON indentation.",
   "openf1_race_control_practice3.json": "GET https://api.openf1.org/v1/race_control?session_key=11407 captured 2026-11-14 for D1.6; unedited apart from JSON indentation. Deletes car 51 (1:34.799) and car 3 (1:52.648) for track limits."
  },
- "notes": "Unedited apart from JSON indentation. Jolpica now codes Câmara CAM, but the FastF1 results production loaded for R20 qualifying had no Abbreviation for him (STATUS.md log, 2026-11-08), so the tests blank that one cell to NaN the way pandas hands it over. openf1_sessions.json and openf1_drivers_practice1.json predate this file (captured 2 Nov 2026; see tests/roster_support.py)."
+ "notes": "Unedited apart from JSON indentation. Jolpica now codes Câmara CAM, but the FastF1 results production loaded for R20 qualifying had no Abbreviation for him (redesign STATUS.md log in git history, 2026-11-08), so the tests blank that one cell to NaN the way pandas hands it over. openf1_sessions.json and openf1_drivers_practice1.json predate this file (captured 2 Nov 2026; see tests/roster_support.py)."
 }

@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 /**
  * Source held to 100% coverage, per file, on every metric: all of `app/**`.
  *
- * The ratchet is complete (docs/plans/2026-11-redesign/PLAN.md, P9): every
+ * The ratchet is complete (redesign P9): every
  * file joined once its tests covered it fully, and nothing leaves. There is no
  * escape hatch: ESLint rejects coverage-ignore hint comments, so uncovered
  * code is either tested or deleted. Config files (`next.config.ts`,

@@ -1,7 +1,7 @@
 /**
  * The Review view's rows and sentences, computed from the stored review and the
  * Results classification. A retirement carries its call, `DNF` and a reason,
- * never a place or a delta (docs/design/redesign/grand-prix-tabs.md, Predictions).
+ * never a place or a delta.
  */
 
 import { stoppedLabel, type RaceResultsResponse } from "./resultsModel";

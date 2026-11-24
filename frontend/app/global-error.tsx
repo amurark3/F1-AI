@@ -16,7 +16,7 @@ interface GlobalErrorProps {
   retry: () => void;
 }
 
-/** The mockups' `.btn` (`docs/design/redesign/system.css`): display caps on a 48 px button. */
+/** The site's button style: display caps on a 48 px button. */
 const BUTTON =
   "inline-flex h-12 items-center px-6 font-display text-[19px] font-extrabold uppercase leading-none tracking-[0.02em]";
 const PRIMARY = `${BUTTON} bg-f1-red text-rc-ink transition-[filter] hover:brightness-110`;

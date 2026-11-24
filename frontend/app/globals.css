@@ -27,7 +27,7 @@
   --surface: #0d111b;
   --surface-raised: #101520;
 
-  /* Redesign palette (docs/design/redesign/system.css). Mirrored for SVG and
+  /* Redesign palette. Mirrored for SVG and
      Recharts in app/ui/tokens.ts; tokens.test.ts keeps the two equal. */
   --rc-hero: #0b0f18; /* hero band, and the tile of the B1 logo mark */
   --rc-raised: #121826; /* raised surfaces: chart tooltips, popovers */

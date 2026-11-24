@@ -83,7 +83,7 @@
  *   forecast, so it is `risk._weather_risk` over that file's `session_weather`.
  * - `sao_paulo_wet` (10 Nov, P0b.4): the same plan as `overview-strategy-2026.json`
  *   with the race-day rain read at 92%, the peak of the 17:00-19:00 UTC race
- *   window in the Open-Meteo answer of 6 Nov (STATUS.md log): the dry plan is
+ *   window in the Open-Meteo answer of 6 Nov (redesign log): the dry plan is
  *   the secondary branch.
  * - `madring_no_edition` (10 Nov, P0b.4): `build_baseline(2026, None, None)`,
  *   what the panel gets for a circuit with no raced edition since 2023 (Madring
@@ -150,7 +150,7 @@
  *   - `las_vegas_none`: round 21 with neither source answering: no grid yet.
  * - `prediction-orders-2026.json`: production's stored prediction snapshots
  *   (`GET /api/predictions/2026/{round}/snapshot?phase=…`), captured on 8 Nov
- *   for the 2026-11-08 audit (`STATUS.md` log), each row kept to `position`,
+ *   for the 2026-11-08 audit (redesign log), each row kept to `position`,
  *   `driver_code`, `driver_name` and `team`: São Paulo after qualifying
  *   (stored 8 Nov 00:45 UTC, Câmara scored from "P23") and before it
  *   (00:46 UTC), and Mexico City after qualifying (stored 1 Nov 01:45 UTC,

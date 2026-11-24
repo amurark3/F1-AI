@@ -2,7 +2,7 @@ import { HomeHero } from "./home/HomeHero";
 import { HomeSections } from "./home/HomeSections";
 
 /**
- * The landing page (docs/design/redesign/home.html).
+ * The landing page.
  *
  * Static by decision (PLAN, Locked decisions: Homepage): it fetches nothing,
  * not even at build time, and shows no live or baked-in data, so `next build`

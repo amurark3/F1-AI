@@ -1,4 +1,4 @@
-/** Geometry of the lap chart, kept apart from the markup. The numbers follow `docs/design/redesign/race-rewind.html`. */
+/** Geometry of the lap chart, kept apart from the markup. */
 
 import { getTeamColor } from "@/app/lib/teamColors";
 import { spreadLabels } from "@/app/ui/slopeLayout";

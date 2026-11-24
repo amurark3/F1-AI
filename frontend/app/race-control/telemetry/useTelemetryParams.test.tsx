@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readParams, useTelemetryParams } from "./useTelemetryParams";
+import { defaultTelemetryUrl, readParams, useTelemetryParams } from "./useTelemetryParams";
 
 const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
 
@@ -52,6 +52,16 @@ describe("readParams", () => {
     expect(read("segment=4").segment).toBeNull();
     expect(read("segment=0").segment).toBeNull();
     expect(read("segment=q3").segment).toBeNull();
+  });
+});
+
+describe("defaultTelemetryUrl", () => {
+  it("is the default selection, and changes go nowhere", () => {
+    const url = defaultTelemetryUrl(2026);
+
+    expect(url.params).toEqual(read(""));
+    expect(url.update({ round: 3 })).toBeUndefined();
+    expect(nav.replace).not.toHaveBeenCalled();
   });
 });
 

@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense, use } from "react";
+
 import { API_BASE } from "@/app/constants/api";
 import { PageHero } from "@/app/ui/PageHero";
-import { Section } from "@/app/ui/section/Section";
+import { Section, SectionSkeleton } from "@/app/ui/section/Section";
 import { useSection, type SectionResult } from "@/app/ui/section/useSection";
 
 import { BaselineStrategyPanel } from "./components/BaselineStrategyPanel";
@@ -45,14 +47,18 @@ function useOverviewSegment<T>(year: number, path: string, seed: T | null): Sect
   return useSection<T>(`${API_BASE}/api/race-control/overview/${year}${path}`, { seed, config: SWR_OPTIONS });
 }
 
-/** The five overview payloads the server managed to prefetch. */
-export interface OverviewSeed {
-  year: number;
-  shell: OverviewShell | null;
-  strategy: OverviewStrategy | null;
-  predictions: OverviewPredictions | null;
-  weather: OverviewWeather | null;
-  circuit: OverviewCircuit | null;
+/** The five overview payloads, each still on its way from the server (`null` once it gave up). */
+export interface OverviewSeeds {
+  shell: Promise<OverviewShell | null>;
+  strategy: Promise<OverviewStrategy | null>;
+  predictions: Promise<OverviewPredictions | null>;
+  weather: Promise<OverviewWeather | null>;
+  circuit: Promise<OverviewCircuit | null>;
+}
+
+/** One segment, read from its server promise: only the slot that calls this waits for it. */
+function useSegment<T>(year: number, path: string, seed: Promise<T | null>): SectionResult<T> {
+  return useOverviewSegment<T>(year, path, use(seed));
 }
 
 interface HeroSlotProps {
@@ -137,59 +143,140 @@ function SourcesDisclosure({ assumptions }: { assumptions: string[] }) {
   );
 }
 
-export function CommandCenterView({ seed }: { seed: OverviewSeed }) {
-  const { year } = seed;
+interface SlotProps {
+  year: number;
+  seeds: OverviewSeeds;
+}
 
-  // Each segment follows the readiness probe through `useSection`, so a
-  // restarting backend keeps skeletons rather than reporting a fault.
-  const shell = useOverviewSegment<OverviewShell>(year, "/shell", seed.shell);
-  const strategy = useOverviewSegment<OverviewStrategy>(year, "/strategy", seed.strategy);
-  const predictions = useOverviewSegment<OverviewPredictions>(year, "/predictions", seed.predictions);
-  const weather = useOverviewSegment<OverviewWeather>(year, "/weather", seed.weather);
-  const circuit = useOverviewSegment<OverviewCircuit>(year, "/circuit", seed.circuit);
+function Hero({ year, seeds }: SlotProps) {
+  const shell = useSegment(year, "/shell", seeds.shell);
+  const circuit = useSegment(year, "/circuit", seeds.circuit);
+  const weather = useSegment(year, "/weather", seeds.weather);
+  return <HeroSlot shell={shell} circuit={circuit} weather={weather} />;
+}
 
-  const race = shell.data?.race;
-  const context = strategy.data?.strategy_context;
-  const venue = race?.location.split(",")[0] ?? "this round";
+function Numbers({ year, seeds }: SlotProps) {
+  const shell = useSegment(year, "/shell", seeds.shell);
+  const strategy = useSegment(year, "/strategy", seeds.strategy);
+  const weather = useSegment(year, "/weather", seeds.weather);
+  const circuit = useSegment(year, "/circuit", seeds.circuit);
+  return <WeekendNumbers shell={shell} strategy={strategy} weather={weather} circuit={circuit} />;
+}
 
+function LiveSlots({ year, seeds }: SlotProps) {
+  const race = useSegment(year, "/shell", seeds.shell).data?.race;
   return (
-    <div className="space-y-5">
-      <HeroSlot shell={shell} circuit={circuit} weather={weather} />
-      <WeekendNumbers shell={shell} strategy={strategy} weather={weather} circuit={circuit} />
+    <>
       <LiveTimingTower year={year} race={race} />
       <FiaFeedPanel year={year} race={race} />
+    </>
+  );
+}
 
-      <Section state={weather} label="Weather feed" skeletonClassName="h-[440px]">
-        <WeekendForecast weather={weather.data?.session_weather} />
-      </Section>
+function WeatherFeed({ year, seeds }: SlotProps) {
+  const weather = useSegment(year, "/weather", seeds.weather);
+  return (
+    <Section state={weather} label="Weather feed" skeletonClassName="h-[440px]">
+      <WeekendForecast weather={weather.data?.session_weather} />
+    </Section>
+  );
+}
+
+function Stakes({ year, seeds }: SlotProps) {
+  const shell = useSegment(year, "/shell", seeds.shell);
+  const venue = shell.data?.race?.location.split(",")[0] ?? "this round";
+  return (
+    <Section state={shell} label="Championship standings" skeletonClassName="h-[420px]">
+      <ChampionshipStakes stakes={shell.data?.stakes} venue={venue} />
+    </Section>
+  );
+}
+
+function Podium({ year, seeds }: SlotProps) {
+  const predictions = useSegment(year, "/predictions", seeds.predictions);
+  return (
+    <Section state={predictions} label="Prediction snapshot" skeletonClassName="h-[420px]">
+      <PodiumPanel podium={predictions.data?.predicted_podium ?? []} />
+    </Section>
+  );
+}
+
+function CircuitHistory({ year, seeds }: SlotProps) {
+  const circuit = useSegment(year, "/circuit", seeds.circuit);
+  return (
+    <Section state={circuit} label="Circuit history" skeletonClassName="h-[420px]">
+      <CircuitHistoryPanel record={circuit.data?.record} />
+    </Section>
+  );
+}
+
+function Baseline({ year, seeds }: SlotProps) {
+  const strategy = useSegment(year, "/strategy", seeds.strategy);
+  return (
+    <Section state={strategy} label="Baseline strategy" skeletonClassName="h-[420px]" className="flex-1">
+      <BaselineStrategyPanel context={strategy.data?.strategy_context} />
+    </Section>
+  );
+}
+
+function RiskRegister({ year, seeds }: SlotProps) {
+  const weather = useSegment(year, "/weather", seeds.weather);
+  return (
+    <Section state={weather} label="Risk register" skeletonClassName="h-[420px]" className="xl:w-[400px] xl:shrink-0">
+      <RiskRegisterPanel risks={weather.data?.risk_register ?? []} />
+    </Section>
+  );
+}
+
+function Sources({ year, seeds }: SlotProps) {
+  const strategy = useSegment(year, "/strategy", seeds.strategy);
+  return <SourcesDisclosure assumptions={strategy.data?.strategy_context?.assumptions ?? []} />;
+}
+
+/**
+ * Every slot reads only the server promises it shows, behind its own boundary, so the
+ * page frame paints at once and each section fills as its segment arrives.
+ */
+export function CommandCenterView({ year, seeds }: SlotProps) {
+  return (
+    <div className="space-y-5">
+      <Suspense fallback={<SkeletonPanel className="h-[460px]" />}>
+        <Hero year={year} seeds={seeds} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton className="h-28" />}>
+        <Numbers year={year} seeds={seeds} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LiveSlots year={year} seeds={seeds} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton className="h-[440px]" />}>
+        <WeatherFeed year={year} seeds={seeds} />
+      </Suspense>
 
       <div className="grid gap-5 xl:grid-cols-3 [&>*]:min-w-0">
-        <Section state={shell} label="Championship standings" skeletonClassName="h-[420px]">
-          <ChampionshipStakes stakes={shell.data?.stakes} venue={venue} />
-        </Section>
-        <Section state={predictions} label="Prediction snapshot" skeletonClassName="h-[420px]">
-          <PodiumPanel podium={predictions.data?.predicted_podium ?? []} />
-        </Section>
-        <Section state={circuit} label="Circuit history" skeletonClassName="h-[420px]">
-          <CircuitHistoryPanel record={circuit.data?.record} />
-        </Section>
+        <Suspense fallback={<SectionSkeleton className="h-[420px]" />}>
+          <Stakes year={year} seeds={seeds} />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton className="h-[420px]" />}>
+          <Podium year={year} seeds={seeds} />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton className="h-[420px]" />}>
+          <CircuitHistory year={year} seeds={seeds} />
+        </Suspense>
       </div>
 
       <div className="flex flex-col gap-5 xl:flex-row [&>*]:min-w-0">
-        <Section state={strategy} label="Baseline strategy" skeletonClassName="h-[420px]" className="flex-1">
-          <BaselineStrategyPanel context={context} />
-        </Section>
-        <Section
-          state={weather}
-          label="Risk register"
-          skeletonClassName="h-[420px]"
-          className="xl:w-[400px] xl:shrink-0"
-        >
-          <RiskRegisterPanel risks={weather.data?.risk_register ?? []} />
-        </Section>
+        <Suspense fallback={<SectionSkeleton className="h-[420px] flex-1" />}>
+          <Baseline year={year} seeds={seeds} />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton className="h-[420px] xl:w-[400px] xl:shrink-0" />}>
+          <RiskRegister year={year} seeds={seeds} />
+        </Suspense>
       </div>
 
-      <SourcesDisclosure assumptions={context?.assumptions ?? []} />
+      <Suspense fallback={<SourcesDisclosure assumptions={[]} />}>
+        <Sources year={year} seeds={seeds} />
+      </Suspense>
     </div>
   );
 }

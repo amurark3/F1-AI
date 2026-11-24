@@ -1,6 +1,6 @@
 import { currentSeason, getOverviewSegment } from "@/app/lib/server/raceControl";
 
-import { CommandCenterView, type OverviewSeed } from "./CommandCenterView";
+import { CommandCenterView } from "./CommandCenterView";
 
 import type {
   OverviewPredictions,
@@ -24,21 +24,20 @@ export const metadata: Metadata = {
     "The Formula 1 race weekend at a glance — circuit map, session-by-session weather, championship stakes, projected podium, circuit history, and baseline strategy.",
 };
 
-export default async function RaceControlHome() {
+export default function RaceControlHome() {
   const year = currentSeason();
 
-  // Five parallel requests, each its own cache entry, so one slow segment
-  // neither blocks the others nor invalidates their cached copies. Any that
-  // does not arrive in time is simply left unseeded — the browser fetches it.
-  const [shell, strategy, predictions, weather, circuit] = await Promise.all([
-    getOverviewSegment<OverviewShell>(year, "/shell"),
-    getOverviewSegment<OverviewStrategy>(year, "/strategy"),
-    getOverviewSegment<OverviewPredictions>(year, "/predictions"),
-    getOverviewSegment<OverviewWeather>(year, "/weather"),
-    getOverviewSegment<OverviewCircuit>(year, "/circuit"),
-  ]);
+  // Five parallel requests, each its own cache entry, and nothing is awaited here:
+  // each slot of the view waits only for the segments it shows, so one slow segment
+  // neither blocks the page nor the others. Any that does not arrive in time is
+  // simply left unseeded — the browser fetches it.
+  const seeds = {
+    shell: getOverviewSegment<OverviewShell>(year, "/shell"),
+    strategy: getOverviewSegment<OverviewStrategy>(year, "/strategy"),
+    predictions: getOverviewSegment<OverviewPredictions>(year, "/predictions"),
+    weather: getOverviewSegment<OverviewWeather>(year, "/weather"),
+    circuit: getOverviewSegment<OverviewCircuit>(year, "/circuit"),
+  };
 
-  const seed: OverviewSeed = { year, shell, strategy, predictions, weather, circuit };
-
-  return <CommandCenterView seed={seed} />;
+  return <CommandCenterView year={year} seeds={seeds} />;
 }

@@ -31,4 +31,11 @@ describe("placeTooltip", () => {
   it("keeps a margin from the viewport edge when the trigger itself overflows", () => {
     expect(placeTooltip({ left: 1200, top: 100, right: 1300, bottom: 120 }, VIEWPORT)).toEqual({ top: 128, right: 8 });
   });
+
+  it("never runs off the left edge when a trigger far from the right edge hangs its widest form", () => {
+    const phone = { width: 390, height: 844 };
+    const placed = placeTooltip({ left: 158, top: 20, right: 280, bottom: 40 }, phone);
+
+    expect(placed).toEqual({ top: 48, right: phone.width - TOOLTIP_MAX_WIDTH - 8 });
+  });
 });

@@ -1,9 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteHeader } from "./SiteHeader";
 
 vi.mock("./RaceStatusChip", () => ({ RaceStatusChip: () => <span>Race status</span> }));
+vi.mock("./WarmupLights", () => ({ WarmupLights: ({ phase }: { phase: string }) => <span>Lights: {phase}</span> }));
+const hook = vi.hoisted(() => ({ useServerStatus: vi.fn() }));
+vi.mock("@/app/hooks/useServerStatus", () => hook);
+
+const up = { status: "ready", run: 1, waited: false, dismissedRun: 0, launchedRun: 0 };
+beforeEach(() => hook.useServerStatus.mockReturnValue(up));
 
 const banner = () => screen.getByRole("banner");
 
@@ -32,5 +38,19 @@ describe("SiteHeader", () => {
     render(<SiteHeader pathname="/" />);
 
     expect(within(banner()).queryByText("Race status")).toBeNull();
+  });
+
+  it("hands the slot to the restart lights on every route and width while the backend restarts", () => {
+    hook.useServerStatus.mockReturnValue({ ...up, status: "warming" });
+    const { rerender } = render(<SiteHeader pathname="/" />);
+
+    const lights = within(banner()).getByText("Lights: warming");
+    expect(lights.parentElement).toHaveClass("flex");
+    expect(lights.parentElement).not.toHaveClass("hidden");
+    expect(within(banner()).queryByText("Race status")).toBeNull();
+
+    rerender(<SiteHeader pathname="/race-control/telemetry" />);
+    expect(within(banner()).queryByText("Race status")).toBeNull();
+    expect(within(banner()).getByText("Lights: warming")).toBeInTheDocument();
   });
 });

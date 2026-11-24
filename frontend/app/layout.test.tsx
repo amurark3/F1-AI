@@ -17,9 +17,7 @@ vi.mock("./ui/consent/GoogleAnalytics", () => ({
   GoogleAnalytics: ({ id }: { id: string }) => <div data-testid="ga" data-id={id} />,
 }));
 vi.mock("./ui/consent/ConsentBanner", () => ({ ConsentBanner: () => <div data-testid="consent" /> }));
-vi.mock("./components/ServerWarmingGate", () => ({
-  default: ({ children }: { children: ReactNode }) => <div data-testid="warm-up">{children}</div>,
-}));
+vi.mock("./components/ServerStatusNotice", () => ({ default: () => <div data-testid="status-notice" /> }));
 vi.mock("./ui/shell/AppShell", () => ({
   AppShell: ({ children }: { children: ReactNode }) => <div data-testid="shell">{children}</div>,
 }));
@@ -40,15 +38,16 @@ describe("RootLayout", () => {
     expect(document.documentElement).toHaveClass("face--font-geist-sans", "face--font-geist-mono", "face--font-barlow");
   });
 
-  it("frames the page in the shell, inside the warm-up gate", () => {
+  it("frames the page in the shell, with the status notice beside it and never around it", () => {
     render(
       <RootLayout>
         <p>Page</p>
       </RootLayout>,
     );
 
-    expect(screen.getByTestId("warm-up")).toContainElement(screen.getByTestId("shell"));
     expect(screen.getByTestId("shell")).toHaveTextContent("Page");
+    expect(screen.getByTestId("shell")).not.toContainElement(screen.getByTestId("status-notice"));
+    expect(screen.getByTestId("status-notice")).not.toContainElement(screen.getByTestId("shell"));
   });
 
   it("leaves Google Analytics and its banner out when no measurement ID is set", () => {

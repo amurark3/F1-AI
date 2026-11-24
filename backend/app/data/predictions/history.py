@@ -88,6 +88,7 @@ def prediction_call(predictions: dict) -> dict | None:
             "crash_risk_pct": entry.get("crash_risk_pct"),
             "mechanical_risk_pct": entry.get("mechanical_risk_pct"),
             "risk_level": entry.get("risk_level"),
+            "risk_model": entry.get("risk_model"),
         }
         for entry in predictions.get("risk_predictions", [])
         if entry.get("driver_code")

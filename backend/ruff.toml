@@ -270,3 +270,4 @@ ban-relative-imports = "all"
 # finding it silences.
 "app/data/f1db_source.py" = ["T20"]
 "app/services/self_improvement.py" = ["T20"]
+"app/ml/risk_model.py" = ["T20"]

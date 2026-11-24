@@ -295,25 +295,28 @@ def test_drivers_outside_the_shared_set_never_reach_the_denominator():
 @pytest.mark.unit
 def test_risk_flags_are_scored_against_their_thresholds():
     race = {
-        "predicted": {"VER": 1, "NOR": 2, "LEC": 3},
-        "actual": {"VER": 1, "NOR": 2, "LEC": 3},
+        "predicted": {"VER": 1, "NOR": 2, "LEC": 3, "HAM": 4},
+        "actual": {"VER": 1, "NOR": 2, "LEC": 3, "HAM": 4},
         "risk_predictions": {
             "VER": {"dnf_risk_pct": 16, "crash_risk_pct": 10},
             "NOR": {"dnf_risk_pct": 15.9, "crash_risk_pct": 9.9},
             "LEC": {"dnf_risk_pct": 40, "crash_risk_pct": 30},
+            # A fitted row is judged by the fitted scale: 15 / 7 call it.
+            "HAM": {"dnf_risk_pct": 15, "crash_risk_pct": 7, "risk_model": "fitted-v1"},
         },
         "actual_incidents": {
             "VER": {"dnf": True, "crash": True},
             "NOR": {"dnf": True, "crash": False},
+            "HAM": {"dnf": True, "crash": True},
         },
     }
 
     tally = module._score_race(race)
 
-    assert tally.dnf_actual == 2
-    assert tally.dnf_correct == 1  # VER was flagged at the threshold; NOR just under.
-    assert tally.crash_actual == 1
-    assert tally.crash_correct == 1
+    assert tally.dnf_actual == 3
+    assert tally.dnf_correct == 2  # VER and fitted HAM flagged at their thresholds; NOR just under.
+    assert tally.crash_actual == 2
+    assert tally.crash_correct == 2
 
 
 @pytest.mark.unit

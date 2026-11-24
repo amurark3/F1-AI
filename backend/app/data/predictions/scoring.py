@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from app.data.predictions.incidents import _load_recent_incidents
+from app.ml.risk_predict import risk_probabilities
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -23,9 +24,25 @@ logger = structlog.get_logger()
 
 # Risk percentages at or above which a prediction counts as having called the
 # incident. Shared so the post-race review and the rolling accuracy stats score
-# the same prediction the same way.
-DNF_RISK_THRESHOLD = 16
-CRASH_RISK_THRESHOLD = 10
+# the same prediction the same way. Stored snapshots predate the fitted model and
+# carry the hand-tuned scale (about 7-42), so a risk row is judged by the
+# thresholds of the model that wrote it: rows without ``risk_model`` are legacy.
+LEGACY_DNF_RISK_THRESHOLD = 16
+LEGACY_CRASH_RISK_THRESHOLD = 10
+RISK_MODEL_VERSION = "fitted-v1"
+# Fitted probabilities x100; the cut that maximises F1 on the 2018-2026 training rows.
+DNF_RISK_THRESHOLD = 15
+CRASH_RISK_THRESHOLD = 7
+
+
+def dnf_threshold(risk_row: dict) -> int:
+    """The DNF flag threshold for the model that produced ``risk_row``."""
+    return DNF_RISK_THRESHOLD if risk_row.get("risk_model") == RISK_MODEL_VERSION else LEGACY_DNF_RISK_THRESHOLD
+
+
+def crash_threshold(risk_row: dict) -> int:
+    """The crash flag threshold for the model that produced ``risk_row``."""
+    return CRASH_RISK_THRESHOLD if risk_row.get("risk_model") == RISK_MODEL_VERSION else LEGACY_CRASH_RISK_THRESHOLD
 
 
 def finished_codes(codes: Iterable[str], statuses: dict) -> set[str]:
@@ -259,7 +276,7 @@ def _get_team_position(team_name: str, standings: list[dict]) -> int:
 def _risk_level(value: int) -> str:
     if value >= 22:
         return "high"
-    if value >= 13:
+    if value >= DNF_RISK_THRESHOLD:
         return "medium"
     return "low"
 
@@ -291,7 +308,7 @@ def _risk_factors(context: RiskContext, dnf_risk: int, crash_risk: int) -> list[
         factors.append("No same-weekend sprint reliability signal")
     if not factors:
         factors.append("Low recent incident profile")
-    if dnf_risk >= 22 and crash_risk < 10:
+    if dnf_risk >= 22 and crash_risk < CRASH_RISK_THRESHOLD:
         factors.append("Risk leans mechanical rather than contact")
     return factors[:3]
 
@@ -313,17 +330,9 @@ def _compute_risk_predictions(
         sprint_pos = scored.get("sprint_pos")
         profile = _load_recent_incidents(code, year, round_num)
 
-        traffic_risk = 4 if 8 <= quali_pos <= 16 else 2 if quali_pos <= 4 else 1
-        constructor_risk = max(0, team_pos - 5) * 1.1
-        dnf_risk = round(
-            6 + profile["dnf_rate"] * 31 + profile["mechanical_rate"] * 18 + constructor_risk + traffic_risk
-        )
-        crash_risk = round(3 + profile["crash_rate"] * 26 + traffic_risk * 1.2 + (2 if 10 <= quali_pos <= 18 else 0))
-        mechanical_risk = round(max(2, dnf_risk - crash_risk * 0.45))
-
-        dnf_risk = max(3, min(42, dnf_risk))
-        crash_risk = max(1, min(30, crash_risk))
-        mechanical_risk = max(2, min(35, mechanical_risk))
+        # Fitted probabilities (app/ml/risk_model.py), shown as whole percentages.
+        chances = risk_probabilities(profile, quali_pos, team_pos)
+        dnf_risk, crash_risk, mechanical_risk = (max(1, round(chances[k] * 100)) for k in ("dnf", "crash", "other"))
 
         risk_rows.append(
             {
@@ -334,6 +343,7 @@ def _compute_risk_predictions(
                 "dnf_risk_pct": dnf_risk,
                 "crash_risk_pct": crash_risk,
                 "mechanical_risk_pct": mechanical_risk,
+                "risk_model": RISK_MODEL_VERSION,
                 "risk_level": _risk_level(dnf_risk),
                 "factors": _risk_factors(
                     RiskContext(

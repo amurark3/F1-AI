@@ -370,3 +370,15 @@ def test_the_post_qualifying_call_is_learned_from_even_when_a_pre_qualifying_one
     }
 
     assert _adaptive_position_corrections(*PREDICTING)["VER"]["correction"] == -3.0
+
+
+@pytest.mark.unit
+def test_a_supplied_model_is_served_until_the_file_is_asked_for_again(trained_model):
+    supplied = {"model": _fit_pipeline(), "features": FEATURES}
+
+    model_module.use_model(supplied)
+    assert _load_ml_model() is supplied
+
+    model_module.use_model(None)
+    assert _load_ml_model() is not supplied
+    assert _load_ml_model()["features"] == FEATURES

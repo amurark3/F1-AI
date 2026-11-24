@@ -59,6 +59,7 @@ from app.config import PREDICTION_HISTORY_PATH
 from app.data.predictions.graded import CALL_FIELDS, graded_call, with_graded_fields
 from app.data.predictions.phases import SNAPSHOT_HISTORY_LIMIT
 from app.data.store import BACKEND_POSTGRES, DOCUMENT_PREDICTION_CACHE, DOCUMENT_PREDICTION_HISTORY, document_store
+from scripts.write_target import check_write_target
 
 EXIT_OK = 0
 EXIT_WRITE_FAILED = 1
@@ -66,6 +67,7 @@ EXIT_STORE_ERROR = 2
 EXIT_NO_DATABASE = 3
 EXIT_WRONG_STORE = 4
 EXIT_GRADED_CALL_WOULD_CHANGE = 5
+EXIT_WRONG_DATABASE = 6
 
 DEFAULT_BACKUP_DIR = Path("data/backups")
 
@@ -390,6 +392,8 @@ def main(argv: list[str] | None = None) -> int:
         code, message = problem
         print(f"ERROR: {message}")
         return code
+    if not check_write_target("repair_graded_predictions", apply=args.apply):
+        return EXIT_WRONG_DATABASE
 
     health = document_store.health()
     target = f"file ({PREDICTION_HISTORY_PATH})" if args.local else f"{health.backend} ({health.host_kind})"

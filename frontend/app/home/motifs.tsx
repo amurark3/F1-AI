@@ -3,7 +3,7 @@ import { f1, font, rc } from "@/app/ui/tokens";
 import type { ToolMotif } from "./content";
 
 /**
- * The homepage's illustrations (docs/design/redesign/home.html). Shapes only:
+ * The homepage's illustrations. Shapes only:
  * no names, results, counts or team colours, so nothing on them can go stale
  * or wrong between deploys. Each is for the eye only (`aria-hidden`); the card
  * around it carries the words.

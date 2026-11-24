@@ -25,11 +25,14 @@ if TYPE_CHECKING:
     import psycopg
 
 import contextlib
+import hashlib
 import json
 import os
 from pathlib import Path
+import sys
 import threading
 import time
+from urllib.parse import urlparse
 
 import structlog
 
@@ -148,6 +151,34 @@ def classify_host(dsn: str) -> str:
     return HOST_OTHER
 
 
+def database_fingerprint(dsn: str) -> str | None:
+    """A short, one-way tag for the database a DSN names, safe to publish.
+
+    Supabase pooler and direct DSNs for one project share the tag (it hashes the
+    project reference), so a script on the pooler matches a server on either.
+    """
+    try:
+        parsed = urlparse(dsn)
+        host = (parsed.hostname or "").lower()
+        user = (parsed.username or "").lower()
+    except ValueError:
+        return None
+    if host.endswith(".pooler.supabase.com") and "." in user:
+        project = user.split(".", 1)[1]
+    elif host.startswith("db.") and host.endswith(".supabase.co"):
+        project = host.removeprefix("db.").removesuffix(".supabase.co")
+    elif host:
+        project = f"{host}{parsed.path}"
+    else:
+        return None
+    return hashlib.sha256(project.encode()).hexdigest()[:12]
+
+
+# Postgres shows this per connection, and the write log records it, so every
+# document write says which program made it ("f1-ai:uvicorn", "f1-ai:regrade_actuals").
+APPLICATION_NAME = (os.getenv("DB_APPLICATION_NAME") or f"f1-ai:{Path(sys.argv[0]).stem or 'python'}")[:63]
+
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS app_documents (
     name       TEXT PRIMARY KEY,
@@ -161,6 +192,31 @@ CREATE TABLE IF NOT EXISTS app_documents (
 -- so enabling it with no policies denies the anon/authenticated API while
 -- leaving the app untouched.  Idempotent: a no-op once already enabled.
 ALTER TABLE app_documents ENABLE ROW LEVEL SECURITY;
+"""
+
+# One row per document write: which document, when, its size and the writing
+# program. Installed best effort (see ``_install_write_log``).
+_WRITE_LOG_SQL = """
+CREATE TABLE IF NOT EXISTS app_document_writes (
+    id         BIGSERIAL PRIMARY KEY,
+    name       TEXT NOT NULL,
+    written_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    writer     TEXT NOT NULL DEFAULT current_setting('application_name'),
+    bytes      INTEGER
+);
+ALTER TABLE app_document_writes ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION log_app_document_write() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    INSERT INTO app_document_writes (name, bytes) VALUES (NEW.name, pg_column_size(NEW.payload));
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER app_documents_write_log
+    AFTER INSERT OR UPDATE ON app_documents
+    FOR EACH ROW EXECUTE FUNCTION log_app_document_write();
 """
 
 
@@ -271,6 +327,7 @@ class PostgresDocumentStore:
         self._last_error_id: str | None = None
         self._last_reason: str | None = None
         self._host_kind = classify_host(dsn)
+        self._database = database_fingerprint(dsn)
         self._last_checked: float | None = None
         # Fail fast if the driver is missing so the factory can fall back.
         import psycopg  # noqa: F401
@@ -279,7 +336,7 @@ class PostgresDocumentStore:
     def _connect(self) -> psycopg.Connection:
         import psycopg
 
-        return psycopg.connect(self._dsn, autocommit=True)
+        return psycopg.connect(self._dsn, autocommit=True, application_name=APPLICATION_NAME)
 
     def _ensure_schema(self, conn: psycopg.Connection) -> None:
         if self._schema_ready:
@@ -288,7 +345,18 @@ class PostgresDocumentStore:
             if self._schema_ready:
                 return
             conn.execute(_SCHEMA_SQL)
+            self._install_write_log(conn)
             self._schema_ready = True
+
+    @staticmethod
+    def _install_write_log(conn: psycopg.Connection) -> None:
+        """Best effort: the write log is for audits, never a reason to refuse a write."""
+        import psycopg
+
+        try:
+            conn.execute(_WRITE_LOG_SQL)
+        except psycopg.Error as exc:
+            logger.warning("store.write_log_unavailable", error=str(exc))
 
     def _record_outcome(self, ok: bool, error: str | None = None) -> str | None:
         """Record the outcome, minting a correlation id for a failure.
@@ -380,6 +448,7 @@ class PostgresDocumentStore:
                 error_id=self._last_error_id,
                 reason=self._last_reason,
                 host_kind=self._host_kind,
+                database=self._database,
                 pending_documents=tuple(sorted(self._pending)),
                 checked_seconds_ago=age,
             )

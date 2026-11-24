@@ -1,7 +1,6 @@
 /**
  * Chart chrome (axes, grid, hover cursor, tooltip, rule lines) for Recharts
- * and for hand-drawn SVG, drawn from the redesign tokens. It follows the chart
- * mockups in `docs/design/redesign/` (standings, debrief, stints): Geist Mono
+ * and for hand-drawn SVG, drawn from the redesign tokens. Geist Mono
  * 500 at 10 px in the tertiary ink for ticks, faint ink hairlines for the grid,
  * no axis or tick lines, and tooltips on the raised surface with a hairline
  * border.

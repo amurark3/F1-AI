@@ -29,6 +29,7 @@ from pathlib import Path
 
 from app.data.store import DOCUMENT_PREDICTION_CACHE, document_store
 from app.services.prediction_cache import CACHE_POLICY, CACHE_SCHEMA_VERSION
+from scripts.write_target import check_write_target
 
 # Added by ``enrich_prediction_result`` when a snapshot is served, not by the
 # model. Recomputed on every read, so storing them would only bloat the document.
@@ -96,6 +97,8 @@ def main() -> int:
     parser.add_argument("source", type=Path, help="JSON file of harvested snapshots")
     parser.add_argument("--apply", action="store_true", help="write the changes")
     args = parser.parse_args()
+    if not check_write_target("import_snapshots", apply=args.apply):
+        return 1
 
     harvested = json.loads(args.source.read_text(encoding="utf-8"))
     if not isinstance(harvested, dict):

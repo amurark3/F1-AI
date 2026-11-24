@@ -51,7 +51,7 @@ RACE_START = datetime(2026, 11, 8, 17, tzinfo=UTC)
 # Saturday evening, after qualifying: when R20's post-qualifying call was computed.
 SATURDAY = datetime(2026, 11, 7, 21, tzinfo=UTC)
 # Open-Meteo's rain probability for 15:00-20:00 UTC on race day, as it answered
-# on 6 Nov 2026 (STATUS.md log). The race runs 17:00-19:00: 92 % then 90 %.
+# on 6 Nov 2026 (redesign log). The race runs 17:00-19:00: 92 % then 90 %.
 R20_RACE_DAY_RAIN = {15: 94.0, 16: 93.0, 17: 92.0, 18: 90.0, 19: 88.0, 20: 86.0}
 
 

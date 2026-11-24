@@ -164,7 +164,7 @@ if has_staged_match '^backend/.*\.py$'; then
   # gate is configured but never evaluated.
   if [[ -z "$PYTEST" ]]; then
     fail_gate "test/coverage gates: pytest not found — create backend/.venv and install requirements-dev.txt."
-  elif (cd "$BACKEND_DIR" && "$PYTEST" -q --cov --cov-report=term-missing); then
+  elif (cd "$BACKEND_DIR" && "$PYTEST" -q -n auto --cov --cov-report=term-missing); then
     pass_gate "test gate + coverage gate"
   else
     fail_gate "test gate and/or coverage gate"
@@ -182,7 +182,7 @@ if [[ ${#FAILED_GATES[@]} -gt 0 ]]; then
   done
   echo "" >&2
   echo "Reproduce:  ${BOLD}cd frontend && npm run lint${RESET}" >&2
-  echo "            ${BOLD}cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . && .venv/bin/python -m tools.check_module_size && .venv/bin/pytest --cov${RESET}" >&2
+  echo "            ${BOLD}cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . && .venv/bin/python -m tools.check_module_size && .venv/bin/pytest -n auto --cov${RESET}" >&2
   echo "Bypass:     ${BOLD}git commit --no-verify${RESET}" >&2
   exit 1
 fi

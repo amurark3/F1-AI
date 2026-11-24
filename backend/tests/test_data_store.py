@@ -35,6 +35,7 @@ import pytest
 from app.config import PREDICTION_CACHE_PATH, PREDICTION_HISTORY_PATH
 from app.data import store as store_module
 from app.data.store import (
+    APPLICATION_NAME,
     BACKEND_FILE,
     BACKEND_POSTGRES,
     DOCUMENT_PREDICTION_CACHE,
@@ -54,6 +55,7 @@ from app.data.store import (
     PostgresDocumentStore,
     classify_failure,
     classify_host,
+    database_fingerprint,
 )
 
 POOLER_DSN = "postgresql://postgres.abcdefgh:pw@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
@@ -452,12 +454,13 @@ def test_postgres_store_refuses_to_construct_without_the_driver(monkeypatch):
 
 
 @pytest.mark.unit
-def test_postgres_connect_passes_the_dsn_with_autocommit(monkeypatch, pg_store):
+def test_postgres_connect_passes_the_dsn_with_autocommit_and_names_the_program(monkeypatch, pg_store):
     calls = _install_connect(monkeypatch, connection=_FakeConnection())
 
     pg_store._connect()
 
-    assert calls == [(POOLER_DSN, {"autocommit": True})]
+    assert calls == [(POOLER_DSN, {"autocommit": True, "application_name": APPLICATION_NAME})]
+    assert APPLICATION_NAME.startswith("f1-ai:")
 
 
 # ---------------------------------------------------------------------------
@@ -472,8 +475,60 @@ def test_schema_is_created_once_and_not_repeated(pg_store):
     pg_store._ensure_schema(conn)
     pg_store._ensure_schema(conn)
 
-    assert len(conn.statements) == 1
+    assert len(conn.statements) == 2
     assert "CREATE TABLE IF NOT EXISTS app_documents" in conn.statements[0][0]
+    assert "CREATE OR REPLACE TRIGGER app_documents_write_log" in conn.statements[1][0]
+
+
+@pytest.mark.unit
+def test_a_write_log_that_cannot_be_installed_never_blocks_the_store(pg_store, capsys):
+    conn = _FakeConnection(fail_on="app_document_writes")
+
+    pg_store._ensure_schema(conn)
+
+    assert pg_store._schema_ready is True
+    assert "store.write_log_unavailable" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# Database fingerprint
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_the_pooler_and_direct_dsns_of_one_project_share_a_fingerprint():
+    pooler = "postgresql://postgres.abcdefgh:pw@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
+
+    assert database_fingerprint(pooler) == database_fingerprint(DIRECT_DSN)
+    assert len(database_fingerprint(pooler)) == 12
+
+
+@pytest.mark.unit
+def test_two_projects_have_different_fingerprints_that_do_not_name_them():
+    other = "postgresql://postgres.zyxwvuts:pw@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
+    tag = database_fingerprint(other)
+
+    assert tag != database_fingerprint(DIRECT_DSN)
+    assert "zyxwvuts" not in tag
+
+
+@pytest.mark.unit
+def test_a_non_supabase_database_is_tagged_by_its_host_and_name():
+    assert database_fingerprint("postgresql://u:pw@localhost:5432/f1") != database_fingerprint(
+        "postgresql://u:pw@localhost:5432/other"
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("dsn", ["", "postgresql://[::1:5432/db"])
+def test_a_dsn_without_a_readable_host_has_no_fingerprint(dsn):
+    assert database_fingerprint(dsn) is None
+
+
+@pytest.mark.unit
+def test_the_postgres_store_reports_its_database_fingerprint(pg_store):
+    assert pg_store.health().database == database_fingerprint(POOLER_DSN)
+    assert pg_store.health().as_dict()["database"] == database_fingerprint(POOLER_DSN)
 
 
 @pytest.mark.unit

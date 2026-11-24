@@ -9,7 +9,7 @@
  */
 
 /**
- * Redesign palette (`docs/design/redesign/system.css`). Key `ink2` is
+ * Redesign palette. Key `ink2` is
  * `--rc-ink-2` in `:root` and `text-rc-ink-2` in Tailwind.
  *
  * Every colour carries a meaning; none is decoration.

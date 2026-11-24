@@ -1,7 +1,6 @@
 /**
  * Type recipes shared by the kit's parts, as Tailwind class lists built from
- * the `globals.css` tokens. Each mirrors a class in the mockups'
- * `docs/design/redesign/system.css`.
+ * the `globals.css` tokens.
  */
 
 /** The mono caption over titles and figures (`.eyebrow`). */

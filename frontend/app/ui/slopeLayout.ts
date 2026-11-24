@@ -1,7 +1,6 @@
 /**
  * Geometry and wording for `SlopeChart`, kept apart from the markup so it is
- * tested directly. The numbers follow the grid → finish chart in
- * `docs/design/redesign/debrief.html`.
+ * tested directly.
  */
 
 /**

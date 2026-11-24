@@ -51,11 +51,12 @@ export function isRestarting(status: ServerStatus): boolean {
  *
  * `fetch` rejects with a `TypeError` whose text differs by browser ("Failed to
  * fetch", "Load failed"), and tells a reader nothing; anything else came from
- * the fetcher or the backend and is passed on.
+ * the fetcher or the backend and is passed on. Matched by name, not
+ * `instanceof`: a TypeError from another realm (iframe, test VM) fails that.
  */
 export function describeFailure(error: Error, restarting: boolean): string {
   if (restarting) return RESTARTING_REASON;
-  return error instanceof TypeError ? UNREACHABLE_REASON : error.message;
+  return error.name === "TypeError" ? UNREACHABLE_REASON : error.message;
 }
 
 /**

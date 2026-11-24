@@ -28,7 +28,7 @@ export function BrandMark({ className = "" }: { className?: string }) {
 /**
  * The F1·AI header lockup: the B1 mark beside the wordmark.
  *
- * The wordmark follows the mockups' `.logo` (`docs/design/redesign/system.css`):
+ * The wordmark:
  * the display face at 800, with a small red square between "F1" and "AI".
  * It reads to assistive tech as one image named "F1 AI".
  */

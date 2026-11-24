@@ -9,7 +9,7 @@ const CHOICE =
   "h-9 flex-1 rounded border border-rc-ink/35 font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.18em] text-rc-ink transition-colors hover:border-rc-ink";
 
 /**
- * The analytics cookie question (docs/design/redesign/consent.html): a raised
+ * The analytics cookie question: a raised
  * card pinned to the bottom corner that never blocks the page. It sits after the
  * footer in the DOM, so the footer's "Cookie settings" tabs straight into it.
  */

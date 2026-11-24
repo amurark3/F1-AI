@@ -78,6 +78,9 @@ class StoreHealth:
     error_id: str | None = None
     reason: str | None = None
     host_kind: str | None = None
+    # A short hash of the database's project, safe to publish: scripts compare it
+    # with production's before writing (see ``scripts/write_target.py``).
+    database: str | None = None
     pending_documents: tuple[str, ...] = field(default_factory=tuple)
     checked_seconds_ago: float | None = None
 
@@ -94,6 +97,7 @@ class StoreHealth:
             "error_id": self.error_id,
             "reason": self.reason,
             "host_kind": self.host_kind,
+            "database": self.database,
             "pending_documents": list(self.pending_documents),
             "checked_seconds_ago": (
                 round(self.checked_seconds_ago, 1) if self.checked_seconds_ago is not None else None

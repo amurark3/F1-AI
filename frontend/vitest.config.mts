@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 /**
  * Source held to 100% coverage, per file, on every metric: all of `app/**`.
  *
- * The ratchet is complete (docs/plans/2026-11-redesign/PLAN.md, P9): every
+ * The ratchet is complete (redesign P9): every
  * file joined once its tests covered it fully, and nothing leaves. There is no
  * escape hatch: ESLint rejects coverage-ignore hint comments, so uncovered
  * code is either tested or deleted. Config files (`next.config.ts`,
@@ -28,7 +28,13 @@ export default defineConfig({
     environment: "jsdom",
     // Unit and component tests sit next to their subject; e2e/ belongs to Playwright.
     include: ["app/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
-    setupFiles: ["./test/setup.ts"],
+    // One jsdom per worker, not per file (was 42% of run time); files stay isolated.
+    pool: "vmThreads",
+    // Uncapped, vmThreads filled the machine and crashed VS Code: leave half the
+    // cores free, and recycle a worker before its leaked VM contexts grow large.
+    maxWorkers: "50%",
+    vmMemoryLimit: "1GB",
+    setupFiles: ["./test/webStreams.ts", "./test/setup.ts"],
     restoreMocks: true,
     coverage: {
       provider: "v8",

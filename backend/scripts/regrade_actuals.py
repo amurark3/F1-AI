@@ -37,11 +37,13 @@ from scripts.repair_graded_predictions import (
     EXIT_OK,
     EXIT_STORE_ERROR,
     EXIT_WRITE_FAILED,
+    EXIT_WRONG_DATABASE,
     _backup,
     _label,
     _race_order,
     _target_problem,
 )
+from scripts.write_target import check_write_target
 
 # How many changed drivers a race's line shows.
 DRIVERS_SHOWN = 8
@@ -115,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     if problem is not None:
         print(f"ERROR: {problem[1]}")
         return problem[0]
+    if not check_write_target("regrade_actuals", apply=args.apply):
+        return EXIT_WRONG_DATABASE
     read = document_store.read(DOCUMENT_PREDICTION_HISTORY)
     if not read.ok:
         print(f"ERROR reading the prediction history: {read.error}")

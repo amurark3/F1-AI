@@ -47,6 +47,12 @@ def _load_ml_model() -> dict[str, Any] | None:
     return None
 
 
+def use_model(payload: dict[str, Any] | None) -> None:
+    """Serve ``payload`` in place of the saved model file; ``None`` goes back to the file."""
+    global _ml_model_cache
+    _ml_model_cache = payload
+
+
 def warm_model_cache() -> bool:
     """Force the finish-position model into memory ahead of the first request.
 

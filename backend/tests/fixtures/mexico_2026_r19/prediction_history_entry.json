@@ -1,5 +1,5 @@
 {
- "source": "The (2026,19) entry of production's prediction_history document, copied unchanged from the backup taken 2026-11-11 01:34:58 UTC (STATUS.md log, 2026-11-11). Its last call is the post-qualifying recompute stored 2026-11-11 01:34:36, so its top-level fields already hold its graded call: the repair leaves it alone.",
+ "source": "The (2026,19) entry of production's prediction_history document, copied unchanged from the backup taken 2026-11-11 01:34:58 UTC (redesign STATUS.md log in git history, 2026-11-11). Its last call is the post-qualifying recompute stored 2026-11-11 01:34:36, so its top-level fields already hold its graded call: the repair leaves it alone.",
  "key": "(2026,19)",
  "entry": {
   "snapshots": [

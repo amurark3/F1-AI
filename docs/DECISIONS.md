@@ -93,6 +93,8 @@ The hub's race hero heads every tab (user, 2026-11-18: a Weekend-only hero was c
 - **No coverage for code a later phase rewrites or removes** (user, 2026-11-03); the replacing task covers it.
 - **Tests use real captured rows** (OpenF1, f1db, Jolpica, FIA PDFs) under `tests/fixtures/`.
 - **Node 22** in CI and locally (P1.10), because Node 20 is end of life.
+- **The backend suite must never really sleep** (2026-11-23, `e8a9e50`). From `a756ad3` (2026-11-14) a fixture re-export at the top of `tests/conftest.py` imported `app.*` before the env scrub, so `app.config` kept the 0.4 s production OpenF1 pacer gap and every faked OpenF1 request slept: 341 s wall clock for 33 s of CPU. Imports that reach `app.*` now sit below the scrub. A suite whose wall time is far above its CPU time is waiting on something; profile `time.sleep` callers first.
+- **Backend tests run in parallel** with `pytest-xdist -n auto` in the pre-commit hook and CI, not in `pytest.ini`, so single-file runs skip worker start-up. Together with the sleep fix, the gate went from 5 m 41 s to about 1 min (serial with coverage 82 s; parallel 44–68 s on a 10-core Mac).
 
 ## Backend hardening (H1–H12, from the 2026-11-23 audit; PR #113)
 

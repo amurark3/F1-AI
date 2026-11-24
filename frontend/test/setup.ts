@@ -15,4 +15,25 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-afterAll(() => server.close());
+/**
+ * Requests still in flight when a file ends. Files in a worker share one
+ * environment (`vmThreads`), and closing MSW under a live request leaves the
+ * next file's `fetch` unintercepted: its mocks never answer. So a file waits for
+ * its requests to end first, capped for handlers that deliberately never resolve.
+ */
+const inFlight = new Set<string>();
+const DRAIN_CAP_MS = 1_000;
+server.events.on("request:start", ({ requestId }) => inFlight.add(requestId));
+server.events.on("request:end", ({ requestId }) => inFlight.delete(requestId));
+
+async function drainRequests(): Promise<void> {
+  const deadline = Date.now() + DRAIN_CAP_MS;
+  while (inFlight.size > 0 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+afterAll(async () => {
+  await drainRequests();
+  server.close();
+});

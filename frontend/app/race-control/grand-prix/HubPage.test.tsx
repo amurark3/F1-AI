@@ -127,7 +127,10 @@ describe("the Grand Prix hub", () => {
   it("loads the URL's historical season and preserves it when switching tabs", async () => {
     nav.search = "round=19&year=2025&tab=weekend";
     const historical = { ...SEASON_2026.schedule[18], name: "Historical Grand Prix" };
-    server.use(http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json([historical])));
+    server.use(
+      http.get(apiUrl("/api/schedule/2025"), () => HttpResponse.json([historical])),
+      http.get(apiUrl("/api/race-control/results/2025/:round"), () => HttpResponse.json(RACE_RESULTS_2026.mexicoCity)),
+    );
     const { user } = await renderHub();
 
     expect(await screen.findByRole("group", { name: "2025 race picker" })).toHaveTextContent("Historical GP");

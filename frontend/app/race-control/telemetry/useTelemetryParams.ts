@@ -96,3 +96,8 @@ export function useTelemetryParams(currentYear: number) {
 
   return { params, update };
 }
+
+/** The selection before the URL can be read: the defaults, and changes that go nowhere. */
+export function defaultTelemetryUrl(currentYear: number): ReturnType<typeof useTelemetryParams> {
+  return { params: readParams(new URLSearchParams(), currentYear), update: () => undefined };
+}

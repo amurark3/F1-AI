@@ -24,7 +24,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
   3. S.3: add the `GOOGLE_API_KEY` repo secret, then run the rulebook ingest workflow.
 - **FastF1 left after D1** (not on the request path): `mcp_server.py`, `scripts/backfill_predictions.py`, and the live-session fallback in `race_stints.py`.
 - **Agents:** each runs in a worktree under `.claude/worktrees/`, created from `dev` with `git worktree add`. The coordinator merges the agent's branch into `dev` (no cherry-picks, user 2026-11-23) and records status here. A new session first runs `ListAgents` (another busy F1-AI session may already coordinate), then checks each branch for its `Task:` commit, verifies, merges, records and runs `git worktree remove`.
-- **Branch:** `dev`. Commit each task locally; **never push `dev`** unless the user asks for that push (each past permission covered one push and PR only).
+- **Branch:** `dev`. Commit each task locally; **never push `dev`** unless the user asks for that push (each past permission covered one push and PR only). **2026-11-23 (user): "Push and raise a PR"**: P3.5, P3.6 and P9.1; that push and PR only.
 - **PRs (user-owned):** each phase's commits go together as one new PR, which the user opens, reviews and merges. At the end of a phase, note here that it is ready for its PR (title from PLAN.md) and stop; don't push, open or manage PRs.
 
 ## Tasks

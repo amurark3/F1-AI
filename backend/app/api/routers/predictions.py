@@ -14,6 +14,7 @@ from app.config import FASTF1_TIMEOUT_SECONDS, PREDICTIONS_ADMIN_KEY
 from app.data.predictions import (
     PHASE_POST_QUALIFYING,
     PHASE_PRE_QUALIFYING,
+    build_prediction_review,
     get_prediction_review,
     normalise_phase,
 )
@@ -77,13 +78,20 @@ async def _with_scored_review(result: dict) -> dict:
     FastF1 load, so it runs off the event loop and only blocks briefly.
     """
     review = result.get("prediction_review") or {}
-    if review.get("evaluated") or not result.get("predictions"):
+    if not result.get("predictions"):
         return result
 
     year = int(result.get("year") or 0)
     round_num = int(result.get("round") or 0)
     if not year or not round_num:
         return result
+
+    if review.get("evaluated"):
+        # The stored review froze when first scored; the history is regraded later
+        # (official retirement reasons, post-race penalties). Rescoring reads stored
+        # history only, so it costs no FastF1 load.
+        fresh = await asyncio.to_thread(build_prediction_review, year, round_num, result.get("prediction_phase"))
+        return {**result, "prediction_review": fresh} if fresh.get("evaluated") else result
 
     task = asyncio.create_task(
         asyncio.to_thread(get_prediction_review, year, round_num, result.get("prediction_phase"))

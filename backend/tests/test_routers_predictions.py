@@ -399,14 +399,26 @@ async def test_review_refresh_scores_an_unevaluated_snapshot(monkeypatch):
 
 
 @pytest.mark.unit
-async def test_review_refresh_skips_an_already_evaluated_snapshot(monkeypatch):
+async def test_an_evaluated_snapshot_is_rescored_from_the_stored_history(monkeypatch):
+    # A snapshot's review freezes when first scored; the history is regraded later
+    # (official retirement reasons, post-race penalties), so serve the current score.
+    # Rescoring reads stored history only: no FastF1 load on the request path.
+    monkeypatch.setattr(predictions_router, "get_prediction_review", lambda *_a: pytest.fail("no FastF1 load"))
     monkeypatch.setattr(
-        predictions_router,
-        "get_prediction_review",
-        lambda *_a: pytest.fail("an evaluated review must not be recomputed"),
+        predictions_router, "build_prediction_review", lambda y, r, phase: {"evaluated": True, "crash_actual": 3}
     )
 
-    stored = {**SNAPSHOT, "prediction_review": {"evaluated": True}}
+    stored = {**SNAPSHOT, "prediction_review": {"evaluated": True, "crash_actual": 0}}
+    result = await predictions_router._with_scored_review(stored)
+
+    assert result["prediction_review"] == {"evaluated": True, "crash_actual": 3}
+
+
+@pytest.mark.unit
+async def test_an_evaluated_snapshot_keeps_its_review_when_the_history_cannot_score_it(monkeypatch):
+    monkeypatch.setattr(predictions_router, "build_prediction_review", lambda y, r, phase: {"evaluated": False})
+
+    stored = {**SNAPSHOT, "prediction_review": {"evaluated": True, "crash_actual": 0}}
 
     assert await predictions_router._with_scored_review(stored) == stored
 

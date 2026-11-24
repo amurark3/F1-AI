@@ -20,6 +20,7 @@ import os
 
 import structlog
 
+from app import SAFE_CONSOLE_RENDERER
 from app.error_tracking import report_to_sentry
 
 
@@ -43,7 +44,7 @@ def setup_logging() -> None:
 
     # JSON lines for machine parsing in production, pretty colored console
     # output for local development.
-    renderer = structlog.processors.JSONRenderer() if is_production else structlog.dev.ConsoleRenderer()
+    renderer = structlog.processors.JSONRenderer() if is_production else SAFE_CONSOLE_RENDERER
 
     structlog.configure(
         processors=[

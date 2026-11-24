@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-23): P3.5 and P3.6 resumed in parallel** (user: "Resume", after a pause; see the log). Before that: P3.5 and P3.6 ran in parallel (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
+- **Now (2026-11-23): P3.5 and P3.6 are done and merged on `dev`, which completes phase P3.** P3 is ready for its PR, `feat: restart lights and non-blocking pages (P3.5, P3.6)`, which the user opens. **Next: P9** (user: "after that continue with P9"). Before that: P3.5 and P3.6 ran in parallel (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
 - **Merged:** every redesign PR through #112 (N2, P8.1, P6.2; 2026-11-23). Their rows and log are in the archive.
 - **Also open:** PR #113, backend hardening from the 2026-11-23 audit (`docs/plans/2026-11-hardening/`, its own STATUS).
 - **Hosting (user, 2026-11-18): P0c is on hold.** Oracle has no A1 capacity, so Render stays production, kept warm by a cron-job.org GET on `/api/health/deep` every 5 minutes. Hugging Face Spaces is not an option (it needs PRO, 2026-11-22).
@@ -35,8 +35,8 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | --- | --- | --- | --- | --- |
 | P0c.9 | Decommission Render, Supabase and the Render-era workflows (7 stable days after cutover; next PR) | blocked | | On `feat/oracle-backend`, after the cutover plus 7 stable days. Never on `dev`. |
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
-| P3.5 | Restart lights: from the real `/api/ready` stages (no timer pacing), never blocking, on every route only while the backend restarts or is unreachable; top-bar chip slot | in_progress (2026-11-23, P3.5b merged; final gates after P3.6) | | User 2026-11-06. **2026-11-23:** no longer waits for P0c. Split: **P3.5a** mockup `restart-lights.html` (**done 2026-11-23**, Opus agent with design-director; checked: stages match `WARMUP_STEPS`, only hex is `--dim` copied from `--rc-dim`, no horizontal scroll at 390 px); **P3.5b** build: reimplement P0c.7's non-blocking notice on `dev` from the plan text (no cherry-pick), then the P3.5 lights, against the mockup. Render-safe: P0c.7's 5 s budget, dropped 429 retry and all-season prerender stay out. |
-| P3.6 | Non-blocking pages: no page-level backend awaits; every section on `useSection` / Suspense; split shared endpoints | in_progress (2026-11-23, P3.6b–d) | | User 2026-11-06. Depends on P0b.3 (done). **2026-11-23:** no longer waits for P0c (its overlap was the Oracle-only `backend.ts` / `champions.ts` tuning, which stays off `dev`). Page-sized: Opus brief `p3.6-brief.md`, then a Sonnet worktree executor. |
+| P3.5 | Restart lights: from the real `/api/ready` stages, never blocking, top-bar chip slot | done | P3.5a `8370c40`, P3.5b `5434be4` (merge `f9b6788`) | **Done 2026-11-23.** Mockup `restart-lights.html` (Opus + design-director); build by a Sonnet worktree executor, merged into `dev`. On `dev` with P3.6: lint + typecheck clean, coverage 100 % (6602/6602 statements), build clean, e2e 81 passed. |
+| P3.6 | Non-blocking pages: no page-level backend awaits | done | P3.6a `e9254a2`, b `680d5d2`, c `c5a2ca9`, d `e7d9c1a` (merge `5785bbe`) | **Done 2026-11-23.** Opus brief `p3.6-brief.md`, Sonnet worktree executor. `next dev` against a 20 s stub: TTFB 10.1 s → 0.05 s on `/race-control`, `/grand-prix`, `/telemetry`. Route table unchanged (ISR symbols and revalidate values). `e2e/non-blocking.spec.ts` 15 passed. Same final gates as P3.5. |
 | P9.1 | Coverage completion to 100% across `app/**` | todo | | |
 
 ## Log (append only; newest at the bottom)
@@ -85,4 +85,11 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
     - **The unreachable state has no e2e test.** Its 120 s timing is unit-tested with fake timers.
   - **Not checked by eye:** "starting" on `/` at 390 px, and "back online" / lights out, which only e2e and unit tests cover.
   - **P3.5 stays `in_progress`** until the full suite passes on `dev` with P3.6 merged.
+- **2026-11-23 · P3.6 merged into `dev` (`5785bbe`); P3.5 and P3.6 done.**
+  - **Executor (Sonnet worktree):** four commits, all on the brief's file list. `PageLoader` deleted (no other user). It ran only its own and the affected specs: 15 + 14 passed.
+  - **Timings (`next dev` against a stub that answers after 20 s):** TTFB 10.1 s → 0.05 s on `/race-control`, `/race-control/grand-prix` and `/race-control/telemetry`. A link-preview bot on a driver page still waits about 10 s for the metadata, as accepted.
+    - The driver page itself was not changed. Its browser "before" of 8.2 s TTFB is unexplained; treat the driver-page row as unverified.
+  - **The brief's survey was off in one place:** the grep still shows `grand-prix/page.tsx:37` and `:51`. Both run inside the un-awaited `loadSeed`, not in the page body.
+  - **Final gates on `dev`, both tasks merged (coordinator):** `npm run lint` and `typecheck` clean; `test:coverage` 100/100/100/100 (6602 statements, 5517 branches); `npm run build` clean; `npx playwright test` 81 passed. The vitest test count was cut from the log.
+  - Worktrees `p3.5b` and `p3.6` and their branches are removed.
 

@@ -70,7 +70,7 @@ function ResultsBody({ data, year, round }: { data: RaceResultsResponse; year: n
           <div className="space-y-4">
             <ChangedAfterFlagPanel changes={result.changed_after_flag} year={year} />
             <FastestLapPanel lap={result.fastest_lap} year={year} />
-            <DebriefLinkPanel round={round} />
+            <DebriefLinkPanel round={round} year={year} />
           </div>
         </div>
       ) : (

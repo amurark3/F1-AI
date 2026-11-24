@@ -26,7 +26,8 @@ const OPTIONS = [
 
 function Tiles({ model }: { model: HeroModel }) {
   return (
-    <div className="grid min-w-[230px] gap-[18px] lg:border-l lg:border-rc-line lg:pl-7">
+    // A set width: names shorten to surnames once the directory lands, and an auto column would re-wrap the leader's name.
+    <div className="grid gap-[18px] lg:w-[230px] lg:border-l lg:border-rc-line lg:pl-7">
       {model.tiles.map((tile) => (
         <StatTile key={tile.label} label={tile.label} value={tile.value} unit={tile.unit} sub={tile.sub} />
       ))}

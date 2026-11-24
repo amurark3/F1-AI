@@ -68,7 +68,7 @@ export function FastestLapPanel({ lap, year }: { lap: FastestLap | null; year: n
   );
 }
 
-export function DebriefLinkPanel({ round }: { round: number }) {
+export function DebriefLinkPanel({ round, year }: { round: number; year: number }) {
   return (
     <Panel as="section" className="p-5">
       <PanelHeading
@@ -76,7 +76,7 @@ export function DebriefLinkPanel({ round }: { round: number }) {
         sub="Lap leaders, the red flag, grid to finish and the penalties served in the pits"
       />
       <Link
-        href={debriefHref(round)}
+        href={debriefHref(round, year)}
         className="inline-flex items-center gap-1.5 font-mono text-xs text-rc-blue hover:text-rc-ink"
       >
         Read the debrief

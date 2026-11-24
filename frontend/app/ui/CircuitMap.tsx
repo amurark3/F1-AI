@@ -15,6 +15,9 @@ import {
 } from "./outlinePath";
 import { f1, font, rc } from "./tokens";
 
+/** The circuit frame's height, shared by the figure, its skeleton and its "unavailable" state. */
+export const CIRCUIT_FRAME = "min-h-[300px] sm:min-h-[400px] lg:min-h-[480px]";
+
 /** Seconds the marker takes to lap the outline. */
 const LAP_SECONDS = 9;
 /** The comet's tail, as a fraction of the lap. */
@@ -36,6 +39,11 @@ const LEADER_WIDTH = 2;
  * motion — and added only after hydration, because the server cannot know the
  * reader's preference and the first client render must match its HTML. The
  * draw-in and labels sit behind `motion-safe:` like every other animation.
+ *
+ * The map fills its nearest positioned parent and never sizes it: each outline
+ * has its own aspect ratio, so a frame sized by the drawing would jump when the
+ * map landed. The frame takes `CIRCUIT_FRAME`, as do its skeleton and its
+ * "unavailable" state, so all three are the same height.
  */
 export function CircuitMap({ map, name }: { map: CircuitMapData; name: string }) {
   const hydrated = useIsHydrated();
@@ -49,7 +57,12 @@ export function CircuitMap({ map, name }: { map: CircuitMapData; name: string })
   const labels = useMemo(() => circuitCornerLabels(map), [map]);
 
   return (
-    <svg viewBox={`0 0 ${map.width} ${map.height}`} className="h-full w-full" role="img" aria-label={`${name} layout`}>
+    <svg
+      viewBox={`0 0 ${map.width} ${map.height}`}
+      className="absolute inset-0 h-full w-full"
+      role="img"
+      aria-label={`${name} layout`}
+    >
       <defs>
         <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="12" />

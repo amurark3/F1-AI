@@ -1,7 +1,7 @@
 "use client";
 
 import { LocalTime } from "@/app/components/LocalTime";
-import { CircuitMap } from "@/app/ui/CircuitMap";
+import { CIRCUIT_FRAME, CircuitMap } from "@/app/ui/CircuitMap";
 import { Countdown } from "@/app/ui/Countdown";
 import { nextUp } from "@/app/ui/nextUp";
 import { PageHero } from "@/app/ui/PageHero";
@@ -56,17 +56,21 @@ function NextSessionCountdown({ sessions }: { sessions: Record<string, string> }
 }
 
 function MapSlot({ circuit, loading, name }: { circuit: OverviewCircuit | undefined; loading: boolean; name: string }) {
-  if (loading) return <SkeletonPanel className="h-full min-h-[240px]" />;
+  if (loading) return <SkeletonPanel className={`h-full ${CIRCUIT_FRAME}`} />;
   if (!circuit?.map) {
     return (
-      <div className="flex h-full min-h-[240px] items-center justify-center rounded-md border border-dashed border-rc-line text-sm text-rc-ink-3">
+      <div
+        className={`flex h-full items-center justify-center rounded-md border border-dashed border-rc-line text-sm text-rc-ink-3 ${CIRCUIT_FRAME}`}
+      >
         Circuit map unavailable
       </div>
     );
   }
   return (
-    <figure className="flex h-full flex-col rounded-md border border-rc-line bg-rc-hero p-5 [background-image:radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:18px_18px] sm:p-[22px]">
-      <div className="min-h-[240px] flex-1">
+    <figure
+      className={`flex h-full flex-col rounded-md border border-rc-line bg-rc-hero p-5 [background-image:radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:18px_18px] sm:p-[22px] ${CIRCUIT_FRAME}`}
+    >
+      <div className="relative flex-1">
         <CircuitMap map={circuit.map} name={name} />
       </div>
       <figcaption className="mt-2 text-right font-mono text-[10px] uppercase tracking-[0.16em] text-rc-ink-3">

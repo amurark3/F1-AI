@@ -216,6 +216,11 @@ test("This race leaves post-race views disabled on a 390 px screen while the rac
   await expect(nav.locator("a, button")).toHaveText(["Grand Prix", "Telemetry", "Debrief", "Rewind"]);
   await expect(nav.getByRole("button", { name: "Debrief" })).toBeDisabled();
   await expect(nav.getByRole("button", { name: "Rewind" })).toBeDisabled();
+  await nav.getByRole("button", { name: "Debrief" }).hover();
+  await expect(page.getByRole("tooltip").filter({ visible: true })).toHaveText(
+    "Unlocks once the race classification is published.",
+  );
+  await page.keyboard.press("Escape");
   const switcherTop = await documentTop(nav);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE.width);
   await nav.getByRole("link", { name: "Telemetry" }).click();

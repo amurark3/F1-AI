@@ -1,28 +1,23 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import Link from "next/link";
 
-import { API_BASE } from "@/app/constants/api";
 import type { RaceEvent } from "@/app/race-control/grand-prix/predictionModel";
-import type { RaceResultsResponse } from "@/app/race-control/grand-prix/resultsModel";
 
-import { useSection } from "../section/useSection";
 import { RACES, RACE_VIEWS, type RaceView } from "../shell/navConfig";
+import { Tooltip } from "../Tooltip";
 import { EYEBROW } from "../typography";
 
 import { raceQuery } from "./raceUrl";
+import { RACE_LOCK, useRaceResults } from "./useRaceResults";
 
-const RESULT_CONFIG = { revalidateOnFocus: false, dedupingInterval: 120_000 };
 const ITEM = "relative py-2 font-display text-[15px] font-bold uppercase tracking-wide sm:py-3";
 
 /** The four views of the selected race, using a published race classification to unlock the post-race views. */
 export function ThisRace({ year, race, view }: { year: number; race: RaceEvent; view: RaceView }) {
   const { round } = race;
-  const results = useSection<RaceResultsResponse>(
-    race.status === "upcoming" ? null : `${API_BASE}/api/race-control/results/${year}/${round}`,
-    { config: RESULT_CONFIG },
-  );
+  const results = useRaceResults(year, race);
   const classified = Boolean(results.data?.race?.classification.length);
   const query = raceQuery(round, year);
 
@@ -36,16 +31,20 @@ export function ThisRace({ year, race, view }: { year: number; race: RaceEvent; 
         const here = RACE_VIEWS[view].href === link.href ? "page" : undefined;
         const label = "switcherLabel" in link ? link.switcherLabel : link.label;
         return "afterRace" in link && !classified ? (
-          <button
+          <Tooltip
             key={link.href}
-            type="button"
-            disabled
+            aria-disabled="true"
             aria-current={here}
-            className={`${ITEM} inline-flex items-center gap-1.5 text-rc-ink-3 disabled:cursor-not-allowed`}
+            label={
+              <>
+                {label}
+                <LockKeyhole aria-hidden="true" className="size-3 shrink-0" />
+              </>
+            }
+            className={`${ITEM} inline-flex items-center gap-1.5 text-rc-ink-3 cursor-not-allowed!`}
           >
-            {label}
-            <Lock aria-hidden="true" className="size-3 shrink-0" />
-          </button>
+            {RACE_LOCK}
+          </Tooltip>
         ) : (
           <Link
             key={link.href}

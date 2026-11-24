@@ -26,7 +26,8 @@ interface ClinchHeroLineProps extends ClinchLineProps {
 /** The hero's sentence under a championship: where it was clinched, or what the leader must do next. */
 export function ClinchHeroLine({ year, table, fallback }: ClinchHeroLineProps) {
   const state = useClinch(year);
-  if (state.status === "pending") return <SectionSkeleton className="h-[26px] max-w-[46ch]" />;
+  // Two lines of the 17px sentence, its usual length, so the hero holds still when it lands.
+  if (state.status === "pending") return <SectionSkeleton className="h-[51px] max-w-[46ch]" />;
   const title = state.data?.[table];
   const parts = title ? heroSentence(table, title) : null;
   return (

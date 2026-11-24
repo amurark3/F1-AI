@@ -1,6 +1,9 @@
 "use client";
 
+import { LockKeyhole } from "lucide-react";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
+
+import { Tooltip } from "@/app/ui/Tooltip";
 
 export interface TabItem<K extends string> {
   key: K;
@@ -8,6 +11,8 @@ export interface TabItem<K extends string> {
   /** Tooltip, for what the tab holds. */
   title?: string;
   disabled?: boolean;
+  /** Why the tab has nothing yet: it shows a lock, explains itself in a tooltip, and can't be chosen. */
+  locked?: string;
 }
 
 interface TabsProps<K extends string> {
@@ -66,7 +71,7 @@ export function Tabs<K extends string>({
 }: TabsProps<K>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const styles = VARIANT_STYLES[variant];
-  const enabled = items.filter((item) => !item.disabled);
+  const enabled = items.filter((item) => !item.disabled && !item.locked);
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, key: K) => {
     const move = MOVES[event.key];
@@ -85,6 +90,28 @@ export function Tabs<K extends string>({
     <div role="tablist" aria-label={label} className={styles.list}>
       {items.map((item, index) => {
         const selected = item.key === active;
+        if (item.locked) {
+          return (
+            <Tooltip
+              key={item.key}
+              role="tab"
+              id={tabId(idPrefix, item.key)}
+              aria-selected={selected}
+              aria-controls={panelId(idPrefix)}
+              aria-disabled="true"
+              tabIndex={selected ? 0 : -1}
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  {item.label}
+                  <LockKeyhole aria-hidden="true" className="size-3 shrink-0" />
+                </span>
+              }
+              className={`${styles.tab} text-rc-ink-3 cursor-not-allowed!`}
+            >
+              {item.locked}
+            </Tooltip>
+          );
+        }
         return (
           <button
             key={item.key}

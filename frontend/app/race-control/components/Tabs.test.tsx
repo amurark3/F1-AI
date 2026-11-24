@@ -26,6 +26,58 @@ function Harness({ variant, start = "weekend" }: { variant?: "underline" | "segm
   );
 }
 
+describe("a locked tab", () => {
+  it("shows a lock, explains itself on hover, can't be chosen and is skipped by the arrow keys", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <Tabs
+        items={[
+          { key: "weekend", label: "Weekend" },
+          { key: "stints", label: "Stints", locked: "Unlocks once the race classification is published." },
+          { key: "grid", label: "Grid" },
+        ]}
+        active="weekend"
+        onChange={onChange}
+        idPrefix="gp"
+        label="Grand Prix"
+      />,
+    );
+
+    const stints = screen.getByRole("tab", { name: "Stints" });
+    expect(stints).toHaveAttribute("aria-disabled", "true");
+    await user.hover(stints);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Unlocks once the race classification is published.");
+    await user.click(stints);
+    expect(onChange).not.toHaveBeenCalled();
+
+    screen.getByRole("tab", { name: "Weekend" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onChange).toHaveBeenCalledWith("grid");
+  });
+});
+
+describe("a locked tab the URL points at", () => {
+  it("stays selected and keeps the tab stop", () => {
+    render(
+      <Tabs
+        items={[
+          { key: "weekend", label: "Weekend" },
+          { key: "stints", label: "Stints", locked: "Unlocks once the race classification is published." },
+        ]}
+        active="stints"
+        onChange={vi.fn()}
+        idPrefix="gp"
+        label="Grand Prix"
+      />,
+    );
+
+    const stints = screen.getByRole("tab", { name: "Stints" });
+    expect(stints).toHaveAttribute("aria-selected", "true");
+    expect(stints).toHaveAttribute("tabindex", "0");
+  });
+});
+
 describe("tab ids", () => {
   it("tie each tab to the one panel", () => {
     expect(tabId("gp", "grid")).toBe("gp-tab-grid");

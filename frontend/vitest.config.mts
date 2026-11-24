@@ -28,7 +28,13 @@ export default defineConfig({
     environment: "jsdom",
     // Unit and component tests sit next to their subject; e2e/ belongs to Playwright.
     include: ["app/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
-    setupFiles: ["./test/setup.ts"],
+    // One jsdom per worker, not per file (was 42% of run time); files stay isolated.
+    pool: "vmThreads",
+    // Uncapped, vmThreads filled the machine and crashed VS Code: leave half the
+    // cores free, and recycle a worker before its leaked VM contexts grow large.
+    maxWorkers: "50%",
+    vmMemoryLimit: "1GB",
+    setupFiles: ["./test/webStreams.ts", "./test/setup.ts"],
     restoreMocks: true,
     coverage: {
       provider: "v8",

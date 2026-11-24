@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { RacePicker } from "@/app/ui/race-picker/RacePicker";
+import { useRaceResults } from "@/app/ui/race-picker/useRaceResults";
 
 import { SectionLoader, SkeletonPanel } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
 import { GridTab } from "./GridTab";
 import { HubAlerts, RaceHeader } from "./HubHeader";
-import { HUB_TABS, type HubTab, type PredictionView } from "./hubNavigation";
+import { gridSet, hubTabs, type HubTab, type PredictionView } from "./hubNavigation";
 import { buildDriverLookup } from "./predictionHelpers";
 import { PredictionSection } from "./PredictionSection";
 import { ResultsTab } from "./ResultsTab";
@@ -176,6 +177,8 @@ export interface GrandPrixBoardProps {
 export function GrandPrixBoard(props: GrandPrixBoardProps) {
   const { activeTab } = props;
   const driverLookup = useMemo(() => buildDriverLookup(props.drivers), [props.drivers]);
+  const results = useRaceResults(props.year, props.selectedRace).data;
+  const tabs = hubTabs(props.selectedRace?.status === "upcoming" ? null : results, gridSet(props.grid, props.sessions));
 
   return (
     <div className="space-y-4">
@@ -195,7 +198,7 @@ export function GrandPrixBoard(props: GrandPrixBoardProps) {
       )}
 
       <Tabs
-        items={HUB_TABS}
+        items={tabs}
         active={activeTab}
         onChange={props.onSelectTab}
         idPrefix={HUB_TABS_ID}

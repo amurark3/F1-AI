@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -46,7 +47,9 @@ describe("ThisRace", () => {
     ).toEqual(["Grand Prix", "Telemetry"]);
     const locked = nav().getAllByRole("button");
     expect(locked.map((button) => button.textContent)).toEqual(["Debrief", "Rewind"]);
-    for (const button of locked) expect(button).toBeDisabled();
+    for (const button of locked) expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.hover(locked[0]);
+    expect(locked[0]).toHaveAccessibleDescription("Unlocks once the race classification is published.");
     expect(nav().queryByText("after the race")).not.toBeInTheDocument();
   });
 

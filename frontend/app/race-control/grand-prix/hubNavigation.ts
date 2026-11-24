@@ -8,8 +8,12 @@
 
 import type { GrandPrixTab } from "@/app/lib/entityLinks";
 import { raceQuery, readRaceYear } from "@/app/ui/race-picker/raceUrl";
+import { RACE_LOCK } from "@/app/ui/race-picker/useRaceResults";
 
+import type { StartingGridResponse } from "./gridModel";
 import type { RaceEvent } from "./predictionModel";
+import type { RaceResultsResponse } from "./resultsModel";
+import type { WeekendSessionsResponse } from "./sessionsModel";
 
 export type HubTab = GrandPrixTab;
 
@@ -24,6 +28,39 @@ export const HUB_TABS: ReadonlyArray<{ key: HubTab; label: string }> = [
   { key: "stints", label: "Stints" },
   { key: "predictions", label: "Predictions" },
 ];
+
+/**
+ * Whether qualifying has set a grid yet: the Grand Prix's, or on a sprint weekend
+ * the sprint's. `undefined` until both calls have answered.
+ */
+export function gridSet(grid?: StartingGridResponse, sessions?: WeekendSessionsResponse): boolean | undefined {
+  if (grid?.available || sessions?.sessions.some((session) => session.kind === "grid")) return true;
+  return grid && sessions ? false : undefined;
+}
+
+/**
+ * The tab strip, each section locked until it has something to show: Grid needs
+ * qualifying, Results a sprint or race classification, Stints the race's.
+ * Unknown (`undefined`: loading, failed, or no round yet) locks nothing; `null`
+ * results mean the round has not started.
+ */
+export function hubTabs(
+  results: RaceResultsResponse | null | undefined,
+  hasGrid?: boolean,
+): ReadonlyArray<{ key: HubTab; label: string; locked?: string }> {
+  const race = Boolean(results?.race?.classification.length);
+  const any = race || Boolean(results?.sprint?.classification.length);
+  const known = results !== undefined;
+  const reasons: Partial<Record<HubTab, string | false>> = {
+    grid: hasGrid === false && "Unlocks once qualifying sets the starting grid.",
+    results: known && !any && "Unlocks once the sprint or race classification is published.",
+    stints: known && !race && RACE_LOCK,
+  };
+  return HUB_TABS.map((tab) => {
+    const locked = reasons[tab.key];
+    return locked ? { ...tab, locked } : tab;
+  });
+}
 
 export const PREDICTION_VIEWS: ReadonlyArray<{ key: PredictionView; label: string; title: string }> = [
   { key: "order", label: "Order", title: "The predicted finishing order" },

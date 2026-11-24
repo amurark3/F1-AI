@@ -79,7 +79,7 @@ export function PodiumPanel({ podium }: { podium: PodiumPick[] }) {
       )}
 
       <Link
-        href="/race-control/grand-prix?tab=predictions&view=order"
+        href="/race-control/grand-prix?tab=predictions&view=order#predictions"
         className="mt-5 inline-block font-mono text-xs font-semibold uppercase tracking-[0.14em] text-rc-ink hover:underline"
       >
         Full predicted order →

@@ -54,7 +54,7 @@ describe("PodiumPanel", () => {
     expect(screen.queryByText(/% conf\.$/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Full predicted order →" })).toHaveAttribute(
       "href",
-      "/race-control/grand-prix?tab=predictions&view=order",
+      "/race-control/grand-prix?tab=predictions&view=order#predictions",
     );
   });
 });

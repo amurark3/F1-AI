@@ -2,6 +2,8 @@
 
 import { AlertTriangle, LockKeyhole } from "lucide-react";
 
+import { scrollToHashTarget } from "@/app/lib/scrollToHashTarget";
+
 import { InlineNotice, Panel, rcFont, SectionLoader } from "../components/RaceControlPrimitives";
 import { TabPanel, Tabs } from "../components/Tabs";
 
@@ -183,7 +185,7 @@ const VIEWS_ID = "prediction-views";
 export function PredictionSection(props: GrandPrixBoardProps & { driverLookup: DriverLookup }) {
   const hasPredictions = props.predictions.length > 0;
   return (
-    <div className="space-y-4">
+    <div id="predictions" ref={scrollToHashTarget} className="scroll-mt-[84px] space-y-4">
       <PredictionBar
         states={props.phaseStates}
         activePhase={props.activePhase}

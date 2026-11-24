@@ -11,7 +11,7 @@ Plan: [`PLAN.md`](PLAN.md). **Read its "How to run this plan" section before tou
 
 ## Current focus
 
-- **Now (2026-11-23): P3.5 and P3.6 are done and merged on `dev`, which completes phase P3.** P3 is ready for its PR, `feat: restart lights and non-blocking pages (P3.5, P3.6)`, which the user opens. **Next: P9** (user: "after that continue with P9"). Before that: P3.5 and P3.6 ran in parallel (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
+- **Now (2026-11-23): P3.5 and P3.6 are done and merged on `dev`, which completes phase P3.** P3 is ready for its PR, `feat: restart lights and non-blocking pages (P3.5, P3.6)`, which the user opens. **P9 is done too** (P9.1, merged `0f2b3de`), so P3 and P9 are both ready for their PR(s). No open `todo` task remains in the redesign plan; only P0c.9 and P0b.1b are left, both blocked on Oracle. Before that: P3.5 and P3.6 ran in parallel (user: "start these parallely"). Neither waits for Oracle any more (see the log, 2026-11-23). Then P9.1.
 - **Merged:** every redesign PR through #112 (N2, P8.1, P6.2; 2026-11-23). Their rows and log are in the archive.
 - **Also open:** PR #113, backend hardening from the 2026-11-23 audit (`docs/plans/2026-11-hardening/`, its own STATUS).
 - **Hosting (user, 2026-11-18): P0c is on hold.** Oracle has no A1 capacity, so Render stays production, kept warm by a cron-job.org GET on `/api/health/deep` every 5 minutes. Hugging Face Spaces is not an option (it needs PRO, 2026-11-22).
@@ -37,7 +37,7 @@ Open tasks only. `done` rows are in [`STATUS-archive.md`](STATUS-archive.md).
 | P0b.1b | Weather: diagnose the Open-Meteo failures from the VM's logs | blocked | | Waits for the P0c cutover (`feat/oracle-backend`). |
 | P3.5 | Restart lights: from the real `/api/ready` stages, never blocking, top-bar chip slot | done | P3.5a `8370c40`, P3.5b `5434be4` (merge `f9b6788`) | **Done 2026-11-23.** Mockup `restart-lights.html` (Opus + design-director); build by a Sonnet worktree executor, merged into `dev`. On `dev` with P3.6: lint + typecheck clean, coverage 100 % (6602/6602 statements), build clean, e2e 81 passed. |
 | P3.6 | Non-blocking pages: no page-level backend awaits | done | P3.6a `e9254a2`, b `680d5d2`, c `c5a2ca9`, d `e7d9c1a` (merge `5785bbe`) | **Done 2026-11-23.** Opus brief `p3.6-brief.md`, Sonnet worktree executor. `next dev` against a 20 s stub: TTFB 10.1 s → 0.05 s on `/race-control`, `/grand-prix`, `/telemetry`. Route table unchanged (ISR symbols and revalidate values). `e2e/non-blocking.spec.ts` 15 passed. Same final gates as P3.5. |
-| P9.1 | Coverage completion to 100% across `app/**` | in_progress (2026-11-23) | | Sized 2026-11-23: 17 of 327 files below 100 %, 132 statements and 73 branches uncovered (see the log). Sonnet worktree executor, no brief: the plan text plus the file list is the spec. |
+| P9.1 | Coverage completion to 100% across `app/**` | done | `3339d32` (merge `0f2b3de`) | **Done 2026-11-23** (Sonnet worktree executor, no brief). The gate is now `app/**/*.{ts,tsx}`, excluding only tests and `.d.ts`, at 100 % per file. On `dev`: lint + typecheck clean, vitest 243 files / 2104 tests passed, 100 % (6852 statements, 5626 branches), build clean, e2e 81 passed. CI enforces it through `npm run test:coverage` in `pr-auto-review.yml`. |
 
 ## Log (append only; newest at the bottom)
 
@@ -101,4 +101,12 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
     - `race-control/components/Charts.tsx` 8/12; `components/LocalTime.tsx` 21/24.
     - Branch gaps only: `lib/entityLinks.ts`, `lib/formatTime.ts`, `constants/api.ts`.
     - One-statement pages: `calendar`, `consumer`, `predictions`, `race-control/intel`, `race-control/predictions`.
+- **2026-11-23 · P9.1 merged into `dev` (`0f2b3de`, branch commit `3339d32`); P9.1 done.**
+  - **Gate:** `COVERAGE_INCLUDE = ["app/**/*.{ts,tsx}"]`, excluding only `*.test.*` and `*.d.ts` (there are none under `app/` today). Per-file 100 % is unchanged. Config files sit outside `app/` and stay outside the gate.
+  - **New tests:** `lib/server/{backend,champions,profiles,raceControl}`, `useLiveTiming` (mock WebSocket), `errorTracking`, `LocalTime`, `entityLinks`, `formatTime`, `constants/api`, and `app/redirects.test.ts` (the five redirect pages; none has a `next.config.ts` redirect, so all are kept). `Charts.test.tsx` now covers the attribution tooltip.
+  - **Deleted:** `utils/errors.ts`, which had no importer (coordinator re-checked).
+  - **`backend.ts` edit, structural only:** the retry loop's trailing `return null` was unreachable, so the loop condition moved into the body. It still returns at `attempt === MAX_ATTEMPTS`, and the budget check runs every pass (coordinator read it). Render's settings (10 s, 429 retry, 12 prerendered seasons) are now pinned by tests.
+  - **Found, not fixed:**
+    - `useLiveTiming` never reconnects after a socket error; a dropped socket stays down until the year or round changes.
+    - In `raceControl.ts`, a stray doc comment stacks above `getPredictionSnapshot`'s JSDoc.
 

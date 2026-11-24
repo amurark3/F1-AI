@@ -109,4 +109,8 @@ Entries up to 2026-11-23 (through PR #112) are in [`STATUS-archive.md`](STATUS-a
   - **Found, not fixed:**
     - `useLiveTiming` never reconnects after a socket error; a dropped socket stays down until the year or round changes.
     - In `raceControl.ts`, a stray doc comment stacks above `getPredictionSnapshot`'s JSDoc.
+- **2026-11-23 · Bug fixes for PR #114 (user: "Fix the bugs as well"; coordinator, inline).**
+  - **`useLiveTiming` reconnects.** A dropped socket now reopens after 1 s, doubling up to 30 s; the delay resets after a successful open. Unmount, or a year or round change, stops retries, and a late close from an old socket is ignored. Before, the tower sat on "Connecting to live timing…" until the round changed. The tests were written first and failed first. Frontend 2107 tests at 100 %, e2e 81 passed.
+  - **Stacked doc comment** above `getPredictionSnapshot` merged into its JSDoc.
+  - **Metadata wait for link-preview bots: not changed, by decision.** Those pages are prerendered and cached, so bots get cached HTML. The wait happens only on an uncached page while the backend is slow. A short metadata timeout would then show a generic title in exactly those previews.
 

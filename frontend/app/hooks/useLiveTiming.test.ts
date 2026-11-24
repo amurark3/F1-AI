@@ -101,4 +101,72 @@ describe("useLiveTiming", () => {
 
     expect(socket().close).toHaveBeenCalledOnce();
   });
+
+  describe("after the connection drops", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const latest = () => MockSocket.instances.at(-1);
+
+    it("reconnects, backing off from 1 s and doubling up to 30 s", () => {
+      renderHook(() => useLiveTiming(2026, 5));
+      const delays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000];
+
+      delays.forEach((delay, i) => {
+        act(() => latest()?.onclose?.());
+        act(() => {
+          vi.advanceTimersByTime(delay - 1);
+        });
+        expect(MockSocket.instances).toHaveLength(i + 1);
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+        expect(MockSocket.instances).toHaveLength(i + 2);
+      });
+      expect(latest()?.url).toBe("ws://localhost:8000/api/live/2026/5");
+    });
+
+    it("starts the back-off over once a reconnect opens", () => {
+      const { result } = renderHook(() => useLiveTiming(2026, 5));
+
+      act(() => latest()?.onclose?.());
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      act(() => latest()?.onclose?.());
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      act(() => latest()?.onopen?.());
+      expect(result.current.isConnected).toBe(true);
+
+      act(() => latest()?.onclose?.());
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(MockSocket.instances).toHaveLength(4);
+    });
+
+    it("stops reconnecting on unmount, and a late close from the old socket is ignored", () => {
+      const { unmount } = renderHook(() => useLiveTiming(2026, 5));
+
+      act(() => latest()?.onclose?.());
+      unmount();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(MockSocket.instances).toHaveLength(1);
+
+      act(() => socket().onclose?.());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(MockSocket.instances).toHaveLength(1);
+    });
+  });
 });

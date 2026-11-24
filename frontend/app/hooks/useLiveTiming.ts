@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 import { API_BASE } from "../constants/api";
 
@@ -42,11 +42,18 @@ export interface SessionStatus {
 type LiveMessage =
   { type: "positions"; data: LivePosition[] } | { type: "session_status"; data: SessionStatus } | { type: "ping" };
 
+/** First reconnect delay after the socket drops; it doubles per failed try. */
+const RECONNECT_BASE_MS = 1_000;
+/** Longest wait between reconnect tries, so a long outage still recovers within this. */
+const RECONNECT_MAX_MS = 30_000;
+
+/** Delay before reconnect try `attempt` (0-based): 1 s, 2 s, 4 s … capped. */
+const reconnectDelay = (attempt: number): number => Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
+
 export function useLiveTiming(year: number, round: number) {
   const [positions, setPositions] = useState<LivePosition[]>([]);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     // Don't open a WebSocket for invalid year/round (e.g. no live race)
@@ -55,22 +62,37 @@ export function useLiveTiming(year: number, round: number) {
     const wsBase = API_BASE.replace(/^https/, "wss").replace(/^http/, "ws");
     const url = `${wsBase}/api/live/${year}/${round}`;
 
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    let ws: WebSocket | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+    let disposed = false;
 
-    ws.onopen = () => {
-      setIsConnected(true);
+    // A dropped socket (deploy, network blip, proxy timeout) reopens on its
+    // own; without this the tower sat on "Connecting…" until the round changed.
+    const connect = () => {
+      const socket = new WebSocket(url);
+      ws = socket;
+
+      socket.onopen = () => {
+        attempt = 0;
+        setIsConnected(true);
+      };
+
+      socket.onclose = () => {
+        setIsConnected(false);
+        if (disposed || socket !== ws) return;
+        retryTimer = setTimeout(connect, reconnectDelay(attempt));
+        attempt += 1;
+      };
+
+      socket.onerror = () => {
+        setIsConnected(false);
+      };
+
+      socket.onmessage = handleMessage;
     };
 
-    ws.onclose = () => {
-      setIsConnected(false);
-    };
-
-    ws.onerror = () => {
-      setIsConnected(false);
-    };
-
-    ws.onmessage = (event: MessageEvent) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data as string) as LiveMessage;
         switch (msg.type) {
@@ -92,10 +114,14 @@ export function useLiveTiming(year: number, round: number) {
       }
     };
 
+    connect();
+
     return () => {
+      disposed = true;
+      clearTimeout(retryTimer);
       setPositions([]);
       setSessionStatus(null);
-      ws.close();
+      ws?.close();
     };
   }, [year, round]);
 

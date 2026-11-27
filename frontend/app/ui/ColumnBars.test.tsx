@@ -124,6 +124,7 @@ describe("ColumnBars", () => {
     expect(list.style.minWidth).toBe("40px");
     expect(list.style.height).toBe("200px");
     expect(list.parentElement?.className).toContain("overflow-x-auto");
+    expect(list.parentElement?.className).toContain("overflow-y-hidden");
     expect(list.parentElement?.className).toContain("extra");
   });
 

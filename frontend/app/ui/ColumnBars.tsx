@@ -100,7 +100,7 @@ export function ColumnBars({ items, label, max, height = 160, className = "" }: 
   const scale = scaleOf(items, max);
   const signed = items.some((item) => (item.value ?? 0) < 0);
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className={`overflow-x-auto overflow-y-hidden ${className}`}>
       <ol
         aria-label={label}
         className="grid gap-1"

@@ -38,7 +38,7 @@ describe("Tooltip", () => {
     expect(trigger).toHaveAccessibleDescription("Base: f1db v2026.19.0");
     expect(trigger).toHaveAttribute("type", "button");
     expect(trigger).toHaveAttribute("data-status", "confirmed");
-    expect(trigger).toHaveClass("ml-2", "cursor-help");
+    expect(trigger).toHaveClass("ml-2", "cursor-default");
     expect(tip().parentElement).toBe(document.body);
     expect(tip()).toHaveAttribute("data-state", "closed");
     expect(tip()).toHaveClass("invisible", "fixed");

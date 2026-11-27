@@ -79,7 +79,7 @@ export function Tooltip({ label, children, className = "", ...buttonProps }: Too
           place(event.currentTarget);
           setPinned((current) => !current);
         }}
-        className={`cursor-help focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rc-red-text ${className}`}
+        className={`cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rc-red-text ${className}`}
         {...buttonProps}
       >
         {label}
